@@ -1,79 +1,4 @@
-# wayfinder Specification
-
-## Purpose
-将 DecompMoE（"decomposed Mixture of Experts"）的设计资产以 OpenSpec capability 形式固化，作为 Decoder-Only Llama 框架内 Post-FFN 几何路由（geometric routing）的唯一形式化真相源。该 capability 覆盖命名/术语、拓扑挂载点、C 签名提取算子、几何门控、专家结构、损失与数值稳定、5 阶段时间驱动调度、Prefill/Decode 解耦推理、6 类 baseline 与 8 项几何量化指标；显式排除 Linear Attention / SSM / RNN、训练执行、论文写作与从 dense / 其他 MoE 的 checkpoint 转换。
-
-## Requirements
-
-<a id="req-1"></a>
-
-### Requirement: Naming And Alias Convention
-
-The system MUST adopt **DecompMoE** as the canonical project name and MUST preserve **GeoMoE** as a documented alias.
-
-**Source:** `wayfinder/tickets/A0-1.md`
-
-#### Scenario: Canonical reference resolution
-- **WHEN** any artifact, doc, or code comment refers to the project
-- **THEN** the reference uses "DecompMoE" as the primary name, with "GeoMoE" only as a secondary alias inside design prose
-
-<a id="req-2"></a>
-
-### Requirement: Formal Symbols And Code Naming
-
-The system MUST use formal symbol `Σ_i` (per-expert covariance), `P_i = Σ_i^{-1}` (precision matrix), and the subscript convention `(i, l, h, t)` for expert / layer / head / token. Under per-layer head-aggregation, head subscript `h` MUST be elided and symbols MUST collapse to per-layer `C_t^l`, `c_i^l`, `Σ_i^l`, `P_i^l`. Code identifiers MUST map to: `GeometricRouter`, `TerritoryHolder`, `territory_volume`, `active_territories`, `coverage_balance_loss`, `territory_seeding`, `territory_collapse`.
-
-**Source:** `wayfinder/tickets/A1-1.md`, `wayfinder/tickets/A2-2.md`
-
-#### Scenario: Notation is unambiguous
-- **WHEN** a formula appears in a spec, design, or doc
-- **THEN** the formula uses the locked subscripts and matches the code-identifier mapping table
-
-<a id="req-3"></a>
-
-### Requirement: Post-FFN Geometric Mount Point
-
-The system MUST mount the geometric routing chain at the **Post-FFN** position of each Decoder-Only Llama block. The system MUST NOT introduce Pre-Attention Dynamic Bias as a routing mechanism. FlashAttention, PagedAttention, and expert-parallel frameworks MUST remain untouched.
-
-**Source:** `wayfinder/tickets/A2-1.md`
-
-#### Scenario: Mount point preserves attention subsystem
-- **WHEN** the routing chain executes for a token
-- **THEN** it consumes the Post-FFN residual stream output and produces a residual-stream add, leaving Q/K/V paths and the attention subsystem unmodified
-
-#### Scenario: Pre-Attention Dynamic Bias is out of scope
-- **WHEN** the spec is reviewed
-- **THEN** Pre-Attention Dynamic Bias appears only in Future Work notes and not as an active requirement
-
-<a id="req-4"></a>
-
-### Requirement: Layer-Wise Head-Aggregated Routing
-
-The system MUST compute **one** per-layer territory signature `C_t^l ∈ S^{d_c-1}` by aggregating the per-head projected-and-normalized signatures with a cross-head mean. Per-head territory routing and cross-layer KV conditioning MUST NOT be in scope.
-
-**Source:** `wayfinder/tickets/A2-2.md`
-
-#### Scenario: One C per layer per token
-- **WHEN** a token passes through layer `l`
-- **THEN** exactly one `C_t^l` exists and is consumed by the gating function of layer `l`
-
-<a id="req-5"></a>
-
-### Requirement: Spherical Normalized C Extraction
-
-The system MUST extract `C_t^l` using a four-step pipeline that enforces spherical geometry throughout: (1) per-head low-rank projection `z_t^{l,h} = W_{l,h}^K · k_t^{l,h} + W_{l,h}^V · v_t^{l,h} + b_{l,h}`; (2) per-head spherical projection `C_t^{l,h} = z_t^{l,h} / (||z_t^{l,h}|| + ε)`; (3) cross-head mean `z̄_t^l = (1/H_kv) · Σ_h C_t^{l,h}`; (4) final spherical projection `C_t^l = z̄_t^l / (||z̄_t^l|| + ε)`. The pipeline MUST be Grouped-Query-Attention aware (using `H_kv`). The per-token time complexity MUST be `O(H_kv · d_c · d_k)` and space MUST be `O(d_c)`.
-
-**Source:** `wayfinder/tickets/A3-1.md`
-
-#### Scenario: Output stays on the unit sphere
-- **WHEN** the pipeline produces `C_t^l`
-- **THEN** `||C_t^l||₂ = 1` (within floating-point tolerance) and `C_t^l ∈ S^{d_c-1}`
-
-#### Scenario: Complexity budget holds
-- **WHEN** `H_kv`, `d_c`, `d_k` are concrete values (e.g. `H_kv=8, d_c=16, d_k=128`)
-- **THEN** per-token compute is O(`H_kv · d_c · d_k`) and resident memory for the activation is O(`d_c`)
-
-<a id="req-6"></a>
+## MODIFIED Requirements
 
 ### Requirement: C Extraction Differentiability And Centroid Lifecycle
 
@@ -110,7 +35,7 @@ The system MUST compute the extraction in a fully differentiable manner (the D-p
 - **WHEN** the driver channel completes a step in any Phase
 - **THEN** `max_i |‖c_i‖₂ − 1.0| < 10⁻⁷`; on near-zero candidate `‖u_i‖₂ < 10⁻⁹`, `c_i^(t+1) == c_i^(t)` and no NaN is produced
 
-<a id="req-7"></a>
+---
 
 ### Requirement: Isotropic Squared-Chord Distance And Bounded Beta
 
@@ -135,51 +60,7 @@ Per-expert scalar weights `w_i` MUST NOT appear in the logit; the mixing weight 
 - **WHEN** the logit is computed for gating
 - **THEN** no learnable per-expert scalar weight `w_i` participates in `logit = β(C^T c − 1)`; mixing weights are exactly the softmax probabilities `p_i`
 
-<a id="req-8"></a>
-
-### Requirement: Top-K Sparse Mask With Local Softmax Gating
-
-The system MUST route each token through exactly **k = 2** experts using a pure geometric convex combination. The forward equation MUST be `x_out = x + Σ_{i ∈ I_k} p_i · Expert_i(x)` where `I_k` is the top-k logit index set and `p_i = softmax(logit_j)_{j ∈ I_k}` is a local softmax restricted to `I_k`, guaranteeing `Σ p_i ≡ 1`. Non-top-k experts MUST be masked with logit `−∞` (a non-finite sentinel, not a large negative finite value) so their probabilities and gradients are exactly zero without a Straight-Through Estimator.
-
-**Source:** `wayfinder/tickets/A4-2.md`
-
-#### Scenario: Native sparse sub-gradient
-- **WHEN** back-propagation reaches the masking step
-- **THEN** non-top-k experts receive exactly zero gradient; top-k experts receive standard softmax-Jacobian gradients
-
-#### Scenario: Convex combination constraint
-- **WHEN** the gate emits `p_i`
-- **THEN** `Σ_{i ∈ I_k} p_i = 1.0` and the residual stream add is `x + Σ p_i · Expert_i(x)`
-
-<a id="req-9"></a>
-
-### Requirement: Standard SwiGLU FFN Expert
-
-The system MUST implement each expert as a Standard SwiGLU FFN, isomorphic to the Llama baseline FFN: `Expert_i(x) = (SiLU(x W_i^g) ⊙ x W_i^u) W_i^d`. Each expert MUST consume `3 · d_model · d_ffn` parameters and `k · 3 · d_model · d_ffn` activations per routed token. The expert MUST receive zero `C`-derived injection, so that performance differences are attributable solely to the routing chain (A0–A4). The system MUST NOT introduce a custom kernel for the SwiGLU FFN; standard vLLM / Megatron / DeepSpeed SwiGLU kernels MUST be reusable.
-
-**Source:** `wayfinder/tickets/A5-1.md`
-
-#### Scenario: No C injection inside experts
-- **WHEN** `Expert_i(x)` is computed
-- **THEN** the input `x` is the Post-FFN residual stream at the mount point and no `C` or `c_i` derived signal enters the expert
-
-#### Scenario: SwiGLU kernel reuse
-- **WHEN** the system is deployed on a supported framework
-- **THEN** the SwiGLU FFN runs through that framework's fused SwiGLU kernel with no custom CUDA / / retargeting replacement
-
-<a id="req-10"></a>
-
-### Requirement: No Shared Expert (Pure Geometric Routing)
-
-The system MUST NOT include a shared expert. The forward equation MUST remain exactly `x_out = x + Σ_{i ∈ I_k} p_i · Expert_i(x)`. The system MUST preserve three mathematical guarantees: (1) no variance drift `Var[Δx | x] ≤ σ_e²`; (2) no slot encroachment between experts; (3) alignment with Mixtral's active-parameter accounting. The guarantees depend on the dual premise that experts are independently initialized and the training run is long enough for them to differentiate; the cross-covariance being approximately zero is a derived property, not an enforced one.
-
-**Source:** `wayfinder/tickets/A5-2.md`
-
-#### Scenario: Forward formula strictness
-- **WHEN** the routing layer is reviewed
-- **THEN** the only summand over experts is `Σ_{i ∈ I_k} p_i · Expert_i(x)`;` no separate shared branch exists
-
-<a id="req-11"></a>
+---
 
 ### Requirement: 4070 MVP Hyperparameter Set
 
@@ -213,7 +94,7 @@ The canonical configuration-layer API `canonical_voronoi_angle(num_experts: int,
 - **WHEN** `canonical_voronoi_angle(N_e, d_c)` is evaluated at `(64, 16)`
 - **THEN** the result is `≈ 25.45°`, distinct from `canonical_voronoi_angle(16, 16) ≈ 52.00°` (the function depends on both arguments, not `d_c` alone)
 
-<a id="req-12"></a>
+---
 
 ### Requirement: Loss Composition
 
@@ -239,7 +120,7 @@ The system MUST keep the notation distinction between per-token `C_t^l` and per-
 - **WHEN** `c_centroids ∈ R^{N_e × d_c}` lies on the unit sphere
 - **THEN** `L_sep == (‖C^T C‖_F² − N_e) / (N_e · (N_e − 1))` within `1e-6`; the diagonal `N_e` term is subtracted exactly once
 
-<a id="req-13"></a>
+---
 
 ### Requirement: Numerical Safeguards
 
@@ -263,7 +144,7 @@ The system MUST execute the standard training step as `Backward → clip_grad_no
 - **WHEN** any single executor reaches `β_i > 30.4` or more than 50% of experts cross `β_i > 28.8`
 - **THEN** the system logs a warning or halves the global learning rate respectively
 
-<a id="req-14"></a>
+---
 
 ### Requirement: Five-Phase Time-Driven Schedule
 
@@ -283,63 +164,7 @@ The system MUST partition training into five phases with the fixed duration rati
 - **WHEN** training is in Phase 1, 2, or 3 with the gradient channel Frozen for the relevant parameter
 - **THEN** the driver channel still updates `c_i` via Masked Spherical EMA (Phases 1–3) at the prescribed `α`, while `c_i.requires_grad = False`; `c_i` is NOT registered in the AdamW parameter group
 
-<a id="req-15"></a>
-
-### Requirement: Hybrid Three-Layer Phase Triggers
-
-The system MUST combine three trigger layers: (Layer 1) Time-Driven hard cut at the 1 K / 6 K / 26 K / 56 K / 100 K boundaries; (Layer 2) State-Driven Advisory signals — normalized entropy `R_H`, load skew `S_load`, β saturation ratio `R_β-sat`, and overlap index `L_sep / WB` — read-only and advisory only (never auto-trigger a transition); (Layer 3) Hard Cutoff at 100 K steps. Real-time monitoring of `D_c` (per-expert geodesic spread) MUST be excluded;` `D_c` remains an offline metric due to its `O(N_e²)` cost and unstable threshold.
-
-**Source:** `wayfinder/tickets/A6b-2.md`
-
-#### Scenario: Advisory signals not to auto-trigger
-- **WHEN** an advisory signal crosses any threshold before its corresponding time-driven boundary
-- **THEN** the system logs the advisory but nots NOT advance the phase
-
-<a id="req-16"></a>
-
-### Requirement: Prefill And Decode Share The Same Algorithm
-
-The system MUST use the same extraction algorithm for Prefill and Decode with zero branching. The system MUST project onto `(L')` and apply two spherical normalizations in both modes. The system MUST NOT write `C_t^l` into the KV Cache. During Decode, `C_t^l` MUST live in SRAM / registers only (16 floats = 64 bytes per layer per token for `d_c = 16`);` during Prefill, `C_t^l` MAY live in HBM because the backward graph must retain it.
-
-**Source:** `wayfinder/tickets/A7-1.md`
-
-#### Scenario: Single algorithm path
-- **WHEN** the extraction runs in Prefill or Decode mode
-- **THEN** the same four-step pipeline executes;` only the residency (SRAM vs HBM) and the backward-graph retention differ
-
-<a id="req-17"></a>
-
-### Requirement: Stateless Per-Frame C Recomputation
-
-The system MUST recompute `C_t^l` every Decode step from `(K_t, V_t)` with no carry-over state, using the formula `C_t = L2_Norm((1/H_kv) · Σ_h L2_Norm(W_h^K k_t^{(h)} + W_h^V v_t^{(h)} + b_h))`. The recomputation MUST cost approximately 65.5 K FLOPs per token (with `H_kv = 8`, `d_k = 128`, `d_c = 16`) and MUST introduce 0 bytes of additional HBM traffic because all activations fit in registers / SRAM. The recomputation MUST keep C-extraction overhead under 0.5% of total decoder latency.
-
-**Source:** `wayfinder/tickets/A7-2.md`
-
-#### Scenario: No C caching
-- **WHEN** a Decode step completes
-- **THEN** no per-token C state survives into the next step;` the next step recomputes from fresh `(K_t, V_t)`
-
-#### Scenario: Decoder latency budget
-- **WHEN** decoder latency is profiled on the MVP configuration
-- **THEN** the C-extraction slice is below 0.5% of total decoder time
-
-<a id="req-18"></a>
-
-### Requirement: Hardware And Kernel Friendliness
-
-The system MUST keep `W_proj = {W^K, W^V, b}` (≈ 64 KB in BF16) 100% resident in L2 cache and the activations (`z`, `ẑ`, `z̄`, `C`, ≈ 4 KB total) 100% resident in SRAM / registers, with zero additional HBM traffic attributable to the geometric routing chain. The system MUST be compatible — without custom kernels — with FlashDecoding, PagedAttention, vLLM, TGI, SGLang, TensorRT-LLM, Megatron-LM, and DeepSpeed-MoE. `torch.compile` is an optional optimization path (Inductor can auto-fuse the four native ops) but MUST NOT be required for MVP correctness.
-
-**Source:** `wayfinder/tickets/A7-3.md`
-
-#### Scenario: No custom kernel required
-- **WHEN** the system runs under any supported framework
-- **THEN** it operates correctly using the framework's standard fused SwiGLU kernel and standard attention kernels with no project-specific CUDA or retargeting replacement
-
-#### Scenario: Zero HBM delta
-- **WHEN** HBM traffic is profiled for the geometric routing chain
-- **THEN** the additional HBM bytes per token attributable to the chain equal zero (all intermediate state is on-chip)
-
-<a id="req-19"></a>
+---
 
 ### Requirement: Six Baseline Set On 4070 MVP
 
@@ -368,7 +193,7 @@ The system MUST, for evaluation on the 4070 8 GB MVP, hold active FLOPs strictly
 - **WHEN** the routing overhead is computed alongside the active-core FLOPs
 - **THEN** `FLOPs_Routing` is reported as a standalone line item and MUST NOT enter the parity equation
 
-<a id="req-20"></a>
+---
 
 ### Requirement: Eight Geometric Quantification Metrics
 
@@ -408,19 +233,7 @@ The system MUST report eight metrics in two classes, each with a precise closed-
 - **WHEN** `R_H(p)` is computed for any probability vector `p` over `N_e` experts
 - **THEN** `R_H ∈ [0, 1]` within `1e-6`
 
-<a id="req-21"></a>
-
-### Requirement: Six-Module Visualization Toolchain
-
-The system MUST provide a production-ready visualization toolchain with six modules: 3D PCA scatter (fixed camera angles 25°/135°);` `D_c` heatmap with Optimal Leaf Ordering;` 2D Voronoi tessellation with elliptical β fitting;` trajectory animation with fixed `W_PCA` across frames;` TensorBoard dashboard;` and PlantUML diagram documentation. The implementation stack MUST be `matplotlib`, `scikit-learn`, `scipy`, `imageio`, `tensorboard`, and `plantuml`.
-
-**Source:** `wayfinder/tickets/A8-3.md`
-
-#### Scenario: Toolchain completeness
-- **WHEN** an experimenter needs to inspect a trained model
-- **THEN** each of the six modules is available without bespoke scripting beyond their public APIs
-
-<a id="req-22"></a>
+## ADDED Requirements
 
 ### Requirement: Empty-Cell Fallback Invariant
 
@@ -436,7 +249,7 @@ For any expert `i` whose assigned token count `n_i = |T_i| = Σ_t I[i ∈ Top-k(
 - **WHEN** an implementation is audited via source grep
 - **THEN** there is no `.clamp_min(1e-9)` / `.clamp_min(ε)` call whose result is used as a denominator in the empty-cell branch (denominator-zero would propagate and break the invariant)
 
-<a id="req-23"></a>
+---
 
 ### Requirement: Spherical Re-Projection And Zero-Vector Invariant
 
@@ -452,7 +265,7 @@ After every driver-channel update, the centroid MUST satisfy `‖c_i^(t+1)‖₂
 - **WHEN** the unnormalized candidate `u_i` has `‖u_i‖₂ < 10⁻⁹`
 - **THEN** the post-step `c_i^(t+1) == c_i^(t)` element-wise and no NaN appears in the centroid tensor
 
-<a id="req-24"></a>
+---
 
 ### Requirement: Beta Parameterization Space vs Operational Domain
 
@@ -472,7 +285,7 @@ The system MUST maintain a clean separation between two domains: the **parameter
 - **WHEN** Phase 4 is entered at `β_{p3} = 16.0`
 - **THEN** `γ' = ln(15/16) ≈ −0.0645` is set, AdamW momentum for `γ` is reset, and `β^eff(Phase 4, t=0) = 16.0` exactly (continuity)
 
-<a id="req-25"></a>
+---
 
 ### Requirement: CentroidDriver Dual-Channel Architecture Contract
 
