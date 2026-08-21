@@ -28,6 +28,12 @@ When sources disagree, consult in this order:
 - **Ticket 级设计**：`/wayfinder`（claim → resolve → close → append 到 map.md Decisions-so-far）
 - **代码实现**：仅在 apply 阶段显式触发后
 - **每次 Spec 变更**必须含 `**Source:**` 反链 ticket，确保可追溯
+- **TDD 工作流**：
+  - `uv sync` 安装依赖（pyproject.toml 用 `uv.sources` 拉 `pytorch-cu130`）
+  - `uv run pytest tests/` 跑全部；`uv run pytest tests/test_xxx.py::name -k expr` 跑单测
+  - pyproject.toml 已设 `pythonpath = ["src"]`，无需 `pip install -e`
+  - **断言必须约束数学原理**（见 §6 Hard Constraints）
+- **Post-archive 独立复核**：每次 `/opsx:archive` 后必须跑一次独立数值自洽性 + 双 spec 交叉校对，把 spec 声称的算式实际代入算一遍、与 spec 文本对账。grep 关键词命中不是充分条件。
 - **GateGuard**：Edit / Write 前需提供 Gate Facts（file 路径、调用方、API 影响、用户原话）
 
 ## 4. Git Branch Architecture
@@ -57,6 +63,7 @@ Phase ratios: 1/5/20/30/44% on 100K steps
 - ❌ 不要执行训练或跑 baseline（formalize-only destination）
 - ❌ 不要绕过 OpenSpec 直接改 DecompMoE 行为
 - ❌ 不要重写 wayfinder ticket 来"调和" spec 与 ticket 不一致——应改 spec 来对齐 ticket
+- ❌ 写 pytest 断言不能只测功能不测原理。spec 中每个含具体数值的算式（FLOPs / 参数核算 / `θ_Voronoi` / `σ(γ)` 值 / 阈值 `1/(2·N_e)` / α 序列 / 相位覆盖范围）都必须有 `pytest.approx(..., abs=...)` 直接验算该数值与 spec 声称值对账。文字断言（"正确"、"合理"、"≈"无数字）不构成可验条款——这一条的直接经验：`fix-openspec-doc-bugs` archive 后独立复核才发现 5 条 spec-level 算式错误（如 FLOPs 0.26% 算错、γ_init ≈ −6.94 与 β_0 ≈ 1.035 自相矛盾）。
 
 ## 7. Out of Scope（OpenSpec 与 wayfinder 已锁）
 
@@ -83,9 +90,12 @@ Phase ratios: 1/5/20/30/44% on 100K steps
 | A8 | baseline + 指标 + 可视化 | A8-1, A8-2, A8-3 |
 | W | 自审 | WF-1, WF-2 |
 
-## 9. Current State（2026-08-18）
+> **2026-08-21 裁决**：wayfinder 不再是必改制品。本仓库以 OpenSpec 为唯一真相源；ticket 仅作历史决策记录（参考性、非约束性）。新变更一律走 OpenSpec 工作流，不再单独 patch tickets。
 
-- ✅ OpenSpec 主 spec 已 archive：`openspec/specs/wayfinder/spec.md`
-- ✅ 2 changes archived：`polish-wayfinder-spec` + `introduce-wayfinder-decompoe-spec`
-- ✅ 23 tickets closed（21 A* + WF-1 + WF-2）
-- ⏭ 下一阶段：code-level delta（候选：`add-decompoe-mvp-module`、`add-geometric-router`）
+## 9. Current State（2026-08-21）
+
+- ✅ OpenSpec 主 spec 已 archive：`openspec/specs/wayfinder/spec.md`（**25 Req / 52 Scen**，commit `41ac06b`）
+- ✅ Skeleton spec 已 archive：`openspec/specs/decompmoe-skeleton/spec.md`（**20 Req / 58 Scen**）
+- ✅ 4 changes archived：`polish-wayfinder-spec` + `introduce-wayfinder-decompoe-spec` + `add-decompoe-skeleton-with-tdd-tests` + `fix-openspec-doc-bugs`
+- ⏭ Post-archive 独立复核发现 5 条 spec-level oversights（FLOPs 0.26% 算错、Phase 0 归一化用词、grep Scenario 分层表述、`γ_init ≈ −6.94` 与 `β_0 ≈ 1.035` 自相矛盾、恒真式断言），下一 change `fix-spec-doc-oversights` 合并修
+- ⏭ 代码层 delta：候选 `add-decompoe-mvp-module` / `add-geometric-router`
