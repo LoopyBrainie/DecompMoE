@@ -31,26 +31,44 @@ def test_phase_seeding_no_grad() -> None:
 
 
 def test_phase_090_ema() -> None:
-    """Phase 1 (EMA_090): centroids_new = 0.90 · centroids + 0.10 · mean(X)."""
+    """Phase 1 (EMA_090): `c_i^(t+1) = Normalize(0.90·c_i + 0.10·m_i) / ‖·‖₂`.
+
+    Spec: skeleton "Centroid Four-Phase Lifecycle Driver" Phase 1 + Invariant 2
+    (spherical re-projection). Without F.normalize after EMA combination,
+    ``‖c_i‖₂`` drifts from 1.0 and breaks ``logit ∈ [−2β, 0]`` boundedness.
+    """
     torch.manual_seed(0)
     centroids = torch.randn(4, 8)
     X = torch.randn(100, 8)
     out = CentroidDriver(Phase.EMA_090).step(centroids, X)
-    expected = 0.90 * centroids + 0.10 * X.mean(dim=0).unsqueeze(0).expand_as(centroids)
+    expected = torch.nn.functional.normalize(
+        0.90 * centroids + 0.10 * X.mean(dim=0).unsqueeze(0).expand_as(centroids),
+        dim=-1,
+    )
     assert torch.allclose(out, expected, atol=1e-5)
+    norms = out.norm(dim=-1)
+    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-6)
 
 
 def test_phase_095_to_099_ema_coefficients() -> None:
-    """Phase 2 (α=0.95) and Phase 3 (α=0.99) apply distinct smoothing."""
+    """Phase 2 (α=0.95) and Phase 3 (α=0.99) apply distinct smoothing + re-project."""
     torch.manual_seed(0)
     centroids = torch.randn(4, 8)
     X = torch.randn(100, 8)
     out_095 = CentroidDriver(Phase.EMA_095).step(centroids, X)
     out_099 = CentroidDriver(Phase.EMA_099).step(centroids, X)
-    expected_095 = 0.95 * centroids + 0.05 * X.mean(dim=0).unsqueeze(0).expand_as(centroids)
-    expected_099 = 0.99 * centroids + 0.01 * X.mean(dim=0).unsqueeze(0).expand_as(centroids)
+    expected_095 = torch.nn.functional.normalize(
+        0.95 * centroids + 0.05 * X.mean(dim=0).unsqueeze(0).expand_as(centroids),
+        dim=-1,
+    )
+    expected_099 = torch.nn.functional.normalize(
+        0.99 * centroids + 0.01 * X.mean(dim=0).unsqueeze(0).expand_as(centroids),
+        dim=-1,
+    )
     assert torch.allclose(out_095, expected_095, atol=1e-5)
     assert torch.allclose(out_099, expected_099, atol=1e-5)
+    assert torch.allclose(out_095.norm(dim=-1), torch.ones(4), atol=1e-6)
+    assert torch.allclose(out_099.norm(dim=-1), torch.ones(4), atol=1e-6)
 
 
 def test_phase_4_projected_sgd() -> None:
@@ -73,8 +91,10 @@ def test_phase_transition_swaps_rule() -> None:
     out_090 = CentroidDriver(Phase.EMA_090).step(centroids, X)
     out_099 = CentroidDriver(Phase.EMA_099).step(centroids, X)
     assert not torch.allclose(out_090, out_099)
-    assert torch.allclose(out_090, 0.90 * centroids + 0.10 * mean, atol=1e-5)
-    assert torch.allclose(out_099, 0.99 * centroids + 0.01 * mean, atol=1e-5)
+    expected_090 = torch.nn.functional.normalize(0.90 * centroids + 0.10 * mean, dim=-1)
+    expected_099 = torch.nn.functional.normalize(0.99 * centroids + 0.01 * mean, dim=-1)
+    assert torch.allclose(out_090, expected_090, atol=1e-5)
+    assert torch.allclose(out_099, expected_099, atol=1e-5)
 
 
 def test_dead_expert_protection_signature() -> None:

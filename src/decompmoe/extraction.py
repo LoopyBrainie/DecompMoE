@@ -119,11 +119,27 @@ class CentroidDriver:
                 if mean.dim() == 1:
                     mean = mean.unsqueeze(0).expand_as(centroids)
             else:
-                # mask: (M, N_e) — soft assignment
+                # mask: (T, N_e) — soft assignment per token.
+                # Empty-cell invariant (skeleton spec "Centroid Driver Semantic
+                # Invariants" + Invariant 1): when n_i = 0, m_i must default
+                # to the previous centroid c_i^(t-1) — NOT a direction-randomized
+                # 0/clamp_min(eps). `safe_n.clamp_min(1.0)` is used solely to
+                # guard the division against 0/0 NaN; the actual `mean` is
+                # selected via torch.where.
                 weights = mask
-                denom = weights.sum(dim=0).clamp_min(1e-9)
-                mean = (weights.T @ X) / denom.unsqueeze(-1)
-            return alpha * centroids + (1.0 - alpha) * mean
+                n_i = weights.sum(dim=0)
+                weighted = weights.T @ X  # zero when n_i = 0
+                safe_n = n_i.clamp_min(1.0)
+                mean_n = weighted / safe_n.unsqueeze(-1)
+                mean = torch.where(n_i.unsqueeze(-1) > 0, mean_n, centroids)
+            # Spherical re-projection invariant (Invariant 2): every EMA step
+            # MUST enforce ‖c_i^(t+1)‖₂ ≡ 1.0. Near-zero candidate fallback
+            # (‖candidate‖₂ < 1e-9): preserve the previous centroid to
+            # prevent NaN and maintain spherical boundedness.
+            candidate = alpha * centroids + (1.0 - alpha) * mean
+            norm = candidate.norm(dim=-1, keepdim=True)
+            use_old = norm < 1e-9
+            return torch.where(use_old, centroids, torch.nn.functional.normalize(candidate, dim=-1))
 
         if self.phase == Phase.PROJECTED_SGD:
             return centroids / centroids.norm(dim=-1, keepdim=True).clamp_min(eps)
