@@ -21,10 +21,45 @@ def test_load_balance_alpha_fixed() -> None:
     task_logits = torch.randn(B, N, V)
     targets = torch.randint(0, V, (B, N))
     f = torch.softmax(torch.randn(B, N, N_e), dim=-1)
+    p = torch.softmax(torch.randn(B, N, N_e), dim=-1)
     c = torch.nn.functional.normalize(torch.randn(N_e, 16), dim=-1)
-    parts = loss_mod.L_total(task_logits, targets, f, c, phase=1, step=1_000)
+    parts = loss_mod.L_total(task_logits, targets, f, p, c, phase=1, step=1_000)
     expected = parts.L_CE + 0.01 * parts.L_lb_raw
     assert torch.allclose(parts.L_total, expected, atol=1e-5)
+
+
+def test_lb_gradient_flows_through_P_i() -> None:
+    """`∂L_lb/∂P_i ≠ 0` AND `∂L_lb/∂f_i ≡ 0` (wayfinder Req 12 invariant).
+
+    Spec: skeleton "Loss Composition With Staged Lambda" Scenario
+    `L_lb gradient flows through P_i only`. Verifies the spec-mandated
+    double-factor closed form `L_lb = N_e · Σ f.detach() · P`:
+      - P_i path is differentiable (gradient flows back into logit chain)
+      - f_i path is blocked by `.detach()`
+    """
+    torch.manual_seed(0)
+    B, N, N_e = 1, 4, 8
+    f = torch.nn.Parameter(torch.softmax(torch.randn(B, N, N_e), dim=-1))
+    p = torch.nn.Parameter(torch.softmax(torch.randn(B, N, N_e), dim=-1))
+    task_logits = torch.randn(B, N, 32)
+    targets = torch.randint(0, 32, (B, N))
+    c = torch.nn.functional.normalize(torch.randn(N_e, 16), dim=-1)
+    parts = loss_mod.L_total(task_logits, targets, f, p, c, phase=1, step=1_000)
+    grad_p = torch.autograd.grad(parts.L_lb, p, retain_graph=True)[0]
+    # f is detached inside loss.py so it does not appear in the autograd
+    # graph; pass allow_unused=True so we can confirm grad is None (= 0).
+    grad_f = torch.autograd.grad(
+        parts.L_lb, f, retain_graph=True, allow_unused=True
+    )[0]
+    assert grad_f is None or torch.allclose(grad_f, torch.zeros_like(grad_f), atol=1e-12), (
+        f"∂L_lb/∂f_i must be exactly 0 (detached); got "
+        f"{'None' if grad_f is None else f'max |grad| = {grad_f.abs().max().item():.3e}'}"
+    )
+    # ∂L_lb/∂P_i ≠ 0 (gradient flows).
+    assert torch.isfinite(grad_p).all()
+    assert grad_p.abs().max().item() > 1e-12, (
+        f"∂L_lb/∂P_i should be nonzero; got max |grad| = {grad_p.abs().max().item():.3e}"
+    )
 
 
 def test_lb_uses_detached_fractions() -> None:
@@ -48,9 +83,10 @@ def test_lambda_zero_phase_1_2() -> None:
     task_logits = torch.randn(B, N, V)
     targets = torch.randint(0, V, (B, N))
     f = torch.softmax(torch.randn(B, N, N_e), dim=-1)
+    p = torch.softmax(torch.randn(B, N, N_e), dim=-1)
     c = torch.nn.functional.normalize(torch.randn(N_e, 16), dim=-1)
     for phase in (1, 2):
-        parts = loss_mod.L_total(task_logits, targets, f, c, phase=phase, step=phase * 5_000)
+        parts = loss_mod.L_total(task_logits, targets, f, p, c, phase=phase, step=phase * 5_000)
         assert parts.L_sep.item() == 0.0, (
             f"phase {phase} should have λ=0 ⇒ L_sep=0; got {parts.L_sep}"
         )
@@ -63,9 +99,10 @@ def test_lambda_cosine_ramp_phase_3() -> None:
     task_logits = torch.randn(B, N, V)
     targets = torch.randint(0, V, (B, N))
     f = torch.softmax(torch.randn(B, N, N_e), dim=-1)
+    p = torch.softmax(torch.randn(B, N, N_e), dim=-1)
     c = torch.nn.functional.normalize(torch.randn(N_e, 16), dim=-1)
-    parts_start = loss_mod.L_total(task_logits, targets, f, c, phase=3, step=26_000)
-    parts_end = loss_mod.L_total(task_logits, targets, f, c, phase=3, step=55_999)
+    parts_start = loss_mod.L_total(task_logits, targets, f, p, c, phase=3, step=26_000)
+    parts_end = loss_mod.L_total(task_logits, targets, f, p, c, phase=3, step=55_999)
     assert parts_end.L_sep.item() > parts_start.L_sep.item()
 
 
@@ -76,9 +113,10 @@ def test_lambda_fixed_phase_4() -> None:
     task_logits = torch.randn(B, N, V)
     targets = torch.randint(0, V, (B, N))
     f = torch.softmax(torch.randn(B, N, N_e), dim=-1)
+    p = torch.softmax(torch.randn(B, N, N_e), dim=-1)
     c = torch.nn.functional.normalize(torch.randn(N_e, 16), dim=-1)
-    parts1 = loss_mod.L_total(task_logits, targets, f, c, phase=4, step=56_000)
-    parts2 = loss_mod.L_total(task_logits, targets, f, c, phase=4, step=100_000)
+    parts1 = loss_mod.L_total(task_logits, targets, f, p, c, phase=4, step=56_000)
+    parts2 = loss_mod.L_total(task_logits, targets, f, p, c, phase=4, step=100_000)
     assert torch.allclose(parts1.L_sep, 0.001 * parts1.L_sep_raw, atol=1e-6)
     assert torch.allclose(parts2.L_sep, 0.001 * parts2.L_sep_raw, atol=1e-6)
 
