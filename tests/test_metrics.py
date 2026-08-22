@@ -28,12 +28,30 @@ def test_R_H_partition_of_unity_input() -> None:
         assert 0.0 <= r.item() <= 1.0, f"R_H out of [0,1]: {r.item()}"
 
 
-def test_S_load_zero_at_uniform() -> None:
-    """S_load(f_uniform) ≈ 0."""
+def test_S_load_closed_form_mvp() -> None:
+    """S_load(f) = N_e · max_i f_i (wayfinder Req 20 closed form).
+
+    Spec: S_load is `N_e · max_i f_i`, ranging from 1 at perfect
+    uniformity to N_e at full collapse. The previous implementation
+    used `‖f − 1/N‖₂` which violated the spec closed form.
+    """
     N_e = 16
+    # Uniform → S_load = 16 · (1/16) = 1.0
     f_uniform = torch.full((N_e,), 1.0 / N_e)
-    s = metrics.S_load(f_uniform)
-    assert abs(s.item()) < 1e-5, f"S_load(uniform) = {s.item()}"
+    assert abs(metrics.S_load(f_uniform).item() - 1.0) < 1e-6, (
+        f"S_load(uniform) = {metrics.S_load(f_uniform).item()}, expected 1.0"
+    )
+    # Collapse (half on expert 0, half on expert 1) → S_load = 16 · 0.5 = 8.0
+    f_collapsed = torch.zeros(N_e)
+    f_collapsed[0] = 0.5
+    f_collapsed[1] = 0.5
+    assert abs(metrics.S_load(f_collapsed).item() - 8.0) < 1e-6, (
+        f"S_load(half-collapse) = {metrics.S_load(f_collapsed).item()}, expected 8.0"
+    )
+    # Full collapse → S_load = 16 · 1 = 16.0
+    f_full = torch.zeros(N_e)
+    f_full[0] = 1.0
+    assert abs(metrics.S_load(f_full).item() - 16.0) < 1e-6
 
 
 def test_four_realtime_four_offline_classification() -> None:

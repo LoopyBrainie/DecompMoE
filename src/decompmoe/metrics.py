@@ -35,15 +35,32 @@ def R_H(p: Tensor) -> Tensor:
 
 
 def S_load(f_per_expert: Tensor) -> Tensor:
-    """Load skew across N_e experts (0 at uniform)."""
-    N_e = f_per_expert.shape[-1]
-    uniform = 1.0 / N_e
-    return ((f_per_expert - uniform) ** 2).sum(dim=-1).sqrt()
+    """Load skew across N_e experts: `S_load = N_e · max_i f_i`.
+
+    Spec (wayfinder Req 20 + archived `fix-openspec-doc-bugs`): S_load
+    equals `N_e · max_i f_i`. Range: `1` at perfect uniformity (each
+    expert receives `1/N_e`), `N_e` at full collapse to a single expert.
+    """
+    return f_per_expert.shape[-1] * f_per_expert.max(dim=-1).values
 
 
-def UR(f_per_expert: Tensor) -> Tensor:
-    """Utilization rate: fraction of experts receiving any traffic."""
-    return (f_per_expert > 0).float().mean(dim=-1)
+def UR(f_per_expert_history) -> Tensor:
+    """Utilization rate over the most recent W=100 steps.
+
+    Spec (wayfinder Req 20): `UR = (1/N_e) · Σ_i I[f_i > 0]` over the most
+    recent W = 100 steps. Accepts either a single-step tensor `(N_e,)`
+    or a history list/stack of recent `f_per_expert` tensors.
+    """
+    if isinstance(f_per_expert_history, list):
+        if len(f_per_expert_history) == 0:
+            return torch.tensor(0.0)
+        stacked = torch.stack(f_per_expert_history, dim=0)  # (T, ..., N_e)
+    else:
+        stacked = f_per_expert_history
+    if stacked.dim() == 1:
+        return (stacked > 0).float().mean()
+    any_active = (stacked > 0).any(dim=0)  # (..., N_e)
+    return any_active.float().mean(dim=-1)
 
 
 def SP(c_centroids: Tensor, assignments: Tensor) -> Tensor:
