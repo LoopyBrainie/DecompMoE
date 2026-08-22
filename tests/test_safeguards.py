@@ -27,18 +27,87 @@ def test_nan_ladder() -> None:
 
 
 def test_resurrection_trigger_window() -> None:
-    """Within same 1000-step window, at most one resurrection event."""
-    history = [[1 / 256] * 16 for _ in range(250)]
-    # First call: rate limit cleared (last_resurrection_step = -2000 ⇒ gap = 2300 > 1000)
+    """Within same 1000-step window, at most one resurrection event.
+
+    Spec (wayfinder Req 13 + archived spec): `threshold = 1 / (2·N_e)`.
+    MVP N_e=16 → threshold = 1/32. With `f_i = 1/256 < 1/32` for all
+    experts and all 250 steps, the rule fires.
+    """
+    N_e = 16
+    history = [[1 / 256] * N_e for _ in range(250)]
     res = safeguards.should_resurrect(
-        history, current_step=300, last_resurrection_step=-2000, consec=200
+        history,
+        current_step=300,
+        last_resurrection_step=-2000,
+        N_e=N_e,
+        consec=200,
     )
-    # Second call within same window (gap = 300 < 1000): rate-limited → empty
     res2 = safeguards.should_resurrect(
-        history, current_step=300, last_resurrection_step=0, consec=200
+        history,
+        current_step=300,
+        last_resurrection_step=0,
+        N_e=N_e,
+        consec=200,
     )
     assert len(res) > 0, "first call must flag at least one expert"
     assert len(res2) == 0, "second call within window must be rate-limited to empty"
+
+
+def test_resurrection_threshold_mvp_value() -> None:
+    """Threshold at MVP N_e=16 is `1/32`, NOT the legacy `1/128`.
+
+    Spec: archived `fix-openspec-doc-bugs` corrects the hardcoded `1/128`
+    to the parameterized `1/(2·N_e)` form. At MVP N_e=16 the threshold
+    evaluates to 1/32 = 0.03125.
+    """
+    N_e = 16
+    history = [[0.02] * N_e for _ in range(250)]  # f_i = 0.02 < 1/32 = 0.03125
+    res = safeguards.should_resurrect(
+        history,
+        current_step=300,
+        last_resurrection_step=-2000,
+        N_e=N_e,
+        consec=200,
+    )
+    assert len(res) > 0, "MVP threshold 1/32 must trigger resurrection at f_i=0.02"
+    history2 = [[0.05] * N_e for _ in range(250)]  # 0.05 > 1/32
+    res2 = safeguards.should_resurrect(
+        history2,
+        current_step=300,
+        last_resurrection_step=-2000,
+        N_e=N_e,
+        consec=200,
+    )
+    assert len(res2) == 0, "f_i = 0.05 > 1/32 must NOT trigger resurrection"
+
+
+def test_resurrection_threshold_N_e_64_legacy_value() -> None:
+    """For N_e=64, `1/(2·N_e) = 1/128` — preserved as legacy value.
+
+    Spec (archived `fix-openspec-doc-bugs` Decision 7): the previous
+    hardcoded `1/128` was the `N_e=64` instantiation of the same
+    `1/(2·N_e)` rule. Parameterizing by N_e restores both MVP (1/32)
+    and legacy (1/128) thresholds from a single formula.
+    """
+    N_e = 64
+    history = [[1 / 200] * N_e for _ in range(250)]  # 1/200 < 1/128 = 0.0078125
+    res = safeguards.should_resurrect(
+        history,
+        current_step=300,
+        last_resurrection_step=-2000,
+        N_e=N_e,
+        consec=200,
+    )
+    assert len(res) > 0, "N_e=64 threshold 1/128 must trigger at f_i=1/200"
+    history2 = [[0.01] * N_e for _ in range(250)]  # 0.01 > 1/128
+    res2 = safeguards.should_resurrect(
+        history2,
+        current_step=300,
+        last_resurrection_step=-2000,
+        N_e=N_e,
+        consec=200,
+    )
+    assert len(res2) == 0, "f_i = 0.01 > 1/128 must NOT trigger"
 
 
 def test_resurrection_perturb_distribution() -> None:

@@ -24,10 +24,16 @@ from decompmoe.beta import BETA_MAX
 BETA_SATURATION_WARN: Final[float] = 0.95 * BETA_MAX  # 30.4
 BETA_SATURATION_HALVE: Final[float] = 0.90 * BETA_MAX  # 28.8
 
-# Dead-expert resurrection parameters (A6a-2)
-DEAD_EXPERT_FRACTION: Final[float] = 1.0 / 128.0
+# Dead-expert resurrection parameters (wayfinder Req 13 / archived spec).
+# Threshold is parameterized by N_e (= 1/(2·N_e)); at MVP N_e=16 this
+# evaluates to 1/32. Previously hardcoded to 1/128 (N_e=64 legacy).
 DEAD_EXPERT_CONSEC_STEPS: Final[int] = 200
 RESURRECTION_RATE_LIMIT_STEPS: Final[int] = 1000
+
+
+def _dead_expert_threshold(N_e: int) -> float:
+    """Return the dead-expert threshold `1 / (2·N_e)` for the given N_e."""
+    return 1.0 / (2.0 * N_e)
 
 # Loss-spike defense (A6a-2)
 LOSS_SPIKE_RATIO: Final[float] = 2.5
@@ -65,21 +71,29 @@ def should_resurrect(
     f_history: list[list[float]],
     current_step: int,
     last_resurrection_step: int,
+    *,
+    N_e: int,
     consec: int = DEAD_EXPERT_CONSEC_STEPS,
     rate_limit_steps: int = RESURRECTION_RATE_LIMIT_STEPS,
-    threshold: float = DEAD_EXPERT_FRACTION,
+    threshold: float | None = None,
 ) -> set[int]:
     """Return set of expert indices that need resurrection (rate-limited).
 
     An expert `i` qualifies when `f_i < threshold` for `consec` consecutive
     steps. Rate limit: at most one resurrection event per `rate_limit_steps`.
+
+    Spec (wayfinder Req 13): the threshold is parameterized by N_e as
+    `1 / (2·N_e)`; at MVP N_e=16 this evaluates to 1/32. Pass an explicit
+    `threshold` to override (e.g. for testing the rate-limit edge cases
+    without changing N_e).
     """
+    if threshold is None:
+        threshold = _dead_expert_threshold(N_e)
     if current_step - last_resurrection_step < rate_limit_steps:
         return set()
     if len(f_history) < consec:
         return set()
     recent = f_history[-consec:]
-    N_e = len(recent[0])
     flagged = set()
     for i in range(N_e):
         if all(snap[i] < threshold for snap in recent):
@@ -118,7 +132,6 @@ __all__ = [
     "STEP_ORDER",
     "BETA_SATURATION_WARN",
     "BETA_SATURATION_HALVE",
-    "DEAD_EXPERT_FRACTION",
     "DEAD_EXPERT_CONSEC_STEPS",
     "RESURRECTION_RATE_LIMIT_STEPS",
     "LOSS_SPIKE_RATIO",
