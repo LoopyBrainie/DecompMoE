@@ -30,7 +30,26 @@ def test_phase1_freeze_router() -> None:
 
 
 def test_phase2_freeze_experts() -> None:
-    assert schedule.phase_step_frozen_names(2) == {"W_g", "W_u", "W_d"}
+    """Phase 2 freezes gradient channel for (c_i, beta_i), not experts.
+
+    Spec (wayfinder Req 14): Phase 2 unfreezes W_K/W_V/b so they train
+    under the driver-channel EMA at α=0.95; c_i, beta_i stay gradient-
+    channel frozen. The previous (incorrect) implementation froze the
+    experts W_g/W_u/W_d, which violated the dual-channel architecture
+    contract.
+    """
+    assert schedule.phase_step_frozen_names(2) == {"c_i", "beta_i"}
+
+
+def test_phase3_freeze() -> None:
+    """Phase 3 freezes gradient channel for `c_i` only; beta_i unfrozen.
+
+    Spec (wayfinder Req 14 + archived `fix-openspec-doc-bugs` Decision 4):
+    in Phase 3 the routing continues via driver-channel Masked Spherical
+    EMA at α = 0.99 with operational β ramping 4 → 16. The β_i parameter
+    needs gradient-channel Active to update, so only c_i stays frozen.
+    """
+    assert schedule.phase_step_frozen_names(3) == {"c_i"}
 
 
 def test_phase3_b_ramp() -> None:

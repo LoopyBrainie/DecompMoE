@@ -42,11 +42,22 @@ def phase_id(step: int, total_steps: int = _DEFAULT_TOTAL) -> int:
 
 
 def phase_step_frozen_names(phase: int) -> set[str]:
-    """Return the set of parameter-name suffixes to freeze per phase."""
+    """Return the set of **gradient-channel** parameter-name suffixes to freeze per phase.
+
+    Spec (wayfinder Req 14 + archived `fix-openspec-doc-bugs`): the
+    frozen set freezes the gradient channel (AdamW) — the driver channel
+    (CentroidDriver) remains Active and executes Masked Spherical EMA in
+    Phases 1-3 regardless. Phase 2 freezes gradient for `(c_i, beta_i)`
+    only — `W_K/W_V/b` are unfrozen so they can train under the driver-
+    channel EMA at α = 0.95. Phase 3 freezes gradient for `(c_i)` only —
+    `beta_i` is unfrozen so it can ramp via AdamW.
+    """
     if phase == 1:
         return {"c_i", "beta_i", "W_K", "W_V", "b"}
     if phase == 2:
-        return {"W_g", "W_u", "W_d"}
+        return {"c_i", "beta_i"}
+    if phase == 3:
+        return {"c_i"}
     return set()
 
 
