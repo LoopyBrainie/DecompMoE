@@ -43,7 +43,7 @@ The package SHALL provide `flops_per_token(cfg, arch) -> int` whose canonical pe
 - **MoE** (per token, per layer): `FLOPs_MoE,core^(l) = 8 · d_model² + k · 6 · d_model · d_ffn^Expert` (attention Q/K/V/O + top-k SwiGLU expert FFNs).
 - **Dense** (per token, per layer): `FLOPs_Dense,core^(l) = 8 · d_model² + 6 · d_model · d_ffn^Dense`.
 
-The parity constraint `d_ffn^Dense ≡ k · d_ffn^Expert` MUST hold; at MVP this evaluates to `4096 = 2 · 2048` (exact 1:1). Explicit exclusions (symmetric on both sides, NOT in parity accounting): Attention `Q K^T` and `Attn · V` (sequence-length-dependent), and the output `lm_head`. Routing overhead is reported separately as `FLOPs_Routing^(l) = 4 · d_c · H_kv · d_k + 2 · N_e · d_c` (≈ 66_048 FLOPs/layer at MVP, ≈ 0.26% of active-core), within the `0.3%` allowance; it MUST NOT enter parity.
+The parity constraint `d_ffn^Dense ≡ k · d_ffn^Expert` MUST hold; at MVP this evaluates to `4096 = 2 · 2048` (exact 1:1). Explicit exclusions (symmetric on both sides, NOT in parity accounting): Attention `Q K^T` and `Attn · V` (sequence-length-dependent), and the output `lm_head`. Routing overhead is reported separately as `FLOPs_Routing^(l) = 4 · d_c · H_kv · d_k + 2 · N_e · d_c` (≈ 66_048 FLOPs/layer at MVP, ≈ 0.20% of active-core), within the `0.3%` allowance; it MUST NOT enter parity. (The previous figure `0.26%` was arithmetically inconsistent with the active-core definition in this paragraph; the corrected figure `0.20%` is `66_048 / 33_554_432 ≈ 0.001968`.)
 
 #### Scenario: MoE vs dense 1:1
 - **WHEN** `flops_per_token(cfg, MOE_MVP)` is compared to `flops_per_token(cfg, DENSE_4096)`
@@ -125,7 +125,7 @@ The package SHALL provide `extract_C(K, V, proj_W_K, proj_W_V, proj_b, *, H_kv, 
 
 The package SHALL provide `CentroidDriver(phase: Phase) -> CentroidDriver` with `Phase ∈ {SEEDING=0, EMA_090=1, EMA_095=2, EMA_099=3, PROJECTED_SGD=4}`. The `step(centroids, X, mask) -> Tensor` method MUST apply, per phase:
 
-- Phase 0 (SEEDING): `c_i ← KMeans(C)` initialization, `c_i.requires_grad = False`.
+- Phase 0 (SEEDING): `c_i ← c_i.detach()` (driver is a no-op returning the input centroids detached from the autograd graph); `c_i.requires_grad = False`. Driver is no-op; upstream spherical KMeans is assumed to have produced L2-normalized seeds (the `‖c_i‖₂ ≡ 1.0` invariant for Phase 0 is the caller's responsibility, not the driver's).
 - Phase 1 (EMA_090): `c_i ← Normalize(0.90 · c_i + 0.10 · m_i) / ‖·‖₂`, driver Active, gradient channel Frozen.
 - Phase 2 (EMA_095): `c_i ← Normalize(0.95 · c_i + 0.05 · m_i) / ‖·‖₂`, driver Active, gradient channel Frozen.
 - Phase 3 (EMA_099): `c_i ← Normalize(0.99 · c_i + 0.01 · m_i) / ‖·‖₂`, driver Active, gradient channel Frozen.
@@ -321,18 +321,34 @@ The package SHALL provide six `Protocol` stubs in `viz.py`: `PCA3D`, `DcHeatmap`
 
 ### Requirement: Hard-Constraint Grep Invariants
 
-The package SHALL satisfy the following source-level invariants, asserted by grep tests:
+The package SHALL satisfy the following source-level invariants, asserted by **literal-token grep tests** (any invariant requiring data-flow / semantic analysis is NOT a grep invariant; see Requirement "Centroid Driver Semantic Invariants" for the semantic layer):
 - NO occurrence of `StraightThroughEstimator` or `straight_through` in `src/decompmoe/`
 - NO occurrence of `w_i` in the body of `distance.logit` (signature-level invariant already covered)
 - NO occurrence of `shared` attribute in `ExpertPool`
 - NO import of `torch.utils.cpp_extension` or `triton` in `experts.py`
 - NO field `kv_cache_c` in `GeometricRouter` Protocol
-- **NO occurrence of `.clamp_min(1e-9)` (or any `.clamp_min(ε)` with `ε ≤ 1e-6`) in `extraction.py` whose result is used as a denominator on the empty-cell branch** (enforces the empty-cell fallback invariant — see also `test_empty_cell_preserves_centroid`).
-- **NO occurrence of the literal token sequence `arctan(pi / sqrt(d_c))` (or `arctan(π / √d_c)`) in any module** (enforces the canonical Voronoi closed form).
+
+(The two previously-listed invariants — `.clamp_min(ε)` empty-cell denominator and the literal `arctan(pi / sqrt(d_c))` token — are removed from this Requirement because they cannot be verified by literal grep alone: the former requires data-flow analysis (the `.clamp_min` call result must be checked to be a denominator), and the latter can be circumvented by a syntactically different but semantically equivalent expression. Both invariants are restated under Requirement "Centroid Driver Semantic Invariants" where they are enforced by the corresponding named test scenario.)
 
 #### Scenario: Hard constraints hold
-- **WHEN** the grep invariants above are evaluated against `src/decompmoe/`
+- **WHEN** the literal-token grep invariants above are evaluated against `src/decompmoe/`
 - **THEN** all invariants pass
+
+### Requirement: Centroid Driver Semantic Invariants
+
+The package's `CentroidDriver` SHALL enforce three semantic invariants that **cannot be verified by literal-token grep alone** (data-flow analysis, runtime observation, and arithmetic comparison are required). These are the **semantic counterpart** to Requirement "Hard-Constraint Grep Invariants":
+
+1. **Empty-cell fallback (formerly grep bullet 6)**: `CentroidDriver.step(centroids, X, mask)` with `n_i = |T_i| = 0` MUST preserve `c_i^(t+1) == c_i^(t)` element-wise (no direction randomization). The driver MUST NOT use `.clamp_min(ε)` as a denominator in the empty-cell branch. Verified by `test_empty_cell_preserves_centroid` (see Requirement "Centroid Driver Invariant Test Scenarios").
+
+2. **Spherical re-projection (driver output invariant)**: After every `CentroidDriver.step(...)` call across all four active phases, `max_i |‖c_i‖₂ − 1.0| < 10⁻⁷`. Verified by `test_spherical_norm_is_strictly_one` (see Requirement "Centroid Driver Invariant Test Scenarios").
+
+3. **Near-zero candidate fallback**: When the unnormalized candidate `u_i` has `‖u_i‖₂ < 10⁻⁹` (degenerate isotropic collapse), `c_i^(t+1) == c_i^(t)` element-wise and no NaN appears. Verified by `test_near_zero_candidate_fallback` (see Requirement "Centroid Driver Invariant Test Scenarios").
+
+(Removed from the grep layer: the literal-token restriction `arctan(pi / sqrt(d_c))` is now enforced implicitly by the canonical Voronoi closed form contract in Requirement "Voronoi Self-Consistency Threshold"; grep-equivalent restrictions on the closed-form API name are added there if a future change requires them.)
+
+#### Scenario: Semantic invariants are enforced by the named test scenarios
+- **WHEN** the three named test scenarios (`test_empty_cell_preserves_centroid`, `test_spherical_norm_is_strictly_one`, `test_near_zero_candidate_fallback`) all pass
+- **THEN** the empty-cell fallback, spherical re-projection, and near-zero candidate fallback invariants hold for `CentroidDriver`
 
 ### Requirement: Centroid Driver Invariant Test Scenarios
 

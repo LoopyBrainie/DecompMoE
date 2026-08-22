@@ -356,7 +356,7 @@ The system MUST, for evaluation on the 4070 8 GB MVP, hold active FLOPs strictly
 - Output lm_head (`2 · d_model · V_vocab`).
 
 **Routing overhead, reported separately (not part of parity)**:
-`FLOPs_Routing^(l) = 4 · d_c · H_kv · d_k + 2 · N_e · d_c`, where `4 · d_c · H_kv · d_k` accounts for `W^K, W^V` low-rank projections (each `2 · H_kv · 2 · d_k · d_c`), and `2 · N_e · d_c` accounts for the gating similarity dot product `C^T c_i`. At MVP this evaluates to `4·16·8·128 + 2·16·16 = 65_536 + 512 = 66_048` FLOPs/layer; `L = 4` layers yields `264_192` FLOPs/token, which is `≈ 0.26%` of `FLOPs_MoE,core`, within the `0.3%` allowance.
+`FLOPs_Routing^(l) = 4 · d_c · H_kv · d_k + 2 · N_e · d_c`, where `4 · d_c · H_kv · d_k` accounts for the `W^K, W^V` low-rank projections (each projection is a forward GEMM of `2 · H_kv · d_k · d_c`; two projections sum to `4 · d_c · H_kv · d_k`), and `2 · N_e · d_c` accounts for the gating similarity dot product `C^T c_i`. At MVP this evaluates to `4·16·8·128 + 2·16·16 = 65_536 + 512 = 66_048` FLOPs/layer; `L = 4` layers yields `264_192` FLOPs/token. Against the active-core denominator `FLOPs_MoE,core^(l) = 8·d_model² + k·6·d_model·d_ffn^Expert = 33_554_432` per layer, the ratio is `66_048 / 33_554_432 ≈ 0.001968 → ≈ 0.20%` (the previous figure `0.26%` was arithmetically inconsistent with the same-paragraph `FLOPs_MoE,core` definition; it is now corrected), within the `0.3%` allowance.
 
 **Source:** `wayfinder/tickets/A8-1.md`
 
@@ -456,7 +456,7 @@ After every driver-channel update, the centroid MUST satisfy `‖c_i^(t+1)‖₂
 
 ### Requirement: Beta Parameterization Space vs Operational Domain
 
-The system MUST maintain a clean separation between two domains: the **parameterization space** (`β^param(γ) = 0.1 + 31.9 · σ(γ)`, theoretical interval `[0.1, 32]`) and the **operational domain** (per-phase effective `β^eff`). `β_min = 0.1` exists in parameterization space to keep `σ'(γ)` non-degenerate in the cold-start region (e.g., `γ_init ≈ −3.5` gives `β_0 ≈ 1.035` with healthy gradient `σ'(−3.5) ≈ 0.0284`; lowering the floor to `1.0` would require `γ_init ≈ −6.94`, with `σ'(−6.94) ≈ 9.7e-4`, a 29× gradient starvation). The operational floor `1.0` is independent and exists to prevent routing resonance at runtime. Per-phase effective `β^eff`:
+The system MUST maintain a clean separation between two domains: the **parameterization space** (`β^param(γ) = 0.1 + 31.9 · σ(γ)`, theoretical interval `[0.1, 32]`) and the **operational domain** (per-phase effective `β^eff`). `β_min = 0.1` exists in parameterization space to keep `σ'(γ)` non-degenerate in the cold-start region (e.g., `γ_init ≈ −3.5` gives `β_0 ≈ 1.035` with healthy gradient `σ'(−3.5) ≈ 0.0284`; lowering the floor to `1.0` (i.e., switching to the counterfactual parameterization `β = 1.0 + 31.0 · σ(γ)`) would require `γ_init ≈ −6.785`, with `σ'(−6.785) ≈ 1.128e-3`, a 25× gradient starvation). The operational floor `1.0` is independent and exists to prevent routing resonance at runtime. Per-phase effective `β^eff`:
 
 - Phase 1: `β^eff = 1.0` (fixed, regardless of `γ`).
 - Phase 2–3: `β^eff = Clamp(β^param(γ), 1.0, β_max(t))` where `β_max(t)` is the phase schedule (`1.0 → 4.0` Phase 2, `4.0 → 16.0` Phase 3).
@@ -466,7 +466,7 @@ The system MUST maintain a clean separation between two domains: the **parameter
 
 #### Scenario: Parameterization floor preserves cold-start gradient
 - **WHEN** `γ` is initialized to `γ_init ≈ −3.5`
-- **THEN** `β_0 ≈ 1.035` and `σ'(γ_init) ≥ 0.02` (healthy gradient in the cold-start region); the `[0.1, 32]` parameterization interval is preserved
+- **THEN** `β_0 ≈ 1.035` and `σ'(γ_init) ≥ 0.02` (healthy gradient in the cold-start region)
 
 #### Scenario: Phase 3 → 4 transition is continuous
 - **WHEN** Phase 4 is entered at `β_{p3} = 16.0`
