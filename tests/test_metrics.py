@@ -147,7 +147,7 @@ def test_sp_orthonormal_aligned_inputs() -> None:
     centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
     assign = torch.randint(0, N_e, (T,))
     C = centroids[assign]
-    sp = metrics.SP(C, assign, centroids=centroids)
+    sp = metrics.SP(centroids, assign, C)  # spec: SP(centroids, assignments, signatures)
     assert sp.item() == pytest.approx(1.0, abs=1e-6)
 
 
@@ -162,7 +162,7 @@ def test_sp_60_degree_offset() -> None:
     assignments = torch.zeros(T, dtype=torch.long)
     # One expert only; SP averages per-token alignment with assigned centroid.
     sp = metrics.SP(
-        C_t.expand(T, d_c).contiguous(), assignments, centroids=c0.unsqueeze(0)
+        c0.unsqueeze(0), assignments, C_t.expand(T, d_c).contiguous()
     )
     assert sp.item() == pytest.approx(0.5, abs=1e-6)
 
@@ -173,7 +173,7 @@ def test_sp_skips_empty_experts() -> None:
     centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
     assign = torch.zeros(T, dtype=torch.long)  # experts 1..3 empty
     C = centroids[assign]  # perfectly aligned → SP == 1.0, not diluted by empties
-    sp = metrics.SP(C, assign, centroids=centroids)
+    sp = metrics.SP(centroids, assign, C)
     assert sp.item() == pytest.approx(1.0, abs=1e-6)
 
 
@@ -184,7 +184,7 @@ def test_sp_range_containment() -> None:
     centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
     assign = torch.randint(0, N_e, (T,))
     C = torch.nn.functional.normalize(torch.randn(T, d_c), dim=-1)
-    sp = metrics.SP(C, assign, centroids=centroids).item()
+    sp = metrics.SP(centroids, assign, C).item()
     assert -1.0 - 1e-6 <= sp <= 1.0 + 1e-6
 
 

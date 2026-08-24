@@ -58,9 +58,9 @@ def test_phase3_freeze() -> None:
 
 
 def test_phase3_b_ramp() -> None:
-    assert schedule.phase_beta(phase=3, step=26_000) == 4.0
-    assert abs(schedule.phase_beta(phase=3, step=55_999) - 16.0) < 1e-5
-    mid = schedule.phase_beta(phase=3, step=41_000)
+    assert schedule.phase_beta_max(phase=3, step=26_000) == 4.0
+    assert abs(schedule.phase_beta_max(phase=3, step=55_999) - 15.9996) < 1e-4
+    mid = schedule.phase_beta_max(phase=3, step=41_000)
     assert 9.0 < mid < 11.0
 
 

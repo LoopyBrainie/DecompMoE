@@ -56,14 +56,15 @@ def test_lb_gradient_flows_through_P_i() -> None:
     c = torch.nn.functional.normalize(torch.randn(N_e, 16), dim=-1)
     parts = loss_mod.L_total(task_logits, targets, f, p, c, phase=1, step=1_000)
     grad_p = torch.autograd.grad(parts.L_lb, p, retain_graph=True)[0]
-    # f is detached inside loss.py so it does not appear in the autograd
-    # graph; pass allow_unused=True so we can confirm grad is None (= 0).
+    # f MUST be detached inside L_total (spec contract); if f were used in the
+    # autograd graph, ∂L_lb/∂f would be a non-None tensor (zero or nonzero).
+    # The spec-mandated behavior: grad_f is exactly None (= f not in graph).
+    # If a future change routes f through the graph (even if grad is numerically
+    # zero), this assertion catches it.
     grad_f = torch.autograd.grad(parts.L_lb, f, retain_graph=True, allow_unused=True)[0]
-    assert grad_f is None or torch.allclose(
-        grad_f, torch.zeros_like(grad_f), atol=1e-12
-    ), (
-        f"∂L_lb/∂f_i must be exactly 0 (detached); got "
-        f"{'None' if grad_f is None else f'max |grad| = {grad_f.abs().max().item():.3e}'}"
+    assert grad_f is None, (
+        "∂L_lb/∂f_i must be detached (f not in graph); "
+        f"got grad_f with shape {tuple(grad_f.shape) if grad_f is not None else 'None'}"
     )
     # ∂L_lb/∂P_i ≠ 0 (gradient flows).
     assert torch.isfinite(grad_p).all()
@@ -73,19 +74,45 @@ def test_lb_gradient_flows_through_P_i() -> None:
 
 
 def test_lb_uses_detached_fractions() -> None:
-    """L_lb must use f_per_expert.detach() — verified by AST source scan."""
+    """L_lb must use `f_per_expert.detach()` specifically — AST scan checks
+    the variable name AND the call, not any generic `.detach()` occurrence.
+
+    Per CLAUDE.md §6 第 8 条: a test named "uses detached fractions" must
+    fail if the SPECIFIC contract `f_det = f_per_expert.detach()` is missing
+    or replaced with something semantically equivalent-but-different.
+    """
     import ast as _ast
 
     src = inspect.getsource(loss_mod)
     tree = _ast.parse(src)
-    detached_found = False
+
+    # 1. Find any Assign where the target is `f_det` and RHS is
+    #    `f_per_expert.detach()` — SPECIFIC contract.
+    specific_detach = False
     for node in _ast.walk(tree):
-        if isinstance(node, _ast.Call):
-            func = node.func
-            if isinstance(func, _ast.Attribute) and func.attr == "detach":
-                detached_found = True
-    assert detached_found, (
-        "loss.py must contain at least one .detach() call (for L_lb fractions)"
+        if isinstance(node, _ast.Assign):
+            for tgt in node.targets:
+                if isinstance(tgt, _ast.Name) and tgt.id == "f_det":
+                    rhs = node.value
+                    if (
+                        isinstance(rhs, _ast.Call)
+                        and isinstance(rhs.func, _ast.Attribute)
+                        and rhs.func.attr == "detach"
+                        and isinstance(rhs.func.value, _ast.Name)
+                        and rhs.func.value.id == "f_per_expert"
+                    ):
+                        specific_detach = True
+    assert specific_detach, (
+        "loss.py must contain `f_det = f_per_expert.detach()` for L_lb"
+    )
+
+    # 2. The L_lb computation must reference `f_det` (the detached alias),
+    #    NOT the raw `f_per_expert`. Slice the source to assert presence.
+    #    (Implementation may compute L_lb anywhere; we check that f_det
+    #    appears as a name binding/use after the assignment.)
+    src_loss_block = src[src.index("f_det"):] if "f_det" in src else ""
+    assert "f_det" in src_loss_block and "f_det.mean" in src_loss_block, (
+        "L_lb must consume `f_det` (not raw f_per_expert)"
     )
 
 
@@ -143,18 +170,52 @@ def test_lambda_fixed_phase_4() -> None:
     assert torch.allclose(parts2.L_sep, 0.001 * parts2.L_sep_raw, atol=1e-6)
 
 
-def test_sep_formula() -> None:
-    """Orthogonal basis → L_sep == 0.0 within abs=1e-12.
+def test_sep_formula_orthonormal_degenerate() -> None:
+    """Orthonormal basis → L_sep == 0.0 (DEGENERATE boundary case).
 
     Spec: skeleton "Loss Composition With Staged Lambda", Scenario
-    "L_sep closed form": for an orthonormal centroid set, ‖CᵀC‖_F² == N_e
-    exactly, so the numerator vanishes identically.
+    "L_sep closed form degenerate boundary": for an orthonormal centroid
+    set, ‖CᵀC‖_F² == N_e exactly, so the numerator vanishes identically.
     """
     N_e, d_c = 16, 16
     c = torch.eye(N_e, d_c)
     L_sep = loss_mod.compute_L_sep(c)
     assert L_sep.item() == pytest.approx(0.0, abs=1e-12), (
         f"L_sep(orthonormal basis) = {L_sep.item()}, expected 0"
+    )
+
+
+def test_sep_formula_non_degenerate() -> None:
+    """Non-degenerate L_sep must match spec closed form exactly (abs=1e-9).
+
+    Spec: L_sep = (‖CᵀC‖_F² − N_e) / (N_e·(N_e−1)). For non-orthogonal
+    centroids, the implementation must compute this value — a degenerate
+    `compute_L_sep = torch.zeros_like` would fail. Test with N_e=8, d_c=4
+    so columns must overlap (rank-constrained).
+    """
+    torch.manual_seed(42)
+    N_e, d_c = 8, 4
+    c = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
+    G = c @ c.T
+    fro_sq = (G * G).sum()
+    expected = (fro_sq - N_e) / (N_e * (N_e - 1))
+    actual = loss_mod.compute_L_sep(c)
+    assert actual.item() > 0, "L_sep must be > 0 for non-orthogonal centroids"
+    assert actual.item() == pytest.approx(float(expected), abs=1e-9), (
+        f"L_sep mismatch: got {actual.item()}, expected {float(expected)}"
+    )
+
+    # Sanity: pair-wise reformulation is mathematically equivalent but
+    # may differ in floating point summation order (~1e-8). Tolerance
+    # abs=1e-6 captures the equivalence without false-failing on order.
+    pair_sum = 0.0
+    for i in range(N_e):
+        for j in range(i + 1, N_e):
+            pair_sum += float(G[i, j]) ** 2
+    expected_pairs = (2.0 / (N_e * (N_e - 1))) * pair_sum
+    assert actual.item() == pytest.approx(expected_pairs, abs=1e-6), (
+        f"L_sep pair-wise form mismatch: got {actual.item()}, "
+        f"expected {expected_pairs}"
     )
 
 

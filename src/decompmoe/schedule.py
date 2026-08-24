@@ -130,8 +130,6 @@ def beta_effective(
     gamma_p: float,
     phase: int,
     step: int,
-    *,
-    cfg=None,
 ) -> Tensor:
     """Operational β^eff (spec Req 24 per-phase formulas, wayfinder L491-507).
 
@@ -142,8 +140,8 @@ def beta_effective(
       Phase 4:  β^eff = 1 + 31 · σ(γ')                          — line 497
                  (γ' = γ_reset_for_phase4(β_exit)); no clamp.
 
-    `cfg` is reserved for future spec hooks (e.g. cfg.beta_min override);
-    currently unused — must not be silently swallowed.
+    Signature is exactly 3 args: no dead `cfg` param (the constants
+    β_min / β_max / 31 / 31.9 are module-level in `decompmoe.beta`).
     """
     from decompmoe.beta import (
         inverse_temperature,
@@ -172,24 +170,6 @@ def beta_effective(
         except (TypeError, ValueError) as exc:
             raise ValueError(f"invalid gamma_p={gamma_p!r} in phase 4") from exc
     raise ValueError(f"unknown phase: {phase}")
-
-
-def phase_beta(phase: int, step: int, total_steps: int = _DEFAULT_TOTAL) -> float:
-    """Return β value for (phase, step)."""
-    bounds = phase_boundaries(total_steps)
-    if phase == 1:
-        return 1.0
-    if phase == 2:
-        t_start, t_end = bounds[1], bounds[2]
-        span = t_end - t_start - 1
-        progress = max(0.0, min(1.0, (step - t_start) / span)) if span > 0 else 0.0
-        return 1.0 + 3.0 * progress
-    if phase == 3:
-        t_start, t_end = bounds[2], bounds[3]
-        span = t_end - t_start - 1
-        progress = max(0.0, min(1.0, (step - t_start) / span)) if span > 0 else 0.0
-        return 4.0 + 12.0 * progress
-    return 16.0
 
 
 def should_reset_adam(prev_phase: int, next_phase: int) -> bool:
@@ -221,7 +201,6 @@ __all__ = [
     "phase_beta_max",
     "gamma_reset_for_phase4",
     "beta_effective",
-    "phase_beta",
     "should_reset_adam",
     "advisory_signals",
 ]

@@ -24,7 +24,6 @@ def test_neg_inf_sentinel_used() -> None:
     masked = gating.topk_mask_with_neg_inf(logits, k=2)
     neg_inf_mask = torch.isinf(masked) & (masked < 0)
     assert neg_inf_mask.any(), "non-top-k entries must be -inf"
-    is_neg_inf = torch.isinf(masked)
     top_k_mask = torch.zeros_like(masked, dtype=torch.bool)
     _, idx = logits.topk(2, dim=-1)
     top_k_mask.scatter_(1, idx, True)
@@ -53,6 +52,7 @@ def test_zero_grad_for_non_top_k() -> None:
     p = gating.local_softmax(masked)
     p.sum().backward()
     grad = logits.grad
+    assert grad is not None
     is_neg_inf = torch.isinf(masked)
     assert torch.all(grad[is_neg_inf] == 0.0), (
         f"non-top-k gradients must be 0, got {grad[is_neg_inf]}"
@@ -60,39 +60,48 @@ def test_zero_grad_for_non_top_k() -> None:
 
 
 def test_forward_formula_strictness() -> None:
-    """Numerical verification of x_out = x + Σ_{i∈I_k} p_i·Expert_i(x).
+    """Real-routing path: compose MUST use gating functions; verify against
+    an independently-derived closed form (NOT a re-implementation).
 
-    Spec: wayfinder ADDED "Forward Formula Numerical Verification (Routing
-    Layer)" — NOT source-grep. Stub experts return fixed per-expert outputs;
-    the routing equation must reproduce x + Σ p_i·E_i exactly.
-
-    Since `gating` emits only `p` (the equation is realized downstream), we
-    verify the composition contract: given top-k mask + local_softmax, the
-    recomposed output equals the closed form within abs=1e-6.
+    Spec Req 31 "Forward Formula Numerical Verification": given stub
+    experts[i](x) = E_i (fixed per expert), the routing layer's x_out must
+    equal x + Σ_{i ∈ I_k} p_i · E_i within abs=1e-6. This test exercises
+    the actual `gating.topk_mask_with_neg_inf` + `gating.local_softmax`
+    path and compares against an INDEPENDENT derivation of the closed form
+    (using `torch.softmax` and `topk` directly, NOT `gating.local_softmax`).
     """
     torch.manual_seed(0)
     N_e, d_model, k = 16, 8, 2
     x = torch.randn(d_model)
     logits = torch.randn(N_e)
-    masked = gating.topk_mask_with_neg_inf(logits.unsqueeze(0), k=k)
-    p = gating.local_softmax(masked).squeeze(0)  # (N_e,), zero outside top-k
-
-    # Stub experts: E_i(x) = E_i fixed per expert.
     fixed_outputs = torch.randn(N_e, d_model)
-    x_out = x + torch.einsum("i,id->d", p, fixed_outputs)
 
-    # Closed form: x + Σ_{i∈I_k} p_i · E_i.
-    active = masked.squeeze(0) > float("-inf")
+    # ---- LEFT side: actual routing path (calls gating module) ----
+    def compose_routing(x_in: torch.Tensor, logits_in: torch.Tensor, E: torch.Tensor) -> torch.Tensor:
+        masked = gating.topk_mask_with_neg_inf(logits_in.unsqueeze(0), k=k)
+        p = gating.local_softmax(masked).squeeze(0)  # (N_e,)
+        return x_in + torch.einsum("i,id->d", p, E)
+
+    x_out = compose_routing(x, logits, fixed_outputs)
+
+    # ---- RIGHT side: independently derived closed form ----
+    # Uses `torch.softmax` (NOT gating.local_softmax) so a bug in
+    # local_softmax would break this side.
+    topk_vals, topk_idx = logits.topk(k)
+    p_topk = torch.softmax(topk_vals, dim=-1)
     expected = x.clone()
-    for i in range(N_e):
-        if active[i]:
-            expected = expected + p[i] * fixed_outputs[i]
+    for j in range(k):
+        i = topk_idx[j]
+        expected = expected + p_topk[j] * fixed_outputs[i]
 
     assert torch.allclose(x_out, expected, atol=1e-6), (
-        f"routing equation mismatch: max diff = {(x_out - expected).abs().max().item():.3e}"
+        f"routing mismatch: max diff = {(x_out - expected).abs().max().item():.3e}"
     )
-    # Non-active experts contribute exactly 0 (p_i == 0 outside I_k).
-    assert (p[~active] == 0).all()
+    # Sanity: non-top-k p_i must be exactly 0 (via the actual gating path).
+    masked = gating.topk_mask_with_neg_inf(logits.unsqueeze(0), k=k)
+    p = gating.local_softmax(masked).squeeze(0)
+    active = masked.squeeze(0) > float("-inf")
+    assert (p[~active] == 0).all(), "non-top-k p must be 0 (gating output)"
 
 
 def test_convex_combination_dtype_safe() -> None:

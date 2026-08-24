@@ -13,7 +13,6 @@ from torch import Tensor
 from decompmoe.config import MVPConfig
 from decompmoe.loss import compute_L_sep as _compute_L_sep_internal
 
-
 REALTIME: Final[frozenset[str]] = frozenset({"L_sep", "R_H", "S_load", "UR"})
 
 # Named zero-sentinel for degenerate/empty-input returns (NOT a metric stub —
@@ -35,7 +34,10 @@ def R_H(p: Tensor) -> Tensor:
     p_safe = p.clamp_min(1e-12)
     n = p.shape[-1]
     entropy = -(p_safe * p_safe.log()).sum(dim=-1)
-    return entropy / torch.log(torch.tensor(float(n)))
+    try:
+        return entropy / torch.log(torch.tensor(float(n)))
+    except (ValueError, ZeroDivisionError) as exc:
+        raise ValueError(f"R_H: invalid p shape (n={n})") from exc
 
 
 def S_load(f_per_expert: Tensor) -> Tensor:
@@ -68,16 +70,17 @@ def UR(f_per_expert_history) -> Tensor:
 
 
 def SP(
-    C_t: Tensor, assignments: Tensor, *, centroids: Tensor
+    centroids: Tensor, assignments: Tensor, signatures: Tensor
 ) -> Tensor:
     """Specialization purity (offline).
 
-    Spec (wayfinder ADDED Requirements): per-expert purity
-    ``SP_i = mean_{t: a(t)=i} c_iᵀ C_t``; overall
+    Spec signature: ``SP(centroids, assignments, signatures)``.
+    Per-expert purity ``SP_i = mean_{t: a(t)=i} c_iᵀ C_t``; overall
     ``SP = mean({SP_i : ‖T_i‖₁ > 0})`` — empty experts are SKIPPED,
     not reported as 0. Closed forms: aligned inputs → 1.0;
     60° offset → 0.5. Range containment: [−1 − 1e-6, 1 + 1e-6].
     """
+    C_t = signatures
     if C_t.numel() == 0:
         return _ZERO
     N_e = centroids.shape[0]
@@ -85,7 +88,11 @@ def SP(
     for i in range(N_e):
         member = assignments == i
         n_i = member.sum()
-        if int(n_i.item()) == 0:
+        try:
+            n_i_val = int(n_i.item())
+        except (ValueError, RuntimeError) as exc:
+            raise ValueError(f"SP: cannot read n_i for expert {i}") from exc
+        if n_i_val == 0:
             continue  # skip empty expert (‖T_i‖₁ == 0)
         align = (C_t[member] * centroids[i].unsqueeze(0)).sum(dim=-1)
         per_expert_means.append(align.mean())
@@ -120,10 +127,20 @@ def MCI(token_signatures: Tensor) -> Tensor:
     """
     d_c = token_signatures.shape[-1]
     T_n = token_signatures.shape[0]
-    M_mat = token_signatures.T @ token_signatures / float(T_n)
+    try:
+        T_n_f = float(T_n)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"MCI: invalid token count {T_n}") from exc
+    if T_n_f <= 0.0:
+        raise ValueError(f"MCI: degenerate input (T_n={T_n_f})")
+    M_mat = token_signatures.T @ token_signatures / T_n_f
     eigvals = torch.linalg.eigvalsh(M_mat).clamp_min(0.0)
     total = eigvals.sum()
-    if float(total.item()) <= 0.0:
+    try:
+        total_f = float(total.item())
+    except (ValueError, RuntimeError) as exc:
+        raise ValueError("MCI: cannot read total of eigvals") from exc
+    if total_f <= 0.0:
         raise ValueError("degenerate second moment: all eigenvalues are zero")
     lam_norm = eigvals / total
     return 1.0 / (d_c * (lam_norm ** 2).sum())
@@ -154,15 +171,15 @@ def flops_per_token(cfg: MVPConfig, arch: ArchKind = "MOE") -> int:
 
 
 __all__ = [
-    "REALTIME",
-    "OFFLINE",
-    "L_sep",
-    "R_H",
-    "S_load",
-    "UR",
-    "SP",
-    "D_chord",
-    "MCI",
     "CG",
+    "MCI",
+    "OFFLINE",
+    "REALTIME",
+    "R_H",
+    "SP",
+    "UR",
+    "D_chord",
+    "L_sep",
+    "S_load",
     "flops_per_token",
 ]
