@@ -7,25 +7,34 @@ from __future__ import annotations
 import inspect
 from pathlib import Path
 
-import math
+import pytest
 import torch
-import torch.nn.functional as F
 
 from decompmoe import loss as loss_mod
 
 
 def test_load_balance_alpha_fixed() -> None:
-    """α == 0.01 (Switch-style fixed weight on L_lb)."""
+    """α == 0.01 (Switch-style) AND closed forms: uniform f = P = 1/16 →
+    L_lb_raw == 1.0 and L_lb == 0.01 exact.
+
+    Spec: skeleton "Loss Composition With Staged Lambda", Scenarios
+    "L_lb closed form on uniform routing" + "Alpha pinned to 0.01":
+    L_lb_raw = N_e · Σ_i f_i·P_i = 16 · 16 · (1/16)² = 1.0.
+    """
     torch.manual_seed(0)
-    B, N, V, N_e = 2, 4, 100, 16
+    B, N, V, N_e = 1, 1, 100, 16
     task_logits = torch.randn(B, N, V)
     targets = torch.randint(0, V, (B, N))
-    f = torch.softmax(torch.randn(B, N, N_e), dim=-1)
-    p = torch.softmax(torch.randn(B, N, N_e), dim=-1)
+    f = torch.full((B, N, N_e), 1.0 / N_e)
+    p = torch.full((B, N, N_e), 1.0 / N_e)
     c = torch.nn.functional.normalize(torch.randn(N_e, 16), dim=-1)
     parts = loss_mod.L_total(task_logits, targets, f, p, c, phase=1, step=1_000)
-    expected = parts.L_CE + 0.01 * parts.L_lb_raw
-    assert torch.allclose(parts.L_total, expected, atol=1e-5)
+    assert parts.L_lb_raw.item() == pytest.approx(1.0, abs=1e-6), (
+        f"L_lb_raw(uniform) = {parts.L_lb_raw.item()}, expected 1.0"
+    )
+    assert parts.L_lb.item() == pytest.approx(0.01, abs=1e-8), (
+        f"L_lb = α · 1.0 must equal 0.01; got {parts.L_lb.item()}"
+    )
 
 
 def test_lb_gradient_flows_through_P_i() -> None:
@@ -93,17 +102,24 @@ def test_lambda_zero_phase_1_2() -> None:
 
 
 def test_lambda_cosine_ramp_phase_3() -> None:
-    """For phase == 3, λ(t) is cosine ramp from 0 to 0.001 across the phase."""
-    torch.manual_seed(0)
-    B, N, V, N_e = 2, 4, 100, 16
-    task_logits = torch.randn(B, N, V)
-    targets = torch.randint(0, V, (B, N))
-    f = torch.softmax(torch.randn(B, N, N_e), dim=-1)
-    p = torch.softmax(torch.randn(B, N, N_e), dim=-1)
-    c = torch.nn.functional.normalize(torch.randn(N_e, 16), dim=-1)
-    parts_start = loss_mod.L_total(task_logits, targets, f, p, c, phase=3, step=26_000)
-    parts_end = loss_mod.L_total(task_logits, targets, f, p, c, phase=3, step=55_999)
-    assert parts_end.L_sep.item() > parts_start.L_sep.item()
+    """Phase-3 λ(t) cosine ramp pinned at 3 exact step values.
+
+    Spec: skeleton "Loss Composition With Staged Lambda", Scenario
+    "Lambda cosine ramp endpoints in phase 3": λ(26_000) == 0.0,
+    λ(41_000) ≈ 5e-4, λ(55_999) ≈ 0.001 (via L_sep = λ·L_sep_raw with a
+    known L_sep_raw).
+    """
+    c = torch.nn.functional.normalize(torch.randn(16, 16), dim=-1)
+    # Compute L_sep_raw once for reference scaling.
+    ref = loss_mod.compute_L_sep(c).item()
+    assert ref > 0, "need nonzero L_sep_raw for ramp verification"
+    del ref  # λ(t) verified directly against the cosine closed form
+    lam_start = loss_mod._lambda_at(3, 26_000)
+    lam_mid = loss_mod._lambda_at(3, 41_000)
+    lam_end = loss_mod._lambda_at(3, 55_999)
+    assert lam_start == pytest.approx(0.0, abs=1e-12)
+    assert lam_mid == pytest.approx(5e-4, abs=1e-6), f"λ(41_000)={lam_mid}"
+    assert lam_end == pytest.approx(0.001, abs=1e-6), f"λ(55_999)={lam_end}"
 
 
 def test_lambda_fixed_phase_4() -> None:
@@ -122,15 +138,18 @@ def test_lambda_fixed_phase_4() -> None:
 
 
 def test_sep_formula() -> None:
-    """L_sep == (‖CᵀC‖_F² − N_e) / (N_e · (N_e − 1)) for unit-sphere centroids."""
-    torch.manual_seed(0)
+    """Orthogonal basis → L_sep == 0.0 within abs=1e-12.
+
+    Spec: skeleton "Loss Composition With Staged Lambda", Scenario
+    "L_sep closed form": for an orthonormal centroid set, ‖CᵀC‖_F² == N_e
+    exactly, so the numerator vanishes identically.
+    """
     N_e, d_c = 16, 16
-    c = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
+    c = torch.eye(N_e, d_c)
     L_sep = loss_mod.compute_L_sep(c)
-    G = c @ c.T
-    fro_sq = (G ** 2).sum()
-    expected = (fro_sq - N_e) / (N_e * (N_e - 1))
-    assert abs(L_sep.item() - expected.item()) < 1e-6
+    assert L_sep.item() == pytest.approx(0.0, abs=1e-12), (
+        f"L_sep(orthonormal basis) = {L_sep.item()}, expected 0"
+    )
 
 
 def test_token_vs_expert_C_notation() -> None:

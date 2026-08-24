@@ -48,7 +48,7 @@
 
 ## 3. 测试重写（5 项，替换恒真断言，不增计数）
 
-- [ ] 3.9 `tests/test_loss.py`：`test_sep_formula`（正交基 L_sep==0, abs=1e-12）、`test_load_balance_alpha_fixed`（uniform f=P=1/16 → L_lb_raw==1.0, L_lb==0.01）、`test_lambda_cosine_ramp_phase_3`（λ(26_000)==0.0、λ(41_000)≈5e-4、λ(55_999)≈0.001）
+- [x] 3.9 `tests/test_loss.py`：`test_sep_formula`（正交基 L_sep==0, abs=1e-12）、`test_load_balance_alpha_fixed`（uniform f=P=1/16 → L_lb_raw==1.0, L_lb==0.01）、`test_lambda_cosine_ramp_phase_3`（λ(26_000)==0.0、λ(41_000)≈5e-4、λ(55_999)≈0.001）
 
 - [x] 3.10 `tests/test_beta.py`：`test_grad_C_bound`（e_1 vs e_2, β=32 → ‖∂logit/∂C‖==32.0, abs=1e-4）、`test_grad_gamma_bound`（γ=0, c=−e_1 → ==15.95, abs=1e-3）、新 `test_max_grad_per_gamma_phase4`（γ'=0, c=−C → ==15.5, abs=1e-3）
 
