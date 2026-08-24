@@ -42,7 +42,7 @@
 - [x] 3.7 `src/decompmoe/safeguards.py`：resurrection perturb 返回单专家形状 `(d_c,)` 或 `(d_model·d_ffn,)`；同事件内 β_i ← 0.85·β_{j*} 且 β_{j*} ← 0.85·β_{j*}
   - Spec 锚点：wayfinder ADDED "Resurrection Perturbation Per-Expert Contract"
 
-- [ ] 3.8 `src/decompmoe/beta.py`：新增 `phase4_inverse_temperature(gamma_p) = 1 + 31·σ(gamma_p)`；`MAX_GRAD_PER_GAMMA = 15.95` 加显式域标签；新增 `MAX_GRAD_PER_GAMMA_PHASE4 = 15.5`
+- [x] 3.8 `src/decompmoe/beta.py`：新增 `phase4_inverse_temperature(gamma_p) = 1 + 31·σ(gamma_p)`；`MAX_GRAD_PER_GAMMA = 15.95` 加显式域标签；新增 `MAX_GRAD_PER_GAMMA_PHASE4 = 15.5`
   - Spec 锚点：skeleton ADDED "Beta Parameterization Operational Domain"
   - Verify：`grep -F "phase4_inverse_temperature" src/decompmoe/beta.py` → ≥ 1 hit
 
