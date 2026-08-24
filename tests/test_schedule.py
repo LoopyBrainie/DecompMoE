@@ -141,3 +141,50 @@ def test_beta_effective_phase_4_continuity() -> None:
     )
     # Limit-continuity witness (exclusive end ⇒ last in-phase step).
     assert schedule.phase_beta_max(3, 55_999) == pytest.approx(15.9996, abs=1e-4)
+
+
+# ---------------------------------------------------------------------------
+# Bug #1 + #2 — spec Req 24 per-phase formula enforcement (wayfinder L491-507)
+# ---------------------------------------------------------------------------
+
+
+def test_beta_effective_phase_1_fixed_one() -> None:
+    """Phase 1 β^eff == 1.0 for ANY γ (spec line 495)."""
+    import torch as _t
+    _t.manual_seed(0)
+    for gamma, step in [(0.0, 1_000), (-3.5, 3_000), (5.0, 5_999), (100.0, 100)]:
+        v = schedule.beta_effective(gamma, phase=1, step=step).item()
+        assert v == pytest.approx(1.0, abs=1e-9), (
+            f"phase=1, γ={gamma}, step={step}: β^eff={v}, spec requires exactly 1.0"
+        )
+
+
+def test_beta_effective_phase_2_3_use_inverse_temperature() -> None:
+    """Phase 2/3 use β^param(γ)=0.1+31.9·σ(γ) (NOT 1+31·σ(γ)).
+
+    Trigger: γ=-5 saturates the clamp at the lower bound → β^eff must be 1.0.
+    With the (wrong) phase-4 formula 1+31·σ(-5)≈1.208, this test fails.
+    """
+    v = float(schedule.beta_effective(-5.0, phase=2, step=16_000).item())
+    # β^param(-5)=0.1+31.9·σ(-5)≈0.314 → Clamp(0.314, 1.0, 4.0) = 1.0
+    assert v == pytest.approx(1.0, abs=1e-6), (
+        f"phase=2, γ=-5: β^eff={v}, spec Clamp(β^param(-5), 1.0, 4.0) = 1.0"
+    )
+    v3 = float(schedule.beta_effective(-5.0, phase=3, step=41_000).item())
+    # phase 3 cap at step 41_000 = 4 + 12·(41_000-26_000)/30_000 ≈ 10.0
+    # lower-clamp still 1.0
+    assert v3 == pytest.approx(1.0, abs=1e-6)
+
+
+def test_beta_effective_phase_2_3_cap_binding() -> None:
+    """Phase 3 cap-binding (γ=0, mid-phase): β^eff == phase_beta_max value.
+
+    β^param(0) = 0.1+31.9·0.5 = 16.05
+    cap at step 41_000 = 4 + 12·(41_000-26_000)/30_000 = 10.0
+    ⇒ Clamp(16.05, 1.0, 10.0) = 10.0
+    """
+    v = float(schedule.beta_effective(0.0, phase=3, step=41_000).item())
+    cap = schedule.phase_beta_max(3, 41_000)
+    assert v == pytest.approx(float(cap), abs=1e-6), (
+        f"γ=0 phase=3 step=41k: β^eff={v}, expected cap={cap}"
+    )

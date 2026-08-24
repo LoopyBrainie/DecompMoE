@@ -133,15 +133,45 @@ def beta_effective(
     *,
     cfg=None,
 ) -> Tensor:
-    """Operational β^eff = clamp(1 + 31·σ(γ_p), lo=1, hi=phase_beta_max)."""
-    from decompmoe.beta import phase4_inverse_temperature
+    """Operational β^eff (spec Req 24 per-phase formulas, wayfinder L491-507).
 
-    try:
-        beta_raw = float(phase4_inverse_temperature(float(gamma_p)).item())
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"invalid gamma_p: {gamma_p!r}") from exc
-    cap = phase_beta_max(phase, step)
-    return torch.tensor(min(beta_raw, cap))
+    Spec declarations:
+      Phase 1: β^eff = 1.0 (fixed, regardless of γ)              — line 495
+      Phase 2-3: Clamp(β^param(γ), 1.0, β_max(t))               — line 496
+                 where β^param(γ) = 0.1 + 31.9 · σ(γ)
+      Phase 4:  β^eff = 1 + 31 · σ(γ')                          — line 497
+                 (γ' = γ_reset_for_phase4(β_exit)); no clamp.
+
+    `cfg` is reserved for future spec hooks (e.g. cfg.beta_min override);
+    currently unused — must not be silently swallowed.
+    """
+    from decompmoe.beta import (
+        inverse_temperature,
+        phase4_inverse_temperature,
+    )
+
+    if phase == 1:
+        # Spec line 495: fixed 1.0 (γ-independent exploration phase).
+        return torch.tensor(1.0)
+    if phase in (2, 3):
+        # Spec line 496: Clamp(β^param(γ), 1.0, β_max(t))
+        try:
+            beta_raw = inverse_temperature(torch.as_tensor(float(gamma_p)))
+            cap = phase_beta_max(phase, step)
+            return torch.tensor(float(beta_raw.clamp(min=1.0, max=cap).item()))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"invalid (gamma_p, phase, step): "
+                             f"{gamma_p!r}, {phase}, {step}") from exc
+    if phase == 4:
+        # Spec line 497: 1 + 31 · σ(γ'); the γ' reset already places this
+        # at β_exit on entry, so no further clamp needed (spec does not
+        # request one for Phase 4).
+        try:
+            beta_raw = phase4_inverse_temperature(torch.as_tensor(float(gamma_p)))
+            return torch.tensor(float(beta_raw.item()))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"invalid gamma_p={gamma_p!r} in phase 4") from exc
+    raise ValueError(f"unknown phase: {phase}")
 
 
 def phase_beta(phase: int, step: int, total_steps: int = _DEFAULT_TOTAL) -> float:
