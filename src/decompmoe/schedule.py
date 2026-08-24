@@ -18,6 +18,7 @@ Operational Domain"):
     Layer 2: state-driven advisory signals (read-only).
     Layer 3: hard cutoff at 100_000 steps.
 """
+
 from __future__ import annotations
 
 import math
@@ -38,7 +39,9 @@ def phase_boundaries(total_steps: int = _DEFAULT_TOTAL) -> tuple[int, ...]:
         cumul += ratio
         raw = cumul * total_steps
         if not math.isfinite(raw):
-            raise ValueError(f"non-finite boundary: ratio={ratio}, total_steps={total_steps}")
+            raise ValueError(
+                f"non-finite boundary: ratio={ratio}, total_steps={total_steps}"
+            )
         try:
             out.append(int(round(raw)))
         except (TypeError, ValueError, OverflowError) as exc:

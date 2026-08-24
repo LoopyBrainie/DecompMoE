@@ -2,6 +2,7 @@
 
 ST-11 / Req 14, 15.
 """
+
 from __future__ import annotations
 
 import math
@@ -87,6 +88,7 @@ def test_advisory_signals_read_only() -> None:
     assert advisory["R_H"] == 0.99
     assert schedule.phase_id(5_000) == 1
 
+
 # ---------------------------------------------------------------------------
 # Task 3.3 — schedule-time functions (skeleton "Beta Parameterization
 # Operational Domain"): gamma_reset_for_phase4 / phase_beta_max /
@@ -122,3 +124,20 @@ def test_gamma_reset_for_phase4_boundary_continuity() -> None:
     g_reset = schedule.gamma_reset_for_phase4(16.0)
     assert g_reset == pytest.approx(math.log(15.0 / 16.0), abs=1e-4)
     assert beta.phase4_inverse_temperature(g_reset) == pytest.approx(16.0, abs=1e-6)
+
+
+def test_beta_effective_phase_4_continuity() -> None:
+    """β^eff at phase-4 entry == 16.0 exact; limit-continuity witness at
+    phase-3 exit: phase_beta_max(3, 55_999) ≈ 15.9996.
+
+    Spec: skeleton "Beta Parameterization Operational Domain" — the reset γ
+    places β^eff exactly on the phase-3 ramp's limiting value; the linear
+    convention with exclusive end gives the witness value
+    4 + 12·(55_999−26_000)/(56_000−26_000) ≈ 15.9996.
+    """
+    g_reset = schedule.gamma_reset_for_phase4(16.0)
+    assert schedule.beta_effective(g_reset, 4, 56_000).item() == pytest.approx(
+        16.0, abs=1e-6
+    )
+    # Limit-continuity witness (exclusive end ⇒ last in-phase step).
+    assert schedule.phase_beta_max(3, 55_999) == pytest.approx(15.9996, abs=1e-4)

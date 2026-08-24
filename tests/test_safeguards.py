@@ -2,6 +2,7 @@
 
 ST-10 / Req 13 — Backward → clip_grad_norm_(1.0) → optimizer.step() → L2_norm(c_i).
 """
+
 from __future__ import annotations
 
 import pytest
@@ -160,6 +161,7 @@ def test_step_ordering() -> None:
         "l2_norm",
     )
 
+
 # ---------------------------------------------------------------------------
 # Task 3.7 — Resurrection Perturbation Per-Expert Contract (wayfinder ADDED)
 # ---------------------------------------------------------------------------
@@ -174,7 +176,9 @@ def test_resurrection_perturbation_shape_per_expert() -> None:
     d_c = 16
     f = torch.randn(4, 3, 8)  # (B, N, N_e) legacy input
     eps = safeguards.resurrection_perturb_distribution(f, target_idx=2, dim=d_c)
-    assert eps.shape == (d_c,), f"expected single-expert ({d_c},), got {tuple(eps.shape)}"
+    assert eps.shape == (d_c,), (
+        f"expected single-expert ({d_c},), got {tuple(eps.shape)}"
+    )
     assert eps.shape != (f.shape[-1],)
 
 
@@ -199,5 +203,7 @@ def test_resurrection_beta_decay() -> None:
     out = safeguards.apply_resurrection_beta_decay(beta_params, j_star=1, i=0)
     expected_j = 0.85 * 8.0
     assert out[1].item() == pytest.approx(expected_j, abs=1e-5)  # β_{j*} ← 0.85·β_{j*}
-    assert out[0].item() == pytest.approx(expected_j, abs=1e-5)  # β_i ← 0.85·β_{j*} (old value)
+    assert out[0].item() == pytest.approx(
+        expected_j, abs=1e-5
+    )  # β_i ← 0.85·β_{j*} (old value)
     assert out[2].item() == pytest.approx(12.0, abs=1e-5)  # untouched

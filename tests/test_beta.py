@@ -2,6 +2,7 @@
 
 ST-02 / Req 7: β = β_min + (β_max − β_min) · σ(γ), with β_min = 0.1, β_max = 32.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -142,7 +143,9 @@ def test_max_grad_per_gamma_phase4() -> None:
     c_unit = -C_unit.clone()  # c = −C (antipodal worst case: Cᵀc − 1 = −2)
     logit = beta.phase4_inverse_temperature(gamma_p) * ((C_unit * c_unit).sum() - 1.0)
     grad = torch.autograd.grad(logit, gamma_p)[0]
-    assert abs(grad.item()) == pytest.approx(beta.MAX_GRAD_PER_GAMMA_PHASE4, abs=1e-3), (
+    assert abs(grad.item()) == pytest.approx(
+        beta.MAX_GRAD_PER_GAMMA_PHASE4, abs=1e-3
+    ), (
         f"Phase-4 worst case |∂β^eff/∂γ'| = {abs(grad.item())}, "
         f"expected {beta.MAX_GRAD_PER_GAMMA_PHASE4}"
     )

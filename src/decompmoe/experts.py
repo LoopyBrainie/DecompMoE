@@ -8,6 +8,7 @@ injection (the geometric routing chain does not touch the expert body).
 `ExpertPool` is a thin container for the N_e experts — it has NO shared
 expert slot (A5-2 decision; CLAUDE.md §6 hard constraint).
 """
+
 from __future__ import annotations
 
 import torch
@@ -33,7 +34,9 @@ class SwiGLUExpert(nn.Module):
         nn.init.normal_(self.W_d, std=0.02)
 
     def forward(self, x: Tensor) -> Tensor:
-        return (torch.nn.functional.silu(x @ self.W_g.T) * (x @ self.W_u.T)) @ self.W_d.T
+        return (
+            torch.nn.functional.silu(x @ self.W_g.T) * (x @ self.W_u.T)
+        ) @ self.W_d.T
 
 
 class ExpertPool(nn.Module):

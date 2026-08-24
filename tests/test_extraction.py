@@ -2,6 +2,7 @@
 
 ST-04 / Req 5 (full pipeline) + Req 6 (no STE, fully differentiable).
 """
+
 from __future__ import annotations
 
 import inspect
@@ -13,7 +14,9 @@ from decompmoe import extraction
 from decompmoe.sphere import spherical_l2_normalize
 
 
-def _fake_proj(B: int, H_kv: int, d_k: int, d_c: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def _fake_proj(
+    B: int, H_kv: int, d_k: int, d_c: int
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Make deterministic small projection parameters (per-head)."""
     torch.manual_seed(0)
     W_K = torch.randn(H_kv, d_k, d_c) * 0.1
@@ -135,6 +138,7 @@ def test_no_surrogate_in_codebase() -> None:
     # to detach centroids by spec). We extract extract_C's source via inspect
     # and assert zero .detach() calls in it.
     import inspect as _inspect
+
     extract_c_src = _inspect.getsource(extraction.extract_C)
     assert ".detach(" not in extract_c_src, (
         "extract_C must have zero .detach() calls between z and C (Req 6: D-path)"
@@ -256,6 +260,7 @@ def test_near_zero_candidate_fallback() -> None:
     # All centroids remain on the unit sphere (Issue ⑥ derivative).
     norms = out.norm(dim=-1)
     assert torch.allclose(norms, torch.ones_like(norms), atol=1e-6)
+
 
 def test_near_zero_candidate_fallback_phase4() -> None:
     """Phase 4 applies the same near-zero fallback as the EMA branch.

@@ -4,6 +4,7 @@ ST-07 / Req 8 — k=2 sparse mask with −∞ sentinel; local softmax over the
 top-k active set only. Forward: `x_out = x + Σ p_i · Expert_i(x)` is the
 ONLY routing equation (grep test).
 """
+
 from __future__ import annotations
 
 import torch

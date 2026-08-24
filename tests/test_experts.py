@@ -2,6 +2,7 @@
 
 ST-08 / Req 9 (Standard SwiGLU) + Req 10 (no shared expert).
 """
+
 from __future__ import annotations
 
 import inspect
@@ -74,6 +75,7 @@ def test_isomorphic_to_llama_ffn() -> None:
         ref_lin_d.weight.copy_(expert.W_d)
     y_ref = ref_lin_d(torch.nn.functional.silu(ref_lin_g(x)) * ref_lin_u(x))
     assert torch.allclose(y, y_ref, atol=1e-5)
+
 
 # ---------------------------------------------------------------------------
 # Task 3.5 / 3.14 — ExpertPool is an nn.Module with ModuleList (spec:

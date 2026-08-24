@@ -14,6 +14,7 @@ These constants live here (not in `MVPConfig`) per design.md D1 — they are
 algorithmic constants, not geometric constants, and a single canonical home
 makes grep-tests easy.
 """
+
 from __future__ import annotations
 
 from typing import Final

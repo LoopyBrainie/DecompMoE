@@ -13,6 +13,7 @@ chain (Req 17): `(K, V) → C ∈ R^{B × N × d_c}`, no KV-cache side effect.
 The module is import-side-effect-free: no autograd state, no global
 registries, no `torch.utils.cpp_extension` / `triton` imports (Req 9/18).
 """
+
 from __future__ import annotations
 
 from enum import IntEnum
@@ -22,7 +23,6 @@ import torch
 from torch import Tensor
 
 from decompmoe.sphere import spherical_l2_normalize
-
 
 # ---------------------------------------------------------------------------
 # 4-step C extraction pipeline (Req 5)
@@ -51,9 +51,7 @@ def extract_C(
     Differentiability: every step contributes a finite gradient; no
     Straight-Through Estimator is inserted between `z` and `C` (Req 6).
     """
-    z = torch.einsum("bhnd,hde->bhne", K, W_K) + torch.einsum(
-        "bhnd,hde->bhne", V, W_V
-    )
+    z = torch.einsum("bhnd,hde->bhne", K, W_K) + torch.einsum("bhnd,hde->bhne", V, W_V)
     z = z + b.view(1, H_kv, 1, d_c)
 
     # Step 2: per-head spherical projection.
@@ -75,11 +73,11 @@ def extract_C(
 class Phase(IntEnum):
     """Centroid lifecycle phase (Req 6 / A3-2)."""
 
-    SEEDING = 0           # spherical k-means (no gradient)
-    EMA_090 = 1           # α = 0.90
-    EMA_095 = 2           # α = 0.95
-    EMA_099 = 3           # α = 0.99
-    PROJECTED_SGD = 4     # L2 retraction after SGD step
+    SEEDING = 0  # spherical k-means (no gradient)
+    EMA_090 = 1  # α = 0.90
+    EMA_095 = 2  # α = 0.95
+    EMA_099 = 3  # α = 0.99
+    PROJECTED_SGD = 4  # L2 retraction after SGD step
 
 
 _EMA_ALPHA: Final[dict[int, float]] = {
@@ -139,7 +137,9 @@ class CentroidDriver:
             candidate = alpha * centroids + (1.0 - alpha) * mean
             norm = candidate.norm(dim=-1, keepdim=True)
             use_old = norm < 1e-9
-            return torch.where(use_old, centroids, torch.nn.functional.normalize(candidate, dim=-1))
+            return torch.where(
+                use_old, centroids, torch.nn.functional.normalize(candidate, dim=-1)
+            )
 
         if self.phase == Phase.PROJECTED_SGD:
             # Near-zero candidate fallback (Invariant #4, same pattern as the

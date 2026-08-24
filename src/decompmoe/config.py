@@ -15,6 +15,7 @@ This module materializes Req 1, Req 2, Req 11, and Req 19 of
 The module is import-side-effect-free: no torch device calls, no autograd
 state, no global registries.
 """
+
 from __future__ import annotations
 
 import dataclasses

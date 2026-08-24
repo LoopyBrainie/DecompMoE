@@ -6,6 +6,7 @@ These tests are written FIRST (TDD Red) — they intentionally fail at import ti
 because `decompmoe.config` does not exist yet. The GREEN step implements the
 module to make these pass.
 """
+
 from __future__ import annotations
 
 import dataclasses

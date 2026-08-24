@@ -10,6 +10,7 @@ Five safeguards (A6a-2):
     4. β saturation guard (warning at 30.4 = 0.95·β_max; LR halve at 28.8 = 0.90·β_max).
     5. Loss spike defense (LR × 0.8 when phase ≥ 3 and L_task > 2.5·EMA(L_task)).
 """
+
 from __future__ import annotations
 
 from typing import Final, Literal
@@ -33,6 +34,7 @@ RESURRECTION_RATE_LIMIT_STEPS: Final[int] = 1000
 def _dead_expert_threshold(N_e: int) -> float:
     """Return the dead-expert threshold `1 / (2·N_e)` for the given N_e."""
     return 1.0 / (2.0 * N_e)
+
 
 # Loss-spike defense (A6a-2)
 LOSS_SPIKE_RATIO: Final[float] = 2.5
@@ -101,7 +103,11 @@ def should_resurrect(
 
 
 def resurrection_perturb_distribution(
-    f_per_expert: Tensor, target_idx: int, eps_std: float = 0.05, *, dim: int | None = None
+    f_per_expert: Tensor,
+    target_idx: int,
+    eps_std: float = 0.05,
+    *,
+    dim: int | None = None,
 ) -> Tensor:
     """Per-expert clone perturbation: `ε ~ N(0, eps_std²·I)`.
 
@@ -123,9 +129,7 @@ def resurrection_perturb_distribution(
 RESURRECTION_BETA_DECAY: Final[float] = 0.85
 
 
-def apply_resurrection_beta_decay(
-    β_per_expert: Tensor, j_star: int, i: int
-) -> Tensor:
+def apply_resurrection_beta_decay(β_per_expert: Tensor, j_star: int, i: int) -> Tensor:
     """Same-event β mutation on resurrection (returns a NEW tensor).
 
     Spec: β_i ← 0.85·β_{j*} AND β_{j*} ← 0.85·β_{j*} as part of the same

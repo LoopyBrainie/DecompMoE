@@ -2,6 +2,7 @@
 
 ST-09 / Req 12 — α = 0.01 (Switch-style); λ(t) staged schedule.
 """
+
 from __future__ import annotations
 
 import inspect
@@ -57,10 +58,10 @@ def test_lb_gradient_flows_through_P_i() -> None:
     grad_p = torch.autograd.grad(parts.L_lb, p, retain_graph=True)[0]
     # f is detached inside loss.py so it does not appear in the autograd
     # graph; pass allow_unused=True so we can confirm grad is None (= 0).
-    grad_f = torch.autograd.grad(
-        parts.L_lb, f, retain_graph=True, allow_unused=True
-    )[0]
-    assert grad_f is None or torch.allclose(grad_f, torch.zeros_like(grad_f), atol=1e-12), (
+    grad_f = torch.autograd.grad(parts.L_lb, f, retain_graph=True, allow_unused=True)[0]
+    assert grad_f is None or torch.allclose(
+        grad_f, torch.zeros_like(grad_f), atol=1e-12
+    ), (
         f"∂L_lb/∂f_i must be exactly 0 (detached); got "
         f"{'None' if grad_f is None else f'max |grad| = {grad_f.abs().max().item():.3e}'}"
     )
@@ -74,6 +75,7 @@ def test_lb_gradient_flows_through_P_i() -> None:
 def test_lb_uses_detached_fractions() -> None:
     """L_lb must use f_per_expert.detach() — verified by AST source scan."""
     import ast as _ast
+
     src = inspect.getsource(loss_mod)
     tree = _ast.parse(src)
     detached_found = False
@@ -82,7 +84,9 @@ def test_lb_uses_detached_fractions() -> None:
             func = node.func
             if isinstance(func, _ast.Attribute) and func.attr == "detach":
                 detached_found = True
-    assert detached_found, "loss.py must contain at least one .detach() call (for L_lb fractions)"
+    assert detached_found, (
+        "loss.py must contain at least one .detach() call (for L_lb fractions)"
+    )
 
 
 def test_lambda_zero_phase_1_2() -> None:
@@ -95,7 +99,9 @@ def test_lambda_zero_phase_1_2() -> None:
     p = torch.softmax(torch.randn(B, N, N_e), dim=-1)
     c = torch.nn.functional.normalize(torch.randn(N_e, 16), dim=-1)
     for phase in (1, 2):
-        parts = loss_mod.L_total(task_logits, targets, f, p, c, phase=phase, step=phase * 5_000)
+        parts = loss_mod.L_total(
+            task_logits, targets, f, p, c, phase=phase, step=phase * 5_000
+        )
         assert parts.L_sep.item() == 0.0, (
             f"phase {phase} should have λ=0 ⇒ L_sep=0; got {parts.L_sep}"
         )

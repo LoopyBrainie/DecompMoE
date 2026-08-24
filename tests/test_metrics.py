@@ -2,6 +2,7 @@
 
 ST-12 / Req 19, 20.
 """
+
 from __future__ import annotations
 
 import math
@@ -64,7 +65,14 @@ def test_four_realtime_four_offline_classification() -> None:
     assert {"L_sep", "R_H", "S_load", "UR"} == metrics.REALTIME
     assert frozenset({"SP", "D_chord", "MCI", "CG"}) == metrics.OFFLINE
     assert {
-        "L_sep", "R_H", "S_load", "UR", "SP", "D_chord", "MCI", "CG"
+        "L_sep",
+        "R_H",
+        "S_load",
+        "UR",
+        "SP",
+        "D_chord",
+        "MCI",
+        "CG",
     } == metrics.REALTIME | metrics.OFFLINE
 
 
@@ -76,6 +84,7 @@ def test_active_flops_parity_per_arch() -> None:
     moe = metrics.flops_per_token(cfg, arch="MOE")
     dense = metrics.flops_per_token(cfg, arch="DENSE")
     assert moe == dense
+
 
 # ---------------------------------------------------------------------------
 # Task 3.4 — offline closed forms (wayfinder ADDED Requirements)
