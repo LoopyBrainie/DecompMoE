@@ -157,7 +157,7 @@ def beta_effective(
             beta_raw = inverse_temperature(torch.as_tensor(float(gamma_p)))
             cap = phase_beta_max(phase, step)
             return torch.tensor(float(beta_raw.clamp(min=1.0, max=cap).item()))
-        except (TypeError, ValueError) as exc:
+        except (TypeError, ValueError) as exc:  # noqa: dead-defensive — float(gamma_p) on None/'abc' raises real TypeError/ValueError
             raise ValueError(
                 f"invalid (gamma_p, phase, step): {gamma_p!r}, {phase}, {step}"
             ) from exc
@@ -168,7 +168,7 @@ def beta_effective(
         try:
             beta_raw = phase4_inverse_temperature(torch.as_tensor(float(gamma_p)))
             return torch.tensor(float(beta_raw.item()))
-        except (TypeError, ValueError) as exc:
+        except (TypeError, ValueError) as exc:  # noqa: dead-defensive — float(gamma_p) on None/'abc' raises real TypeError/ValueError
             raise ValueError(f"invalid gamma_p={gamma_p!r} in phase 4") from exc
     raise ValueError(f"unknown phase: {phase}")
 

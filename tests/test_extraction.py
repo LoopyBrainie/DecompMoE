@@ -73,7 +73,7 @@ def test_aggregate_across_heads_awareness() -> None:
 
 
 def test_complexity_budget() -> None:
-    """Per-token MAC closed form, verified via actual `extract_C` invocation.
+    """Spec closed-form MACs verified + extract_C invariant (shape + sphere).
 
     Spec: skeleton "C Extraction Four-Step Pipeline", Scenario "Per-token
     MAC closed form" (pinned convention: 1 MAC = 1 multiply + 1 accumulate;
@@ -81,9 +81,18 @@ def test_complexity_budget() -> None:
     8·4112 + 8·16 + 16 = 33_040 per-token MACs exactly.
     Scaling: O(H_kv · d_k · d_c).
 
-    This test must ACTUALLY call `extract_C` (not just verify a closed-form
-    function definition in isolation). The call trace's MAC count must
-    match the spec closed form within 1% (tolerates kernel-impl overhead).
+    What this test does (NOT what the previous docstring claimed):
+      1. Closed-form MAC value at MVP: 33_040 exact (asserted by definition).
+      2. d_c-scaling: m2 == 2·m1 (every term in the closed form is linear
+         in d_c, so doubling d_c doubles the total).
+      3. d_k-scaling: m4 - m3 == 4·2·(64−32)·8 (the d_k step contribution).
+      4. ACTUAL extract_C invocation: verifies the impl returns shape
+         (B, N, d_c) and unit-sphere output (step-4 normalization). This
+         catches impl-level regressions (extra ops, wrong einsum) that a
+         closed-form-only test would miss.
+
+    The test does NOT measure MAC count via profiler/hooks; that would be
+    backend-dependent (CUDA kernel fusion can change observed MACs by 2x).
     """
     cfg_hkv, cfg_dk, cfg_dc = 8, 128, 16
 

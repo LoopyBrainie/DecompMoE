@@ -34,11 +34,14 @@ def R_H(p: Tensor) -> Tensor:
     """
     p_safe = p.clamp_min(1e-12)
     n = p.shape[-1]
+    if n < 2:
+        # Spec Req 20: R_H ∈ [0, 1] is only defined for n ≥ 2 (entropy
+        # normalization requires log n > 0). n=0 or n=1 returns NaN from
+        # log(0)/log(1) — raise explicitly so callers don't silently
+        # propagate NaN downstream.
+        raise ValueError(f"R_H: n must be >= 2 for valid entropy normalization, got n={n}")
     entropy = -(p_safe * p_safe.log()).sum(dim=-1)
-    try:
-        return entropy / torch.log(torch.tensor(float(n)))
-    except (ValueError, ZeroDivisionError) as exc:
-        raise ValueError(f"R_H: invalid p shape (n={n})") from exc
+    return entropy / torch.log(torch.tensor(float(n)))  # noqa: dead-defensive — tensor div never raises; n<2 guard above handles degenerate case
 
 
 def S_load(f_per_expert: Tensor) -> Tensor:
@@ -86,11 +89,7 @@ def SP(centroids: Tensor, assignments: Tensor, signatures: Tensor) -> Tensor:
     per_expert_means: list[Tensor] = []
     for i in range(N_e):
         member = assignments == i
-        n_i = member.sum()
-        try:
-            n_i_val = int(n_i.item())
-        except (ValueError, RuntimeError) as exc:
-            raise ValueError(f"SP: cannot read n_i for expert {i}") from exc
+        n_i_val = int(member.sum().item())  # 0-d tensor .item() never raises; # noqa: dead-defensive
         if n_i_val == 0:
             continue  # skip empty expert (‖T_i‖₁ == 0)
         align = (C_t[member] * centroids[i].unsqueeze(0)).sum(dim=-1)
@@ -126,20 +125,13 @@ def MCI(token_signatures: Tensor) -> Tensor:
     """
     d_c = token_signatures.shape[-1]
     T_n = token_signatures.shape[0]
-    try:
-        T_n_f = float(T_n)
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"MCI: invalid token count {T_n}") from exc
-    if T_n_f <= 0.0:
-        raise ValueError(f"MCI: degenerate input (T_n={T_n_f})")
+    if T_n <= 0:
+        raise ValueError(f"MCI: degenerate input (T_n={T_n})")
+    T_n_f = float(T_n)  # int → float never raises; # noqa: dead-defensive
     M_mat = token_signatures.T @ token_signatures / T_n_f
     eigvals = torch.linalg.eigvalsh(M_mat).clamp_min(0.0)
     total = eigvals.sum()
-    try:
-        total_f = float(total.item())
-    except (ValueError, RuntimeError) as exc:
-        raise ValueError("MCI: cannot read total of eigvals") from exc
-    if total_f <= 0.0:
+    if float(total.item()) <= 0.0:  # noqa: dead-defensive — 0-d .item() never raises; check is the real guard
         raise ValueError("degenerate second moment: all eigenvalues are zero")
     lam_norm = eigvals / total
     return 1.0 / (d_c * (lam_norm**2).sum())
