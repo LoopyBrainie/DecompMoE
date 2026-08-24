@@ -4,10 +4,13 @@ ST-12 / Req 19, 20.
 """
 from __future__ import annotations
 
+import math
+
+import pytest
 import torch
 
-from decompmoe import metrics
 from decompmoe import loss as loss_mod
+from decompmoe import metrics
 
 
 def test_sep_formula_matches_loss() -> None:
@@ -58,11 +61,11 @@ def test_four_realtime_four_offline_classification() -> None:
     """REALTIME ∪ OFFLINE == 8 metric names; REALTIME has 4, OFFLINE has 4."""
     assert len(metrics.REALTIME) == 4
     assert len(metrics.OFFLINE) == 4
-    assert metrics.REALTIME == {"L_sep", "R_H", "S_load", "UR"}
-    assert metrics.OFFLINE == {"SP", "D_c", "MCI", "CG"}
-    assert metrics.REALTIME | metrics.OFFLINE == {
-        "L_sep", "R_H", "S_load", "UR", "SP", "D_c", "MCI", "CG"
-    }
+    assert {"L_sep", "R_H", "S_load", "UR"} == metrics.REALTIME
+    assert frozenset({"SP", "D_chord", "MCI", "CG"}) == metrics.OFFLINE
+    assert {
+        "L_sep", "R_H", "S_load", "UR", "SP", "D_chord", "MCI", "CG"
+    } == metrics.REALTIME | metrics.OFFLINE
 
 
 def test_active_flops_parity_per_arch() -> None:
@@ -73,3 +76,122 @@ def test_active_flops_parity_per_arch() -> None:
     moe = metrics.flops_per_token(cfg, arch="MOE")
     dense = metrics.flops_per_token(cfg, arch="DENSE")
     assert moe == dense
+
+# ---------------------------------------------------------------------------
+# Task 3.4 — offline closed forms (wayfinder ADDED Requirements)
+# ---------------------------------------------------------------------------
+
+
+def test_offline_uses_d_chord_name() -> None:
+    """OFFLINE frozenset uses `D_chord` (renamed from D_c)."""
+    assert frozenset({"SP", "D_chord", "MCI", "CG"}) == metrics.OFFLINE
+
+
+def test_mci_uniform_token_distribution() -> None:
+    """Uniform token distribution (each e_j repeated k times) → MCI == 1.0.
+
+    Spec: wayfinder ADDED "MCI closed-form on uniform token distribution",
+    abs=1e-12. Input is token signatures, uncentered second moment.
+    """
+    d_c, k = 16, 2
+    T = torch.stack([torch.eye(d_c)[j] for j in range(d_c) for _ in range(k)])
+    assert metrics.MCI(T).item() == pytest.approx(1.0, abs=1e-12)
+
+
+def test_mci_rank1_token_distribution() -> None:
+    """Rank-1 tokens (all C_t = e_1) → MCI == 1/d_c exactly.
+
+    Spec: wayfinder ADDED "MCI closed-form on rank-1 token distribution".
+    """
+    d_c = 16
+    T = torch.zeros(32, d_c)
+    T[:, 0] = 1.0
+    assert metrics.MCI(T).item() == pytest.approx(1.0 / d_c, abs=1e-12)
+
+
+def test_mci_range_bound() -> None:
+    """MCI ∈ [1/d_c, 1] for random token signatures."""
+    torch.manual_seed(0)
+    d_c = 16
+    T = torch.nn.functional.normalize(torch.randn(256, d_c), dim=-1)
+    mci = metrics.MCI(T).item()
+    assert 1.0 / d_c - 1e-6 <= mci <= 1.0 + 1e-6
+
+
+def test_cg_zero_gradient_invariance() -> None:
+    """CG(zero_grad) == 0.0 exact within abs=1e-12."""
+    g = torch.zeros(16)
+    assert metrics.CG(g).item() == pytest.approx(0.0, abs=1e-12)
+
+
+def test_cg_positive_homogeneity() -> None:
+    """|CG(2g) − 2·CG(g)| < 1e-6."""
+    torch.manual_seed(0)
+    g = torch.randn(16)
+    diff = abs(metrics.CG(2 * g).item() - 2 * metrics.CG(g).item())
+    assert diff < 1e-6
+
+
+def test_sp_orthonormal_aligned_inputs() -> None:
+    """C_t == c_{a(t)} for all t → SP == 1.0 within abs=1e-6."""
+    N_e, d_c, T = 4, 8, 40
+    centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
+    assign = torch.randint(0, N_e, (T,))
+    C = centroids[assign]
+    sp = metrics.SP(C, assign, centroids=centroids)
+    assert sp.item() == pytest.approx(1.0, abs=1e-6)
+
+
+def test_sp_60_degree_offset() -> None:
+    """c_i^T C_t == cos 60° = 0.5 → SP == 0.5 within abs=1e-6."""
+    d_c, T = 8, 10
+    c0 = torch.nn.functional.normalize(torch.randn(d_c), dim=-1)
+    # Rotate c0 by 60° in the plane spanned by c0 and an orthogonal vector u.
+    r = torch.randn(d_c)
+    u = torch.nn.functional.normalize(r - (r @ c0) * c0, dim=-1)
+    C_t = math.cos(math.pi / 3) * c0 + math.sin(math.pi / 3) * u
+    assignments = torch.zeros(T, dtype=torch.long)
+    # One expert only; SP averages per-token alignment with assigned centroid.
+    sp = metrics.SP(
+        C_t.expand(T, d_c).contiguous(), assignments, centroids=c0.unsqueeze(0)
+    )
+    assert sp.item() == pytest.approx(0.5, abs=1e-6)
+
+
+def test_sp_skips_empty_experts() -> None:
+    """SP averages over non-empty experts only (‖T_i‖₁ > 0), not zeros."""
+    N_e, d_c, T = 4, 8, 20
+    centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
+    assign = torch.zeros(T, dtype=torch.long)  # experts 1..3 empty
+    C = centroids[assign]  # perfectly aligned → SP == 1.0, not diluted by empties
+    sp = metrics.SP(C, assign, centroids=centroids)
+    assert sp.item() == pytest.approx(1.0, abs=1e-6)
+
+
+def test_sp_range_containment() -> None:
+    """−1 − 1e-6 ≤ SP ≤ 1 + 1e-6 (containment, NOT point equality)."""
+    torch.manual_seed(0)
+    N_e, d_c, T = 4, 8, 50
+    centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
+    assign = torch.randint(0, N_e, (T,))
+    C = torch.nn.functional.normalize(torch.randn(T, d_c), dim=-1)
+    sp = metrics.SP(C, assign, centroids=centroids).item()
+    assert -1.0 - 1e-6 <= sp <= 1.0 + 1e-6
+
+
+def test_d_chord_orthonormal_basis() -> None:
+    """D_chord over an orthonormal basis == √2 exact within abs=1e-6."""
+    d_c = 16
+    B = torch.eye(d_c)
+    val = metrics.D_chord(B).item()
+    assert val == pytest.approx(math.sqrt(2.0), abs=1e-6)
+
+
+def test_d_chord_versine_relationship() -> None:
+    """D_chord(c_i, c_j) = √(2·versine θ) with versine θ = 1 − cos θ holds."""
+    torch.manual_seed(0)
+    a = torch.nn.functional.normalize(torch.randn(16), dim=-1)
+    b = torch.nn.functional.normalize(torch.randn(16), dim=-1)
+    expected = math.sqrt(2.0 * (1.0 - float(a @ b)))
+    val2 = metrics.D_chord(torch.stack([a, b])).item()
+    assert val2 == pytest.approx(expected, abs=1e-6)

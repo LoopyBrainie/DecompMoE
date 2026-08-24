@@ -24,7 +24,7 @@
   - 新测试：`test_phase_beta_box_phase2_exact`（(1.0, 4.0)）、`test_phase_beta_max_is_time_varying`（(2,6_000)=1.0、(2,16_000)=2.5、(3,26_000)=4.0、(3,41_000)=10.0，abs=1e-9）、`test_gamma_reset_for_phase4_boundary_continuity`
   - Verify：`grep -E "gamma_reset_for_phase4|phase_beta_max|beta_effective" src/decompmoe/schedule.py` → ≥ 3 hits
 
-- [ ] 3.4 `src/decompmoe/metrics.py`（最复杂）：SP / D_c→D_chord / MCI / CG 四 stub 换闭式实现
+- [x] 3.4 `src/decompmoe/metrics.py`（最复杂）：SP / D_c→D_chord / MCI / CG 四 stub 换闭式实现
   - MCI：输入 token signatures，uncentered `M=(1/|T|)·Σ C_t C_tᵀ`，`MCI = 1/(d_c·Σ λ̃_j²)`；uniform→1.0 exact、rank-1→1/d_c、range `[1/d_c, 1]`
   - CG：zero→0.0、positive homogeneity `|CG(2g)−2CG(g)|<1e-6`
   - SP：跳过空专家（mean over `‖T_i‖₁>0`）；aligned→1.0、60°→0.5、containment `[-1−1e-6, 1+1e-6]`
