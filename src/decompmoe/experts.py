@@ -36,11 +36,18 @@ class SwiGLUExpert(nn.Module):
         return (torch.nn.functional.silu(x @ self.W_g.T) * (x @ self.W_u.T)) @ self.W_d.T
 
 
-class ExpertPool:
-    """Container of N_e SwiGLU experts. NO shared expert slot (A5-2)."""
+class ExpertPool(nn.Module):
+    """Container of N_e SwiGLU experts. NO shared expert slot (A5-2).
+
+    An `nn.Module` with `experts: nn.ModuleList[SwiGLUExpert]` so that
+    `pool.parameters()` aggregates all N_e experts (spec: skeleton
+    "Standard SwiGLU Expert With No Shared Branch": param total ==
+    N_e · 3 · d_model · d_ffn == 100_663_296 exact at MVP).
+    """
 
     def __init__(self, cfg: MVPConfig) -> None:
-        self.experts = [SwiGLUExpert(cfg) for _ in range(cfg.N_e)]
+        super().__init__()
+        self.experts = nn.ModuleList([SwiGLUExpert(cfg) for _ in range(cfg.N_e)])
 
     def __len__(self) -> int:
         return len(self.experts)

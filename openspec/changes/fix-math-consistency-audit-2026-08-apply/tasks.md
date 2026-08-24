@@ -32,7 +32,7 @@
   - 新测试：8 个 closed-form 测试（对应 wayfinder ADDED Requirements）
   - Verify：`grep -F "torch.tensor(0.0)" src/decompmoe/metrics.py` → 0 hits；`grep -F "D_chord"` → ≥ 2 hits
 
-- [ ] 3.5 `src/decompmoe/experts.py`：`ExpertPool(nn.Module)` + `nn.ModuleList` + `super().__init__()`
+- [x] 3.5 `src/decompmoe/experts.py`：`ExpertPool(nn.Module)` + `nn.ModuleList` + `super().__init__()`
   - Spec 锚点：skeleton "Standard SwiGLU Expert With No Shared Branch"（param 总数 == 100_663_296 exact）
   - Verify：`inspect.getsource(ExpertPool)` 含 `nn.Module` 与 `nn.ModuleList`
 

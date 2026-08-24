@@ -74,3 +74,32 @@ def test_isomorphic_to_llama_ffn() -> None:
         ref_lin_d.weight.copy_(expert.W_d)
     y_ref = ref_lin_d(torch.nn.functional.silu(ref_lin_g(x)) * ref_lin_u(x))
     assert torch.allclose(y, y_ref, atol=1e-5)
+
+# ---------------------------------------------------------------------------
+# Task 3.5 / 3.14 — ExpertPool is an nn.Module with ModuleList (spec:
+# skeleton "Standard SwiGLU Expert With No Shared Branch")
+# ---------------------------------------------------------------------------
+
+
+def test_expert_pool_is_nn_module() -> None:
+    """ExpertPool(MVPConfig()) is nn.Module with experts: nn.ModuleList."""
+    pool = experts.ExpertPool(MVPConfig())
+    assert isinstance(pool, torch.nn.Module)
+    assert isinstance(pool.experts, torch.nn.ModuleList)
+
+
+def test_expert_pool_param_count() -> None:
+    """sum(p.numel()) == N_e · 3 · d_model · d_ffn == 100_663_296 exact."""
+    cfg = MVPConfig()
+    pool = experts.ExpertPool(cfg)
+    total = sum(p.numel() for p in pool.parameters())
+    expected = cfg.N_e * 3 * cfg.d_model * cfg.d_ffn
+    assert total == expected
+    assert total == 100_663_296
+
+
+def test_expert_pool_source_contains_modulelist() -> None:
+    """禁止性约束：`inspect.getsource(ExpertPool)` mentions nn.Module + nn.ModuleList."""
+    src = inspect.getsource(experts.ExpertPool)
+    assert "nn.Module" in src
+    assert "nn.ModuleList" in src
