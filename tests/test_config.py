@@ -50,16 +50,20 @@ def test_mvp_is_frozen() -> None:
 
 
 def test_total_param_estimate() -> None:
-    """compute_total_and_active(MVPConfig()) must agree with 452M / 100M within ±1%."""
+    """compute_total_and_active returns the spec EXACT totals.
+
+    Spec: wayfinder "4070 MVP Hyperparameter Set", Scenario
+    "Closed-form parameter totals": total == 452_329_984,
+    active == 100_008_448, P_router/layer == 32_896 exact (the router term
+    previously misclassified as rounding).
+    """
     cfg = config.MVPConfig()
     total, active = config.compute_total_and_active(cfg)
 
-    assert 448_000_000 <= total <= 456_000_000, (
-        f"total {total} outside [448M, 456M] (expected ≈452M)"
-    )
-    assert 99_000_000 <= active <= 101_000_000, (
-        f"active {active} outside [99M, 101M] (expected ≈100M)"
-    )
+    assert total == 452_329_984, f"total {total} != 452_329_984"
+    assert active == 100_008_448, f"active {active} != 100_008_448"
+    # Router per layer: H_kv · (2·d_k·d_c + d_c) = 8 · (2·128·16 + 16) = 32_896
+    assert config._router_params_per_layer(cfg) == 32_896
 
 
 def test_flops_per_layer_exact_33554432() -> None:
