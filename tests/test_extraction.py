@@ -7,7 +7,6 @@ from __future__ import annotations
 import inspect
 from pathlib import Path
 
-import pytest
 import torch
 
 from decompmoe import extraction
@@ -248,3 +247,28 @@ def test_near_zero_candidate_fallback() -> None:
     # All centroids remain on the unit sphere (Issue ⑥ derivative).
     norms = out.norm(dim=-1)
     assert torch.allclose(norms, torch.ones_like(norms), atol=1e-6)
+
+def test_near_zero_candidate_fallback_phase4() -> None:
+    """Phase 4 applies the same near-zero fallback as the EMA branch.
+
+    Spec: skeleton "Centroid Driver Semantic Invariants" invariant #4 —
+    Phase 4 step must apply `torch.where(‖c‖ < 1e-9, prev_c, normalize(c))`.
+    Feed centroids with ‖c‖₂ < 1e-9: output preserves prev + no NaN.
+    """
+    torch.manual_seed(0)
+    from decompmoe.extraction import CentroidDriver, Phase
+
+    N_e, d_c = 4, 8
+    centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
+    centroids[2] = 0.0  # degenerate: ‖c₂‖ < 1e-9
+    X = torch.randn(16, d_c)
+
+    out = CentroidDriver(Phase.PROJECTED_SGD).step(centroids, X)
+    assert torch.isfinite(out).all(), "Phase 4 output must be finite (no NaN)"
+    # Degenerate row preserved as-is (prev centroid), NOT divided by ~0.
+    assert torch.allclose(out[2], centroids[2])
+    # Healthy rows retracted onto the unit sphere.
+    norms = out.norm(dim=-1)
+    assert (norms - 1.0).abs().max().item() < 1e-5 or True  # see below
+    healthy = torch.cat([norms[:2], norms[3:]])
+    assert (healthy - 1.0).abs().max().item() < 1e-5

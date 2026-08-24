@@ -142,7 +142,16 @@ class CentroidDriver:
             return torch.where(use_old, centroids, torch.nn.functional.normalize(candidate, dim=-1))
 
         if self.phase == Phase.PROJECTED_SGD:
-            return centroids / centroids.norm(dim=-1, keepdim=True).clamp_min(eps)
+            # Near-zero candidate fallback (Invariant #4, same pattern as the
+            # EMA branch): preserve prev centroid when ‖c‖ < 1e-9 instead of
+            # dividing a degenerate row by ~0.
+            norm = centroids.norm(dim=-1, keepdim=True)
+            use_old = norm < 1e-9
+            return torch.where(
+                use_old,
+                centroids,
+                torch.nn.functional.normalize(centroids, dim=-1),
+            )
 
         raise ValueError(f"Unknown phase={self.phase!r}")
 

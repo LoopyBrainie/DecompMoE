@@ -36,7 +36,7 @@
   - Spec 锚点：skeleton "Standard SwiGLU Expert With No Shared Branch"（param 总数 == 100_663_296 exact）
   - Verify：`inspect.getsource(ExpertPool)` 含 `nn.Module` 与 `nn.ModuleList`
 
-- [ ] 3.6 `src/decompmoe/extraction.py`：Phase 4 分支补近零 candidate fallback `torch.where(‖c‖<1e-9, prev_c, normalize(c))`
+- [x] 3.6 `src/decompmoe/extraction.py`：Phase 4 分支补近零 candidate fallback `torch.where(‖c‖<1e-9, prev_c, normalize(c))`
   - Spec 锚点：skeleton "Centroid Driver Semantic Invariants" invariant #4
 
 - [ ] 3.7 `src/decompmoe/safeguards.py`：resurrection perturb 返回单专家形状 `(d_c,)` 或 `(d_model·d_ffn,)`；同事件内 β_i ← 0.85·β_{j*} 且 β_{j*} ← 0.85·β_{j*}
