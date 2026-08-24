@@ -4,6 +4,7 @@ ST-10 / Req 13 — Backward → clip_grad_norm_(1.0) → optimizer.step() → L2
 """
 from __future__ import annotations
 
+import pytest
 import torch
 import torch.nn as nn
 
@@ -111,12 +112,18 @@ def test_resurrection_threshold_N_e_64_legacy_value() -> None:
 
 
 def test_resurrection_perturb_distribution() -> None:
-    """Perturbation contract: clone target j* = argmax f_j; perturbation ~ N(0, 0.05²·I)."""
+    """Perturbation contract (per-expert): ε ~ N(0, 0.05²·I), single-expert shape.
+
+    Spec (wayfinder ADDED "Resurrection Perturbation Per-Expert Contract"):
+    the perturbation is ONE iid Gaussian vector for the cloned expert —
+    shape (d_c,) or (d_model·d_ffn,), NOT (N_e,).
+    """
     f = torch.zeros(16)
     f[3] = 0.5
-    eps = safeguards.resurrection_perturb_distribution(f, target_idx=3, eps_std=0.05)
-    assert eps.shape == f.shape
-    # ε ~ N(0, 0.05²·I) ⇒ std ≈ 0.05 (loose tolerance)
+    eps = safeguards.resurrection_perturb_distribution(
+        f, target_idx=3, eps_std=0.05, dim=16
+    )
+    assert eps.dim() == 1
     assert abs(eps.std().item() - 0.05) < 0.02
 
 
@@ -152,3 +159,45 @@ def test_step_ordering() -> None:
         "optimizer_step",
         "l2_norm",
     )
+
+# ---------------------------------------------------------------------------
+# Task 3.7 — Resurrection Perturbation Per-Expert Contract (wayfinder ADDED)
+# ---------------------------------------------------------------------------
+
+
+def test_resurrection_perturbation_shape_per_expert() -> None:
+    """Perturb returns SINGLE-expert shape (d_c,) or (d_model·d_ffn,), NOT (N_e,).
+
+    Spec: wayfinder ADDED "Resurrection Perturbation Per-Expert Contract".
+    """
+    torch.manual_seed(0)
+    d_c = 16
+    f = torch.randn(4, 3, 8)  # (B, N, N_e) legacy input
+    eps = safeguards.resurrection_perturb_distribution(f, target_idx=2, dim=d_c)
+    assert eps.shape == (d_c,), f"expected single-expert ({d_c},), got {tuple(eps.shape)}"
+    assert eps.shape != (f.shape[-1],)
+
+
+def test_resurrection_perturbation_eps_std_scale() -> None:
+    """ε ~ N(0, eps_std²·I): empirical std ≈ eps_std for a large sample."""
+    torch.manual_seed(0)
+    d_c = 4096
+    f = torch.zeros(d_c)
+    eps = safeguards.resurrection_perturb_distribution(
+        f, target_idx=0, eps_std=0.05, dim=d_c
+    )
+    assert abs(float(eps.std()) - 0.05) < 0.01
+
+
+def test_resurrection_beta_decay() -> None:
+    """β decay mutation: β_i ← 0.85·β_{j*} and β_{j*} ← 0.85·β_{j*} in one event.
+
+    Spec: same-event mutation visible via state inspection. Uses the
+    module-level decay helper with factor 0.85.
+    """
+    beta_params = torch.tensor([4.0, 8.0, 12.0])
+    out = safeguards.apply_resurrection_beta_decay(beta_params, j_star=1, i=0)
+    expected_j = 0.85 * 8.0
+    assert out[1].item() == pytest.approx(expected_j, abs=1e-5)  # β_{j*} ← 0.85·β_{j*}
+    assert out[0].item() == pytest.approx(expected_j, abs=1e-5)  # β_i ← 0.85·β_{j*} (old value)
+    assert out[2].item() == pytest.approx(12.0, abs=1e-5)  # untouched

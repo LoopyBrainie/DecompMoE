@@ -19,7 +19,6 @@ from torch import Tensor
 
 from decompmoe.beta import BETA_MAX
 
-
 # Saturation thresholds (Req 13 / A6a-2)
 BETA_SATURATION_WARN: Final[float] = 0.95 * BETA_MAX  # 30.4
 BETA_SATURATION_HALVE: Final[float] = 0.90 * BETA_MAX  # 28.8
@@ -102,10 +101,44 @@ def should_resurrect(
 
 
 def resurrection_perturb_distribution(
-    f_per_expert: Tensor, target_idx: int, eps_std: float = 0.05
+    f_per_expert: Tensor, target_idx: int, eps_std: float = 0.05, *, dim: int | None = None
 ) -> Tensor:
-    """Perturbation contract: `ε ~ N(0, eps_std²·I)` for the cloned expert."""
-    return torch.randn_like(f_per_expert) * eps_std
+    """Per-expert clone perturbation: `ε ~ N(0, eps_std²·I)`.
+
+    Spec (wayfinder ADDED "Resurrection Perturbation Per-Expert Contract"):
+    returns a SINGLE-expert tensor of shape `(d_c,)` or `(d_model·d_ffn,)`
+    — NOT a per-expert `(N_e,)` tensor. `target_idx` selects the expert
+    being resurrected (kept for contract compatibility); `dim` gives the
+    expert parameter dimension explicitly (defaults to d_c = last-dim size
+    of `f_per_expert`).
+    """
+    del target_idx  # contract signature only; perturbation is one vector
+    if dim is None:
+        dim = f_per_expert.shape[-1]
+        if not isinstance(dim, int):
+            dim = int(dim)
+    return torch.randn(dim) * eps_std
+
+
+RESURRECTION_BETA_DECAY: Final[float] = 0.85
+
+
+def apply_resurrection_beta_decay(
+    β_per_expert: Tensor, j_star: int, i: int
+) -> Tensor:
+    """Same-event β mutation on resurrection (returns a NEW tensor).
+
+    Spec: β_i ← 0.85·β_{j*} AND β_{j*} ← 0.85·β_{j*} as part of the same
+    event. The donor value is read BEFORE either write (immutability:
+    input tensor is never mutated).
+    """
+    donor = β_per_expert[j_star].item()
+    if not isinstance(donor, float):
+        donor = float(donor)
+    out = β_per_expert.clone()
+    out[j_star] = RESURRECTION_BETA_DECAY * donor
+    out[i] = RESURRECTION_BETA_DECAY * donor
+    return out
 
 
 def beta_saturation_warning(β_per_expert: Tensor) -> bool:
@@ -140,6 +173,7 @@ __all__ = [
     "nan_ladder",
     "should_resurrect",
     "resurrection_perturb_distribution",
+    "apply_resurrection_beta_decay",
     "beta_saturation_warning",
     "beta_saturation_global_halve",
     "loss_spike_defense",
