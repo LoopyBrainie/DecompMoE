@@ -3,6 +3,7 @@
 Realtime (every step): L_sep, R_H, S_load, UR.
 Offline:               SP, D_c, MCI, CG.
 """
+
 from __future__ import annotations
 
 from typing import Final, Literal
@@ -69,9 +70,7 @@ def UR(f_per_expert_history) -> Tensor:
     return any_active.float().mean(dim=-1)
 
 
-def SP(
-    centroids: Tensor, assignments: Tensor, signatures: Tensor
-) -> Tensor:
+def SP(centroids: Tensor, assignments: Tensor, signatures: Tensor) -> Tensor:
     """Specialization purity (offline).
 
     Spec signature: ``SP(centroids, assignments, signatures)``.
@@ -143,7 +142,7 @@ def MCI(token_signatures: Tensor) -> Tensor:
     if total_f <= 0.0:
         raise ValueError("degenerate second moment: all eigenvalues are zero")
     lam_norm = eigvals / total
-    return 1.0 / (d_c * (lam_norm ** 2).sum())
+    return 1.0 / (d_c * (lam_norm**2).sum())
 
 
 def CG(grad: Tensor) -> Tensor:
@@ -167,6 +166,7 @@ ArchKind = Literal["MOE", "DENSE"]
 def flops_per_token(cfg: MVPConfig, arch: ArchKind = "MOE") -> int:
     """Return per-token active forward FLOPs. Mirrors `config.flops_per_token`."""
     from decompmoe.config import flops_per_token as _cfg_flops
+
     return _cfg_flops(cfg, arch=arch)
 
 

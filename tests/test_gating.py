@@ -77,7 +77,9 @@ def test_forward_formula_strictness() -> None:
     fixed_outputs = torch.randn(N_e, d_model)
 
     # ---- LEFT side: actual routing path (calls gating module) ----
-    def compose_routing(x_in: torch.Tensor, logits_in: torch.Tensor, E: torch.Tensor) -> torch.Tensor:
+    def compose_routing(
+        x_in: torch.Tensor, logits_in: torch.Tensor, E: torch.Tensor
+    ) -> torch.Tensor:
         masked = gating.topk_mask_with_neg_inf(logits_in.unsqueeze(0), k=k)
         p = gating.local_softmax(masked).squeeze(0)  # (N_e,)
         return x_in + torch.einsum("i,id->d", p, E)

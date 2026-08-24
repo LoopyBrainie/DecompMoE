@@ -110,7 +110,7 @@ def test_lb_uses_detached_fractions() -> None:
     #    NOT the raw `f_per_expert`. Slice the source to assert presence.
     #    (Implementation may compute L_lb anywhere; we check that f_det
     #    appears as a name binding/use after the assignment.)
-    src_loss_block = src[src.index("f_det"):] if "f_det" in src else ""
+    src_loss_block = src[src.index("f_det") :] if "f_det" in src else ""
     assert "f_det" in src_loss_block and "f_det.mean" in src_loss_block, (
         "L_lb must consume `f_det` (not raw f_per_expert)"
     )
@@ -214,8 +214,7 @@ def test_sep_formula_non_degenerate() -> None:
             pair_sum += float(G[i, j]) ** 2
     expected_pairs = (2.0 / (N_e * (N_e - 1))) * pair_sum
     assert actual.item() == pytest.approx(expected_pairs, abs=1e-6), (
-        f"L_sep pair-wise form mismatch: got {actual.item()}, "
-        f"expected {expected_pairs}"
+        f"L_sep pair-wise form mismatch: got {actual.item()}, expected {expected_pairs}"
     )
 
 

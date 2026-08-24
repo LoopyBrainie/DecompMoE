@@ -151,6 +151,7 @@ def test_beta_effective_phase_4_continuity() -> None:
 def test_beta_effective_phase_1_fixed_one() -> None:
     """Phase 1 β^eff == 1.0 for ANY γ (spec line 495)."""
     import torch as _t
+
     _t.manual_seed(0)
     for gamma, step in [(0.0, 1_000), (-3.5, 3_000), (5.0, 5_999), (100.0, 100)]:
         v = schedule.beta_effective(gamma, phase=1, step=step).item()

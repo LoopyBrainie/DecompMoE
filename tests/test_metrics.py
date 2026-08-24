@@ -147,7 +147,9 @@ def test_sp_orthonormal_aligned_inputs() -> None:
     centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
     assign = torch.randint(0, N_e, (T,))
     C = centroids[assign]
-    sp = metrics.SP(centroids, assign, C)  # spec: SP(centroids, assignments, signatures)
+    sp = metrics.SP(
+        centroids, assign, C
+    )  # spec: SP(centroids, assignments, signatures)
     assert sp.item() == pytest.approx(1.0, abs=1e-6)
 
 
@@ -161,9 +163,7 @@ def test_sp_60_degree_offset() -> None:
     C_t = math.cos(math.pi / 3) * c0 + math.sin(math.pi / 3) * u
     assignments = torch.zeros(T, dtype=torch.long)
     # One expert only; SP averages per-token alignment with assigned centroid.
-    sp = metrics.SP(
-        c0.unsqueeze(0), assignments, C_t.expand(T, d_c).contiguous()
-    )
+    sp = metrics.SP(c0.unsqueeze(0), assignments, C_t.expand(T, d_c).contiguous())
     assert sp.item() == pytest.approx(0.5, abs=1e-6)
 
 

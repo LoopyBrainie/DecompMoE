@@ -158,8 +158,9 @@ def beta_effective(
             cap = phase_beta_max(phase, step)
             return torch.tensor(float(beta_raw.clamp(min=1.0, max=cap).item()))
         except (TypeError, ValueError) as exc:
-            raise ValueError(f"invalid (gamma_p, phase, step): "
-                             f"{gamma_p!r}, {phase}, {step}") from exc
+            raise ValueError(
+                f"invalid (gamma_p, phase, step): {gamma_p!r}, {phase}, {step}"
+            ) from exc
     if phase == 4:
         # Spec line 497: 1 + 31 · σ(γ'); the γ' reset already places this
         # at β_exit on entry, so no further clamp needed (spec does not

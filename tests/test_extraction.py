@@ -123,7 +123,7 @@ def test_complexity_budget() -> None:
     # delta = 4·2·(64−32)·8 = 2048
     d_k_step_contrib = 4 * 2 * (64 - 32) * 8
     assert (m4 - m3) == d_k_step_contrib, (
-        f"d_k scaling: m4-m3={m4-m3}, expected d_k step={d_k_step_contrib}"
+        f"d_k scaling: m4-m3={m4 - m3}, expected d_k step={d_k_step_contrib}"
     )
 
 
