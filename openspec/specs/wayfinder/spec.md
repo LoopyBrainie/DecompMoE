@@ -534,6 +534,8 @@ Driver Channel guarantees: phases 1–3 execute Masked Spherical EMA at the pres
 
 ---
 
+<a id="req-26"></a>
+
 ### Requirement: Operational Domain γ' Reset Closed-Form Worked Example
 
 On entering Phase 4, the system MUST reset `γ` to `γ' = ln((β_{p3} − 1) / (32 − β_{p3}))` so that `β^eff` is continuous at the Phase 3 → 4 boundary. The worked example for `β_{p3} = 16.0` MUST evaluate to `γ' = ln(15/16) ≈ −0.064538...`. AdamW momentum for `γ` MUST be reset on the same boundary. The closed form is pinned: `gamma_reset_for_phase4(16.0) ≈ −0.0645` within `abs=1e-4`. (References Req 7 Invariant 3 / Req 24.)
@@ -546,6 +548,8 @@ On entering Phase 4, the system MUST reset `γ` to `γ' = ln((β_{p3} − 1) / (
 
 ---
 
+
+<a id="req-27"></a>
 
 ### Requirement: Phase 2 β Box Equality
 
@@ -566,6 +570,8 @@ The operational `β_max(t)` box for Phase 2 MUST be `(1.0, 4.0)`, NOT `(1.0, 32.
 ---
 
 
+<a id="req-28"></a>
+
 ### Requirement: Resurrection Perturbation Per-Expert Contract
 
 The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **single cloned expert** (centroid and/or expert weights) — not the per-expert routing frequency vector `f_per_expert`. The perturbation API `resurrection_perturb_distribution(target_idx, *, eps_std=0.05)` MUST return a tensor whose leading dimension corresponds to a single expert slot (centroid shape `(d_c,)` for centroid perturbation, or expert-weight shape `(d_model · d_ffn,)` for weight perturbation), NOT the `(N_e,)` shape of `f_per_expert`. The accompanying `β_i ← 0.85 · β_{j*}` and `β_{j*} ← 0.85 · β_{j*}` mutation MUST execute as part of the same resurrection event. (References Req 13.)
@@ -579,6 +585,8 @@ The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **singl
 ---
 
 
+<a id="req-29"></a>
+
 ### Requirement: β^eff Phase 3 → 4 Continuity Closed-Form
 
 On entering Phase 4 with `β_{p3} = 16.0`, the operational effective β MUST equal `16.0` exactly at `t = 0` of Phase 4. This pins the closed form `β^eff(Phase 4, t=0) = 1 + 31 · σ(γ'(β_{p3}))` with `γ'(β_{p3}) = ln((β_{p3} − 1) / (32 − β_{p3}))`. The hard-clamp gradient-zero trap at the `[1.0, 32.0]` box boundary is intentionally avoided by the continuous reparameterization. **Limit-continuity note**: under the pinned `phase_end`-exclusive convention (see "Phase 2 β Box Equality"), Phase 3's `β_max` asymptotically approaches `16.0` from below as `step → 56_000⁻` (the last attainable value is `phase_beta_max(3, 55_999) = 15.9996`); the jump at the boundary is `4.0e-4`, which is small enough to be benign for gradient flow but large enough to require the limit-style wording. (References Req 7 Invariant 3 / Req 24.)
@@ -591,6 +599,8 @@ On entering Phase 4 with `β_{p3} = 16.0`, the operational effective β MUST equ
 
 ---
 
+
+<a id="req-30"></a>
 
 ### Requirement: Closed-Form Gradient Bound Worst Case
 
@@ -608,6 +618,8 @@ The bound `‖∂logit/∂C‖₂ ≤ β_max = 32` in Req 7 MUST be attained (no
 
 ---
 
+
+<a id="req-31"></a>
 
 ### Requirement: Forward Formula Numerical Verification (Routing Layer)
 

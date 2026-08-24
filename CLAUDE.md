@@ -43,7 +43,7 @@ When sources disagree, consult in this order:
     - 随机性：`torch.manual_seed(0)` 作为第一行
     - 数值容差：math 性质用 `pytest.approx(value, abs=...)`；梯度 / 球面类用 `<= bound + 1e-3`（避免 abs=0 在 autograd 数值下误杀）
     - 签名/AST 级硬约束：`inspect.signature(...)` 检查参数名 + `_ast.parse(inspect.getsource(...))` 验证禁止符号（如 `w_i`）；源文件 grep 用 `Path(module.__file__).read_text()`
-    - 公式级硬约束：源码里必须出现 spec 约定的字面量（如 `gating.py` 含 `x_out`，`distance.py` 不含 `w_i`）
+    - 算式约束必须**数值对账**（`pytest.approx(value, abs=...)` 直接验算 spec 声称的闭式常量）；源码 grep 只可用于**禁止性**约束（如 `distance.py` 不得出现 `w_i`）或常量删除验证（如 `_VORONOI_MVP_TABLE` 不复现），**不得**用于验证前向/闭式算式本身（见 Req "Forward Formula Numerical Verification"）
 - **Post-archive 独立复核**：每次 `/opsx:archive` 后必须跑一次独立数值自洽性 + 双 spec 交叉校对，把 spec 声称的算式实际代入算一遍、与 spec 文本对账。grep 关键词命中不是充分条件。
 - **GateGuard**：Edit / Write 前需提供 Gate Facts（file 路径、调用方、API 影响、用户原话）
 
@@ -103,13 +103,12 @@ Phase ratios: 1/5/20/30/44% on 100K steps
 
 > **2026-08-21 裁决**：wayfinder 不再是必改制品。本仓库以 OpenSpec 为唯一真相源；ticket 仅作历史决策记录（参考性、非约束性）。新变更一律走 OpenSpec 工作流，不再单独 patch tickets。
 
-## 9. Current State（2026-08-21）
+## 9. Current State（2026-08-24）
 
-- ✅ OpenSpec 主 spec 已 archive：`openspec/specs/wayfinder/spec.md`（**25 Req / 52 Scen**，commit `41ac06b`）
-- ✅ Skeleton spec 已 archive：`openspec/specs/decompmoe-skeleton/spec.md`（**20 Req / 58 Scen**）
-- ✅ 4 changes archived：`polish-wayfinder-spec` + `introduce-wayfinder-decompoe-spec` + `add-decompoe-skeleton-with-tdd-tests` + `fix-openspec-doc-bugs`
-- ⏭ Post-archive 独立复核发现 5 条 spec-level oversights（FLOPs 0.26% 算错、Phase 0 归一化用词、grep Scenario 分层表述、`γ_init ≈ −6.94` 与 `β_0 ≈ 1.035` 自相矛盾、恒真式断言），下一 change `fix-spec-doc-oversights` 合并修
-- ⏭ 代码层 delta：候选 `add-decompoe-mvp-module` / `add-geometric-router`
+- ✅ OpenSpec 主 spec 已 archive：`openspec/specs/wayfinder/spec.md`（**31 Req / 69 Scen**，commit `f45a42c`）
+- ✅ Skeleton spec 已 archive：`openspec/specs/decompmoe-skeleton/spec.md`（**22 Req / 76 Scen**）
+- ✅ 8 changes archived（见 `openspec/changes/archive/`，含 `fix-math-consistency-audit-2026-08`）
+- ⏭ 代码层 delta：候选 `add-decompoe-mvp-module` / `add-decompoe-router`；`fix-math-consistency-audit-2026-08` 的代码层 apply 入口见 `apply-checklist.md`（17 项 spec-anchored 任务，按 spec 闭式常量驱动 TDD，**不得**用 `src` 输出反推测试）
 
 ## 10. Code Architecture & Module Map
 
@@ -126,13 +125,13 @@ Phase ratios: 1/5/20/30/44% on 100K steps
 | `beta.py` | `inverse_temperature(γ) = β_min + (β_max−β_min)·σ(γ)`；`MAX_GRAD_PER_C = β_max` 梯度上界 | Req 7 (A4-1) |
 | `distance.py` | `squared_chord(C, c_i) = 1 − Cᵀc_i ∈ [0, 2]`；`logit = β·(Cᵀc − 1) ∈ [−2β, 0]`；**A4-2 签名无 `w_i`** | Req 7 (A4-1) |
 | `extraction.py` | `extract_C(K, V)`：per-head 投影 → 球面归一 → cross-head mean → 最终球面归一；`O(d_c·d_k)` per token、stateless | Req 17 (A3-1, A7-2) |
-| `gating.py` | `topk_mask_with_neg_inf` + `local_softmax`；**前向公式 `x_out = x + Σ p_i·Expert_i(x)` 字面必现**；非 Top-k 梯度严格为 0 | Req 8 (A4-2) |
+| `gating.py` | `topk_mask_with_neg_inf` + `local_softmax`；非 Top-k 梯度严格为 0（闭式 `x_out = x + Σ p_i·Expert_i(x)` 由数值 stub 测试守护，见 Req "Forward Formula Numerical Verification"） | Req 8 (A4-2) |
 | `experts.py` | `SwiGLU Expert`：`(SiLU(xW^g) ⊙ xW^u) W^d`，每专家 3·d_model·d_ffn 参数 | Req 5 (A5-1, A5-2) |
 | `loss.py` | `L_total = L_CE + α·L_lb + λ(t)·L_sep`；α=0.01 固定；`L_lb = N_e·Σ f_i.detach()·P_i`；`L_sep = (‖CᵀC‖_F² − N_e)/(N_e(N_e−1))` | Req 9, 10 (A6a-1) |
 | `safeguards.py` | 5 项：global grad clip / NaN 三级 escalation / **splitting resurrection** (clone + 0.85 协同衰减) / β saturation guard / loss spike defense | Req 11 (A6a-2) |
 | `schedule.py` | 5 阶段 P0–P4（1/5/20/30/44% step）；β_max(t) 分段线性；P0 K-Means → P1-3 EMA → P4 projected SGD；Time-Driven 硬切 + State-Driven advisory | Req 12, 13 (A6b-1, A6b-2) |
-| `metrics.py` | 4 实时指标（L_sep, R_H, S_load, UR）+ 4 离线（SP, D_c, MCI, CG）；**`S_load = N_e · max_i f_i` 闭式** | Req 14, 15 (A8-2) |
-| `viz.py` | 6 模块：3D PCA / D_c 热力图 / 2D Voronoi / 轨迹动画 / TensorBoard / plantuml | Req 19 (A8-3) |
+| `metrics.py` | 4 实时指标（L_sep, R_H, S_load, UR）+ 4 离线（SP, D_chord, MCI, CG）；**`S_load = N_e · max_i f_i` 闭式** | Req 14, 15 (A8-2) |
+| `viz.py` | 6 模块：3D PCA / D_chord 热力图 / 2D Voronoi / 轨迹动画 / TensorBoard / plantuml | Req 19 (A8-3) |
 
 ### 10.2 链式数据流（几何路由一次完整 forward）
 
@@ -156,7 +155,7 @@ x ─► Attention(K,V) ─► extract_C(K,V) ─► C_t ∈ S^{d_c−1}
 2. `logit ∈ [−2β_max, 0]`，`‖∂logit/∂C‖₂ ≤ β_max = 32`
 3. `Σ_{i∈I_k} p_i ≡ 1`，非 Top-k 梯度严格 0
 4. `C_t` 禁入 KV Cache（Decode 走 SRAM/Registers，0 bytes HBM）
-5. 前向公式严格 `x_out = x + Σ p_i·Expert_i(x)`（grep test 守护）
+5. 前向公式严格 `x_out = x + Σ p_i·Expert_i(x)`（数值 stub 测试守护，见 Req "Forward Formula Numerical Verification"）
 
 ### 10.3 测试文件映射（`tests/`）
 

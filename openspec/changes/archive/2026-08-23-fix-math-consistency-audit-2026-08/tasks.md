@@ -81,19 +81,18 @@ All items in this section are handed off to a future `fix-math-consistency-audit
 - [x] 5.4 m4 (spec:188 域 `(0, π)` → `(0, π/2]`): **已并入 1.1** (B1 closed-form domain fix)。
 - [x] 5.5 m5 (`viz.py` stub 免责): **已明确作废**，viz 已在骨架层定义为 Protocol-only。
 
-## 6. Archive 触发（spec 层锁定）— pending after §4 re-verifies
+## 6. Archive 触发（spec 层锁定）
 
-- [ ] 6.1 `openspec archive fix-math-consistency-audit-2026-08 --yes` — triggers spec merge. verify `git status` shows modified `openspec/specs/wayfinder/spec.md` and `openspec/specs/decompmoe-skeleton/spec.md`, and new directory `openspec/changes/archive/2026-08-22-fix-math-consistency-audit-2026-08/`. Defer until §4.1–4.8 all `[x]`.
+- [x] 6.1 Archive done via manual recovery at commit `f45a42c`. `openspec archive --yes` EPERMed on Windows `Move-Item` rename; manual recovery used `scripts/merge_spec_deltas.py` (now parameterized, with anchor auto-assignment and `tests/test_merge_spec_deltas.py` smoke test; future Windows archives can invoke `python scripts/merge_spec_deltas.py --delta <delta.md> --master <master.md> --capability <cap>` as the CLI fallback). Final archive dir is `openspec/changes/archive/2026-08-23-fix-math-consistency-audit-2026-08/`. `git status` at the time showed modified `openspec/specs/wayfinder/spec.md` and `openspec/specs/decompmoe-skeleton/spec.md`, plus the new archive directory. **`openspec validate --strict`** was run pre-amend only (per §4.8); CLI was unavailable for re-validation on this Windows host. Post-archive 4-round review caught 3 Major / 5 Minor (apply-checklist + CLAUDE.md guidance + missing anchors); fixes addressed in follow-up commit on the same branch.
 
 ---
 
-## 完成度口径（2026-08-22, post-amend）
+## 完成度口径（2026-08-24, post-archive + post-review-fix）
 
 | 类别 | 数量 | 说明 |
 |---|---|---|
-| **已执行** | 30 | §1 (8 项 spec 修订) + §2 (9 项 spec 修订，含 §2.10 因 Minor 2 删除) + §4 (8 项 grep / validate，全部已跑过) + §5 (5 项 m1-m5 out-of-scope 确认) — 全部 `x` |
-| **明确移交下游（apply change）** | 17 | §3 (3.1–3.17) 全部 strike-through + `[ ]`，等 `fix-math-consistency-audit-2026-08-apply` 执行 |
+| **已执行** | 31 | §1 (8 项 spec 修订) + §2 (9 项 spec 修订，含 §2.10 因 Minor 2 删除) + §4 (8 项 grep / validate，全部已跑过) + §5 (5 项 m1-m5 out-of-scope 确认) + §6.1 (archive via manual recovery) |
+| **明确移交下游（apply change）** | 17 | §3 (3.1–3.17) 全部 strike-through + `[ ]`，等 `fix-math-consistency-audit-2026-08-apply` 执行；apply 入口见 `apply-checklist.md` |
 | **明确作废（非本 change）** | 4 | §5 中 m1 / m2 / m3 / m5 需后续 change 决策（m4 已并入本 change 解决） |
-| **待 archive** | 1 | §6.1 `[ ]`，等你审核 + 确认 archive |
 
-总勾选 30/52（58%）。claim 不是"全勾"——30 项是本 change 真做完了的事；17 项显式移交下游；4 项明确作废；1 项等审核后 archive。这个口径比上版（38/38 假装 100%）诚实——原 §3.1–3.16 / §6.1 / §4.1–4.5 之前 `[x]` 但实际没在本 change 里跑过。
+总勾选 31/52（60%）。口径诚实：31 项是本 change 真做完了的事（含 archive）；17 项显式移交下游；4 项明确作废。

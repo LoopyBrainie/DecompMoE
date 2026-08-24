@@ -134,6 +134,10 @@ The package SHALL provide `extract_C(K, V, proj_W_K, proj_W_V, proj_b, *, H_kv, 
 - **WHEN** `torch.autograd.gradcheck` is run on `extract_C` with random `K`, `V` and the projection parameters
 - **THEN** the gradient check passes with ATOL `1e-5` and no NaN
 
+#### Scenario: Per-token MAC closed form
+- **WHEN** the per-token operation count of `extract_C` is computed under the pinned **MAC** convention (1 MAC = 1 multiply + 1 accumulate; FLOPs = 2·MACs)
+- **THEN** per-token MACs equal `H_kv · (2 · d_k · d_c + d_c) + H_kv · d_c + d_c` — i.e. (i) per-head K/V/bias projection: `H_kv · (2 · d_k · d_c + d_c)` MACs, (ii) per-head L2-normalization (numerator/denominator ops only; sqrt counts as 0 MAC): `H_kv · d_c` MACs, (iii) final L2-normalization: `d_c` MACs. At MVP (`H_kv=8, d_k=128, d_c=16`) this evaluates to `8·4112 + 8·16 + 16 = 32_896 + 128 + 16 = 33_040` per-token MACs exactly (within `abs=1`). Tests MUST assert the closed form (or its MVP specialization), NOT a profiler-derived op count.
+
 #### Scenario: Cross-head awareness
 - **WHEN** `H_kv = 8` GQA input is processed
 - **THEN** the cross-head mean uses the `1/H_kv` factor (mathematical equivalence to a manual `mean(..., dim=1)`)
