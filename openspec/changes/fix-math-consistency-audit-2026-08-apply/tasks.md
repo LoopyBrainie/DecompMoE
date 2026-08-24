@@ -13,7 +13,7 @@
   - 新测试：`test_no_hardcoded_table_values`（grep 禁止性）、`test_voronoi_residual_below_1e_minus_9`（N_e ∈ {16,17,64}）、`test_voronoi_monotone_in_ne`（≈1.1736 / ≈1.1663 rad, abs=1e-4，独立 root-finding 常数）
   - Verify：`grep -F "_VORONOI_MVP_TABLE" src/decompmoe/sphere.py` → 0 hits
 
-- [ ] 3.2 `src/decompmoe/config.py`：FFN FLOPs 系数 `2 * 2 → 3 * 2`（L122/L133；attention `4*2*d²` 不动）
+- [x] 3.2 `src/decompmoe/config.py`：FFN FLOPs 系数 `2 * 2 → 3 * 2`（L122/L133；attention `4*2*d²` 不动）
   - Spec 锚点：wayfinder "4070 MVP Hyperparameter Set" — Closed-form parameter totals（per-layer 33_554_432, total 134_217_728 exact）
   - 新测试：`test_flops_per_layer_exact_33554432`、`test_flops_total_exact_134217728`
   - Verify：`grep -F "3 * 2" src/decompmoe/config.py` → ≥ 2 hits

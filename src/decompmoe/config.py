@@ -18,7 +18,7 @@ state, no global registries.
 from __future__ import annotations
 
 import dataclasses
-from typing import Final, Literal
+from typing import Literal
 
 # ---------------------------------------------------------------------------
 # Frozen MVP configuration dataclass (Req 11)
@@ -116,21 +116,23 @@ def _flops_dense(cfg: MVPConfig) -> int:
 
     Accounting per layer:
         attention (Q/K/V/O projections): 4 × 2 × d_model × d_model  (MAC = 2 FLOPs)
-        FFN:                              2 × 2 × d_model × d_ffn_dense
+        FFN:                              3 × 2 × d_model × d_ffn_dense
+                                          (SwiGLU has 3 matrices: g, u, d)
     """
     attn = 4 * 2 * cfg.d_model * cfg.d_model
-    ffn = 2 * 2 * cfg.d_model * cfg.d_ffn_dense
+    ffn = 3 * 2 * cfg.d_model * cfg.d_ffn_dense
     return cfg.L * (attn + ffn)
 
 
 def _flops_moe(cfg: MVPConfig) -> int:
     """MoE active forward FLOPs per token.
 
-    Same attention as dense; FFN is k × (2 × 2 × d_model × d_ffn).
-    Each routed token uses exactly `k` expert FFNs.
+    Same attention as dense; FFN is k × (3 × 2 × d_model × d_ffn).
+    Each routed token uses exactly `k` expert FFNs; SwiGLU counts its
+    3 matrices (g, u, d) — NOT 2 (fix-math-consistency-audit-2026-08).
     """
     attn = 4 * 2 * cfg.d_model * cfg.d_model
-    ffn = cfg.k * 2 * 2 * cfg.d_model * cfg.d_ffn
+    ffn = cfg.k * 3 * 2 * cfg.d_model * cfg.d_ffn
     return cfg.L * (attn + ffn)
 
 
@@ -138,9 +140,8 @@ def flops_per_token(cfg: MVPConfig, arch: ArchKind = "MOE") -> int:
     """Return per-token active forward FLOPs for the given architecture.
 
     With `MVPConfig()`:
-        MoE   = L × (4·2·d_model² + k·2·2·d_model·d_ffn)
-        Dense = L × (4·2·d_model² + 2·2·d_model·d_ffn_dense)
-        ⇒ MoE == Dense (exact equality, since 2·d_ffn·k = d_ffn_dense)
+        MoE   = L × (4·2·d_model² + k·3·2·d_model·d_ffn)
+        Dense = L × (4·2·d_model² + 3·2·d_model·d_ffn_dense)
     """
     if arch == "DENSE":
         return _flops_dense(cfg)

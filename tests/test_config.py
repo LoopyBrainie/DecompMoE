@@ -15,7 +15,6 @@ import pytest
 import decompmoe
 from decompmoe import config
 
-
 # ---------------------------------------------------------------------------
 # MVPConfig field defaults (Req 11: 4070 MVP hyperparameters)
 # ---------------------------------------------------------------------------
@@ -61,6 +60,25 @@ def test_total_param_estimate() -> None:
     assert 99_000_000 <= active <= 101_000_000, (
         f"active {active} outside [99M, 101M] (expected ≈100M)"
     )
+
+
+def test_flops_per_layer_exact_33554432() -> None:
+    """Per-layer MoE FLOPs == 33_554_432 exact.
+
+    Spec: wayfinder "4070 MVP Hyperparameter Set", Scenario
+    "Closed-form parameter totals": L × (4·2·d_model² + k·3·2·d_model·d_ffn)
+    with SwiGLU counting 3 matrices (g, u, d).
+    """
+    cfg = config.MVPConfig()
+    per_layer = 4 * 2 * cfg.d_model**2 + cfg.k * 3 * 2 * cfg.d_model * cfg.d_ffn
+    assert config.flops_per_token(cfg, "MOE") == cfg.L * per_layer
+    assert per_layer * 4 == 134_217_728
+    assert per_layer == 33_554_432
+
+
+def test_flops_total_exact_134217728() -> None:
+    """Total MoE active FLOPs per token == 134_217_728 exact (spec closed form)."""
+    assert config.flops_per_token(config.MVPConfig(), "MOE") == 134_217_728
 
 
 def test_active_flops_parity() -> None:
