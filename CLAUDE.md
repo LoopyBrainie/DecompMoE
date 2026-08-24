@@ -28,11 +28,22 @@ When sources disagree, consult in this order:
 - **Ticket 级设计**：`/wayfinder`（claim → resolve → close → append 到 map.md Decisions-so-far）
 - **代码实现**：仅在 apply 阶段显式触发后
 - **每次 Spec 变更**必须含 `**Source:**` 反链 ticket，确保可追溯
-- **TDD 工作流**：
-  - `uv sync` 安装依赖（pyproject.toml 用 `uv.sources` 拉 `pytorch-cu130`）
-  - `uv run pytest tests/` 跑全部；`uv run pytest tests/test_xxx.py::name -k expr` 跑单测
-  - pyproject.toml 已设 `pythonpath = ["src"]`，无需 `pip install -e`
-  - **断言必须约束数学原理**（见 §6 Hard Constraints）
+- **TDD 工作流**（每个子 task 入口：`/ecc:tdd-workflow` → 红 / 绿 / 重构 + 数学约束）：
+  - **依赖**：`uv sync`（pyproject.toml 用 `uv.sources` 拉 `pytorch-cu130`，已设 `pythonpath = ["src"]`，无需 `pip install -e`）
+  - **命令速查**：
+    - `uv run pytest tests/` 跑全部
+    - `uv run pytest tests/test_<module>.py::<name> -v` 单测（含 verbose）
+    - `uv run pytest tests/ -k "<pattern>"` 表达式匹配（如 `-k "phase1 or phase2"`)
+    - `uv run pytest tests/test_X.py -x` 首个失败即停（调试用）
+    - 失败时优先看 `assert` 内嵌的 `f"actual={...}"` 输出，定位算式错
+  - **数学约束协议（强制）**：spec 中每个含具体数值的算式（FLOPs / 参数 / `θ_Voronoi` / `σ(γ)` / 阈值 `1/(2·N_e)` / α 序列 / 相位覆盖）都必须有 `pytest.approx(..., abs=...)` 直接对账；文字断言（"正确"/"合理"/"≈"无数字）不构成可验条款——理由见 §6 第 8 条
+  - **测试文件约定**（与已有 `tests/` 风格一致）：
+    - 模块 docstring 第一行：`"""Tests for decompmoe.<m>: <一句话>。\n\nST-XX / Req N — <spec 场景标题>。"""`（反链 spec 锚点）
+    - 函数命名：`test_<被测算子>_<具体属性>`（如 `test_beta_endpoints`、`test_logit_zero_at_aligned`）
+    - 随机性：`torch.manual_seed(0)` 作为第一行
+    - 数值容差：math 性质用 `pytest.approx(value, abs=...)`；梯度 / 球面类用 `<= bound + 1e-3`（避免 abs=0 在 autograd 数值下误杀）
+    - 签名/AST 级硬约束：`inspect.signature(...)` 检查参数名 + `_ast.parse(inspect.getsource(...))` 验证禁止符号（如 `w_i`）；源文件 grep 用 `Path(module.__file__).read_text()`
+    - 公式级硬约束：源码里必须出现 spec 约定的字面量（如 `gating.py` 含 `x_out`，`distance.py` 不含 `w_i`）
 - **Post-archive 独立复核**：每次 `/opsx:archive` 后必须跑一次独立数值自洽性 + 双 spec 交叉校对，把 spec 声称的算式实际代入算一遍、与 spec 文本对账。grep 关键词命中不是充分条件。
 - **GateGuard**：Edit / Write 前需提供 Gate Facts（file 路径、调用方、API 影响、用户原话）
 
@@ -99,3 +110,71 @@ Phase ratios: 1/5/20/30/44% on 100K steps
 - ✅ 4 changes archived：`polish-wayfinder-spec` + `introduce-wayfinder-decompoe-spec` + `add-decompoe-skeleton-with-tdd-tests` + `fix-openspec-doc-bugs`
 - ⏭ Post-archive 独立复核发现 5 条 spec-level oversights（FLOPs 0.26% 算错、Phase 0 归一化用词、grep Scenario 分层表述、`γ_init ≈ −6.94` 与 `β_0 ≈ 1.035` 自相矛盾、恒真式断言），下一 change `fix-spec-doc-oversights` 合并修
 - ⏭ 代码层 delta：候选 `add-decompoe-mvp-module` / `add-geometric-router`
+
+## 10. Code Architecture & Module Map
+
+> 阅读 `src/decompmoe/` 全部 14 个模块前，可先看本表建立"大图"。模块按几何路由链顺序排列（提取 → 距离 → 门控 → 专家 → 训练辅助）。
+
+### 10.1 源码模块（`src/decompmoe/`）
+
+| 模块 | 一句话职责 | 对应 Spec / Req |
+|---|---|---|
+| `__init__.py` | 包入口（无业务逻辑） | — |
+| `contracts.py` | `typing.Protocol` 桩：`GeometricRouter` / `TerritoryHolder` / `BlockAdapter`；**硬约束**：无 `kv_cache_c`、无 `w_i` 参数 | Req 3, 4, 16, 17 |
+| `config.py` | `MVPConfig` 数据类（d_model=1024, N_e=16, k=2, d_ffn=2048, L=4, β_min=0.1, β_max=32） | §5 frozen hyperparams |
+| `sphere.py` | 球面工具（L2 normalize / antipode / geodesic 距离辅助） | Req 4 几何基础 |
+| `beta.py` | `inverse_temperature(γ) = β_min + (β_max−β_min)·σ(γ)`；`MAX_GRAD_PER_C = β_max` 梯度上界 | Req 7 (A4-1) |
+| `distance.py` | `squared_chord(C, c_i) = 1 − Cᵀc_i ∈ [0, 2]`；`logit = β·(Cᵀc − 1) ∈ [−2β, 0]`；**A4-2 签名无 `w_i`** | Req 7 (A4-1) |
+| `extraction.py` | `extract_C(K, V)`：per-head 投影 → 球面归一 → cross-head mean → 最终球面归一；`O(d_c·d_k)` per token、stateless | Req 17 (A3-1, A7-2) |
+| `gating.py` | `topk_mask_with_neg_inf` + `local_softmax`；**前向公式 `x_out = x + Σ p_i·Expert_i(x)` 字面必现**；非 Top-k 梯度严格为 0 | Req 8 (A4-2) |
+| `experts.py` | `SwiGLU Expert`：`(SiLU(xW^g) ⊙ xW^u) W^d`，每专家 3·d_model·d_ffn 参数 | Req 5 (A5-1, A5-2) |
+| `loss.py` | `L_total = L_CE + α·L_lb + λ(t)·L_sep`；α=0.01 固定；`L_lb = N_e·Σ f_i.detach()·P_i`；`L_sep = (‖CᵀC‖_F² − N_e)/(N_e(N_e−1))` | Req 9, 10 (A6a-1) |
+| `safeguards.py` | 5 项：global grad clip / NaN 三级 escalation / **splitting resurrection** (clone + 0.85 协同衰减) / β saturation guard / loss spike defense | Req 11 (A6a-2) |
+| `schedule.py` | 5 阶段 P0–P4（1/5/20/30/44% step）；β_max(t) 分段线性；P0 K-Means → P1-3 EMA → P4 projected SGD；Time-Driven 硬切 + State-Driven advisory | Req 12, 13 (A6b-1, A6b-2) |
+| `metrics.py` | 4 实时指标（L_sep, R_H, S_load, UR）+ 4 离线（SP, D_c, MCI, CG）；**`S_load = N_e · max_i f_i` 闭式** | Req 14, 15 (A8-2) |
+| `viz.py` | 6 模块：3D PCA / D_c 热力图 / 2D Voronoi / 轨迹动画 / TensorBoard / plantuml | Req 19 (A8-3) |
+
+### 10.2 链式数据流（几何路由一次完整 forward）
+
+```
+x ─► Attention(K,V) ─► extract_C(K,V) ─► C_t ∈ S^{d_c−1}
+                                        │
+                                        ▼
+                         gating_logits(C_t) = β·(C_tᵀc_i − 1)  (无 w_i)
+                                        │
+                                        ▼
+                    topk_mask + local_softmax ─► p_i (top-k active set)
+                                        │
+                  x ─────────────────────┴──── Σ p_i·Expert_i(x)
+                  │                                │
+                  └───────── x_out = x + Δx ◄──────┘
+```
+
+**关键不变量**（贯穿整条链）：
+
+1. `C_t ∈ S^{d_c−1}`（球面归一贯穿）
+2. `logit ∈ [−2β_max, 0]`，`‖∂logit/∂C‖₂ ≤ β_max = 32`
+3. `Σ_{i∈I_k} p_i ≡ 1`，非 Top-k 梯度严格 0
+4. `C_t` 禁入 KV Cache（Decode 走 SRAM/Registers，0 bytes HBM）
+5. 前向公式严格 `x_out = x + Σ p_i·Expert_i(x)`（grep test 守护）
+
+### 10.3 测试文件映射（`tests/`）
+
+| 测试文件 | 覆盖 spec 场景 | 关键硬约束测试 |
+|---|---|---|
+| `test_config.py` | hyperparams frozen | `MVPConfig().beta_initial == 1.0`, `k == 2` |
+| `test_contracts.py` | Req 3, 4, 16, 17 协议形状 | `kv_cache_c` 不暴露、`w_i` 不入 `logit` |
+| `test_sphere.py` | 球面归一 / 反极点 | `‖c‖₂ = 1`, `d(c, −c) = 2` |
+| `test_beta.py` | Req 7 β 参数化 | σ(γ) endpoints、单调性、`MAX_GRAD_PER_C` 守恒 |
+| `test_distance.py` | Req 7 距离 + logit | `d ∈ [0, 2]`、logit 范围、梯度上界 |
+| `test_extraction.py` | Req 17 stateless 提取 | `C_t` 单位球面、stateless |
+| `test_extraction_phase.py` | P0 K-Means → P1+ EMA 切换 | 阶段参数连续性 |
+| `test_gating.py` | Req 8 top-k + softmax | −∞ sentinel、Σ p=1、greedy 公式字面 |
+| `test_experts.py` | Req 5 SwiGLU 形状 | 参数计数 = 3·d_model·d_ffn |
+| `test_loss.py` | Req 9, 10 L_lb / L_sep | `pytest.approx(..., abs=)` 对账 `α` / `N_e` / `f_i.detach()` |
+| `test_safeguards.py` | Req 11 5 项 guard | `should_resurrect` 用 `1/(2·N_e)` 阈值 |
+| `test_schedule.py` | Req 12, 13 阶段 | 1/5/20/30/44% 切点、β_max(t) 分段线性 |
+| `test_metrics.py` | Req 14, 15 指标 | `S_load = N_e·max_i f_i` 闭式 |
+| `test_viz_protocols.py` | Req 19 可视化接口 | Protocol shape（mock 即够，不真渲染） |
+
+> 想要新增模块？先在 `openspec/specs/wayfinder/spec.md` 找到对应 Req / Scenario 锚点，**复用本表的列结构**补一行；测试文件命名严格 `test_<module>.py` + 函数 `test_<op>_<property>`。
