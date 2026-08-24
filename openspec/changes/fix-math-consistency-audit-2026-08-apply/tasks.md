@@ -18,7 +18,7 @@
   - 新测试：`test_flops_per_layer_exact_33554432`、`test_flops_total_exact_134217728`
   - Verify：`grep -F "3 * 2" src/decompmoe/config.py` → ≥ 2 hits
 
-- [ ] 3.3 `src/decompmoe/schedule.py`：新增 `gamma_reset_for_phase4` / `phase_beta_max` / `beta_effective`；修复 `phase_beta_box(2)` 落空
+- [x] 3.3 `src/decompmoe/schedule.py`：新增 `gamma_reset_for_phase4` / `phase_beta_max` / `beta_effective`；修复 `phase_beta_box(2)` 落空
   - Spec 锚点：skeleton "Beta Parameterization Operational Domain"
   - pinned convention：`phase_beta_max(phase, step) = lo + (hi−lo)·(step−start)/(end−start)`，end exclusive（Phase 2 `[6_000,26_000)`、Phase 3 `[26_000,56_000)`）；`gamma_reset_for_phase4(16.0) == ln(15/16)` abs=1e-4
   - 新测试：`test_phase_beta_box_phase2_exact`（(1.0, 4.0)）、`test_phase_beta_max_is_time_varying`（(2,6_000)=1.0、(2,16_000)=2.5、(3,26_000)=4.0、(3,41_000)=10.0，abs=1e-9）、`test_gamma_reset_for_phase4_boundary_continuity`

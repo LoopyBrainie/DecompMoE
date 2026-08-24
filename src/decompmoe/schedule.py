@@ -7,6 +7,12 @@ Phase boundaries (Req 14 / A6b-1) for total_steps = 100_000:
     Phase 3 (β ramp 4→16):    step ∈ [26K, 55_999]
     Phase 4 (projected SGD):  step ∈ [56K,100_000]
 
+Schedule-time β parameterization functions (skeleton "Beta Parameterization
+Operational Domain"):
+    - `gamma_reset_for_phase4(β_exit)` — γ reset at phase-4 entry.
+    - `phase_beta_max(phase, step)` — time-varying operational box hi.
+    - `beta_effective(γ_p, phase, step)` — clamped operational β^eff.
+
 3-layer hybrid trigger (Req 15 / A6b-2):
     Layer 1: time-driven hard cut at the boundaries.
     Layer 2: state-driven advisory signals (read-only).
@@ -14,7 +20,11 @@ Phase boundaries (Req 14 / A6b-1) for total_steps = 100_000:
 """
 from __future__ import annotations
 
+import math
 from typing import Final
+
+import torch
+from torch import Tensor
 
 _DEFAULT_TOTAL: Final[int] = 100_000
 _PHASE_RATIOS: Final[tuple[float, ...]] = (0.01, 0.05, 0.20, 0.30, 0.44)
@@ -26,7 +36,13 @@ def phase_boundaries(total_steps: int = _DEFAULT_TOTAL) -> tuple[int, ...]:
     out: list[int] = []
     for ratio in _PHASE_RATIOS:
         cumul += ratio
-        out.append(int(round(cumul * total_steps)))
+        raw = cumul * total_steps
+        if not math.isfinite(raw):
+            raise ValueError(f"non-finite boundary: ratio={ratio}, total_steps={total_steps}")
+        try:
+            out.append(int(round(raw)))
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError(f"invalid boundary value: {raw!r}") from exc
     return tuple(out)
 
 
@@ -63,9 +79,66 @@ def phase_step_frozen_names(phase: int) -> set[str]:
 
 def phase_beta_box(phase: int) -> tuple[float, float]:
     """Return the (lo, hi) dynamic box for β in the given phase."""
+    if phase == 2:
+        return (1.0, 4.0)
     if phase == 3:
         return (4.0, 16.0)
     return (1.0, 32.0)
+
+
+def phase_beta_max(phase: int, step: int, total_steps: int = _DEFAULT_TOTAL) -> float:
+    """Time-varying β upper bound within a phase's dynamic box.
+
+    Pinned linear convention (skeleton "Beta Parameterization Operational
+    Domain"):
+
+        phase_beta_max(phase, step) = box(phase).lo
+            + (box(phase).hi − box(phase).lo) · (step − phase_start)
+              / (phase_end − phase_start)
+
+    with `phase_end` EXCLUSIVE: Phase 2 range [6_000, 26_000),
+    Phase 3 range [26_000, 56_000). Other phases return the static box hi.
+    """
+    bounds = phase_boundaries(total_steps)
+    lo, hi = phase_beta_box(phase)
+    if phase == 2:
+        t_start, t_end = bounds[1], bounds[2]
+    elif phase == 3:
+        t_start, t_end = bounds[2], bounds[3]
+    else:
+        return hi
+    progress = max(0.0, min(1.0, (step - t_start) / (t_end - t_start)))
+    return lo + (hi - lo) * progress
+
+
+def gamma_reset_for_phase4(beta_exit: float = 16.0) -> float:
+    """γ reset value placing β^eff exactly at the phase-3 exit value.
+
+    Spec (skeleton "Beta Parameterization Operational Domain"): at phase-4
+    entry the γ parameter is reset so that
+    `phase4_inverse_temperature(γ_reset) == β_exit` (= 16.0 at MVP).
+    Closed form: `γ_reset = ln(β_exit − 1) − ln(32 − β_exit)`;
+    at β_exit = 16 this evaluates to ln(15/16) ≈ −0.0645385.
+    """
+    return math.log(beta_exit - 1.0) - math.log(31.0 + 1.0 - beta_exit)
+
+
+def beta_effective(
+    gamma_p: float,
+    phase: int,
+    step: int,
+    *,
+    cfg=None,
+) -> Tensor:
+    """Operational β^eff = clamp(1 + 31·σ(γ_p), lo=1, hi=phase_beta_max)."""
+    from decompmoe.beta import phase4_inverse_temperature
+
+    try:
+        beta_raw = float(phase4_inverse_temperature(float(gamma_p)).item())
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"invalid gamma_p: {gamma_p!r}") from exc
+    cap = phase_beta_max(phase, step)
+    return torch.tensor(min(beta_raw, cap))
 
 
 def phase_beta(phase: int, step: int, total_steps: int = _DEFAULT_TOTAL) -> float:
@@ -112,6 +185,9 @@ __all__ = [
     "phase_id",
     "phase_step_frozen_names",
     "phase_beta_box",
+    "phase_beta_max",
+    "gamma_reset_for_phase4",
+    "beta_effective",
     "phase_beta",
     "should_reset_adam",
     "advisory_signals",

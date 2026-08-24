@@ -4,7 +4,11 @@ ST-11 / Req 14, 15.
 """
 from __future__ import annotations
 
-from decompmoe import schedule
+import math
+
+import pytest
+
+from decompmoe import beta, schedule
 
 
 def test_phase_ratios_pure_function() -> None:
@@ -82,3 +86,39 @@ def test_advisory_signals_read_only() -> None:
     )
     assert advisory["R_H"] == 0.99
     assert schedule.phase_id(5_000) == 1
+
+# ---------------------------------------------------------------------------
+# Task 3.3 — schedule-time functions (skeleton "Beta Parameterization
+# Operational Domain"): gamma_reset_for_phase4 / phase_beta_max /
+# beta_effective; phase_beta_box(2) == (1.0, 4.0)
+# ---------------------------------------------------------------------------
+
+
+def test_phase_beta_box_phase2_exact() -> None:
+    """phase_beta_box(2) == (1.0, 4.0) exact — must NOT fall through to default."""
+    assert schedule.phase_beta_box(2) == (1.0, 4.0)
+
+
+def test_phase_beta_max_is_time_varying() -> None:
+    """phase_beta_max pins the linear convention with exclusive phase end.
+
+    Spec: phase_beta_max(phase, step) = box.lo + (box.hi − box.lo)
+          · (step − phase_start) / (phase_end − phase_start),
+    Phase 2 range [6_000, 26_000), Phase 3 range [26_000, 56_000).
+    Exact-value pins within abs=1e-9.
+    """
+    assert schedule.phase_beta_max(2, 6_000) == pytest.approx(1.0, abs=1e-9)
+    assert schedule.phase_beta_max(2, 16_000) == pytest.approx(2.5, abs=1e-9)
+    assert schedule.phase_beta_max(3, 26_000) == pytest.approx(4.0, abs=1e-9)
+    assert schedule.phase_beta_max(3, 41_000) == pytest.approx(10.0, abs=1e-9)
+
+
+def test_gamma_reset_for_phase4_boundary_continuity() -> None:
+    """gamma_reset_for_phase4(16.0) == ln(15/16); inverse recovers 16.0.
+
+    Spec: skeleton "Beta Parameterization Operational Domain" — the γ reset
+    at phase-4 entry places β^eff exactly at the phase-3 exit value 16.0.
+    """
+    g_reset = schedule.gamma_reset_for_phase4(16.0)
+    assert g_reset == pytest.approx(math.log(15.0 / 16.0), abs=1e-4)
+    assert beta.phase4_inverse_temperature(g_reset) == pytest.approx(16.0, abs=1e-6)
