@@ -70,6 +70,6 @@
 
 ## 5. 验收 gate
 
-- [ ] 5.1 全套件：`uv run pytest tests/` → ≥ 110 passed, 0 failed（95 基线保留 + ~15 new；rewrite 不双计）
-- [ ] 5.2 §4 grep 检查全过（metrics 无 stub、sphere 无表、ExpertPool nn.Module、phase_beta_box(2)==(1.0,4.0)、compute_total_and_active==(452_329_984, 100_008_448)、flops_per_token MOE==134_217_728）
-- [ ] 5.3 Post-archive 独立复核（CLAUDE.md §3）：逐条代入 spec 数值算式与声称值对账，全部通过
+- [x] 5.1 全套件：`uv run pytest tests/` → ≥ 110 passed, 0 failed（95 基线保留 + ~15 new；rewrite 不双计）
+- [x] 5.2 §4 grep 检查全过（metrics 无 stub、sphere 无表、ExpertPool nn.Module、phase_beta_box(2)==(1.0,4.0)、compute_total_and_active==(452_329_984, 100_008_448)、flops_per_token MOE==134_217_728）
+- [x] 5.3 Post-archive 独立复核（CLAUDE.md §3）：逐条代入 spec 数值算式与声称值对账，全部通过
