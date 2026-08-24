@@ -70,22 +70,31 @@ def test_aggregate_across_heads_awareness() -> None:
 
 
 def test_complexity_budget() -> None:
-    """Per-token C-extraction FLOPs scale as O(H_kv · d_c · d_k)."""
-    B, H_kv, N, d_k, d_c = 1, 8, 1, 128, 16
+    """Per-token MAC closed form: H_kv·(2·d_k·d_c + d_c) + H_kv·d_c + d_c.
 
-    def count_flops(h_kv: int) -> int:
-        return h_kv * (4 * d_k * d_c + d_c) + h_kv * d_c
+    Spec: skeleton "C Extraction Four-Step Pipeline", Scenario "Per-token
+    MAC closed form" (pinned convention: 1 MAC = 1 multiply + 1 accumulate;
+    FLOPs = 2·MACs). At MVP (H_kv=8, d_k=128, d_c=16):
+    8·4112 + 8·16 + 16 = 33_040 per-token MACs exactly.
+    Scaling: O(H_kv · d_k · d_c).
+    """
+    cfg_hkv, cfg_dk, cfg_dc = 8, 128, 16
 
-    flops_8 = count_flops(8)
-    flops_4 = count_flops(4)
-    assert flops_8 > flops_4
-    expected_per_token = H_kv * (4 * d_k * d_c + d_c) + H_kv * d_c
-    assert expected_per_token == 65792
+    def macs(h_kv: int, d_k: int, d_c: int) -> int:
+        return h_kv * (2 * d_k * d_c + d_c) + h_kv * d_c + d_c
 
+    expected = macs(cfg_hkv, cfg_dk, cfg_dc)
+    assert expected == 33_040, f"closed form must equal 33_040; got {expected}"
 
-# ---------------------------------------------------------------------------
-# Differentiability: full D-path, no STE (Req 6)
-# ---------------------------------------------------------------------------
+    # Scaling sanity: doubling d_c doubles the linear-in-d_c terms
+    # (checks the closed form itself, not the implementation).
+    m1 = macs(4, 64, 8)
+    m2 = macs(4, 64, 16)
+    # linear terms double: h_kv*d_c + h_kv*(2*d_k*d_c + d_c) all scale in d_c;
+    # the constant term d_c also scales. So m2 == 2*m1 exactly for this form?
+    # No: only terms proportional to d_c scale — every term here is ∝ d_c
+    # except none. Actually each term contains d_c linearly ⇒ m2 == 2*m1.
+    assert m2 == 2 * m1
 
 
 def test_full_differentiability() -> None:
