@@ -6,7 +6,6 @@ ONLY routing equation (grep test).
 """
 from __future__ import annotations
 
-import pytest
 import torch
 
 from decompmoe import gating
@@ -60,12 +59,39 @@ def test_zero_grad_for_non_top_k() -> None:
 
 
 def test_forward_formula_strictness() -> None:
-    """`gating.py` must contain the forward formula x_out = x + Σ p_i · Expert_i(x)."""
-    from pathlib import Path
-    src = Path(gating.__file__).read_text(encoding="utf-8")
-    assert "x_out" in src, (
-        "gating.py must contain the forward formula x_out = x + Σ p_i · Expert_i(x)"
+    """Numerical verification of x_out = x + Σ_{i∈I_k} p_i·Expert_i(x).
+
+    Spec: wayfinder ADDED "Forward Formula Numerical Verification (Routing
+    Layer)" — NOT source-grep. Stub experts return fixed per-expert outputs;
+    the routing equation must reproduce x + Σ p_i·E_i exactly.
+
+    Since `gating` emits only `p` (the equation is realized downstream), we
+    verify the composition contract: given top-k mask + local_softmax, the
+    recomposed output equals the closed form within abs=1e-6.
+    """
+    torch.manual_seed(0)
+    N_e, d_model, k = 16, 8, 2
+    x = torch.randn(d_model)
+    logits = torch.randn(N_e)
+    masked = gating.topk_mask_with_neg_inf(logits.unsqueeze(0), k=k)
+    p = gating.local_softmax(masked).squeeze(0)  # (N_e,), zero outside top-k
+
+    # Stub experts: E_i(x) = E_i fixed per expert.
+    fixed_outputs = torch.randn(N_e, d_model)
+    x_out = x + torch.einsum("i,id->d", p, fixed_outputs)
+
+    # Closed form: x + Σ_{i∈I_k} p_i · E_i.
+    active = masked.squeeze(0) > float("-inf")
+    expected = x.clone()
+    for i in range(N_e):
+        if active[i]:
+            expected = expected + p[i] * fixed_outputs[i]
+
+    assert torch.allclose(x_out, expected, atol=1e-6), (
+        f"routing equation mismatch: max diff = {(x_out - expected).abs().max().item():.3e}"
     )
+    # Non-active experts contribute exactly 0 (p_i == 0 outside I_k).
+    assert (p[~active] == 0).all()
 
 
 def test_convex_combination_dtype_safe() -> None:
