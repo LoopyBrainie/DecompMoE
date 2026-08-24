@@ -10,7 +10,6 @@ import torch
 from decompmoe import beta
 from decompmoe.config import MVPConfig
 
-
 # ---------------------------------------------------------------------------
 # β(γ) endpoint / monotonicity properties
 # ---------------------------------------------------------------------------
@@ -66,33 +65,51 @@ def test_logit_range() -> None:
 
 
 def test_grad_C_bound() -> None:
-    """‖∂logit/∂C‖₂ ≤ β_max = 32 (worst case at β = β_max)."""
-    torch.manual_seed(0)
+    """Worst case hits the bound EXACTLY: orthogonal e_1, e_2 at β=β_max →
+    ‖∂logit/∂C‖₂ == 32.0 within abs=1e-4.
+
+    Spec: wayfinder ADDED "Closed-Form Gradient Bound Worst Case":
+    logit = β·(Cᵀc − 1), ∂logit/∂C = β·c (for unit-norm C path); with
+    C = e_1, c = e_2 orthogonal and β = 32, the norm is exactly β_max.
+    """
     d_c = 16
-    C = torch.nn.Parameter(torch.randn(d_c))
-    c = torch.randn(d_c)
-    c_unit = c / c.norm()
+    C = torch.nn.Parameter(torch.zeros(d_c))
+    with torch.no_grad():
+        C[0] = 1.0  # C = e_1
+    c_unit = torch.zeros(d_c)
+    with torch.no_grad():
+        c_unit[1] = 1.0  # c = e_2 (orthogonal)
     inner = ((C / C.norm()) * c_unit).sum()
     logit = beta.MAX_GRAD_PER_C * (inner - 1.0)
-    grad = torch.autograd.grad(logit, C, create_graph=False)[0]
+    grad = torch.autograd.grad(logit, C)[0]
+    # d/dC [β·(C/‖C‖·e_2)] at C = e_1: β · e_2/‖C‖ = β·e_2 ⇒ norm == 32
     grad_norm = grad.norm().item()
-    assert grad_norm <= beta.MAX_GRAD_PER_C + 1e-3, (
-        f"‖∂logit/∂C‖₂ = {grad_norm} > β_max = {beta.MAX_GRAD_PER_C}"
+    assert grad_norm == pytest.approx(32.0, abs=1e-4), (
+        f"worst-case ‖∂logit/∂C‖₂ = {grad_norm}, expected exactly 32.0"
     )
 
 
 def test_grad_gamma_bound() -> None:
-    """|∂logit/∂γ| ≤ 0.5·(β_max − β_min) = 15.95."""
+    """Worst case: γ = 0, c = −e_1 → |∂logit/∂γ| == 15.95 within abs=1e-3.
+
+    Spec: wayfinder ADDED "Closed-Form Gradient Bound Worst Case":
+    |dσ/dγ| ≤ 0.25 at γ=0; |Cᵀc − 1| maximal (= 2) when c = −C.
+    0.5·31.9·0.25·... closed form: 0.5·(β_max−β_min)·0.5·2 = 15.95 only via
+    |∂β/∂γ|·|Cᵀc−1| ≤ 0.5·31.9·0.5·2 — the spec-pinned value is 15.95.
+    """
     torch.manual_seed(0)
     d_c = 16
     gamma = torch.nn.Parameter(torch.tensor(0.0))
-    C_unit = torch.nn.functional.normalize(torch.randn(1, d_c), dim=-1).squeeze(0)
-    c_unit = torch.nn.functional.normalize(torch.randn(d_c), dim=-1)
+    C_unit = torch.zeros(d_c)
+    with torch.no_grad():
+        C_unit[0] = 1.0  # C = e_1
+    c_unit = -C_unit.clone()  # c = −e_1 (antipodal, worst case)
     inner = (C_unit * c_unit).sum()
     logit = beta.inverse_temperature(gamma) * (inner - 1.0)
-    grad = torch.autograd.grad(logit, gamma, create_graph=False)[0]
-    assert abs(grad.item()) <= beta.MAX_GRAD_PER_GAMMA + 1e-3, (
-        f"|∂logit/∂γ| = {abs(grad.item())} > 15.95"
+    grad = torch.autograd.grad(logit, gamma)[0]
+    expected = beta.MAX_GRAD_PER_GAMMA
+    assert abs(grad.item()) == pytest.approx(expected, abs=1e-3), (
+        f"worst-case |∂logit/∂γ| = {abs(grad.item())}, expected {expected}"
     )
 
 
@@ -109,3 +126,23 @@ def test_constants_exported() -> None:
     assert isinstance(beta.MAX_GRAD_PER_GAMMA, float)
     assert beta.MAX_GRAD_PER_C == 32.0
     assert abs(beta.MAX_GRAD_PER_GAMMA - 15.95) < 1e-6
+
+
+def test_max_grad_per_gamma_phase4() -> None:
+    """Operational-domain Phase 4 worst case: γ' = 0, c = −C →
+    |∂β^eff/∂γ'| == 15.5 within abs=1e-3.
+
+    Spec: skeleton ADDED "Beta Parameterization Operational Domain":
+    β^eff(γ') = 1 + 31·σ(γ') ⇒ max |∂β^eff/∂γ'| = 0.5·31 = 15.5 at γ'=0.
+    """
+    gamma_p = torch.nn.Parameter(torch.tensor(0.0))
+    C_unit = torch.zeros(16)
+    with torch.no_grad():
+        C_unit[0] = 1.0
+    c_unit = -C_unit.clone()  # c = −C (antipodal worst case: Cᵀc − 1 = −2)
+    logit = beta.phase4_inverse_temperature(gamma_p) * ((C_unit * c_unit).sum() - 1.0)
+    grad = torch.autograd.grad(logit, gamma_p)[0]
+    assert abs(grad.item()) == pytest.approx(beta.MAX_GRAD_PER_GAMMA_PHASE4, abs=1e-3), (
+        f"Phase-4 worst case |∂β^eff/∂γ'| = {abs(grad.item())}, "
+        f"expected {beta.MAX_GRAD_PER_GAMMA_PHASE4}"
+    )
