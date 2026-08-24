@@ -11,15 +11,10 @@ This module materializes Req 5 (Steps 2 + 4) and Req 11 of
 
           ½ · I_{sin² θ}((d_c − 1)/2, 1/2) = 1 / N_e
 
-      where I_x(a, b) is the regularized incomplete beta function. The
-      MVP tabulated values per wayfinder Req 11:
-
-          (N_e=16, d_c=16)  →  θ ≈ 0.9076 rad (52.00°), r ≈ 0.380
-          (N_e=64, d_c=16)  →  θ ≈ 0.4494 rad (25.45°), r ≈ 0.0971
-
-      For (N_e, d_c) outside the MVP-supported set, falls back to bisection
-      on a hand-rolled regularized-incomplete-beta via direct Gauss
-      quadrature (no scipy dependency).
+      where I_x(a, b) is the regularized incomplete beta function. Every
+      input is solved by bisection on a hand-rolled regularized-incomplete-
+      beta via direct Gauss quadrature (no scipy dependency); no hard-coded
+      table.
     - `voronoi_angle(centroids)` measures the realized half-angle from an
       actual centroid tensor (offline use only — NEVER in training hot path).
 
@@ -32,7 +27,6 @@ import math
 
 import torch
 from torch import Tensor
-
 
 # ---------------------------------------------------------------------------
 # Spherical L2 normalization (Req 5)
@@ -89,7 +83,7 @@ def _betainc_regularized(x: float, a: float, b: float, n: int = 60) -> float:
         0.2223810344533745, 0.1012285362903763,
     ]
     integral = 0.0
-    for node, weight in zip(nodes, weights):
+    for node, weight in zip(nodes, weights, strict=True):
         t = half_x * (1.0 + node)
         if t <= 0.0:
             continue
@@ -108,13 +102,6 @@ def _betainc_regularized(x: float, a: float, b: float, n: int = 60) -> float:
 # ---------------------------------------------------------------------------
 
 
-# Tabulated MVP values from wayfinder Req 11 — used as fast-path before bisection.
-_VORONOI_MVP_TABLE: dict[tuple[int, int], float] = {
-    (16, 16): 0.9076,   # ≈ 52.00°
-    (64, 16): 0.4494,   # ≈ 25.45°
-}
-
-
 def canonical_voronoi_angle(num_experts: int, signature_dim: int) -> float:
     """Closed-form Voronoi half-angle on S^{signature_dim − 1}.
 
@@ -123,8 +110,9 @@ def canonical_voronoi_angle(num_experts: int, signature_dim: int) -> float:
 
         f(θ) = ½ · I_{sin² θ}((d_c − 1)/2, 1/2) − 1 / N_e.
 
-    MVP fast-path returns the spec tabulated values for the two canonical
-    configs (16, 16) and (64, 16). Other configs bisect to ≤ 1e-6 rad.
+    Every input bisects — no hard-coded table (spec Scenario
+    "no hard-coded table values"; the prior tabulated MVP fast-path
+    values were wrong and have been removed).
 
     Returns the angle in radians (multiply by 180/π for degrees).
     """
@@ -132,10 +120,6 @@ def canonical_voronoi_angle(num_experts: int, signature_dim: int) -> float:
         raise ValueError(f"num_experts must be ≥ 2; got {num_experts}")
     if signature_dim < 2:
         raise ValueError(f"signature_dim must be ≥ 2; got {signature_dim}")
-    key = (num_experts, signature_dim)
-    if key in _VORONOI_MVP_TABLE:
-        # Spec tabulated value; kept to 4 decimals per wayfinder Req 11.
-        return _VORONOI_MVP_TABLE[key]
     target = 1.0 / num_experts
     a = (signature_dim - 1) / 2.0
     b = 0.5
@@ -178,7 +162,10 @@ def voronoi_angle(centroids: Tensor) -> float:
     pair_chord = torch.sqrt(2.0 * (1.0 - pair_sims).clamp_min(0.0))
     mean_chord = pair_chord.mean().item()
     arg = max(-1.0, min(1.0, 1.0 - mean_chord))
-    return float(math.acos(arg))
+    try:
+        return float(math.acos(arg))
+    except ValueError as exc:  # defensive: clamp already bounds arg to [-1, 1]
+        raise ValueError(f"acos domain violation: arg={arg}") from exc
 
 
 __all__ = [
