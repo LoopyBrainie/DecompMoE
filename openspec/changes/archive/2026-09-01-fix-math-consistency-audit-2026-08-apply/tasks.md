@@ -4,7 +4,8 @@
 
 ## 1. 前置
 
-- [ ] 1.1 确认基线：`uv run pytest tests/` → 95 passed, 0 failed（记录为回归基线）
+- [x] 1.1 确认基线：`uv run pytest tests/` → 132 passed, 0 failed（记录为回归基线）
+  [DEVIATION] apply-checklist.md 声称 95，实际基线为 132（pre-archive 测试已增至 132 项；偏差在 conversation 中显式记录）
 
 ## 2. 代码改动 + 配套测试（8 项）
 
