@@ -21,6 +21,7 @@ matches are real anti-patterns to fix in code review.
 Run as a pre-commit gate or in CI:
     python scripts/lint_no_dead_defensive.py
 """
+
 from __future__ import annotations
 
 import re
@@ -53,9 +54,7 @@ PATTERNS: list[tuple[str, str]] = [
 def main() -> int:
     violations: list[tuple[Path, int, str, str]] = []
     for path in sorted(SRC_DIR.glob("*.py")):
-        for lineno, line in enumerate(
-            path.read_text(encoding="utf-8").splitlines(), 1
-        ):
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             # Lines with explicit noqa are by-design (see commit message).
             if NOQA_TAG in line:
                 continue

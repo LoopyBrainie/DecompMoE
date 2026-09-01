@@ -39,7 +39,9 @@ def R_H(p: Tensor) -> Tensor:
         # normalization requires log n > 0). n=0 or n=1 returns NaN from
         # log(0)/log(1) — raise explicitly so callers don't silently
         # propagate NaN downstream.
-        raise ValueError(f"R_H: n must be >= 2 for valid entropy normalization, got n={n}")
+        raise ValueError(
+            f"R_H: n must be >= 2 for valid entropy normalization, got n={n}"
+        )
     entropy = -(p_safe * p_safe.log()).sum(dim=-1)
     return entropy / torch.log(torch.tensor(float(n)))  # noqa: dead-defensive — tensor div never raises; n<2 guard above handles degenerate case
 
@@ -89,7 +91,9 @@ def SP(centroids: Tensor, assignments: Tensor, signatures: Tensor) -> Tensor:
     per_expert_means: list[Tensor] = []
     for i in range(N_e):
         member = assignments == i
-        n_i_val = int(member.sum().item())  # 0-d tensor .item() never raises; # noqa: dead-defensive
+        n_i_val = int(
+            member.sum().item()
+        )  # 0-d tensor .item() never raises; # noqa: dead-defensive
         if n_i_val == 0:
             continue  # skip empty expert (‖T_i‖₁ == 0)
         align = (C_t[member] * centroids[i].unsqueeze(0)).sum(dim=-1)
