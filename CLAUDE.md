@@ -107,7 +107,7 @@ Phase ratios: 1/5/20/30/44% on 100K steps
 
 - ✅ OpenSpec 主 spec 已 archive：`openspec/specs/wayfinder/spec.md`（**31 Req / 69 Scen**，commit `f45a42c`）
 - ✅ Skeleton spec 已 archive：`openspec/specs/decompmoe-skeleton/spec.md`（**22 Req / 76 Scen**）
-- ✅ 8 changes archived（见 `openspec/changes/archive/`，含 `fix-math-consistency-audit-2026-08`）
+- ✅ 9 changes archived（见 `openspec/changes/archive/`，含 `fix-math-consistency-audit-2026-08` 与 `2026-09-01-fix-math-consistency-audit-2026-08-apply`）
 - ⏭ 代码层 delta：候选 `add-decompoe-mvp-module` / `add-decompoe-router`；`fix-math-consistency-audit-2026-08` 的代码层 apply 入口见 `apply-checklist.md`（17 项 spec-anchored 任务，按 spec 闭式常量驱动 TDD，**不得**用 `src` 输出反推测试）
 
 ## 10. Code Architecture & Module Map
