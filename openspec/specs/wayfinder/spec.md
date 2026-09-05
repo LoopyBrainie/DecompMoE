@@ -186,8 +186,8 @@ The system MUST NOT include a shared expert. The forward equation MUST remain ex
 The system MUST, for the 4070 8 GB MVP target, adopt `d_model = 1024`, `N_e = 16`, `k = 2`, `d_ffn = 2048`, `L = 4`, `d_c = 16`, `H = 8`, `H_kv = 8`, `d_k = 128`, `V = 32_000`. Total parameters ≈ 452 M and active parameters ≈ 100 M. The MoE active FLOPs MUST be 1:1 with a Dense baseline whose `d_ffn_dense = 4096` (each MoE token performs exactly two expert FFNs of width 2048). The geometric self-consistency check MUST hold (`θ_Voronoi > θ_{1/e}` strictly under the MVP configuration, with the closed-form residual `½ · I_{sin²θ}((d_c−1)/2, 1/2) − 1/N_e` evaluating to less than `1e-9` for the reported `θ`).
 
 **Closed-form Voronoi half-angle (definitional layer)**: For N_e equal-area cells on `S^{d_c − 1}`, `θ_Voronoi(N_e, d_c)` is the unique `θ ∈ (0, π/2]` solving `½ · I_{sin² θ}((d_c − 1)/2, 1/2) = 1/N_e`, where `I_x(a, b)` is the regularized incomplete beta function. Equivalently, `versine_Voronoi(N_e, d_c) = 1 − cos θ_Voronoi` is the per-expert spherical **versine** (cap height, `1 − cos θ`); it MUST NOT be confused with `D_chord = √(2(1 − cos θ))` which uses the same `(1 − cos θ)` base but takes the square root to obtain chord length. MVP tabulated values (independent root-finding, residual `< 1e-9`):
-- `θ_Voronoi(16, 16) ≈ 67.24° (1.1736 rad)`, `versine_Voronoi(16, 16) ≈ 0.6127`.
-- `θ_Voronoi(64, 16) ≈ 58.47° (1.0205 rad)`, `versine_Voronoi(64, 16) ≈ 0.4776`.
+- `θ_Voronoi(16, 16) ≈ 67.24° (1.1736 rad)`, `versine_Voronoi(16, 16) ≈ 0.6131`.
+- `θ_Voronoi(64, 16) ≈ 58.47° (1.0205 rad)`, `versine_Voronoi(64, 16) ≈ 0.4771`.
 
 The canonical configuration-layer API `canonical_voronoi_angle(num_experts: int, signature_dim: int) -> float` MUST return this closed-form value (computed via bisection on the equation, NOT via a hard-coded table). The measurement-layer API `voronoi_angle(centroids: Tensor) -> float` MUST compute the realized Voronoi half-angle from an actual centroid tensor (offline use only, never in the training hot path). The specialist-collapse boundary `θ_{1/e}(β) = arccos(1 − 1/β)` MUST strictly satisfy `θ_Voronoi(N_e=16, d_c=16) > θ_{1/e}(β=16) = arccos(15/16) ≈ 20.36°`.
 
@@ -296,7 +296,7 @@ The system MUST combine three trigger layers: (Layer 1) Time-Driven hard cut at 
 
 #### Scenario: Advisory signals not to auto-trigger
 - **WHEN** an advisory signal crosses any threshold before its corresponding time-driven boundary
-- **THEN** the system logs the advisory but nots NOT advance the phase
+- **THEN** the system logs the advisory but does NOT advance the phase
 
 <a id="req-16"></a>
 
@@ -314,7 +314,7 @@ The system MUST use the same extraction algorithm for Prefill and Decode with ze
 
 ### Requirement: Stateless Per-Frame C Recomputation
 
-The system MUST recompute `C_t^l` every Decode step from `(K_t, V_t)` with no carry-over state, using the formula `C_t = L2_Norm((1/H_kv) · Σ_h L2_Norm(W_h^K k_t^{(h)} + W_h^V v_t^{(h)} + b_h))`. The recomputation MUST cost approximately 65.5 K FLOPs per token (with `H_kv = 8`, `d_k = 128`, `d_c = 16`) and MUST introduce 0 bytes of additional HBM traffic because all activations fit in registers / SRAM. The recomputation MUST keep C-extraction overhead under 0.5% of total decoder latency.
+The system MUST recompute `C_t^l` every Decode step from `(K_t, V_t)` with no carry-over state, using the formula `C_t = L2_Norm((1/H_kv) · Σ_h L2_Norm(W_h^K k_t^{(h)} + W_h^V v_t^{(h)} + b_h))`. The recomputation MUST cost approximately 65.5 K FLOPs per token projection-only (with `H_kv = 8`, `d_k = 128`, `d_c = 16`; the projection-only cost is `4·d_c·H_kv·d_k = 65_536` FLOPs — bias `+128` MACs and per-head L2-normalize `+144` MACs are reported separately and bring the full extract_C pipeline to `33_040 MACs = 66_080 FLOPs` per the skeleton spec, ~0.83% above the projection-only figure) and MUST introduce 0 bytes of additional HBM traffic because all activations fit in registers / SRAM. The recomputation MUST keep C-extraction overhead under 0.5% of total decoder latency.
 
 **Source:** `wayfinder/tickets/A7-2.md`
 
@@ -579,7 +579,7 @@ The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **singl
 **Source:** change `fix-math-consistency-audit-2026-08` design.md (Decision 4)
 
 #### Scenario: perturbation output shape matches a single expert slot
-- **WHEN** `resurrection_perturb_distribution(target_idx=3, eps_std=0.05)` is called
+- **WHEN** `resurrection_perturb_distribution(f_per_expert, target_idx=3, eps_std=0.05, dim=16)` is called (explicit `dim` required; `dim=None` raises `TypeError`)
 - **THEN** the returned tensor has shape `(d_c,)` or `(d_model · d_ffn,)` (single expert), NOT `(N_e,)` (whole routing distribution)
 
 ---

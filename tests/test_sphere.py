@@ -179,3 +179,17 @@ def test_voronoi_measurement_layer() -> None:
         f"realized θ = {math.degrees(theta):.2f}° should be within π/2 "
         f"of canonical {math.degrees(canonical):.2f}°"
     )
+
+
+def test_versine_voronoi_closed_form() -> None:
+    """Audit findings MAJ-M1 / MAJ-M2: versine_Voronoi closed-form values.
+
+    versine_Voronoi(N_e, d_c) = 1 − cos(canonical_voronoi_angle(N_e, d_c)).
+    Ground-truth (verified independently via mpmath bisection):
+    - versine_Voronoi(16, 16) ≈ 0.61312 (spec 0.6131, old 0.6127 off by 0.068%)
+    - versine_Voronoi(64, 16) ≈ 0.47707 (spec 0.4771, old 0.4776 off by 0.112%)
+    """
+    v_16_16 = 1.0 - math.cos(sphere.canonical_voronoi_angle(num_experts=16, signature_dim=16))
+    v_64_16 = 1.0 - math.cos(sphere.canonical_voronoi_angle(num_experts=64, signature_dim=16))
+    assert v_16_16 == pytest.approx(0.61312, abs=1e-4)
+    assert v_64_16 == pytest.approx(0.47707, abs=1e-4)

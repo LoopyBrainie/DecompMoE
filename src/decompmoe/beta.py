@@ -34,9 +34,16 @@ MAX_GRAD_PER_C: Final[float] = 32.0
 # |∂logit/∂γ| ≤ 0.5 · (β_max − β_min) = 15.95 (per Req 7 / A4-1)
 # Domain: PARAMETERIZATION-space worst case (full sigmoid domain γ ∈ ℝ).
 MAX_GRAD_PER_GAMMA: Final[float] = 0.5 * (BETA_MAX - BETA_MIN)
-# Operational-domain Phase 4 worst case:
-#   β^eff(γ') = 1 + 31·σ(γ') ⇒ |∂β^eff/∂γ'| ≤ 0.5·31 = 15.5 at γ' = 0.
-MAX_GRAD_PER_GAMMA_PHASE4: Final[float] = 0.5 * 31.0
+# Operational-domain Phase 4 β-gradient worst case (NO inner-product factor):
+#   β^eff(γ') = 1 + 31·σ(γ') ⇒ |∂β^eff/∂γ'| = 31·σ'(γ') ≤ 31·σ'(0) = 31·0.25 = 7.75.
+# This bounds ONLY the β-as-function-of-γ' gradient; for the logit gradient
+# (`logit = β · (Cᵀc − 1)`), the inner-product factor |Cᵀc − 1|_max = 2
+# multiplies this and yields the bound below.
+MAX_GRAD_BETA_PHASE4: Final[float] = 31.0 * 0.25  # = 7.75
+# Operational-domain Phase 4 logit-gradient worst case (WITH inner factor):
+#   |∂logit/∂γ'| = |∂β/∂γ'| · |Cᵀc − 1| ≤ 7.75 · 2 = 15.5
+# attained at γ' = 0 (max σ') and antipodal (Cᵀc = −1 ⇒ inner = −2).
+MAX_GRAD_PER_GAMMA_PHASE4: Final[float] = 0.5 * 31.0  # = 7.75·2 = 15.5
 
 
 # ---------------------------------------------------------------------------
@@ -70,6 +77,7 @@ __all__ = [
     "BETA_MAX",
     "MAX_GRAD_PER_C",
     "MAX_GRAD_PER_GAMMA",
+    "MAX_GRAD_BETA_PHASE4",
     "MAX_GRAD_PER_GAMMA_PHASE4",
     "inverse_temperature",
     "phase4_inverse_temperature",

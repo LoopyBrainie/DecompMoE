@@ -130,11 +130,13 @@ def test_constants_exported() -> None:
 
 
 def test_max_grad_per_gamma_phase4() -> None:
-    """Operational-domain Phase 4 worst case: γ' = 0, c = −C →
-    |∂β^eff/∂γ'| == 15.5 within abs=1e-3.
+    """Operational-domain Phase 4 worst case: γ' = 0, c = −C (antipodal) →
+    |∂logit/∂γ'| == 15.5 within abs=1e-3.
 
     Spec: skeleton ADDED "Beta Parameterization Operational Domain":
-    β^eff(γ') = 1 + 31·σ(γ') ⇒ max |∂β^eff/∂γ'| = 0.5·31 = 15.5 at γ'=0.
+    logit = β · (Cᵀc − 1); β^eff(γ') = 1 + 31·σ(γ') ⇒
+    max |∂logit/∂γ'| = 31·σ'(0)·|Cᵀc − 1|_max = 31·0.25·2 = 15.5.
+    (For β-only gradient bound see `test_max_grad_beta_phase4` below.)
     """
     gamma_p = torch.nn.Parameter(torch.tensor(0.0))
     C_unit = torch.zeros(16)
@@ -146,6 +148,26 @@ def test_max_grad_per_gamma_phase4() -> None:
     assert abs(grad.item()) == pytest.approx(
         beta.MAX_GRAD_PER_GAMMA_PHASE4, abs=1e-3
     ), (
-        f"Phase-4 worst case |∂β^eff/∂γ'| = {abs(grad.item())}, "
+        f"Phase-4 worst case |∂logit/∂γ'| = {abs(grad.item())}, "
         f"expected {beta.MAX_GRAD_PER_GAMMA_PHASE4}"
+    )
+
+
+def test_max_grad_beta_phase4() -> None:
+    """Operational-domain Phase 4 β-only gradient bound: |∂β^eff/∂γ'| == 7.75
+    within abs=1e-3.
+
+    Spec: β^eff(γ') = 1 + 31·σ(γ'); σ'(γ') = σ(γ')(1−σ(γ')) with
+    max σ'(0) = 0.25; thus max |∂β^eff/∂γ'| = 31·0.25 = 7.75.
+    (Distinct from MAX_GRAD_PER_GAMMA_PHASE4 = 15.5 which multiplies in
+    the inner-product factor |Cᵀc − 1|_max = 2.)
+    """
+    gamma_p = torch.nn.Parameter(torch.tensor(0.0))
+    beta_only = beta.phase4_inverse_temperature(gamma_p)
+    grad = torch.autograd.grad(beta_only, gamma_p)[0]
+    assert abs(grad.item()) == pytest.approx(
+        beta.MAX_GRAD_BETA_PHASE4, abs=1e-3
+    ), (
+        f"Phase-4 worst case |∂β^eff/∂γ'| = {abs(grad.item())}, "
+        f"expected {beta.MAX_GRAD_BETA_PHASE4}"
     )

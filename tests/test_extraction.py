@@ -319,6 +319,5 @@ def test_near_zero_candidate_fallback_phase4() -> None:
     assert torch.allclose(out[2], centroids[2])
     # Healthy rows retracted onto the unit sphere.
     norms = out.norm(dim=-1)
-    assert (norms - 1.0).abs().max().item() < 1e-5 or True  # see below
     healthy = torch.cat([norms[:2], norms[3:]])
     assert (healthy - 1.0).abs().max().item() < 1e-5

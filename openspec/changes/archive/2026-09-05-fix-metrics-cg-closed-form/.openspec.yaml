@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-04
+goal: "P0 audit finding CRIT-3: code-spec mismatch CG = ||g||_2"
+skip_specs: true

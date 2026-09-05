@@ -141,6 +141,33 @@ def test_cg_positive_homogeneity() -> None:
     assert diff < 1e-6
 
 
+def test_cg_l2_norm_closed_form() -> None:
+    """CG(g) = ‖g‖₂ per spec Req 20 L394 — closed-form numerical verification.
+
+    Audit finding CRIT-3: previous implementation `mean pairwise |g_i − g_j|`
+    failed this closed-form test. Known-vector inputs verify L2 directly:
+    - CG([3, 4]) == 5.0 (Pythagorean)
+    - CG([1, 2, 3]) == √14 ≈ 3.7417
+    - CG(zeros) == 0.0 (zero-gradient invariant)
+    """
+    import math
+
+    g_2d = torch.tensor([3.0, 4.0])
+    assert metrics.CG(g_2d).item() == pytest.approx(5.0, abs=1e-6)
+
+    g_3d = torch.tensor([1.0, 2.0, 3.0])
+    assert metrics.CG(g_3d).item() == pytest.approx(math.sqrt(14.0), abs=1e-6)
+
+    g_zero = torch.zeros(8)
+    assert metrics.CG(g_zero).item() == pytest.approx(0.0, abs=1e-12)
+
+    torch.manual_seed(0)
+    g_rand = torch.randn(16)
+    assert metrics.CG(g_rand).item() == pytest.approx(
+        torch.linalg.norm(g_rand).item(), abs=1e-6
+    )
+
+
 def test_sp_orthonormal_aligned_inputs() -> None:
     """C_t == c_{a(t)} for all t → SP == 1.0 within abs=1e-6."""
     N_e, d_c, T = 4, 8, 40
@@ -204,3 +231,39 @@ def test_d_chord_versine_relationship() -> None:
     expected = math.sqrt(2.0 * (1.0 - float(a @ b)))
     val2 = metrics.D_chord(torch.stack([a, b])).item()
     assert val2 == pytest.approx(expected, abs=1e-6)
+
+
+def test_log_int_cache_matches_runtime_and_amortizes() -> None:
+    """`_log_int(n)` cached value must equal runtime log(float(n)) (Pi finding M2).
+
+    Spec: R_H divides by `log(N_e)` (frozen N_e=16 in MVP). The cache
+    amortizes the per-call `torch.tensor(float(n))` allocation while
+    preserving the closed-form value exactly. Verifies:
+    1. `_log_int(16)` equals runtime `float(torch.log(torch.tensor(16.0)))`.
+    2. Repeated `_log_int(16)` does NOT grow `_LOG_CACHE` (cache hit).
+    3. `R_H` numerical output is unchanged after the optimization.
+    """
+    # 1. Closed-form match: cache value == runtime value
+    runtime = float(torch.log(torch.tensor(16.0)))
+    cached = metrics._log_int(16)
+    assert cached == pytest.approx(runtime, abs=1e-12), (
+        f"_log_int(16) = {cached} ≠ runtime {runtime}"
+    )
+
+    # 2. Cache hit: repeated call does not grow the cache
+    size_before = len(metrics._LOG_CACHE)
+    metrics._log_int(16)
+    assert len(metrics._LOG_CACHE) == size_before, (
+        "_log_int must hit cache on repeat (no growth)"
+    )
+
+    # 3. R_H numerical output unchanged after the optimization
+    torch.manual_seed(0)
+    p = torch.softmax(torch.randn(8, 16), dim=-1)
+    r_h_optimized = metrics.R_H(p)
+    p_safe = p.clamp_min(1e-12)
+    expected = -(p_safe * p_safe.log()).sum(dim=-1) / runtime
+    assert torch.allclose(r_h_optimized, expected, atol=1e-6), (
+        f"R_H after cache optimization diverged from runtime: "
+        f"{r_h_optimized} vs {expected}"
+    )

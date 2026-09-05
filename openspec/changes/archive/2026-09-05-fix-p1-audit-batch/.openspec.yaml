@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-04
+goal: "P1 batch: 5 确认 finding 修复"
+skip_specs: true

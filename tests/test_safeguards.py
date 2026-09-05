@@ -193,6 +193,19 @@ def test_resurrection_perturbation_eps_std_scale() -> None:
     assert abs(float(eps.std()) - 0.05) < 0.01
 
 
+def test_resurrection_perturb_default_requires_dim() -> None:
+    """Audit finding MAJ-C2: `dim=None` (implicit) MUST raise TypeError.
+
+    Spec Req 28: returned shape MUST be (d_c,) or (d_model·d_ffn,), NOT
+    (N_e,). Silent default to `f_per_expert.shape[-1]` would yield (N_e,)
+    and violate the per-expert contract. The fix raises TypeError so
+    callers must pass `dim` explicitly.
+    """
+    f = torch.zeros(16)
+    with pytest.raises(TypeError, match="requires explicit `dim`"):
+        safeguards.resurrection_perturb_distribution(f, target_idx=0)
+
+
 def test_resurrection_beta_decay() -> None:
     """β decay mutation: β_i ← 0.85·β_{j*} and β_{j*} ← 0.85·β_{j*} in one event.
 

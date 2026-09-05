@@ -114,15 +114,22 @@ def resurrection_perturb_distribution(
     Spec (wayfinder ADDED "Resurrection Perturbation Per-Expert Contract"):
     returns a SINGLE-expert tensor of shape `(d_c,)` or `(d_model·d_ffn,)`
     — NOT a per-expert `(N_e,)` tensor. `target_idx` selects the expert
-    being resurrected (kept for contract compatibility); `dim` gives the
-    expert parameter dimension explicitly (defaults to d_c = last-dim size
-    of `f_per_expert`).
+    being resurrected (kept for contract compatibility); `dim` MUST be
+    passed explicitly (signature `(d_c,)` at MVP). No default — passing
+    `dim=None` raises `TypeError` to prevent silent use of
+    `f_per_expert.shape[-1] == N_e` (which would violate the per-expert
+    contract by returning an `(N_e,)` perturbation).
     """
     del target_idx  # contract signature only; perturbation is one vector
     if dim is None:
-        dim = f_per_expert.shape[-1]
-        if not isinstance(dim, int):
-            dim = int(dim)
+        raise TypeError(
+            "resurrection_perturb_distribution requires explicit `dim` "
+            "(spec Req 28: shape (d_c,) or (d_model·d_ffn,) per single "
+            "expert — not the implicit (N_e,) derived from "
+            "`f_per_expert.shape[-1]`)."
+        )
+    if not isinstance(dim, int):
+        dim = int(dim)
     return torch.randn(dim) * eps_std
 
 

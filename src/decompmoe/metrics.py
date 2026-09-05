@@ -21,6 +21,20 @@ REALTIME: Final[frozenset[str]] = frozenset({"L_sep", "R_H", "S_load", "UR"})
 _ZERO = torch.zeros(())
 OFFLINE: Final[frozenset[str]] = frozenset({"SP", "D_chord", "MCI", "CG"})
 
+# Cached `log(float(n))` for R_H entropy normalization. Input `n` is bounded
+# by `N_e` (number of experts — MVP frozen at 16), so the dict stays small.
+# Amortizes one tensor alloc per training step (Pi finding M2).
+_LOG_CACHE: dict[int, float] = {}
+
+
+def _log_int(n: int) -> float:
+    """Cached `log(float(n))` over the lifetime of the metrics module."""
+    cached = _LOG_CACHE.get(n)
+    if cached is None:
+        cached = float(torch.log(torch.tensor(float(n))))
+        _LOG_CACHE[n] = cached
+    return cached
+
 
 def L_sep(c_centroids: Tensor) -> Tensor:
     """Centroid orthogonality loss (cross-equal to `loss.compute_L_sep`)."""
@@ -43,7 +57,7 @@ def R_H(p: Tensor) -> Tensor:
             f"R_H: n must be >= 2 for valid entropy normalization, got n={n}"
         )
     entropy = -(p_safe * p_safe.log()).sum(dim=-1)
-    return entropy / torch.log(torch.tensor(float(n)))  # noqa: dead-defensive — tensor div never raises; n<2 guard above handles degenerate case
+    return entropy / _log_int(n)
 
 
 def S_load(f_per_expert: Tensor) -> Tensor:
@@ -142,18 +156,19 @@ def MCI(token_signatures: Tensor) -> Tensor:
 
 
 def CG(grad: Tensor) -> Tensor:
-    """Chordogram-style dispersion debug metric (offline; homogeneous deg 1).
+    """Gradient L2 norm debug metric (offline; per spec Req 20 L394).
 
-    CG(g) = mean pairwise |g_i − g_j| over entries — zero-gradient invariant
-    (CG(0) == 0) and positively homogeneous (CG(2g) == 2·CG(g)).
+    CG(g) = ‖g‖₂ — zero-gradient invariant (CG(0) == 0) and positively
+    homogeneous (CG(α·g) = |α|·CG(g)). Caller MUST select only W^K, W^V,
+    and b gradients — per-layer: H_kv·(2·d_k·d_c + d_c) floats. With the
+    MVP config (H_kv=8, d_k=128, d_c=16, L=4 layers), this is
+    4 · 8 · (2·128·16 + 16) = **131_584 floats per decoder step**. Passing
+    unrelated gradients yields a numerically valid but semantically wrong
+    CG. Debug-only stability probe; MUST NOT enter quality acceptance.
     """
-    n = grad.numel()
-    if n < 2:
+    if grad.numel() == 0:
         return _ZERO
-    g_flat = grad.reshape(-1)
-    diffs = (g_flat.unsqueeze(0) - g_flat.unsqueeze(1)).abs()
-    iu = torch.triu_indices(n, n, offset=1)
-    return diffs[iu[0], iu[1]].mean()
+    return torch.linalg.norm(grad)
 
 
 ArchKind = Literal["MOE", "DENSE"]

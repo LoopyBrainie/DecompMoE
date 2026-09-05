@@ -34,6 +34,7 @@ nosetests.xml
 htmlcov/
 .tox/
 .nox/
+.audit
 
 # Sphinx docs (future)
 docs/_build/
