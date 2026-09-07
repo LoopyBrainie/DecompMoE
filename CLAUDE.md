@@ -36,7 +36,7 @@ When sources disagree, consult in this order:
     - `uv run pytest tests/ -k "<pattern>"` 表达式匹配（如 `-k "phase1 or phase2"`)
     - `uv run pytest tests/test_X.py -x` 首个失败即停（调试用）
     - 失败时优先看 `assert` 内嵌的 `f"actual={...}"` 输出，定位算式错
-  - **数学约束协议（强制）**：spec 中每个含具体数值的算式（FLOPs / 参数 / `θ_Voronoi` / `σ(γ)` / 阈值 `1/(2·N_e)` / α 序列 / 相位覆盖）都必须有 `pytest.approx(..., abs=...)` 直接对账；文字断言（"正确"/"合理"/"≈"无数字）不构成可验条款——理由见 §6 第 8 条
+  - **数学约束协议（强制）**：spec 中每个含具体数值的算式（FLOPs / 参数 / `θ_Voronoi` / `σ(γ)` / 阈值 `1/(2·N_e)` / α 序列 / 相位覆盖）都必须有 `pytest.approx(..., abs=...)`（浮点闭式）或精确 `==`（整数闭式）直接对账；文字断言（"正确"/"合理"/"≈"无数字）不构成可验条款——理由见 §6 第 8 条
   - **测试文件约定**（与已有 `tests/` 风格一致）：
     - 模块 docstring 第一行：`"""Tests for decompmoe.<m>: <一句话>。\n\nST-XX / Req N — <spec 场景标题>。"""`（反链 spec 锚点）
     - 函数命名：`test_<被测算子>_<具体属性>`（如 `test_beta_endpoints`、`test_logit_zero_at_aligned`）

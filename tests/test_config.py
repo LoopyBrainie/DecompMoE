@@ -57,16 +57,16 @@ def test_total_param_estimate() -> None:
     "Closed-form parameter totals": total ≈ 452_329_984,
     active ≈ 100_008_448, P_router/layer ≈ 32_896 (the router term
     previously misclassified as rounding), all guarded via
-    `pytest.approx(value, abs=0)` per §6 第 8 条.
+    `pytest.approx(value, abs=...)`（浮点闭式）或精确 `==`（整数闭式）per §6 第 8 条.
     """
     cfg = config.MVPConfig()
     total, active = config.compute_total_and_active(cfg)
 
-    assert total == pytest.approx(452_329_984, abs=0), f"actual={total}"
-    assert active == pytest.approx(100_008_448, abs=0), f"actual={active}"
+    assert total == 452_329_984, f"actual={total}"
+    assert active == 100_008_448, f"actual={active}"
     # Router per layer: H_kv · (2·d_k·d_c + d_c) = 8 · (2·128·16 + 16) = 32_896
     router_per_layer = config._router_params_per_layer(cfg)
-    assert router_per_layer == pytest.approx(32_896, abs=0), f"actual={router_per_layer}"
+    assert router_per_layer == 32_896, f"actual={router_per_layer}"
 
 
 def test_flops_per_layer_exact_33554432() -> None:

@@ -97,8 +97,8 @@ def test_expert_pool_param_count() -> None:
     pool = experts.ExpertPool(cfg)
     total = sum(p.numel() for p in pool.parameters())
     expected = cfg.N_e * 3 * cfg.d_model * cfg.d_ffn
-    assert total == pytest.approx(expected, abs=0), f"actual={total}"
-    assert total == pytest.approx(100_663_296, abs=0), f"actual={total}"
+    assert total == expected, f"actual={total}"
+    assert total == 100_663_296, f"actual={total}"
 
 
 def test_expert_pool_source_contains_modulelist() -> None:

@@ -103,7 +103,7 @@ def test_complexity_budget() -> None:
         return h_kv * (2 * d_k * d_c + d_c) + h_kv * d_c + d_c
 
     expected = macs(cfg_hkv, cfg_dk, cfg_dc)
-    assert expected == pytest.approx(33_040, abs=0), f"actual={expected}"
+    assert expected == 33_040, f"actual={expected}"
 
     # ACTUAL extraction call — must not degenerate if impl adds extra ops.
     torch.manual_seed(0)
