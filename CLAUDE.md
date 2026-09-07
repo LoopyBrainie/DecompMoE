@@ -74,7 +74,7 @@ Phase ratios: 1/5/20/30/44% on 100K steps
 - ❌ 不要执行训练或跑 baseline（formalize-only destination）
 - ❌ 不要绕过 OpenSpec 直接改 DecompMoE 行为
 - ❌ 不要重写 wayfinder ticket 来"调和" spec 与 ticket 不一致——应改 spec 来对齐 ticket
-- ❌ 写 pytest 断言不能只测功能不测原理。spec 中每个含具体数值的算式（FLOPs / 参数核算 / `θ_Voronoi` / `σ(γ)` 值 / 阈值 `1/(2·N_e)` / α 序列 / 相位覆盖范围）都必须有 `pytest.approx(..., abs=...)` 直接验算该数值与 spec 声称值对账。文字断言（"正确"、"合理"、"≈"无数字）不构成可验条款——这一条的直接经验：`fix-openspec-doc-bugs` archive 后独立复核才发现 5 条 spec-level 算式错误（如 FLOPs 0.26% 算错、γ_init ≈ −6.94 与 β_0 ≈ 1.035 自相矛盾）。
+- ❌ 写 pytest 断言不能只测功能不测原理。spec 中每个含具体数值的算式（FLOPs / 参数核算 / `θ_Voronoi` / `σ(γ)` 值 / 阈值 `1/(2·N_e)` / α 序列 / 相位覆盖范围）都必须有 `pytest.approx(..., abs=...)`（浮点闭式）或精确 `==`（整数闭式）直接验算该数值与 spec 声称值对账。文字断言（"正确"、"合理"、"≈"无数字）不构成可验条款——这一条的直接经验：`fix-openspec-doc-bugs` archive 后独立复核才发现 5 条 spec-level 算式错误（如 FLOPs 0.26% 算错、γ_init ≈ −6.94 与 β_0 ≈ 1.035 自相矛盾）。
 
 ## 7. Out of Scope（OpenSpec 与 wayfinder 已锁）
 

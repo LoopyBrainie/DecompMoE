@@ -85,15 +85,15 @@ def test_flops_per_layer_exact_33554432() -> None:
         f"impl={flops_actual} vs closed={cfg.L * per_layer}"
     )
     # 闭式锚: per_layer 变量 == 2^25 (SwiGLU 3-matrix closed form)
-    assert per_layer == pytest.approx(33_554_432, abs=0), f"actual={per_layer}"
+    assert per_layer == 33_554_432, f"actual={per_layer}"
     # 实现直钉常量: 实现输出 == 134_217_728 = 4 × 2^25 (MoE active forward FLOPs/token)
-    assert flops_actual == pytest.approx(134_217_728, abs=0), f"actual={flops_actual}"
+    assert flops_actual == 134_217_728, f"actual={flops_actual}"
 
 
 def test_flops_total_exact_134217728() -> None:
     """Total MoE active FLOPs per token == 134_217_728 exact (spec closed form)."""
     flops_actual = config.flops_per_token(config.MVPConfig(), "MOE")
-    assert flops_actual == pytest.approx(134_217_728, abs=0), f"actual={flops_actual}"
+    assert flops_actual == 134_217_728, f"actual={flops_actual}"
 
 
 def test_active_flops_parity() -> None:
