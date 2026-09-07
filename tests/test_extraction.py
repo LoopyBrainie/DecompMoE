@@ -8,9 +8,11 @@ from __future__ import annotations
 import inspect
 from pathlib import Path
 
+import pytest
 import torch
 
 from decompmoe import extraction
+from decompmoe.config import MVPConfig
 from decompmoe.sphere import spherical_l2_normalize
 
 
@@ -94,13 +96,14 @@ def test_complexity_budget() -> None:
     The test does NOT measure MAC count via profiler/hooks; that would be
     backend-dependent (CUDA kernel fusion can change observed MACs by 2x).
     """
-    cfg_hkv, cfg_dk, cfg_dc = 8, 128, 16
+    cfg = MVPConfig()
+    cfg_hkv, cfg_dk, cfg_dc = cfg.H_kv, cfg.d_k, cfg.d_c
 
     def macs(h_kv: int, d_k: int, d_c: int) -> int:
         return h_kv * (2 * d_k * d_c + d_c) + h_kv * d_c + d_c
 
     expected = macs(cfg_hkv, cfg_dk, cfg_dc)
-    assert expected == 33_040, f"closed form must equal 33_040; got {expected}"
+    assert expected == pytest.approx(33_040, abs=0), f"actual={expected}"
 
     # ACTUAL extraction call — must not degenerate if impl adds extra ops.
     torch.manual_seed(0)
