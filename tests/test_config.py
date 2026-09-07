@@ -54,9 +54,10 @@ def test_total_param_estimate() -> None:
     """compute_total_and_active returns the spec EXACT totals.
 
     Spec: wayfinder "4070 MVP Hyperparameter Set", Scenario
-    "Closed-form parameter totals": total == 452_329_984,
-    active == 100_008_448, P_router/layer == 32_896 exact (the router term
-    previously misclassified as rounding).
+    "Closed-form parameter totals": total ≈ 452_329_984,
+    active ≈ 100_008_448, P_router/layer ≈ 32_896 exact (the router term
+    previously misclassified as rounding), all guarded via
+    `pytest.approx(value, abs=0)` per §6 第 8 条.
     """
     cfg = config.MVPConfig()
     total, active = config.compute_total_and_active(cfg)
@@ -84,14 +85,16 @@ def test_flops_per_layer_exact_33554432() -> None:
         f"impl={flops_actual} vs closed={cfg.L * per_layer}"
     )
     # 闭式锚: per_layer 变量 == 2^25 (SwiGLU 3-matrix closed form)
-    assert per_layer == 33_554_432, f"actual={per_layer}"
+    assert per_layer == pytest.approx(33_554_432, abs=0), f"actual={per_layer}"
     # 实现直钉常量: 实现输出 == 134_217_728 = 4 × 2^25 (FLOPs/token fwd+bwd)
     assert flops_actual == pytest.approx(134_217_728, abs=0), f"actual={flops_actual}"
 
 
 def test_flops_total_exact_134217728() -> None:
     """Total MoE active FLOPs per token == 134_217_728 exact (spec closed form)."""
-    assert config.flops_per_token(config.MVPConfig(), "MOE") == 134_217_728
+    assert config.flops_per_token(config.MVPConfig(), "MOE") == pytest.approx(
+        134_217_728, abs=0
+    ), f"actual={config.flops_per_token(config.MVPConfig(), 'MOE')}"
 
 
 def test_active_flops_parity() -> None:
