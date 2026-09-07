@@ -61,10 +61,11 @@ def test_total_param_estimate() -> None:
     cfg = config.MVPConfig()
     total, active = config.compute_total_and_active(cfg)
 
-    assert total == 452_329_984, f"total {total} != 452_329_984"
-    assert active == 100_008_448, f"active {active} != 100_008_448"
+    assert total == pytest.approx(452_329_984, abs=0), f"actual={total}"
+    assert active == pytest.approx(100_008_448, abs=0), f"actual={active}"
     # Router per layer: H_kv · (2·d_k·d_c + d_c) = 8 · (2·128·16 + 16) = 32_896
-    assert config._router_params_per_layer(cfg) == 32_896
+    router_per_layer = config._router_params_per_layer(cfg)
+    assert router_per_layer == pytest.approx(32_896, abs=0), f"actual={router_per_layer}"
 
 
 def test_flops_per_layer_exact_33554432() -> None:
@@ -76,9 +77,16 @@ def test_flops_per_layer_exact_33554432() -> None:
     """
     cfg = config.MVPConfig()
     per_layer = 4 * 2 * cfg.d_model**2 + cfg.k * 3 * 2 * cfg.d_model * cfg.d_ffn
-    assert config.flops_per_token(cfg, "MOE") == cfg.L * per_layer
-    assert per_layer * 4 == 134_217_728
-    assert per_layer == 33_554_432
+    flops_actual = config.flops_per_token(cfg, "MOE")
+
+    # 结构恒等: 实现输出 == 闭式 L × per_layer
+    assert flops_actual == cfg.L * per_layer, (
+        f"impl={flops_actual} vs closed={cfg.L * per_layer}"
+    )
+    # 闭式锚: per_layer 变量 == 2^25 (SwiGLU 3-matrix closed form)
+    assert per_layer == 33_554_432, f"actual={per_layer}"
+    # 实现直钉常量: 实现输出 == 134_217_728 = 4 × 2^25 (FLOPs/token fwd+bwd)
+    assert flops_actual == pytest.approx(134_217_728, abs=0), f"actual={flops_actual}"
 
 
 def test_flops_total_exact_134217728() -> None:
