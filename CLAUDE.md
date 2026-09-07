@@ -61,7 +61,7 @@ When sources disagree, consult in this order:
 d_model = 1024, N_e = 16, k = 2, d_ffn = 2048, L = 4
 Total ≈ 452M, Active ≈ 100M, d_ffn_dense = 4096
 β ∈ [0.1, 32], γ_init ≈ -3.5（β_0 ≈ 1.0）
-θ_Voronoi ≈ 52° > θ_{1/e} ≈ 20.36°（β = 16，球面几何自洽）
+θ_Voronoi(16,16) ≈ 67.24° (1.1736 rad) > θ_{1/e} ≈ 20.36°（β = 16, d_c=16, 球面几何自洽）
 Phase ratios: 1/5/20/30/44% on 100K steps
 ```
 
