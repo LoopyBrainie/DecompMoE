@@ -324,3 +324,67 @@ def test_near_zero_candidate_fallback_phase4() -> None:
     norms = out.norm(dim=-1)
     healthy = torch.cat([norms[:2], norms[3:]])
     assert (healthy - 1.0).abs().max().item() < 1e-5
+
+
+# ---------------------------------------------------------------------------
+# Phase-4 closed-form SGD step (skeleton spec Req "Centroid Four-Phase
+# Lifecycle Driver" + Scenario "Phase-4 SGD-1-step closed form" + "Phase-4
+# SGD with near-zero candidate falls back to c_i^(t)").
+# ---------------------------------------------------------------------------
+
+
+def test_phase_4_sgd_1_step_closed_form() -> None:
+    """Phase-4 SGD-1-step closed form: `c_i^(t+1) = (c_i − η·grad_i)/‖·‖₂`.
+
+    Spec: skeleton "Centroid Four-Phase Lifecycle Driver" Phase 4 + Scenario
+    `Phase-4 SGD-1-step closed form`. Given unit-norm centroids, a known
+    gradient (scaled so `‖grad_i‖₂ = 0.05`), and `eta = 1e-2`, the returned
+    centroids MUST equal `(centroids − eta · grad) / ‖·‖₂` within
+    `abs=1e-7`. Also verifies the spherical re-projection invariant
+    `‖c_i^(t+1)‖₂ == 1.0` within `abs=1e-7`.
+    """
+    torch.manual_seed(0)
+    from decompmoe.extraction import CentroidDriver, Phase
+
+    N_e, d_c = 4, 8
+    centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
+    raw = torch.full((N_e, d_c), 1.0 / (d_c ** 0.5))
+    grad = raw / torch.linalg.norm(raw, dim=-1, keepdim=True) * 0.05
+    eta = 1e-2
+    out = CentroidDriver(Phase.PROJECTED_SGD).step(
+        centroids, torch.zeros(1, d_c), grad=grad, eta=eta
+    )
+    expected = torch.nn.functional.normalize(centroids - eta * grad, dim=-1)
+    assert torch.allclose(out, expected, atol=1e-7), (
+        f"Phase-4 SGD step must equal (c_i − η·g_i)/‖·‖₂; "
+        f"got {out}, expected {expected}"
+    )
+    norms = out.norm(dim=-1)
+    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-7)
+
+
+def test_phase_4_sgd_near_zero_candidate_fallback() -> None:
+    """Phase-4 SGD with near-zero candidate falls back to `c_i^(t)`.
+
+    Spec: skeleton "Centroid Four-Phase Lifecycle Driver" + Scenario
+    `Phase-4 SGD with near-zero candidate falls back to c_i^(t)`.
+    Construct `grad[i] = centroids[i] / eta` so that
+    `centroids[i] − eta · grad[i] = 0` (norm < 1e-9), verifying
+    `c_i^(t+1) == c_i^(t)` element-wise (Invariant #4 applies to the
+    full P4 path, not only to EMA branches).
+    """
+    torch.manual_seed(0)
+    from decompmoe.extraction import CentroidDriver, Phase
+
+    N_e, d_c = 4, 8
+    centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
+    grad = torch.zeros(N_e, d_c)
+    grad[0] = centroids[0] / 1e-2
+    out = CentroidDriver(Phase.PROJECTED_SGD).step(
+        centroids, torch.zeros(1, d_c), grad=grad, eta=1e-2
+    )
+    assert torch.allclose(out[0], centroids[0], atol=1e-12), (
+        "Invariant #4 fallback: c_0^(t+1) == c_0^(t) when "
+        "candidate norm < 1e-9"
+    )
+    assert torch.isfinite(out).all(), "no NaN in centroid tensor"

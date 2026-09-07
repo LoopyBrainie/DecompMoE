@@ -193,3 +193,34 @@ def test_versine_voronoi_closed_form() -> None:
     v_64_16 = 1.0 - math.cos(sphere.canonical_voronoi_angle(num_experts=64, signature_dim=16))
     assert v_16_16 == pytest.approx(0.61312, abs=1e-4)
     assert v_64_16 == pytest.approx(0.47707, abs=1e-4)
+
+
+# ---------------------------------------------------------------------------
+# max(‖z‖, ε) formula monotonicity (skeleton spec Req "Spherical L2
+# Normalization" Scenario "Output norm bounded by [1 − 2ε, 1]").
+# ---------------------------------------------------------------------------
+
+
+def test_sphere_norm_monotone_in_z_norm() -> None:
+    """`spherical_l2_normalize` output norm is `1.0` for `‖z‖₂ ≥ ε`, `0` for `z = 0`.
+
+    Spec: skeleton "Spherical L2 Normalization" Scenario "Output norm
+    bounded by [1 − 2ε, 1]". The new formula `z / max(‖z‖₂, ε)` yields:
+    - `z = 0` → `0 / ε = 0` (finite)
+    - `‖z‖₂ ≥ ε` → `‖out‖₂ = ‖z‖₂ / ‖z‖₂ = 1.0` exactly (clamped to 1)
+    Verified for `‖z‖₂ ∈ {0.0, 0.5, 1.0, 2.0, 5.0}` → `‖out‖₂` follows
+    `{0.0, 1.0, 1.0, 1.0, 1.0}` (exactly 1.0 once ‖z‖₂ ≥ ε).
+    """
+    eps = 1e-6
+    test_norms = [0.0, 0.5, 1.0, 2.0, 5.0]
+    expected_out_norms = [0.0, 1.0, 1.0, 1.0, 1.0]  # 1.0 once ‖z‖₂ ≥ ε
+    out_norms: list[float] = []
+    for z_norm in test_norms:
+        z = torch.zeros(1, 16)
+        z[0, 0] = z_norm
+        out = sphere.spherical_l2_normalize(z, eps=eps)
+        out_norms.append(out.norm().item())
+    for actual, target in zip(out_norms, expected_out_norms):
+        assert actual == pytest.approx(target, abs=1e-6), (
+            f"max(‖z‖, ε) formula: ‖out‖₂ = {actual}, expected {target}"
+        )

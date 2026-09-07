@@ -98,14 +98,23 @@ class CentroidDriver:
         centroids: Tensor,
         X: Tensor,
         mask: Tensor | None = None,
-        eps: float = 1e-6,
+        *,
+        grad: Tensor | None = None,
+        eta: float = 1e-2,
     ) -> Tensor:
         """Apply the centroid update rule for `self.phase`.
 
         Phase 0 (SEEDING):        no-op (returns centroids detached — actual
                                   k-means is owned by training-time caller).
         Phase 1–3 (EMA_xxx):      centroids ← α · centroids + (1 − α) · mean(X|mask)
-        Phase 4 (PROJECTED_SGD):  L2 retraction: centroids / ‖centroids‖₂
+        Phase 4 (PROJECTED_SGD):  When `grad is not None`, the closed-form
+                                  step `c_i ← (c_i − eta · grad_i) / ‖·‖₂`
+                                  (spec L153) is applied with re-projection
+                                  + Invariant #4 near-zero fallback. When
+                                  `grad is None`, legacy L2 retraction
+                                  `centroids / ‖centroids‖₂` is preserved
+                                  (backward-compat for callers predating
+                                  the SGD step).
         """
         if self.phase == Phase.SEEDING:
             return centroids.detach()
@@ -142,15 +151,22 @@ class CentroidDriver:
             )
 
         if self.phase == Phase.PROJECTED_SGD:
-            # Near-zero candidate fallback (Invariant #4, same pattern as the
-            # EMA branch): preserve prev centroid when ‖c‖ < 1e-9 instead of
-            # dividing a degenerate row by ~0.
-            norm = centroids.norm(dim=-1, keepdim=True)
+            # Phase-4 closed form (spec L153): when `grad` is supplied,
+            # apply `candidate = centroids - eta * grad`, then L2-retract
+            # to the unit sphere. When `grad is None`, fall back to the
+            # legacy L2 retraction of the input centroids (preserves the
+            # pre-SGD-step contract for callers that do not provide grad).
+            # Near-zero candidate fallback (Invariant #4, same pattern as
+            # the EMA branch): preserve prev centroid when
+            # ‖candidate‖₂ < 1e-9 instead of dividing a degenerate row
+            # by ~0.
+            candidate = centroids - eta * grad if grad is not None else centroids
+            norm = candidate.norm(dim=-1, keepdim=True)
             use_old = norm < 1e-9
             return torch.where(
                 use_old,
                 centroids,
-                torch.nn.functional.normalize(centroids, dim=-1),
+                torch.nn.functional.normalize(candidate, dim=-1),
             )
 
         raise ValueError(f"Unknown phase={self.phase!r}")

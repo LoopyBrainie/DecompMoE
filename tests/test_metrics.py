@@ -267,3 +267,40 @@ def test_log_int_cache_matches_runtime_and_amortizes() -> None:
         f"R_H after cache optimization diverged from runtime: "
         f"{r_h_optimized} vs {expected}"
     )
+
+
+# ---------------------------------------------------------------------------
+# CG type guard (skeleton spec Req "Eight Metrics And Classification"
+# Scenario `CG raises TypeError on non-floating-point input`).
+# ---------------------------------------------------------------------------
+
+
+def test_cg_raises_type_error_on_int_tensor() -> None:
+    """CG(int_tensor) raises TypeError per spec Scenario.
+
+    Spec: skeleton "Eight Metrics And Classification" Scenario
+    `CG raises TypeError on non-floating-point input`. Integer tensors
+    are caller bugs — silently coercing to zero norm would defeat the
+    stability-probe purpose of CG.
+    """
+    int_tensor = torch.zeros(8, dtype=torch.int32)
+    with pytest.raises(TypeError, match="CG requires a floating-point"):
+        metrics.CG(int_tensor)
+
+
+def test_cg_raises_type_error_on_bool_tensor() -> None:
+    """CG(bool_tensor) raises TypeError per spec Scenario."""
+    bool_tensor = torch.zeros(8, dtype=torch.bool)
+    with pytest.raises(TypeError, match="CG requires a floating-point"):
+        metrics.CG(bool_tensor)
+
+
+def test_cg_raises_type_error_on_non_tensor() -> None:
+    """CG(non-Tensor) raises TypeError per spec Scenario.
+
+    Tests `list`, `np.ndarray`, and `None` as non-Tensor inputs.
+    """
+    import numpy as np
+    for non_tensor in ([1.0] * 8, np.zeros(8), None):
+        with pytest.raises(TypeError, match="CG requires a floating-point"):
+            metrics.CG(non_tensor)

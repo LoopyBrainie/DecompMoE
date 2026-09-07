@@ -152,6 +152,42 @@ def apply_resurrection_beta_decay(β_per_expert: Tensor, j_star: int, i: int) ->
     return out
 
 
+def resurrect_expert(
+    i: int,
+    j_star: int,
+    β_per_expert: Tensor,
+    cfg: object,
+    *,
+    eps_std: float = 0.05,
+) -> tuple[Tensor, Tensor]:
+    """Single-event resurrection: centroid perturb + β decay in same call stack.
+
+    Spec (wayfinder Req "Resurrection Perturbation Per-Expert Contract"):
+    the perturbation and the `β_i ← 0.85·β_{j*}` AND `β_{j*} ← 0.85·β_{j*}`
+    mutation MUST execute as part of the same resurrection event. This
+    wrapper is the canonical single-event API; callers MUST use it instead
+    of calling the two primitives independently. The wrapper's linear code
+    path is a synchronous function composition (no `await`/`yield`/`spawn`)
+    — the two primitive calls happen in the same Python call stack.
+
+    Returns `(c_perturbed, β_per_expert_new)`:
+    - `c_perturbed`: shape `(cfg.d_c,)`, drawn from
+      `resurrection_perturb_distribution(β_per_expert.detach(), j_star, ...)`
+    - `β_per_expert_new`: cloned tensor with
+      `β[i] ← 0.85·β[j_star].item()` AND `β[j_star] ← 0.85·β[j_star].item()`
+      applied (donor read BEFORE either write, per immutability).
+    """
+    from decompmoe.config import MVPConfig  # local import to avoid cycle
+    if not isinstance(cfg, MVPConfig):
+        raise TypeError(f"cfg must be MVPConfig; got {type(cfg).__name__}")
+    f_per_expert = β_per_expert.detach()
+    c_perturbed = resurrection_perturb_distribution(
+        f_per_expert, j_star, eps_std=eps_std, dim=cfg.d_c
+    )
+    β_per_expert_new = apply_resurrection_beta_decay(β_per_expert, j_star, i)
+    return c_perturbed, β_per_expert_new
+
+
 def beta_saturation_warning(β_per_expert: Tensor) -> bool:
     """True iff any single `β_i > 30.4` (95% of β_max)."""
     return bool((β_per_expert > BETA_SATURATION_WARN).any().item())
@@ -185,6 +221,7 @@ __all__ = [
     "should_resurrect",
     "resurrection_perturb_distribution",
     "apply_resurrection_beta_decay",
+    "resurrect_expert",
     "beta_saturation_warning",
     "beta_saturation_global_halve",
     "loss_spike_defense",

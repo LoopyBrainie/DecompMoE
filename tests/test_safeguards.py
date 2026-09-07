@@ -220,3 +220,54 @@ def test_resurrection_beta_decay() -> None:
         expected_j, abs=1e-5
     )  # β_i ← 0.85·β_{j*} (old value)
     assert out[2].item() == pytest.approx(12.0, abs=1e-5)  # untouched
+
+
+# ---------------------------------------------------------------------------
+# Single-event resurrection wrapper (wayfinder spec Req "Resurrection
+# Perturbation Per-Expert Contract" Scenario `same-event beta decay`).
+# ---------------------------------------------------------------------------
+
+
+def test_resurrect_expert_single_event_contract() -> None:
+    """`resurrect_expert` is the canonical single-event API.
+
+    Spec: wayfinder "Resurrection Perturbation Per-Expert Contract"
+    Scenario `same-event beta decay`. The wrapper must run
+    `resurrection_perturb_distribution` and `apply_resurrection_beta_decay`
+    in the SAME call stack (linear composition, no await/yield/spawn),
+    returning `(c_perturbed, β_per_expert_new)` where:
+    - `c_perturbed.shape == (cfg.d_c,)`
+    - `β_per_expert_new[i] == 0.85 · β_per_expert[j_star].item()`
+    - `β_per_expert_new[j_star] == 0.85 · β_per_expert[j_star].item()`
+    - other entries unchanged
+    - `β_per_expert_new is not β_per_expert` (immutability via clone)
+    """
+    from decompmoe.config import MVPConfig
+
+    cfg = MVPConfig()
+    N_e = cfg.N_e
+    torch.manual_seed(0)
+    β_per_expert = torch.tensor(
+        [2.0, 4.0, 6.0, 8.0] + [10.0] * (N_e - 4), dtype=torch.float32
+    )
+    i, j_star = 0, 5
+    donor = β_per_expert[j_star].item()
+    c_perturbed, β_new = safeguards.resurrect_expert(i, j_star, β_per_expert, cfg)
+
+    assert c_perturbed.shape == (cfg.d_c,), (
+        f"c_perturbed.shape = {c_perturbed.shape}, expected ({cfg.d_c},)"
+    )
+    assert β_new[j_star].item() == pytest.approx(0.85 * donor, abs=1e-6), (
+        f"β_new[{j_star}] = {β_new[j_star].item()}, expected {0.85 * donor}"
+    )
+    assert β_new[i].item() == pytest.approx(0.85 * donor, abs=1e-6), (
+        f"β_new[{i}] = {β_new[i].item()}, expected {0.85 * donor} (donor value)"
+    )
+    for k in range(N_e):
+        if k not in (i, j_star):
+            assert β_new[k].item() == pytest.approx(
+                β_per_expert[k].item(), abs=1e-6
+            ), f"β_new[{k}] unexpectedly modified"
+    assert β_new is not β_per_expert, (
+        "β_new must be a NEW tensor (clone), not the input reference"
+    )

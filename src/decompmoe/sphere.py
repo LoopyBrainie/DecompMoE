@@ -35,15 +35,16 @@ from torch import Tensor
 
 
 def spherical_l2_normalize(z: Tensor, eps: float = 1e-6) -> Tensor:
-    """Return `z / (‖z‖₂ + eps)` along the last dimension.
+    """Return `z / max(‖z‖₂, eps)` along the last dimension.
 
-    Safe at `z = 0`: the +ε in the denominator prevents NaN. Output norm is
-    approximately 1 for inputs with ‖z‖₂ >> eps.
+    Spec (skeleton "Spherical L2 Normalization"): `max(‖z‖₂, ε)` guarantees
+    output norm is `≤ 1` and monotone non-decreasing in input norm
+    (for `‖z‖₂ ≥ ε`). Safe at `z = 0`: returns the zero vector (finite).
 
     Default eps = 1e-6 matches ticket A3-1.
     """
     norm = torch.linalg.norm(z, dim=-1, keepdim=True)
-    return z / (norm + eps)
+    return z / torch.clamp(norm, min=eps)
 
 
 # ---------------------------------------------------------------------------

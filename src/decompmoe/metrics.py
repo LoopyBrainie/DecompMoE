@@ -107,7 +107,7 @@ def SP(centroids: Tensor, assignments: Tensor, signatures: Tensor) -> Tensor:
         member = assignments == i
         n_i_val = int(
             member.sum().item()
-        )  # 0-d tensor .item() never raises; # noqa: dead-defensive
+        )
         if n_i_val == 0:
             continue  # skip empty expert (‖T_i‖₁ == 0)
         align = (C_t[member] * centroids[i].unsqueeze(0)).sum(dim=-1)
@@ -145,11 +145,11 @@ def MCI(token_signatures: Tensor) -> Tensor:
     T_n = token_signatures.shape[0]
     if T_n <= 0:
         raise ValueError(f"MCI: degenerate input (T_n={T_n})")
-    T_n_f = float(T_n)  # int → float never raises; # noqa: dead-defensive
+    T_n_f = float(T_n)
     M_mat = token_signatures.T @ token_signatures / T_n_f
     eigvals = torch.linalg.eigvalsh(M_mat).clamp_min(0.0)
     total = eigvals.sum()
-    if float(total.item()) <= 0.0:  # noqa: dead-defensive — 0-d .item() never raises; check is the real guard
+    if float(total.item()) <= 0.0:
         raise ValueError("degenerate second moment: all eigenvalues are zero")
     lam_norm = eigvals / total
     return 1.0 / (d_c * (lam_norm**2).sum())
@@ -165,7 +165,21 @@ def CG(grad: Tensor) -> Tensor:
     4 · 8 · (2·128·16 + 16) = **131_584 floats per decoder step**. Passing
     unrelated gradients yields a numerically valid but semantically wrong
     CG. Debug-only stability probe; MUST NOT enter quality acceptance.
+
+    Type guard (per skeleton "Eight Metrics And Classification"
+    Scenario `CG raises TypeError on non-floating-point input`):
+    `grad` MUST be a floating-point `torch.Tensor`; non-Tensor inputs
+    (e.g. `list`, `np.ndarray`, `None`) and non-floating-point dtypes
+    (`int`, `bool`, etc.) raise `TypeError` referencing the closed form.
     """
+    if not (isinstance(grad, Tensor) and grad.dtype.is_floating_point):
+        raise TypeError(
+            f"CG requires a floating-point torch.Tensor input per spec "
+            f"Requirement 'Eight Metrics And Classification' "
+            f"(CG = ‖∇_{{W^K, V, b}} L_total‖₂); "
+            f"got {type(grad).__name__} with "
+            f"dtype={getattr(grad, 'dtype', None)}"
+        )
     if grad.numel() == 0:
         return _ZERO
     return torch.linalg.norm(grad)
