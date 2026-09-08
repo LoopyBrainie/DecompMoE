@@ -304,3 +304,36 @@ def test_cg_raises_type_error_on_non_tensor() -> None:
     for non_tensor in ([1.0] * 8, np.zeros(8), None):
         with pytest.raises(TypeError, match="CG requires a floating-point"):
             metrics.CG(non_tensor)
+
+
+def test_cg_raises_type_error_on_additional_integer_dtypes() -> None:
+    """CG raises TypeError on additional integer dtypes (int8/int16/int64, uint8).
+
+    Spec: skeleton "Eight Metrics And Classification" Scenario
+    `CG raises TypeError on non-floating-point input`. The original
+    int32 + bool test covers the most common cases; this test extends
+    coverage to the rest of the integer dtype family (`torch.int8`,
+    `torch.int16`, `torch.int64`, `torch.uint8`) which all have
+    `dtype.is_floating_point == False` and MUST also be rejected.
+    """
+    for dtype in (torch.int8, torch.int16, torch.int64, torch.uint8):
+        tensor = torch.zeros(8, dtype=dtype)
+        with pytest.raises(TypeError, match="CG requires a floating-point"):
+            metrics.CG(tensor)
+
+
+def test_cg_raises_type_error_on_complex_dtype() -> None:
+    """CG raises TypeError on complex tensors (complex64/complex128).
+
+    Spec: skeleton "Eight Metrics And Classification" Scenario
+    `CG raises TypeError on non-floating-point input`. Complex dtypes
+    have `dtype.is_floating_point == False` in PyTorch (they are the
+    `complex` family, not the `floating-point` family). The spec contract
+    `CG = ‖∇_{W^{K, V, b}} L_total‖₂` requires REAL floating-point gradients
+    (the L2 norm is real-valued); complex inputs would silently coerce and
+    yield a real-valued output that is semantically wrong. Must reject.
+    """
+    for dtype in (torch.complex64, torch.complex128):
+        tensor = torch.zeros(8, dtype=dtype)
+        with pytest.raises(TypeError, match="CG requires a floating-point"):
+            metrics.CG(tensor)

@@ -12,7 +12,7 @@ The package SHALL provide `CentroidDriver(phase: Phase) -> CentroidDriver` with 
 
 The `m_i` is the masked-mean over tokens assigned to expert `i`. The driver MUST enforce the empty-cell invariant: if `n_i = |T_i| = 0`, then `m_i ≡ c_i^(t−1)` (no `clamp_min(ε)` denominator). The driver MUST enforce the spherical re-projection invariant: `‖c_i^(t+1)‖₂ ≡ 1.0` after every step; on near-zero candidate `‖u_i‖₂ < 10⁻⁹`, fall back to `c_i^(t)`. The driver SHALL expose a `should_resurrect(f_per_expert, window_size, last_resurrection_step, current_step, *, threshold=1/(2·N_e), consec=200) -> set[int]` helper that flags expert indices whose mask-fraction `f_i` was below `1/(2·N_e)` for `200` consecutive steps (rate-limited to once per `1000`-step window). At MVP `N_e = 16`, `1/(2·N_e) = 1/32`; the rule is parameterized by `N_e`, not a hardcoded `1/128`.
 
-The `step` signature `(*, grad=None, eta=1e-2)` extends the legacy `(centroids, X, mask, eps=1e-6)` contract: the `grad` keyword is REQUIRED for the projected SGD step (no positional gradient argument); the `eta` keyword defaults to `1e-2` (conservative; spec does not pin a specific value beyond the linear convention); when `grad is None` the P4 branch is the identity L2 retraction (no SGD step applied — this is the backward-compatible fallback for callers that do not provide a gradient).
+The `step` signature `(*, grad=None, eta=1e-2)` REPLACES the legacy `(centroids, X, mask, eps=1e-6)` contract: the `eps` parameter is removed (no longer used by any active phase); the `grad` keyword is REQUIRED for the projected SGD step (no positional gradient argument); the `eta` keyword defaults to `1e-2` (conservative; spec does not pin a specific value beyond the linear convention); when `grad is None` the P4 branch is the identity L2 retraction (no SGD step applied — this is the backward-compatible fallback for callers that do not provide a gradient). Callers that previously passed `eps=1e-6` will need to remove the kwarg (breaking change; no in-repo callers pass `eps`).
 
 #### Scenario: Phase-4 SGD-1-step closed form
 
@@ -36,10 +36,10 @@ The `step` signature `(*, grad=None, eta=1e-2)` extends the legacy `(centroids, 
 
 The package SHALL provide `spherical_l2_normalize(z, eps=1e-6) -> Tensor` returning `z / max(‖z‖₂, eps)` along the last dimension. The default `eps` SHALL equal `1e-6`. The function SHALL be safe at `z = 0` (no NaN / Inf in output; returns the zero vector).
 
-#### Scenario: Output norm bounded by [1 − 2ε, 1]
+#### Scenario: Output norm equals 1.0 for `‖z‖₂ ≥ ε` (and 0 for `z = 0`)
 
-- **WHEN** `spherical_l2_normalize(z)` is called for any `z` with `‖z‖₂ ≥ 1 − ε`
-- **THEN** the result's `pow(2).sum(-1) == 1.0` exactly (the `max(‖z‖₂, ε)` denominator equals `‖z‖₂` for `‖z‖₂ ≥ ε`, so `‖out‖₂ = ‖z‖₂ / ‖z‖₂ = 1` exactly; the cited bound `[1 − 2ε, 1]` is the **weak-inequality** superset that admits the prior `+ ε` formula for backward-compatibility tracking, but the new formula attains the upper endpoint strictly)
+- **WHEN** `spherical_l2_normalize(z)` is called for any `z` with `‖z‖₂ ≥ ε` (which subsumes the prior `‖z‖₂ ≥ 1 − ε` regime — the formula's relevant threshold is `ε`, not `1 − ε`)
+- **THEN** the result's `pow(2).sum(-1) == 1.0` exactly (the `max(‖z‖₂, ε)` denominator equals `‖z‖₂` for `‖z‖₂ ≥ ε`, so `‖out‖₂ = ‖z‖₂ / ‖z‖₂ = 1` exactly; the formula attains `1.0` strictly across this entire regime — the prior `[1 − 2ε, 1]` interval bound from the OLD `+ ε` formula is obsolete)
 
 #### Scenario: Idempotence
 

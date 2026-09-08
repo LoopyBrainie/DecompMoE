@@ -172,17 +172,37 @@ def resurrect_expert(
 
     Returns `(c_perturbed, β_per_expert_new)`:
     - `c_perturbed`: shape `(cfg.d_c,)`, drawn from
-      `resurrection_perturb_distribution(β_per_expert.detach(), j_star, ...)`
+      `resurrection_perturb_distribution(torch.empty(0), j_star, ...)`
+      (a fresh Gaussian tensor independent of the caller's β data;
+      the first positional argument is intentionally unused per the
+      per-expert perturbation contract).
     - `β_per_expert_new`: cloned tensor with
       `β[i] ← 0.85·β[j_star].item()` AND `β[j_star] ← 0.85·β[j_star].item()`
       applied (donor read BEFORE either write, per immutability).
+
+    Preconditions: `0 ≤ i, j_star < β_per_expert.shape[0]`; `i ≠ j_star`
+    (spec scenario); `cfg` MUST be `MVPConfig`.
     """
     from decompmoe.config import MVPConfig  # local import to avoid cycle
     if not isinstance(cfg, MVPConfig):
         raise TypeError(f"cfg must be MVPConfig; got {type(cfg).__name__}")
-    f_per_expert = β_per_expert.detach()
+    if i == j_star:
+        raise ValueError(
+            f"resurrect_expert requires i ≠ j_star (donor != receiver); "
+            f"got i={i}, j_star={j_star}"
+        )
+    N = β_per_expert.shape[0]
+    if not (0 <= i < N and 0 <= j_star < N):
+        raise IndexError(
+            f"resurrect_expert indices out of range: i={i}, j_star={j_star}, "
+            f"β_per_expert.shape[0]={N}"
+        )
+    # The perturbation API ignores its first positional arg (per the
+    # per-expert contract — the perturbation is a fresh Gaussian sample
+    # independent of the routing distribution). Pass an empty tensor to
+    # avoid the misleading variable name `f_per_expert`.
     c_perturbed = resurrection_perturb_distribution(
-        f_per_expert, j_star, eps_std=eps_std, dim=cfg.d_c
+        torch.empty(0), j_star, eps_std=eps_std, dim=cfg.d_c
     )
     β_per_expert_new = apply_resurrection_beta_decay(β_per_expert, j_star, i)
     return c_perturbed, β_per_expert_new

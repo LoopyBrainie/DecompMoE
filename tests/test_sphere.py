@@ -225,3 +225,38 @@ def test_sphere_norm_clipped_to_one_in_z_norm() -> None:
         assert actual == pytest.approx(target, abs=1e-6), (
             f"max(‖z‖, ε) formula: ‖out‖₂ = {actual}, expected {target}"
         )
+
+
+def test_sphere_norm_sub_epsilon_idempotence_breakdown() -> None:
+    """Idempotence BREAKDOWN in the sub-ε regime `0 < ‖z‖₂ < ε`.
+
+    Spec: skeleton "Spherical L2 Normalization" Idempotence Scenario
+    `AND WHEN` clause — the function is NOT idempotent in the sub-ε regime.
+    First application: `‖out‖₂ = ‖z‖₂ / ε < 1` (sub-unit). Second
+    application: the output now has `‖·‖₂ = ‖z‖₂ / ε ≥ ε` (since
+    `‖z‖₂ ≥ ε`), so the denominator is `max(‖z‖₂/ε, ε) = ‖z‖₂/ε` and
+    the output normalizes back to `1.0` — breaking idempotence.
+
+    Guards the spec contract: future refactors that restore `+ ε` (making
+    the function idempotent everywhere) would silently regress this
+    contract.
+    """
+    eps = 1e-6
+    z_norm = 0.5 * eps  # strictly sub-ε
+    z = torch.zeros(1, 16)
+    z[0, 0] = z_norm
+
+    once = sphere.spherical_l2_normalize(z, eps=eps)
+    twice = sphere.spherical_l2_normalize(once, eps=eps)
+
+    once_norm = once.norm().item()
+    assert once_norm == pytest.approx(0.5, abs=1e-6), (
+        f"first ‖out‖₂ = {once_norm}, expected 0.5 (= ‖z‖₂/ε)"
+    )
+    twice_norm = twice.norm().item()
+    assert twice_norm == pytest.approx(1.0, abs=1e-6), (
+        f"second ‖out‖₂ = {twice_norm}, expected 1.0 (idempotence breakdown)"
+    )
+    assert once_norm != twice_norm, (
+        "function MUST not be idempotent in sub-ε regime per spec AND WHEN"
+    )

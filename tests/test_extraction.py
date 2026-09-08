@@ -349,6 +349,12 @@ def test_phase_4_sgd_1_step_closed_form() -> None:
     centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
     raw = torch.full((N_e, d_c), 1.0 / (d_c ** 0.5))
     grad = raw / torch.linalg.norm(raw, dim=-1, keepdim=True) * 0.05
+    # Precondition guard: spec WHEN clause requires ‖grad_i‖₂ = 0.05 for all i.
+    assert torch.allclose(
+        torch.linalg.norm(grad, dim=-1),
+        torch.full((N_e,), 0.05),
+        atol=1e-7,
+    ), "test setup precondition violated: ‖grad_i‖₂ must equal 0.05"
     eta = 1e-2
     out = CentroidDriver(Phase.PROJECTED_SGD).step(
         centroids, torch.zeros(1, d_c), grad=grad, eta=eta
@@ -411,7 +417,10 @@ def test_phase_4_grad_none_preserves_legacy_l2_retraction() -> None:
     from decompmoe.extraction import CentroidDriver, Phase
 
     N_e, d_c = 4, 8
-    centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
+    # Use NON-unit centroids so that L2 retraction is a non-trivial operation;
+    # unit-norm centroids would make `normalize()` a no-op and the test
+    # would pass even if `grad=None` semantics were silently broken.
+    centroids = torch.randn(N_e, d_c) * 5.0  # ‖c_i‖₂ varies per row
     # Default grad=None, eta=1e-2 — legacy L2 retraction contract.
     out = CentroidDriver(Phase.PROJECTED_SGD).step(centroids, torch.zeros(1, d_c))
     expected = torch.nn.functional.normalize(centroids, dim=-1)

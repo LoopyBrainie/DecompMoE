@@ -53,7 +53,7 @@
 
 ### Modified Capabilities
 
-（无。Spec delta 经 §7 修正后转为 MODIFIED Requirements —— 见 `specs/decompmoe-skeleton/spec.md` 与 `specs/wayfinder/spec.md`，append 至既有 capability。）
+（无。Spec delta 经 §7 修正后转为 ADDED Requirements —— 见 `specs/decompmoe-skeleton/spec.md` 与 `specs/wayfinder/spec.md`，append 至既有 capability。）
 
 ### Added / Modified Requirements to Existing Capabilities
 

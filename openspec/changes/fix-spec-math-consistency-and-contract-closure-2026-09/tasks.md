@@ -108,7 +108,7 @@
 
 ## §C. 验证与提交（surgical）
 
-- [x] C.1 全套 spec delta 验证：`grep -F "## MODIFIED Requirements" openspec/changes/fix-spec-math-consistency-and-contract-closure-2026-09/specs/decompmoe-skeleton/spec.md` 与 `.../wayfinder/spec.md` 各返回 1 次命中（确认 MODIFIED header 而非 ADDED 误用）。
+- [x] C.1 全套 spec delta 验证：`grep -F "## ADDED Requirements" openspec/changes/fix-spec-math-consistency-and-contract-closure-2026-09/specs/decompmoe-skeleton/spec.md` 与 `.../wayfinder/spec.md` 各返回 1 次命中（确认 ADDED header 而非 MODIFIED 误用；commit `04fd653` 已切换 header 以兼容 archive）。
 - [x] C.2 src/ LF 校验：每个 src/ Edit 后 `git diff --stat` 验证行数变化符合预期（sphere.py +1 -1，extraction.py ~ +8 -2，metrics.py ~ +5 -3，safeguards.py ~ +25 -2）；按 [[windows-edit-crlf-pitfall]] 必要时 `sed -i 's/\r$//'`。
 - [x] C.3 测试运行：`uv run pytest tests/ -v`，期望 **141 passed**（既有）+ **5 passed**（新增）= 146 passed；无 regression。
 - [x] C.4 注释噪 grep 验证：`grep -r "# noqa: dead-defensive" src/` 应返回 **0** 命中（schedule.py 2 处 + metrics.py 3 处全删）。
