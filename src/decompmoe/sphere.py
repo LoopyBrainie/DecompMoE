@@ -3,7 +3,10 @@
 This module materializes Req 5 (Steps 2 + 4) and Req 11 of
 `openspec/specs/wayfinder/spec.md`:
 
-    - `spherical_l2_normalize(z, eps)` implements z / (‖z‖₂ + ε).
+    - `spherical_l2_normalize(z, eps)` implements z / max(‖z‖₂, eps)
+      (closed-form `max` denominator per A-CR-2 spec revision; output
+      norm is `≤ 1` and exactly `1.0` for `‖z‖₂ ≥ eps`, exactly `0` for
+      `z = 0`).
     - `canonical_voronoi_angle(num_experts, signature_dim)` returns the
       closed-form Voronoi half-angle θ_Voronoi(N_e, d_c) on the unit sphere
       S^{d_c − 1} (per Equal-Area Voronoi tessellation). Defined as the

@@ -8,7 +8,6 @@ from __future__ import annotations
 import inspect
 from pathlib import Path
 
-import pytest
 import torch
 
 from decompmoe import extraction
@@ -387,4 +386,39 @@ def test_phase_4_sgd_near_zero_candidate_fallback() -> None:
         "Invariant #4 fallback: c_0^(t+1) == c_0^(t) when "
         "candidate norm < 1e-9"
     )
+    # Healthy rows (grad=0) MUST pass through normalize unchanged:
+    # candidate = centroids[i] − 0 = centroids[i], then
+    # normalize(c_0) = c_0 (already unit-norm), so out[i.. == centroids[i].
+    assert torch.allclose(out[1:], centroids[1:], atol=1e-7), (
+        "Healthy rows in mixed-batch fallback must equal input centroids"
+    )
+    # Spherical re-projection invariant holds for all rows (healthy + fallback).
+    norms = out.norm(dim=-1)
+    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-7)
     assert torch.isfinite(out).all(), "no NaN in centroid tensor"
+
+
+def test_phase_4_grad_none_preserves_legacy_l2_retraction() -> None:
+    """Phase-4 with `grad=None` preserves the legacy L2-retraction semantics.
+
+    Spec: skeleton "Centroid Four-Phase Lifecycle Driver" + Scenario
+    `Phase-4 with grad=None preserves the legacy L2-retraction semantics`.
+    When `grad is None`, `c_i^(t+1) == centroids[i] / ‖centroids[i]‖₂`
+    element-wise (legacy pre-SGD-step contract for callers that do not
+    provide a gradient).
+    """
+    torch.manual_seed(0)
+    from decompmoe.extraction import CentroidDriver, Phase
+
+    N_e, d_c = 4, 8
+    centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
+    # Default grad=None, eta=1e-2 — legacy L2 retraction contract.
+    out = CentroidDriver(Phase.PROJECTED_SGD).step(centroids, torch.zeros(1, d_c))
+    expected = torch.nn.functional.normalize(centroids, dim=-1)
+    assert torch.allclose(out, expected, atol=1e-7), (
+        f"Phase-4 with grad=None must equal centroids/‖centroids‖₂; "
+        f"got {out}, expected {expected}"
+    )
+    # Spherical re-projection invariant: ‖c_i^(t+1)‖₂ == 1.
+    norms = out.norm(dim=-1)
+    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-7)

@@ -156,7 +156,7 @@ def resurrect_expert(
     i: int,
     j_star: int,
     β_per_expert: Tensor,
-    cfg: object,
+    cfg: "MVPConfig",
     *,
     eps_std: float = 0.05,
 ) -> tuple[Tensor, Tensor]:

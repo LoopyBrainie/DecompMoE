@@ -201,7 +201,7 @@ def test_versine_voronoi_closed_form() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_sphere_norm_monotone_in_z_norm() -> None:
+def test_sphere_norm_clipped_to_one_in_z_norm() -> None:
     """`spherical_l2_normalize` output norm is `1.0` for `‖z‖₂ ≥ ε`, `0` for `z = 0`.
 
     Spec: skeleton "Spherical L2 Normalization" Scenario "Output norm
@@ -209,7 +209,8 @@ def test_sphere_norm_monotone_in_z_norm() -> None:
     - `z = 0` → `0 / ε = 0` (finite)
     - `‖z‖₂ ≥ ε` → `‖out‖₂ = ‖z‖₂ / ‖z‖₂ = 1.0` exactly (clamped to 1)
     Verified for `‖z‖₂ ∈ {0.0, 0.5, 1.0, 2.0, 5.0}` → `‖out‖₂` follows
-    `{0.0, 1.0, 1.0, 1.0, 1.0}` (exactly 1.0 once ‖z‖₂ ≥ ε).
+    `{0.0, 1.0, 1.0, 1.0, 1.0}` (exactly 1.0 once ‖z‖₂ ≥ ε; the function
+    CLIPS to 1, not monotone). This guards the closed-form invariant.
     """
     eps = 1e-6
     test_norms = [0.0, 0.5, 1.0, 2.0, 5.0]
