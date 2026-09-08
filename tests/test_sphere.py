@@ -210,7 +210,9 @@ def test_sphere_norm_clipped_to_one_in_z_norm() -> None:
     - `‖z‖₂ ≥ ε` → `‖out‖₂ = ‖z‖₂ / ‖z‖₂ = 1.0` exactly (clamped to 1)
     Verified for `‖z‖₂ ∈ {0.0, 0.5, 1.0, 2.0, 5.0}` → `‖out‖₂` follows
     `{0.0, 1.0, 1.0, 1.0, 1.0}` (exactly 1.0 once ‖z‖₂ ≥ ε; the function
-    CLIPS to 1, not monotone). This guards the closed-form invariant.
+    IS monotone non-decreasing — `f(‖z‖) = ‖z‖/max(‖z‖,ε)` is monotone
+    on `[0, ∞)` with `f(0)=0` and `f(‖z‖) ≡ 1` for `‖z‖ ≥ ε`). This
+    guards the closed-form invariant.
     """
     eps = 1e-6
     test_norms = [0.0, 0.5, 1.0, 2.0, 5.0]
