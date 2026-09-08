@@ -82,13 +82,13 @@ def test_voronoi_monotone_in_ne() -> None:
     original table wrongly held at 52°. Expected constants come from
     INDEPENDENT root-finding (continued-fraction regularized incomplete
     beta + bisection), NOT from `canonical_voronoi_angle()` output:
-        N_e=16 → θ ≈ 1.173547 rad (67.239°)
+        N_e=16 → θ ≈ 1.173548 rad (67.239°)
         N_e=17 → θ ≈ 1.165848 rad (66.798°)
     """
     theta_16 = sphere.canonical_voronoi_angle(num_experts=16, signature_dim=16)
     theta_17 = sphere.canonical_voronoi_angle(num_experts=17, signature_dim=16)
-    assert theta_16 == pytest.approx(1.173547, abs=1e-4), f"got {theta_16}"
-    assert theta_17 == pytest.approx(1.165848, abs=1e-4), f"got {theta_17}"
+    assert theta_16 == pytest.approx(1.173548, abs=1e-6), f"actual={theta_16}"
+    assert theta_17 == pytest.approx(1.165848, abs=1e-6), f"actual={theta_17}"
     assert theta_17 < theta_16, "θ_Voronoi must be strictly monotone in N_e"
 
 
@@ -117,7 +117,7 @@ def test_voronoi_canonical_N_e_dependence() -> None:
     """
     theta_64 = sphere.canonical_voronoi_angle(num_experts=64, signature_dim=16)
     theta_16 = sphere.canonical_voronoi_angle(num_experts=16, signature_dim=16)
-    assert theta_64 == pytest.approx(1.020507, abs=1e-4), f"got {theta_64}"
+    assert theta_64 == pytest.approx(1.020507, abs=1e-6), f"actual={theta_64}"
     # Must depend on N_e: (64, 16) strictly less than (16, 16).
     assert theta_64 < theta_16, (
         f"θ_Voronoi(64,16) = {theta_64:.4f} must be < θ_Voronoi(16,16) = {theta_16:.4f}"
