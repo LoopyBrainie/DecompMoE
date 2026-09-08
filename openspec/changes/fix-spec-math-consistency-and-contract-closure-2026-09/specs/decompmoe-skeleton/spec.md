@@ -1,6 +1,6 @@
 ## ADDED Requirements
 
-### Requirement: Centroid Four-Phase Lifecycle Driver
+### Requirement: Centroid Four-Phase Lifecycle Driver — Phase-4 SGD Step Extension
 
 The package SHALL provide `CentroidDriver(phase: Phase) -> CentroidDriver` with `Phase ∈ {SEEDING=0, EMA_090=1, EMA_095=2, EMA_099=3, PROJECTED_SGD=4}`. The `step(centroids, X, mask, *, grad=None, eta=1e-2) -> Tensor` method MUST apply, per phase:
 
@@ -32,7 +32,7 @@ The `step` signature `(*, grad=None, eta=1e-2)` REPLACES the legacy `(centroids,
 
 ---
 
-### Requirement: Spherical L2 Normalization
+### Requirement: Spherical L2 Normalization — max(…z…, ε) Formula
 
 The package SHALL provide `spherical_l2_normalize(z, eps=1e-6) -> Tensor` returning `z / max(‖z‖₂, eps)` along the last dimension. The default `eps` SHALL equal `1e-6`. The function SHALL be safe at `z = 0` (no NaN / Inf in output; returns the zero vector).
 
@@ -50,7 +50,7 @@ The package SHALL provide `spherical_l2_normalize(z, eps=1e-6) -> Tensor` return
 
 ---
 
-### Requirement: Beta Parameterization Operational Domain
+### Requirement: Beta Parameterization Operational Domain — D1 Module-Level Constants
 
 The package SHALL provide `inverse_temperature(gamma) -> Tensor` implementing the **parameterization-space** form `β = β_min + (β_max − β_min) · σ(γ)` with `β_min == 0.1` and `β_max == 32`. The package SHALL additionally provide `phase4_inverse_temperature(gamma_p) -> Tensor` implementing the **operational-domain** form `β^eff = 1 + 31 · σ(γ')` used in Phase 4 (the parameterization-space floor `0.1` and the operational-domain floor `1.0` are intentionally decoupled — the latter prevents routing resonance at runtime, the former keeps `σ'(γ)` non-degenerate in the cold-start region). The package SHALL provide `gamma_reset_for_phase4(beta_p3) -> float` implementing `γ' = ln((β_{p3} − 1) / (32 − β_{p3}))`; the worked example `gamma_reset_for_phase4(16.0) ≈ −0.0645385...` MUST hold within `abs=1e-4`. The package SHALL provide `beta_effective(gamma, phase, step) -> Tensor` returning `1.0` for `phase == 1`, `Clamp(inverse_temperature(gamma), 1.0, phase_beta_max(phase, step))` for `phase ∈ {2, 3}` (where `phase_beta_max(phase, step)` is the **time-varying** schedule ramp under the **pinned** linear-interpolation convention `phase_beta_max(phase, step) = box(phase).lo + (box(phase).hi − box(phase).lo) · (step − phase_start) / (phase_end − phase_start)` with `phase_end` exclusive: Phase 2 range `[6_000, 26_000)` ramp `1.0 → 4.0` (so `phase_beta_max(2, 6_000) = 1.0` exact at boundary start, `phase_beta_max(2, 16_000) = 2.5` exact at midpoint, `phase_beta_max(2, 25_999) = 1 + 3·19_999/20_000 = 3.99985`); Phase 3 range `[26_000, 56_000)` ramp `4.0 → 16.0` (so `phase_beta_max(3, 26_000) = 4.0` exact at boundary start = `box(3).lo`, `phase_beta_max(3, 41_000) = 4 + 12·15_000/30_000 = 10.0` exact at midpoint, `phase_beta_max(3, 55_999) = 4 + 12·29_999/30_000 = 15.9996`). `phase_beta_max` is **distinct** from the static `phase_beta_box(phase).hi` and the `step` parameter is required), and `phase4_inverse_temperature(gamma_p)` for `phase == 4`. The module SHALL export `MAX_GRAD_PER_C: Final[float] = 32.0` (operational-domain worst case, all domains) and `MAX_GRAD_PER_GAMMA: Final[float] = 15.95` (**parameterization-space** worst case derived as `σ'(0) · 2 · (β_max − β_min) = 0.25 · 2 · 31.9 = 15.95`, where `σ'(0) = 0.25` is the sigmoid derivative at `γ = 0` and the inner-product factor `|Cᵀc − 1|_max = 2` is the antipodal extreme; the **operational-domain Phase 4** worst case is `σ'(0) · 2 · 31 = 0.25 · 2 · 31 = 15.5` at `γ' = 0` (canonical export per `src/decompmoe/beta.py:46` `MAX_GRAD_PER_GAMMA_PHASE4: Final[float] = 0.5 * 31.0`); the two constants live in different domains and MUST NOT be conflated).
 
@@ -73,7 +73,7 @@ The package SHALL provide `inverse_temperature(gamma) -> Tensor` implementing th
 
 ---
 
-### Requirement: Frozen MVP Hyperparameter Set
+### Requirement: Frozen MVP Hyperparameter Set — D1 Geometric-Only Fields
 
 The package SHALL provide a `MVPConfig` frozen dataclass whose locked constants equal: `d_model == 1024`, `N_e == 16`, `k == 2`, `d_ffn == 2048`, `L == 4`, `d_ffn_dense == 4096`, `d_c == 16`, `H_kv == 8`, `d_k == 128`, `β_initial == 1.0`. Attempting to mutate any field SHALL raise `dataclasses.FrozenInstanceError`. A factory function `MVPConfig()` SHALL return an instance with all default values.
 
@@ -96,7 +96,7 @@ The package SHALL provide a `MVPConfig` frozen dataclass whose locked constants 
 
 ---
 
-### Requirement: Eight Metrics And Classification
+### Requirement: Eight Metrics And Classification — CG Type Guard
 
 The package SHALL provide eight metric functions (`L_sep`, `R_H`, `S_load`, `UR`, `SP`, `D_chord`, `MCI`, `CG`) whose closed forms MUST match the master `wayfinder` Req 20 verbatim:
 
