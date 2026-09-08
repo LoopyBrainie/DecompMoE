@@ -50,13 +50,41 @@ PATTERNS: list[tuple[str, str]] = [
     ),
 ]
 
+# Centralized justified exemptions for `except (...)` patterns that the
+# lint would flag but are REAL input-validation paths (not dead defensive
+# code). Each entry is `(relpath_under_project_root, line_no, reason)`.
+# Adding to this list is the preferred alternative to `# noqa: dead-defensive`
+# on the offending line — justifications live in one auditable place rather
+# than scattered inline. Add new entries only with a rationale commit that
+# cites concrete input-validation evidence (e.g. "float(x) on None raises
+# TypeError; float(NaN) raises ValueError").
+JUSTIFIED_EXEMPTIONS: list[tuple[str, int, str]] = [
+    (
+        "src/decompmoe/schedule.py",
+        160,
+        "input validation: float(gamma_p) raises TypeError on None / ValueError on NaN (beta_effective phase 2/3)",
+    ),
+    (
+        "src/decompmoe/schedule.py",
+        171,
+        "input validation: float(gamma_p) raises TypeError on None / ValueError on NaN (beta_effective phase 4)",
+    ),
+]
+
 
 def main() -> int:
     violations: list[tuple[Path, int, str, str]] = []
+    exempt_set: set[tuple[str, int]] = {
+        (relpath, line_no) for relpath, line_no, _ in JUSTIFIED_EXEMPTIONS
+    }
     for path in sorted(SRC_DIR.glob("*.py")):
+        relpath = path.relative_to(path.parents[2]).as_posix()
         for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             # Lines with explicit noqa are by-design (see commit message).
             if NOQA_TAG in line:
+                continue
+            # Lines in JUSTIFIED_EXEMPTIONS are real input-validation paths.
+            if (relpath, lineno) in exempt_set:
                 continue
             for pat, reason in PATTERNS:
                 if re.search(pat, line):
@@ -74,8 +102,11 @@ def main() -> int:
         print(f"    {line}")
     print()
     print("If a try/except IS justified (e.g. user-provided non-tensor input),")
-    print("add a `# noqa: dead-defensive` comment on the same line and a brief")
-    print("justification in the commit message.")
+    print("either:")
+    print("  (a) add a `# noqa: dead-defensive` comment on the same line and a brief")
+    print("      justification in the commit message (inline suppression); OR")
+    print("  (b) add an entry to JUSTIFIED_EXEMPTIONS in this script with the file,")
+    print("      line, and a reason citing real input-validation evidence (preferred).")
     return 1
 
 
