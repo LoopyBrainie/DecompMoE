@@ -25,6 +25,7 @@ When sources disagree, consult in this order:
 ## 3. Workflow Conventions
 
 - **Spec-level 变更**：`/opsx:propose` → review 制品 → `/opsx:apply`（含 archive）
+- **`/opsx:archive` 前置条件**：lint gate 必须 `exit=0`（`python scripts/lint_no_dead_defensive.py`），避免 archived change 留下 lint 报红（参见 `db14222` 修复的 12f673d 漏洞）
 - **Ticket 级设计**：`/wayfinder`（claim → resolve → close → append 到 map.md Decisions-so-far）
 - **代码实现**：仅在 apply 阶段显式触发后
 - **每次 Spec 变更**必须含 `**Source:**` 反链 ticket，确保可追溯
