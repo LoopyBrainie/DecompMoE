@@ -63,7 +63,8 @@ d_model = 1024, N_e = 16, k = 2, d_ffn = 2048, L = 4
 Total ≈ 452M, Active ≈ 100M, d_ffn_dense = 4096
 β ∈ [0.1, 32], γ_init ≈ -3.5（β_0 ≈ 1.0）
 θ_Voronoi(16,16) ≈ 67.24° (1.1736 rad) > θ_{1/e} ≈ 20.36°（β = 16, d_c=16, 球面几何自洽）
-Phase ratios: 1/5/20/30/44% on 100K steps
+Phase ratios: 1/5/20/30/44% on 100K steps（i.e. 各 phase 持续 1 K / 5 K / 20 K / 30 K / 44 K）
+Phase boundaries (cumulative cutpoints): 1 K / 6 K / 26 K / 56 K / 100 K
 ```
 
 ## 6. Hard Constraints（违反前需 explicit ticket）
