@@ -21,6 +21,69 @@ def test_clip_grad_norm_threshold() -> None:
     assert pre_norm > 1.0
 
 
+def test_clip_grad_norm_threshold_closed_form() -> None:
+    """Closed-form guards for `clip_global_grad_norm_`: return-type + math formula.
+
+    Per skeleton spec L206 (item 1): `clip_global_grad_norm_(params, max_norm: float = 1.0)
+    -> float` returning the pre-clip norm as a `float` (**NOT `Tensor`** — code-review
+    N6 fix: `src/decompmoe/safeguards.py:54` returns `float(pre_clip_norm.item() ...)`).
+    Per `CLAUDE.md §6` last bullet, every spec contract with concrete numeric / typing
+    assertions MUST have a `pytest.approx` or exact-typed guard. The functional
+    `test_clip_grad_norm_threshold` only asserts ≤ / > inequalities; this test adds
+    the three closed-form guards that pin spec L206 word-for-word.
+
+    Closed-form assertions:
+    1. **Return-type contract**: `pre_norm` MUST be a Python `float` (NOT `Tensor`).
+    2. **Pre-clip norm value**: `pre_norm` MUST equal the original `‖g‖₂` of the
+       input gradients (before any scaling); PyTorch's `clip_grad_norm_` returns
+       `‖g‖₂` pre-clip and the safeguard wraps via `float(.item())`.
+    3. **Post-clip strict bound**: `‖g_scaled‖₂` MUST equal `max_norm = 1.0`
+       exactly when `‖g‖₂ > max_norm` (the scaling formula `g * (max/‖g‖₂)` is
+       FP-exact in this regime, up to 1e-5 tolerance).
+    """
+    p = nn.Parameter(torch.randn(8) * 10.0)
+    p.grad = torch.randn_like(p) * 5.0
+
+    # Capture the pre-clip ‖g‖₂ BEFORE the function modifies p.grad in-place.
+    expected_pre_norm = p.grad.norm().item()
+
+    # Sanity-check the test setup invariant: grads must exceed max_norm so the
+    # scaling branch fires (otherwise post-clip == pre-clip is a no-op and the
+    # closed-form #3 assertion would not exercise the scaling math).
+    assert expected_pre_norm > 1.0, (
+        f"test setup invariant broken: ‖g‖₂ = {expected_pre_norm} ≤ 1.0; "
+        f"the `torch.randn_like(p) * 5.0` amplitude should guarantee > 1.0 "
+        f"(E[‖g‖₂] ≈ 5·√8 ≈ 14.14 for an 8-element isotropic Gaussian)"
+    )
+
+    pre_norm = safeguards.clip_global_grad_norm_(p, max_norm=1.0)
+
+    # Closed-form #1: Return-type contract (spec L206: "NOT `Tensor`").
+    assert isinstance(pre_norm, float), (
+        f"clip_global_grad_norm_ must return Python `float` per spec L206 "
+        f"'NOT Tensor'; got type {type(pre_norm).__name__} "
+        f"(value: {pre_norm!r})"
+    )
+
+    # Closed-form #2: Pre-clip norm value (spec L206: "the pre-clip norm"; math
+    # formula = ‖g‖₂ of input gradients before scaling).
+    assert pre_norm == pytest.approx(expected_pre_norm, abs=1e-6), (
+        f"pre_norm returned = {pre_norm}, expected pre-clip ‖g‖₂ = {expected_pre_norm}"
+    )
+
+    # Closed-form #3: Post-clip strict upper bound (spec L206: "all gradients
+    # are scaled to ‖g‖₂ ≤ 1.0"). In this regime (pre > max), the scaling
+    # formula g ← g · (max/‖g‖₂) targets ‖g_scaled‖₂ = max_norm exactly.
+    post_norm = p.grad.norm().item()
+    assert post_norm <= 1.0 + 1e-5, (
+        f"post-clip norm {post_norm} > max_norm + tolerance 1e-5"
+    )
+    assert post_norm == pytest.approx(1.0, abs=1e-5), (
+        f"post-clip norm = {post_norm}, expected 1.0 (= max_norm); the scaling "
+        f"formula g * (max/‖g‖₂) targets exactly 1.0 when ‖g‖₂ > max_norm"
+    )
+
+
 def test_nan_ladder() -> None:
     """nan_ladder(consecutive_nan) returns (action, lr_scale, halt) for (1, 3, 10)."""
     assert safeguards.nan_ladder(1) == ("skip", 1.0, False)
