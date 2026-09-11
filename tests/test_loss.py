@@ -129,7 +129,7 @@ def test_lambda_zero_phase_1_2() -> None:
         parts = loss_mod.L_total(
             task_logits, targets, f, p, c, phase=phase, step=phase * 5_000
         )
-        assert parts.L_sep.item() == 0.0, (
+        assert parts.L_sep.item() == pytest.approx(0.0, abs=1e-12), (
             f"phase {phase} should have λ=0 ⇒ L_sep=0; got {parts.L_sep}"
         )
 

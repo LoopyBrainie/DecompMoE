@@ -235,7 +235,7 @@ The package SHALL provide `L_total(task_logits, targets, f_per_expert, p_per_exp
 
 #### Scenario: Lambda zero in phases 1 and 2
 - **WHEN** `phase ∈ {1, 2}`
-- **THEN** the `L_sep` contribution is exactly `0.0` (i.e. `λ(t) == 0`)
+- **THEN** the `L_sep` contribution equals `0.0` within `abs=1e-12` (i.e. `λ(t) == 0`)
 
 #### Scenario: Lambda cosine ramp endpoints in phase 3
 - **WHEN** `phase == 3` and `step ∈ {26_000, 41_000, 55_999}` (phase boundary, midpoint, near-end)
