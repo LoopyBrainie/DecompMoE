@@ -1,59 +1,103 @@
 #!/usr/bin/env python3
-"""Lint gate: detect OpenSpec Source fields that lack a wayfinder/tickets/ reverse-link.
+"""Lint gate: detect OpenSpec Source fields that lack a per-capability reverse-link.
 
-Background (per review of `openspec/changes/fix-wayfinder-spec-source-field-drift`):
+Background (per review of `openspec/changes/fix-wayfinder-spec-source-field-drift`
+and `openspec/changes/migrate-l678-source`):
     CLAUDE.md §2 rule 3 and §3 mandate that every `**Source:**` field in
-    `openspec/specs/**/spec.md` contain a literal `wayfinder/tickets/<ID>.md`
-    reference. A `change <name> design.md (Decision N)` reference MAY appear
-    additionally but never as a substitute.
+    `openspec/specs/**/spec.md` carry a primary reverse-link to the spec's
+    design lineage. The primary reverse-link is per-capability:
+      - `openspec/specs/governance/spec.md` (governance-origin specs, whose
+        lineage is `CLAUDE.md` amendments rather than wayfinder tickets):
+        Source lines MUST contain the substring `CLAUDE.md`.
+      - All other `openspec/specs/**/spec.md` (wayfinder-ticketed specs +
+        decompmoe-skeleton + future peers that cite wayfinder tickets):
+        Source lines MUST contain the substring `wayfinder/tickets/`.
+
+    A `change <name> design.md (Decision N)` reference MAY appear additionally
+    as a secondary link, but its presence does NOT substitute for the primary
+    ticket / governance reverse-link.
 
 This script greps OpenSpec spec files for `**Source:**` lines and rejects any
-line missing the `wayfinder/tickets/` substring.
+line missing its capability's required primary reverse-link substring.
 
 Anti-patterns flagged:
-  1. `**Source:**` line whose content does not contain the substring `wayfinder/tickets/`.
+  1. `**Source:**` line in a wayfinder-lineage spec whose content does not contain the substring `wayfinder/tickets/`.
+  2. `**Source:**` line in a governance-lineage spec whose content does not contain the substring `CLAUDE.md`.
 
-Design constraints (per `openspec/changes/fix-wayfinder-spec-source-field-drift/design.md`):
+Design constraints (per `openspec/changes/fix-wayfinder-spec-source-field-drift/design.md`,
+extended by `openspec/changes/migrate-l678-source/design.md` Decision 3):
   - Independent of `scripts/lint_no_dead_defensive.py` — disjoint file globs, no shared state, no shared imports.
   - NO exemption table (not `JUSTIFIED_EXEMPTIONS`, not per-line `# noqa`, not env var, not CLI flag).
   - Content-based rule (substring search) so the rule survives line shifts without chronic exemption-table rot.
-  - Output goes to stdout (aligned with `lint_no_dead_defensive.py` convention; L94/97/101-109 all use `print(...)`).
-  - Exit code 0 iff every `**Source:**` line satisfies the substring check; 1 otherwise.
+  - Per-capability mapping is hardcoded as a small in-script table (NOT an exemption registry, NOT a CLI flag, NOT an env var) — same anti-pattern guardrails as the original rule. Adding a new governance-lineage capability is a script edit + L678-style follow-up change, not a runtime toggle.
+  - Output goes to stdout (aligned with `lint_no_dead_defensive.py` convention).
+  - Exit code 0 iff every `**Source:**` line satisfies its capability's required substring check; 1 otherwise.
 
 Run as a pre-commit gate or in CI:
     python scripts/lint_no_source_field_drift.py [PATH ...]
-
-KNOWN_OPEN_VIOLATIONS
-=====================
-This script reports a single violation on `req-33 (L678)` of
-`openspec/specs/wayfinder/spec.md` — the `Test Guard Precision for Closed-Form
-Numerical Claims` Requirement whose design lineage is the `CLAUDE.md` §6 第 8 条
-amendment (commits `bec147d` + `83a0503`), not any `wayfinder/tickets/*.md` ticket.
-
-Expected behavior: exit code 1, exactly 1 violation on L678, output the L678 line.
-
-Do NOT add exemptions to this script to silence the violation. Resolve the spec
-line instead — the L678 follow-up migration is tracked under the change
-`migrate-l678-source` (referenced from the proposal that introduced this script).
-
-If the lint output signature changes (e.g. 0/33 violations, or 2+ violations on
-unrelated lines), treat that as a regression, not a clean bill of health.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
 import re
 import sys
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 SPECS_GLOB = "openspec/specs/**/spec.md"
 
 SOURCE_LINE_RE = re.compile(r"^\*\*Source:\*\*")
 
-REQUIRED_SUBSTRING = "wayfinder/tickets/"
+# Per-capability Source reverse-link substring map (hardcoded — NOT an exemption table).
+# Keys are paths (relative to repo root) of spec files whose Source lines use a non-default
+# primary reverse-link. The default `DEFAULT_REQUIRED_SUBSTRING` (wayfinder ticket lineage)
+# applies to every other spec path. Adding a new governance-lineage capability is a script
+# edit + follow-up OpenSpec change, NOT a runtime toggle.
+# Paths are derived from `_REPO_ROOT` (computed from `__file__`) at module load so the
+# script remains correct if it is moved to a sub-directory under `scripts/`. The lookup
+# uses suffix matching so callers passing either absolute (from `glob`) or relative (from
+# CLI args with cwd at repo root) `path` values both resolve correctly.
+def _repo_root() -> Path:
+    """Return the repo root inferred from this script's location.
 
-VIOLATION_REASON = "source field missing wayfinder/tickets/ reference"
+    `__file__` is at `scripts/lint_no_source_field_drift.py`; its parent's parent is the
+    repo root. The same anchor is used by `collect_paths()` (which builds `SPECS_GLOB`
+    matches from the same root), keeping the table key and the glob root in lock-step so
+    both remain consistent if the script is relocated.
+    """
+    return Path(__file__).resolve().parent.parent
+
+
+_REPO_ROOT = _repo_root()
+
+# Per-capability paths derived from `_REPO_ROOT` (so the script is robust to relocation).
+REQUIRED_SUBSTRING_BY_PATH_RELATIVE: dict[Path, str] = {
+    _REPO_ROOT / "openspec" / "specs" / "governance" / "spec.md": "CLAUDE.md",
+}
+
+DEFAULT_REQUIRED_SUBSTRING = "wayfinder/tickets/"
+
+
+def required_substring_for(path: Path) -> str:
+    """Return the primary reverse-link substring required for `path`.
+
+    Per-capability lookup against `REQUIRED_SUBSTRING_BY_PATH_RELATIVE`; falls back to
+    `DEFAULT_REQUIRED_SUBSTRING` for paths not in the table (i.e., the
+    wayfinder-ticket lineage default). Matches by suffix (the last N path components
+    of the candidate `path` must match the last N path components of a table key) so
+    the lookup is robust against whether `path` is absolute or relative, and against
+    cwd differences.
+
+    The input path is resolved to absolute via `Path.resolve()` first so relative
+    CLI args (e.g. `openspec/specs/governance/spec.md`) and absolute paths from
+    `collect_paths()` glob both compare against the table keys on equal terms. This
+    also normalizes Windows backslash/forward-slash representations.
+    """
+    path = path.resolve()
+    for k, v in REQUIRED_SUBSTRING_BY_PATH_RELATIVE.items():
+        if len(path.parts) >= len(k.parts) and path.parts[-len(k.parts):] == k.parts:
+            return v
+    return DEFAULT_REQUIRED_SUBSTRING
 
 
 def iter_source_lines(paths: Iterable[Path]) -> Iterator[tuple[Path, int, str]]:
@@ -73,13 +117,16 @@ def iter_source_lines(paths: Iterable[Path]) -> Iterator[tuple[Path, int, str]]:
 def lint_file(path: Path) -> list[tuple[int, str, str]]:
     """Return list of `(line_no, line_content, reason)` violations in `path`.
 
-    A violation is a `**Source:**` line that does not contain
-    `REQUIRED_SUBSTRING`. The returned tuples are sorted by `line_no`.
+    A violation is a `**Source:**` line that does not contain the per-capability
+    required substring (looked up via `required_substring_for(path)`). The
+    returned tuples are sorted by `line_no`.
     """
+    required = required_substring_for(path)
+    reason = f"source field missing required reverse-link {required!r} for capability"
     violations: list[tuple[int, str, str]] = []
     for _, line_no, line in iter_source_lines([path]):
-        if REQUIRED_SUBSTRING not in line:
-            violations.append((line_no, line, VIOLATION_REASON))
+        if required not in line:
+            violations.append((line_no, line, reason))
     return violations
 
 
@@ -101,7 +148,7 @@ def main(argv: list[str] | None = None) -> int:
 
     Exit code is `1` if any violation exists, `0` otherwise. Output format
     per violation is `{path}:{line_no}: {reason}: {content}`, matching the
-    `lint_no_dead_defensive.py` per-line convention (L101-102 of that script).
+    `lint_no_dead_defensive.py` per-line convention.
     """
     args = list(sys.argv[1:] if argv is None else argv)
     paths = collect_paths(args)

@@ -25,7 +25,7 @@ When sources disagree, consult in this order:
 ## 3. Workflow Conventions
 
 - **Spec-level 变更**：`/opsx:propose` → review 制品 → `/opsx:apply`（含 archive）
-- **`/opsx:archive` 前置条件**：lint gate 必须 `exit=0`（`python scripts/lint_no_dead_defensive.py`）,避免 archived change 留下 lint 报红（参见 `db14222` 修复的 12f673d 漏洞）。`scripts/lint_no_source_field_drift.py` 目前为 informational-only（见脚本 docstring 的 `KNOWN_OPEN_VIOLATIONS` 节），不接入 archive 前置条件；接线在 follow-up change `migrate-l678-source` 完成 L678 迁移后与 gate 接入同步原子化执行。
+- **`/opsx:archive` 前置条件**：lint gate 必须 `exit=0`（同时跑 `python scripts/lint_no_dead_defensive.py` 与 `python scripts/lint_no_source_field_drift.py`），避免 archived change 留下 lint 报红（参见 `db14222` 修复的 12f673d 漏洞）。`lint_no_source_field_drift.py` 采用按 capability 区分的 Source 反链规则（`wayfinder/` / `decompmoe-skeleton/` 默认需 `wayfinder/tickets/`；`governance/` 需 `CLAUDE.md`），仍为纯内容子串检查（无豁免注册表、无 CLI 开关、无环境变量）。
 - **Ticket 级设计**：`/wayfinder`（claim → resolve → close → append 到 map.md Decisions-so-far）
 - **代码实现**：仅在 apply 阶段显式触发后
 - **每次 Spec 变更**必须含 `**Source:**` 反链 ticket（`wayfinder/tickets/<ID>.md` 字面必备），允许附加 change Decision 反链;ticket 当前值与 spec 当前值不一致时使用 `(historical, <原值>; superseded by <change> Decision N)` 标注格式;lint 硬卡见 `scripts/lint_no_source_field_drift.py`

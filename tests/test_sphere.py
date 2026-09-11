@@ -113,11 +113,11 @@ def test_voronoi_canonical_N_e_dependence() -> None:
     Spec: wayfinder Req 11 + skeleton "Voronoi Self-Consistency Threshold"
     Scenario `N_e dependence of voronoi_angle`. The function MUST depend
     on both arguments (N_e and d_c), not d_c alone. Independent truth for
-    N_e=64: θ ≈ 1.020507 rad (58.47°).
+    N_e=64: θ ≈ 1.020506 rad (truncated to 6dp from canonical 1.0205068335735599; 58.47° at 4dp).
     """
     theta_64 = sphere.canonical_voronoi_angle(num_experts=64, signature_dim=16)
     theta_16 = sphere.canonical_voronoi_angle(num_experts=16, signature_dim=16)
-    assert theta_64 == pytest.approx(1.020507, abs=1e-6), f"actual={theta_64}"
+    assert theta_64 == pytest.approx(1.020506, abs=1e-6), f"actual={theta_64}"
     # Must depend on N_e: (64, 16) strictly less than (16, 16).
     assert theta_64 < theta_16, (
         f"θ_Voronoi(64,16) = {theta_64:.4f} must be < θ_Voronoi(16,16) = {theta_16:.4f}"

@@ -548,7 +548,6 @@ On entering Phase 4, the system MUST reset `γ` to `γ' = ln((β_{p3} − 1) / (
 
 ---
 
-
 <a id="req-27"></a>
 
 ### Requirement: Phase 2 β Box Equality
@@ -569,7 +568,6 @@ The operational `β_max(t)` box for Phase 2 MUST be `(1.0, 4.0)`, NOT `(1.0, 32.
 
 ---
 
-
 <a id="req-28"></a>
 
 ### Requirement: Resurrection Perturbation Per-Expert Contract
@@ -584,7 +582,6 @@ The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **singl
 
 ---
 
-
 <a id="req-29"></a>
 
 ### Requirement: β^eff Phase 3 → 4 Continuity Closed-Form
@@ -598,7 +595,6 @@ On entering Phase 4 with `β_{p3} = 16.0`, the operational effective β MUST equ
 - **THEN** `β^eff(Phase 4, t=0) = 1 + 31 · σ(ln(15/16)) = 16.0` exactly, and `|β_max(Phase 3, step=55_999) − β^eff(Phase 4, step=56_000)| < 5e-4` (limit-continuity: Phase 3 `β_max` approaches `16.0` as `step → 56_000⁻`, residual at the boundary is `16.0 − 15.9996 = 4e-4`; no hard-clamp gradient-zero trap)
 
 ---
-
 
 <a id="req-30"></a>
 
@@ -618,7 +614,6 @@ The bound `‖∂logit/∂C‖₂ ≤ β_max = 32` in Req 7 MUST be attained (no
 
 ---
 
-
 <a id="req-31"></a>
 
 ### Requirement: Forward Formula Numerical Verification (Routing Layer)
@@ -630,8 +625,6 @@ The forward equation `x_out = x + Σ_{i ∈ I_k} p_i · Expert_i(x)` in Req 8 / 
 #### Scenario: x_out is the closed-form residual add
 - **WHEN** the gate emits `x_out` for fixed `x`, `I_k`, `p_i`, and stub experts `E_i`
 - **THEN** `x_out == x + Σ_{i ∈ I_k} p_i · E_i` within `abs=1e-6`
-
-
 
 ---
 
@@ -660,48 +653,6 @@ The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **singl
 - **AND** `β_per_expert_new is not β_per_expert` (immutability: the input tensor is never mutated in-place; `apply_resurrection_beta_decay` clones internally)
 
 <a id="req-33"></a>
-
-### Requirement: Test Guard Precision for Closed-Form Numerical Claims
-
-The system MUST guard every spec-anchored closed-form numerical claim such that the **assertion form matches the numerical type** of the claim, per `CLAUDE.md` §6 第 8 条's "对账方式依数值类型二分" (amended by commit `bec147d` 2026-09-07 21:21:31 to introduce the integer-vs-float binary exemption; sync-amended in `CLAUDE.md` §3 by commit `83a0503` 2026-09-07 22:02:52). Concrete obligations:
-
-1. **Closed-form integer claims** — claims whose values are exact integers (e.g. `P_total = 452_329_984`, `P_active = 100_008_448`, `P_router/layer = 32_896`, per-layer MoE FLOPs `33_554_432`, total MoE FLOPs `134_217_728 = 4 × 33_554_432`, per-head extraction MACs `33_040 = macs(8, 128, 16) = H_kv·(2·d_k·d_c + d_c[bias] + d_c[L2-step2]) + d_c[L2-step4]`, expert parameters `N_e · 3 · d_model · d_ffn = 16 · 3 · 1024 · 2048 = 100_663_296`) MUST use **bare `==` integer equality** (Python `int == int`) — NOT `pytest.approx(...)` in any form. The reason is the `pytest.approx` effective-tolerance formula: `max(abs, rel·|expected|)`. When `abs=0` and `rel` is left at pytest's default of `1e-12`, this degenerates to `1e-12 · |expected|` — i.e. for MVP magnitudes, `pytest.approx(33_040, abs=0)` yields effective tolerance `≈ 3.3e-8` (essentially zero), but `pytest.approx(134_217_728, abs=0)` yields `≈ 1.34e-4` and `pytest.approx(452_329_984, abs=0)` yields `≈ 4.5e-4` — non-zero, scaling with magnitude, the opposite direction from the "钉值零容差" (literal zero tolerance across magnitudes) intent. Bare `==` gives full zero tolerance across all magnitudes, independent of magnitude.
-
-2. **Closed-form float claims** — claims whose values carry floating-point rounding (e.g. bisection-derived Voronoi angles `θ_Voronoi(16, 16) ≈ 1.1736 rad`, FLOPs ratios involving divisions, percentile invariants from sampling) MUST use `pytest.approx(value, abs=...)` with the tolerance matching the closed-form computation's actual precision — NOT bare `==`. Bare `==` on a float closed-form claim would coerce silently and defeat the spec's "数值直接对账, 禁止文字断言" intent.
-
-3. **Bisection-derived Voronoi angles** (specialized float case) — claims whose test values come from `canonical_voronoi_angle(N_e, d_c)` (which solves `½ · I_{sin²θ}((d_c − 1)/2, 1/2) = 1/N_e` via bisection) MUST use `pytest.approx(value, abs=1e-6)` — NOT `abs=1e-4` or wider — because the bisection implementation achieves residual `|½ · I_{sin²θ}(7.5, 0.5) − 1/N_e| < 1e-9` (proven by `tests/test_sphere.py::test_voronoi_residual_below_1e_minus_9`); a 1e-6 tolerance is therefore strictly above the bisection noise floor. The **canonical bisection value** for `(N_e=16, d_c=16)` is `1.1735482746999482 rad` (residual < 1e-9). The **spec-referenced test literals** (e.g. `1.173548 rad` for `(16, 16)`) are this canonical value **truncated** to 6dp (truncation, not rounding-half-up: `1.1735482746999482` truncates at the 7th decimal to `1.173548`, diff `2.75e-7`, well within the `1e-6` tolerance). An existing test literal at `1.173547` (1-unit truncation variance at 6dp, present at `tests/test_sphere.py:90`) still passes under `abs=1e-4`; the test literal's correction is **out of scope** for this change — it is the same source typo as `tests/test_sphere.py:90` and is tracked in `proposal.md` "Deferred Items" (C1). These test literals are distinct from the **canonical spec literal** `67.24° (1.1736 rad)` declared in Requirement 11 (the degree-to-radian conversion-consistency form, where `67.24° × π/180 = 1.1735593890 rad` rounds to `1.1736` at 4dp).
-
-4. Every assertion described in obligations 1, 2, and 3 MUST embed `f"actual={...}"` in its failure message so a numerical regression surfaces the actual computed value at the assertion site (per `CLAUDE.md` §3 TDD convention).
-
-**Policy lineage** (for future audit): `CLAUDE.md` §6 第 8 条 was amended by commit `bec147d` (2026-09-07 21:21:31) to introduce the integer-vs-float binary exemption ("pytest.approx(..., abs=...)（浮点闭式）或精确 `==`（整数闭式）"), and re-synced in `CLAUDE.md` §3 by commit `83a0503` (2026-09-07 22:02:52) which migrated the remaining `pytest.approx(..., abs=0)` integer sites to bare `==`. This change `tighten-closed-form-eq-integer-checks` originally proposed `pytest.approx(..., abs=0)` as the canonical integer-closed-form form; the **policy reversal in commits `bec147d` + `83a0503` is the authoritative outcome** per `CLAUDE.md` §2 truth-source hierarchy (`CLAUDE.md` §6 第 8 条 > this spec delta > wayfinder tickets > code). This Requirement formalizes the post-`83a0503` state so future audit trails can trace the integer-vs-float binary exemption to its policy commits.
-
-**Source:** `CLAUDE.md` §6 第 8 条 (amended by `bec147d` 2026-09-07), `CLAUDE.md` §3 (sync-amended by `83a0503` 2026-09-07), `tests/test_config.py` (`test_total_param_estimate`, `test_flops_per_layer_exact_33554432`, `test_flops_total_exact_134217728`), `tests/test_extraction.py::test_complexity_budget` (per-head MACs), `tests/test_experts.py::test_expert_pool_param_count` (expert params), `tests/test_sphere.py` (`test_voronoi_monotone_in_ne`, `test_voronoi_canonical_N_e_dependence`, `test_voronoi_residual_below_1e_minus_9` bisection precision witness, `test_voronoi_rad_precision_alignment` spec conversion-identity witness), `archive/2026-09-06-tighten-test-precision-tolerance/design.md` Decision 4 (the original carve-out being closed — now superseded by `bec147d` + `83a0503` policy reversal).
-
-#### Scenario: Closed-form parameter totals use bare `==`
-
-- **WHEN** a test verifies any of `P_total == 452_329_984`, `P_active == 100_008_448`, `P_router/layer == 32_896` (closed-form integer parameter claims from Requirement 11 "Closed-form parameter totals")
-- **THEN** the assertion uses exact `==` integer equality, embeds `f"actual={...}"` in its failure message, and a `pytest.approx(..., abs=0)` form MUST NOT appear (would introduce implicit `rel=1e-6` magnitude-scaling tolerance contrary to the "钉值零容差" intent).
-
-#### Scenario: Closed-form FLOPs totals use bare `==`
-
-- **WHEN** a test verifies per-layer MoE FLOPs `33_554_432` or total MoE FLOPs `134_217_728 = 4 × 33_554_432` at any of `tests/test_config.py::test_flops_per_layer_exact_33554432` or `tests/test_config.py::test_flops_total_exact_134217728`
-- **THEN** the assertion uses exact `==` integer equality, embeds `f"actual={...}"` in its failure message, and a `pytest.approx(..., abs=0)` form MUST NOT appear.
-
-#### Scenario: Closed-form per-head extraction MACs use bare `==`
-
-- **WHEN** a test verifies per-head extraction MACs `33_040 = macs(8, 128, 16) = H_kv·(2·d_k·d_c + d_c[bias] + d_c[L2-step2]) + d_c[L2-step4]` at `tests/test_extraction.py::test_complexity_budget`
-- **THEN** the assertion (1) uses bare `==` integer equality (NOT `pytest.approx(...)` of any form), (2) embeds `f"actual={...}"` in its failure message, AND (3) the test MUST back this assertion by (i) calling `extract_C(...)` on real inputs and verifying output shape `(B, N, d_c)`, (ii) verifying the spherical invariant `‖C‖₂ = 1`, AND (iii) deriving the MACs count from measurement of the implementation itself — acceptable mechanisms include `torch.profiler`, custom hooks, or `inspect.getsource` / AST analysis; deriving the count from a helper function in the test that re-states the closed-form formula constitutes a **tautology** and does not satisfy this Scenario. (The current `tests/test_extraction.py::test_complexity_budget` MACs-claim part uses the helper-tautology form — this is tracked in `proposal.md` "Deferred Items" (B1, B2) and is permitted only as a pre-existing-state acknowledgment; any NEW test verifying the same claim MUST satisfy clause (3).)
-
-#### Scenario: Closed-form expert parameter count uses bare `==`
-
-- **WHEN** a test verifies expert parameter total `N_e · 3 · d_model · d_ffn = 16 · 3 · 1024 · 2048 = 100_663_296` at `tests/test_experts.py::test_expert_pool_param_count`
-- **THEN** the assertion uses exact `==` integer equality (both the `expected = cfg.N_e * 3 * cfg.d_model * cfg.d_ffn` structural-identity check AND the literal `100_663_296` check), embeds `f"actual={...}"` in its failure message, and a `pytest.approx(..., abs=0)` form MUST NOT appear.
-
-#### Scenario: Bisection Voronoi angles use pytest.approx(abs=1e-6)
-
-- **WHEN** a test verifies a bisection-derived Voronoi half-angle at `tests/test_sphere.py::test_voronoi_monotone_in_ne` or `tests/test_sphere.py::test_voronoi_canonical_N_e_dependence` — using the bisection-6dp test literals `1.173548 rad`, `1.165848 rad`, and `1.020507 rad` (each within `3e-7` of actual bisection output)
-- **THEN** the assertion uses `pytest.approx(value, abs=1e-6)`. Other tests that verify bisection-derived Voronoi half-angles under the prior convention are EXPLICITLY OUT OF SCOPE for this Scenario until a future change audits them: `tests/test_sphere.py::test_voronoi_rad_precision_alignment` (asserting the conversion identity `67.24° × π/180 ≈ 1.1736 rad` at `abs=1e-4` — pre-existing test, conversion-identity perspective, not bisection-precision), `tests/test_sphere.py::test_versine_voronoi_closed_form` (asserting `versine_Voronoi` at `abs=1e-4` — pre-existing test, NOT in the audit envelope), and any other pre-existing tests that verify bisection-derived values with `abs=1e-4` or wider tolerance.
-
 
 ### Requirement: Source Field Format Invariant for OpenSpec Specs
 
