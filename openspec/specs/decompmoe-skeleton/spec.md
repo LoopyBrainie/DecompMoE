@@ -17,18 +17,6 @@ The package SHALL expose `decompmoe.__canonical_name__ == "DecompMoE"`, `decompm
 - **WHEN** `decompmoe.__alias__` is accessed
 - **THEN** it returns the literal string `"GeoMoE"` for documentation continuity
 
-### Requirement: Frozen MVP Hyperparameter Set
-
-The package SHALL provide a `MVPConfig` frozen dataclass whose locked constants equal: `d_model == 1024`, `N_e == 16`, `k == 2`, `d_ffn == 2048`, `L == 4`, `d_ffn_dense == 4096`, `d_c == 16`, `H_kv == 8`, `d_k == 128`, `β_min == 0.1`, `β_max == 32`, `β_initial == 1.0`. Attempting to mutate any field SHALL raise `dataclasses.FrozenInstanceError`. A factory function `MVPConfig()` SHALL return an instance with all default values.
-
-#### Scenario: Field defaults locked
-- **WHEN** `MVPConfig()` is constructed
-- **THEN** `cfg.d_model == 1024 and cfg.N_e == 16 and cfg.k == 2 and cfg.d_ffn == 2048 and cfg.L == 4`
-
-#### Scenario: Mutation rejected
-- **WHEN** any field is assigned after construction
-- **THEN** `dataclasses.FrozenInstanceError` is raised
-
 ### Requirement: Total And Active Parameter Estimator
 
 The package SHALL provide `compute_total_and_active(cfg) -> tuple[int, int]` whose first element is the total parameter count (dense embeddings + attention + all N_e SwiGLU experts + geometric router) and second element is the per-token active parameter count (attention + k experts at width `d_ffn`). Both values SHALL equal the closed-form totals exactly when `cfg == MVPConfig()`: `total == 452_329_984` and `active == 100_008_448`. The accounting MUST derive each term exactly:
@@ -44,6 +32,7 @@ LayerNorm gains, `β_i`, `c_i`, `W^O` are excluded from the estimator (not expos
 #### Scenario: 452M / 100M agreement
 - **WHEN** `compute_total_and_active(MVPConfig())` is called
 - **THEN** the first value equals `452_329_984` exactly and the second equals `100_008_448` exactly (closed-form, no interval; each term derived from the four accounting assumptions)
+
 ### Requirement: Active FLOPs Parity Against Dense Baseline
 
 The package SHALL provide `flops_per_token(cfg, arch) -> int` whose canonical per-token active-FLOPs formula is symmetric across MoE and Dense sides:
@@ -63,6 +52,7 @@ At MVP with `d_model=1024, N_e=16, k=2, d_ffn=2048, d_ffn_dense=4096, L=4` the p
 #### Scenario: total FLOPs at MVP across L=4 layers
 - **WHEN** `flops_per_token(cfg, MOE_MVP)` is called with `cfg.L == 4`
 - **THEN** the result equals `134_217_728` exactly (= `4 · 33_554_432`)
+
 ### Requirement: Wire-Level Contracts
 
 The package SHALL provide `Protocol` classes `GeometricRouter`, `TerritoryHolder`, and `BlockAdapter` that expose ONLY the methods/attributes required by Req 3, 4, 16, 17, 18. `GeometricRouter` SHALL declare `extract_C(K, V) -> Tensor`, `gating_logits(C) -> Tensor`, `route(x, logits) -> Tensor`. `GeometricRouter` SHALL NOT declare any `kv_cache_c` attribute (Req 16 / 17 violation would be caught statically). `TerritoryHolder` SHALL declare `territory_volume() -> float`, `active_territories() -> set[int]`, `coverage_balance_loss() -> Tensor`. `BlockAdapter` SHALL declare `forward_residual(x, ...) -> Tensor`. None of these Protocols SHALL contain an executable body (signatures only).
@@ -91,22 +81,6 @@ The package SHALL provide `inverse_temperature(γ) -> Tensor` implementing `β =
 - **WHEN** `torch.autograd.gradcheck` is run on `logit = β · (Cᵀc − 1)` with `β ≤ β_max`
 - **THEN** `‖∂logit/∂C‖₂ ≤ β_max = 32.0`
 
-### Requirement: Spherical L2 Normalization
-
-The package SHALL provide `spherical_l2_normalize(z, eps=1e-6) -> Tensor` returning `z / (‖z‖₂ + eps)` along the last dimension. The default `eps` SHALL equal `1e-6`. The function SHALL be safe at `z = 0` (no NaN / Inf in output).
-
-#### Scenario: Output on unit sphere
-- **WHEN** `spherical_l2_normalize(z)` is called for arbitrary `z` with `‖z‖₂ > eps`
-- **THEN** the result's `pow(2).sum(-1) == 1.0` within `1e-5`
-
-#### Scenario: Zero-tensor safe
-- **WHEN** `z = 0` is fed in
-- **THEN** the output is finite (no NaN, no Inf) and equals `z / eps`
-
-#### Scenario: Idempotence
-- **WHEN** the function is applied twice in succession
-- **THEN** the second application leaves the output unchanged
-
 ### Requirement: Voronoi Self-Consistency Threshold
 
 The package SHALL provide `canonical_voronoi_angle(num_experts: int, signature_dim: int) -> float` returning the closed-form Voronoi half-angle on `S^{signature_dim − 1}`, computed as the unique `θ ∈ (0, π/2]` solving `½ · I_{sin² θ}((d_c − 1)/2, 1/2) = 1/N_e` (regularized incomplete beta function). The implementation MUST compute this value via bisection on the equation (residual `< 1e-9`), NOT via a hard-coded table. The package SHALL also provide `voronoi_angle(centroids: Tensor) -> float` for the offline measurement layer (computes the realized half-angle from an actual centroid tensor; NOT for use in the training hot path). At MVP `d_c = 16`, `canonical_voronoi_angle(N_e=16, d_c=16)` SHALL return `≈ 1.1736 rad (≈ 67.24°)` (within `abs=1e-4` rad on the residual `< 1e-9` criterion), strictly greater than the specialist-collapse boundary `θ_{1/e}(β=16) = arccos(1 − 1/β) = arccos(15/16) ≈ 20.36°`. `canonical_voronoi_angle(N_e=64, d_c=16)` SHALL return `≈ 1.0205 rad (≈ 58.47°)` (within the same residual bound). The associated `versine_Voronoi = 1 − cos θ` (NOT `D_chord` which is the square root `√(2(1 − cos θ))`) is the cap height / spherical versine. The previous closed-form bound `arctan(π / √d_c) ≈ 38.146°` is incorrect (depends on `d_c` only, contradicts MVP geometry, and self-contradicts the same-sentence `θ_{1/e} ≈ 20.36°` value via the wrong formula `arctan(1/β) = 3.58°`); it MUST NOT appear in any implementation. (Matches master `wayfinder` Req 11 verbatim.)
@@ -122,6 +96,7 @@ The package SHALL provide `canonical_voronoi_angle(num_experts: int, signature_d
 #### Scenario: no hard-coded table values
 - **WHEN** `src/decompmoe/sphere.py` is grepped for the MVP values `0.9076`, `0.4494`, `0.380`, `0.0971`
 - **THEN** zero matches (no fast-path table — every input must bisect)
+
 ### Requirement: C Extraction Four-Step Pipeline
 
 The package SHALL provide `extract_C(K, V, proj_W_K, proj_W_V, proj_b, *, H_kv, d_c, eps=1e-6) -> Tensor` implementing the spec's exact four-step pipeline: (1) per-head projection `z^{l,h} = W_K^{l,h} · k^{l,h} + W_V^{l,h} · v^{l,h} + b^{l,h}`; (2) per-head spherical projection; (3) cross-head mean with `1/H_kv` factor; (4) final spherical projection. The pipeline SHALL be fully differentiable (D-path, no Straight-Through Estimator; no `.detach()` between intermediate tensors).
@@ -141,34 +116,6 @@ The package SHALL provide `extract_C(K, V, proj_W_K, proj_W_V, proj_b, *, H_kv, 
 #### Scenario: Cross-head awareness
 - **WHEN** `H_kv = 8` GQA input is processed
 - **THEN** the cross-head mean uses the `1/H_kv` factor (mathematical equivalence to a manual `mean(..., dim=1)`)
-
-### Requirement: Centroid Four-Phase Lifecycle Driver
-
-The package SHALL provide `CentroidDriver(phase: Phase) -> CentroidDriver` with `Phase ∈ {SEEDING=0, EMA_090=1, EMA_095=2, EMA_099=3, PROJECTED_SGD=4}`. The `step(centroids, X, mask) -> Tensor` method MUST apply, per phase:
-
-- Phase 0 (SEEDING): `c_i ← c_i.detach()` (driver is a no-op returning the input centroids detached from the autograd graph); `c_i.requires_grad = False`. Driver is no-op; upstream spherical KMeans is assumed to have produced L2-normalized seeds (the `‖c_i‖₂ ≡ 1.0` invariant for Phase 0 is the caller's responsibility, not the driver's).
-- Phase 1 (EMA_090): `c_i ← Normalize(0.90 · c_i + 0.10 · m_i) / ‖·‖₂`, driver Active, gradient channel Frozen.
-- Phase 2 (EMA_095): `c_i ← Normalize(0.95 · c_i + 0.05 · m_i) / ‖·‖₂`, driver Active, gradient channel Frozen.
-- Phase 3 (EMA_099): `c_i ← Normalize(0.99 · c_i + 0.01 · m_i) / ‖·‖₂`, driver Active, gradient channel Frozen.
-- Phase 4 (PROJECTED_SGD): `c_i ← (c_i − η · ∇_{c_i} L_routing) / ‖·‖₂`, driver Active, gradient channel Active.
-
-The `m_i` is the masked-mean over tokens assigned to expert `i`. The driver MUST enforce the empty-cell invariant: if `n_i = |T_i| = 0`, then `m_i ≡ c_i^(t−1)` (no `clamp_min(ε)` denominator). The driver MUST enforce the spherical re-projection invariant: `‖c_i^(t+1)‖₂ ≡ 1.0` after every step; on near-zero candidate `‖u_i‖₂ < 10⁻⁹`, fall back to `c_i^(t)`. The driver SHALL expose a `should_resurrect(f_per_expert, window_size, last_resurrection_step, current_step, *, threshold=1/(2·N_e), consec=200) -> set[int]` helper that flags expert indices whose mask-fraction `f_i` was below `1/(2·N_e)` for `200` consecutive steps (rate-limited to once per `1000`-step window). At MVP `N_e = 16`, `1/(2·N_e) = 1/32`; the rule is parameterized by `N_e`, not a hardcoded `1/128`.
-
-#### Scenario: Phase-0 non-differentiable
-- **WHEN** `CentroidDriver(SEEDING).step(...)` is called
-- **THEN** no gradient is registered on the input `centroids` (`requires_grad` not propagated)
-
-#### Scenario: Phase-1 EMA coefficient
-- **WHEN** `CentroidDriver(EMA_090).step(centroids, X, mask)` is called with `n_i > 0` for all experts
-- **THEN** `step` returns `Normalize(0.90 · centroids + 0.10 · masked_mean(X)) / ‖·‖₂` (within FP tolerance, post-normalization)
-
-#### Scenario: Phase-4 re-projection
-- **WHEN** `CentroidDriver(PROJECTED_SGD).step(...)` is called
-- **THEN** the output `centroids` satisfy `‖c_i‖₂ = 1.0` within `1e-7` after retraction
-
-#### Scenario: Phase-1 driver Active despite gradient Frozen
-- **WHEN** `CentroidDriver(EMA_090).step(...)` is called and the gradient channel is Frozen for `c_i`
-- **THEN** the driver still updates `c_i` per the EMA rule; `c_i.requires_grad` remains `False`; `c_i` is NOT in the AdamW parameter group
 
 ### Requirement: Isotropic Squared-Chord Distance And Logit
 
@@ -225,6 +172,7 @@ The package SHALL provide `SwiGLUExpert(cfg) -> nn.Module` whose `forward(x)` co
 #### Scenario: No custom kernel import
 - **WHEN** `experts.py` is grepped for `cpp_extension` and `triton`
 - **THEN** zero matches
+
 ### Requirement: Loss Composition With Staged Lambda
 
 The package SHALL provide `L_total(task_logits, targets, f_per_expert, p_per_expert, c_centroids, phase, step, *, cfg) -> LossParts` returning a dataclass with `.L_CE`, `.L_lb`, `.L_sep`, `.L_total` fields. The constants SHALL be: `α = 0.01` (Switch-style fixed weight on `L_lb`), `λ(t)` schedule = `0` for `phase ∈ {1, 2}`, cosine ramp `0 → 0.001` during `phase == 3`, and `0.001` fixed for `phase == 4`. The `L_lb` closed form MUST be `L_lb = N_e · Σ_i f_i.detach() · P_i`, where `P_i = (1/T) · Σ_t p_i(C_t)` is the per-expert differentiable soft routing probability; gradient MUST flow through `P_i` and be blocked through `f_i.detach()`. The previous "verified by source grep" acceptance is incorrect (permits any expression containing `.detach()`); it MUST be replaced by the testable invariant `∂L_lb / ∂P_i ≠ 0` AND `∂L_lb / ∂f_i ≡ 0`. `L_sep` SHALL equal `(‖CᵀC‖_F² − N_e) / (N_e · (N_e − 1))` (canonical Frobenius form); the `Σ_{i<j}` equivalent form MUST use factor `2/(N_e(N_e − 1))` — the factor `1/(N_e(N_e − 1))` is INCORRECT and MUST NOT appear. (Matches master `wayfinder` Req 12 verbatim.)
@@ -252,9 +200,12 @@ The package SHALL provide `L_total(task_logits, targets, f_per_expert, p_per_exp
 #### Scenario: L_lb gradient flows through P_i only
 - **WHEN** `L_lb` is back-propagated
 - **THEN** `∂L_lb / ∂P_i ≠ 0` (differentiable through `P_i`) and `∂L_lb / ∂f_i ≡ 0` (blocked by `.detach()`)
+
 ### Requirement: Five Numerical Safeguard Helpers
 
-The package SHALL provide five standalone helpers in `safeguards.py`: (1) `clip_global_grad_norm_(params, max_norm=1.0) -> Tensor` returning the pre-clip norm; (2) `nan_ladder(consecutive_nan) -> tuple[str, float, bool]` returning `(action, lr_scale, halt)` where `action ∈ {"skip", "halve_lr", "halt"}` for counts `(1, 3, 10)` respectively; (3) `should_resurrect(f_per_expert, window_size, last_resurrection_step, current_step, *, threshold=1/(2·N_e), consec=200) -> set[int]` rate-limited to once per 1000 steps; (4) `beta_saturation_warning(β_per_expert, *, β_max=32) -> bool` returning `True` when any `β_i > 0.95 · β_max = 30.4`; (5) `loss_spike_defense(L_task, L_task_ema, phase, *, ratio=2.5) -> bool` returning `True` and signalling `LR × 0.8` when `phase ≥ 3 and L_task > ratio · L_task_ema`. The threshold `1/(2·N_e)` replaces the previous hardcoded `1/128` (which was the `N_e=64` instantiation of the same `1/(2·N_e)` rule); at MVP `N_e = 16` this evaluates to `1/32`. The standard step order SHALL be: `Backward → clip_grad_norm_(1.0) → optimizer.step() → L2_norm(c_i)` (asserted via documented ordering constant `STEP_ORDER`).
+The package SHALL provide five standalone helpers in `safeguards.py`: (1) `clip_global_grad_norm_(params, max_norm: float = 1.0) -> float` returning the pre-clip norm as a `float` (NOT `Tensor` — code-review N6 fix: `src/decompmoe/safeguards.py:54` returns `float(pre_clip_norm.item() ...)`); (2) `nan_ladder(consecutive_nan) -> tuple[str, float, bool]` returning `(action, lr_scale, halt)` where `action ∈ {"skip", "halve_lr", "halt"}` for counts `(1, 3, 10)` respectively; (3) `should_resurrect(f_history, current_step, last_resurrection_step, *, N_e, consec=DEAD_EXPERT_CONSEC_STEPS, rate_limit_steps=RESURRECTION_RATE_LIMIT_STEPS, threshold=None) -> set[int]`; when `threshold=None`, the implementation calls `_dead_expert_threshold(N_e) = 1/(2·N_e)` to derive the effective threshold (at MVP `N_e = 16`, this yields `1/32`); (4) `beta_saturation_warning(β_per_expert: Tensor) -> bool` returning `True` when any `β_i > BETA_SATURATION_WARN = 30.4` (= `0.95 · BETA_MAX = 0.95 · 32`) — there is NO `β_max` parameter (code-review N7 fix: `src/decompmoe/safeguards.py:211` signature has no `β_max`; the warning threshold is sourced from the module-level `BETA_MAX` constant via `BETA_SATURATION_WARN: Final[float] = 0.95 * BETA_MAX`); (5) `loss_spike_defense(L_task: float, L_task_ema: float, phase: int, ratio: float = LOSS_SPIKE_RATIO) -> bool` returning `True` when `phase ≥ 3 and L_task > ratio · L_task_ema` — there is NO `*` keyword-only separator before `ratio` (code-review N8 fix: `src/decompmoe/safeguards.py:222` defines `ratio: float = LOSS_SPIKE_RATIO` as POSITIONAL_OR_KEYWORD); the function ONLY returns the boolean — the LR-scaling action (`LR × LOSS_SPIKE_LR_SCALE = LR × 0.8`) is the CALLER's responsibility (the function emits a "should scale" signal, not the scaling itself). The dead-expert threshold `1/(2·N_e)` replaces the previous hardcoded `1/128` (which was the `N_e=64` instantiation of the same `1/(2·N_e)` rule); at MVP `N_e = 16` this evaluates to `1/32`. The constants `DEAD_EXPERT_CONSEC_STEPS = 200`, `RESURRECTION_RATE_LIMIT_STEPS = 1000`, `LOSS_SPIKE_RATIO = 2.5`, `LOSS_SPIKE_LR_SCALE = 0.8`, `BETA_SATURATION_WARN = 30.4`, `BETA_SATURATION_HALVE = 28.8` are `Final[int]` / `Final[float]` module-level constants (see `src/decompmoe/safeguards.py:23-41`); the spec references the constant identifiers rather than literal values. The standard step order SHALL be: `Backward → clip_grad_norm_(1.0) → optimizer.step() → L2_norm(c_i)` (asserted via documented ordering constant `STEP_ORDER`).
+
+**Source:** wayfinder/tickets/A6a-2.md (initial A6a-2 design intent); change `fix-openspec-doc-bugs` design.md (Decision 7 — threshold parameterization `1/(2·N_e)`); signature mirrors `src/decompmoe/safeguards.py:71-80` at commit `d3689a1`.
 
 #### Scenario: Global clip threshold
 - **WHEN** `clip_global_grad_norm_(params, max_norm=1.0)` is called with `‖g‖₂ > 1.0`
@@ -263,6 +214,10 @@ The package SHALL provide five standalone helpers in `safeguards.py`: (1) `clip_
 #### Scenario: NaN escalation ladder
 - **WHEN** `nan_ladder(c)` is called for `c ∈ {1, 3, 10}`
 - **THEN** the returned tuple is `("skip", 1.0, False)` / `("halve_lr", 0.1, False)` / `("halt", 1.0, True)` respectively
+
+#### Scenario: NaN ladder default at consecutive_nan=0 (no NaN observed)
+- **WHEN** `nan_ladder(0)` is called
+- **THEN** the returned tuple is `("skip", 1.0, False)` — defensive default: when no NaN has been observed yet, the ladder falls back to skip-and-keep-LR (caller is expected to call only when a NaN flag has been raised). For `c ∉ {1, 3, 10}` and `c > 0` (e.g. `c=2`, `c=5`, `c=9`), the ladder returns the highest-priority tier that has been crossed: `c ∈ [1, 2] → ("skip", 1.0, False)`; `c ∈ [3, 9] → ("halve_lr", 0.1, False)`; `c ≥ 10 → ("halt", 1.0, True)` (this matches wayfinder L249 strict-greater-than ladder tiers and is the implementation in `src/decompmoe/safeguards.py:62-72`).
 
 #### Scenario: Resurrection rate-limited
 - **WHEN** two dead-expert events occur within the same 1000-step window
@@ -284,6 +239,10 @@ The package SHALL provide five standalone helpers in `safeguards.py`: (1) `clip_
 - **WHEN** `safeguards.STEP_ORDER` is accessed
 - **THEN** it equals `("backward", "clip_grad_norm", "optimizer_step", "l2_norm")` exactly
 
+#### Scenario: `should_resurrect` semantic interpretation (per-step vs avg-window)
+- **WHEN** the dead-expert trigger is evaluated at time `t` with `f_history` containing the last `consec` snapshots
+- **THEN** expert `i` is flagged iff every snapshot `f_history[-consec:][j][i]` satisfies `f_history[-consec:][j][i] < threshold` (per-step strict less-than interpretation). The wayfinder L249 wording `f_i^avg < 1/(2·N_e)` for 200 consecutive steps is interpreted as "per-step `f_i < threshold` sustained over the 200-snapshot window" rather than "literal mean-over-window `< threshold`". **Open follow-up** (separate ticket pending): the avg-window interpretation would re-evaluate the trigger condition as `mean(f_history[-consec:][j][i]) < threshold` and is mathematically distinct from the current implementation for non-constant history (a guard test `test_should_resurrect_current_per_step_semantic_pinned` in `tests/test_safeguards.py` pins the current behavior and MUST be updated alongside the code if avg-window semantics is adopted).
+
 ### Requirement: Five-Phase Schedule State Machine
 
 The package SHALL provide `phase_id(step: int) -> int` returning `0` for `step ∈ [0, 999]`, `1` for `[1_000, 5_999]`, `2` for `[6_000, 25_999]`, `3` for `[26_000, 55_999]`, `4` for `[56_000, 100_000]`. The package SHALL provide `phase_step_frozen_names(phase: int) -> set[str]` returning the **gradient-channel** parameter-name set to freeze per phase (`{"c_i", "beta_i", "W_K", "W_V", "b"}` for phase 1; `{"c_i", "beta_i"}` for phase 2 — `W_K/W_V/b` are unfrozen in phase 2 to allow them to train under the EMA; `{"c_i"}` for phase 3 — `beta_i` is unfrozen; empty for phases 0/4). The package SHALL provide `should_reset_adam(prev_phase: int, next_phase: int) -> bool` returning `True` exactly when `prev_phase == 3 and next_phase == 4`. The advisory signals (`R_H`, `S_load`, `R_β-sat`, `L_sep/WB`) SHALL be exposed via `advisory_signals(...)` but SHALL NEVER trigger phase transitions (state-machine invariance under perturbed advisory is asserted).
@@ -304,67 +263,6 @@ The package SHALL provide `phase_id(step: int) -> int` returning `0` for `step �
 - **WHEN** `should_reset_adam(3, 4)` is called
 - **THEN** it returns `True`; for every other `(prev, next)` pair it returns `False`
 
-### Requirement: Eight Metrics And Classification
-
-The package SHALL provide eight metric functions (`L_sep`, `R_H`, `S_load`, `UR`, `SP`, `D_chord`, `MCI`, `CG`) whose closed forms MUST match the master `wayfinder` Req 20 verbatim:
-
-**Realtime Tier** (every step):
-- `L_sep = (‖CᵀC‖_F² − N_e) / (N_e · (N_e − 1))` (canonical Frobenius form).
-- `R_H = −(1 / ln N_e) · Σ_i f_i · ln f_i`, normalized entropy; `R_H ∈ [0, 1]`.
-- `S_load = N_e · max_i f_i`; `1` at perfect uniformity, `N_e` at full collapse.
-- `UR = (1 / N_e) · Σ_i I[f_i > 0]` over the most recent W = 100 steps.
-
-**Offline Tier** (diagnostic runs):
-- `SP_i = (1 / ‖T_i‖₁) · Σ_{t ∈ T_i} c_iᵀ C_t`; aggregated `SP = mean({SP_i : ‖T_i‖₁ > 0})` (skip experts with empty `T_i`). `SP ∈ [-1, 1]`.
-- `D_chord = (2 / (N_e(N_e−1))) · Σ_{i<j} √(2(1 − c_iᵀ c_j))` (mean spherical chord).
-- `MCI = 1 / (d_c · Σ_{j=1}^{d_c} λ̃_j²)`, with `λ_j` the eigenvalues of the **uncentered** second moment `M = (1 / |T|) · Σ_{t ∈ T} C_t C_tᵀ` over the routed-token signature set `T`, and `λ̃_j = λ_j / Σ_r λ_r` (normalized eigenvalue of `M`); **effective-dimensionality fraction**; replaces CV (whose lower bound `1/d_c` on `S^{d_c−1}` made the original `< 0.05` health target unreachable — see `wayfinder/tickets/A8-2.md`). The centered-covariance reading has its `(1/d_c, 1]` upper endpoint unreachable at `|T| = d_c`; this Requirement uses the **uncentered** second moment so that both endpoints of the declared range are attainable. `MCI ∈ [1/d_c, 1]` (closed range). Uniform token distribution (each basis `e_j` equally represented in `T`) ⇒ `M = I/d_c` exactly ⇒ `MCI = 1.0`. Rank-1 token distribution (all `C_t = e_1`) ⇒ `M = e_1 e_1ᵀ` exactly ⇒ `MCI = 1/d_c`. The previous formula `(1/d_c) · Σ 1/λ̃²` was mathematically inconsistent with the declared range and MUST NOT appear. MCI takes **token signatures** as input (NOT centroids), per the definition.
-- `CG = ‖∇_{W^{K, V, b}} L_total‖₂` (debug-only); non-negative; zero on zero gradient.
-
-The four offline metric implementations MUST implement the closed forms above (and verify with the closed-form numerical Scenarios below — not the prior structural `!= torch.tensor(0.0)` assertion). The `OFFLINE` set in `metrics.__all__` MUST use the spec name `"D_chord"` (not the implementation alias `"D_c"`). The package SHALL expose `REALTIME = frozenset({"L_sep", "R_H", "S_load", "UR"})` and `OFFLINE = frozenset({"SP", "D_chord", "MCI", "CG"})`. `L_sep` from the metrics module SHALL be numerically equivalent to `L_sep` from the loss module under the same input. `R_H` SHALL lie in `[0, 1]` when fed a normalized probability distribution over `N_e` experts. (Matches master `wayfinder` Req 20 verbatim.)
-
-#### Scenario: Metric classification
-- **WHEN** `metrics.REALTIME ∪ metrics.OFFLINE` is computed
-- **THEN** the union has cardinality exactly `8` and equals the eight metric names
-
-#### Scenario: R_H bounded
-- **WHEN** `R_H(p)` is called for any probability vector `p`
-- **THEN** the result lies in `[0, 1]` within `1e-6`
-
-#### Scenario: L_sep cross-module consistency
-- **WHEN** `metrics.L_sep(c_centroids)` is compared to `loss.compute_L_sep(c_centroids)` under the same input
-- **THEN** the two values are equal within `1e-6`
-
-#### Scenario: SP closed-form on orthonormal-aligned inputs
-- **WHEN** `SP(orthonormal_centroids, assignments, signatures)` is called with every assigned token's signature exactly aligned with its centroid (`C_t = c_{a(t)}` for all `t ∈ T_i`)
-- **THEN** the aggregated `SP = mean({SP_i : ‖T_i‖₁ > 0})` equals `1.0` within `abs=1e-6` (each `SP_i = c_i^T c_i = 1`)
-
-#### Scenario: SP closed-form on 60° offset
-- **WHEN** `SP` is called with every assigned token's signature at `60°` from its centroid (`c_i^T C_t = cos 60° = 0.5`)
-- **THEN** the aggregated `SP` equals `0.5` within `abs=1e-6`
-
-#### Scenario: SP range bound
-- **WHEN** `SP(any_centroids, any_assignments, any_signatures)` is called
-- **THEN** `-1 - 1e-6 ≤ SP ≤ 1 + 1e-6`
-
-#### Scenario: D_chord closed-form on orthonormal basis
-- **WHEN** `D_chord(c_centroids)` is called with `centroids ∈ R^{N_e × d_c}` forming an orthonormal subset
-- **THEN** the result equals `sqrt(2)` within `abs=1e-6`
-
-#### Scenario: MCI closed-form on uniform token distribution
-- **WHEN** `MCI(token_signatures)` is called with `|T| = d_c · k` signatures, each `e_j ∈ R^{d_c}` (the `d_c` standard basis vectors) represented exactly `k` times (so the uncentered second moment `M = (1/|T|) · Σ_t C_t C_tᵀ = I/d_c` exactly)
-- **THEN** the result equals `1.0` exactly within `abs=1e-12`
-
-#### Scenario: MCI closed-form on rank-1 token distribution
-- **WHEN** `MCI(token_signatures)` is called with all `|T|` signatures equal to the same unit vector `e_1` (so `M = e_1 e_1ᵀ` is rank-1)
-- **THEN** the result equals `1/d_c` exactly within `abs=1e-12`
-
-#### Scenario: CG zero-gradient invariance
-- **WHEN** `CG(zero_grad)` is called with all-zero input gradient
-- **THEN** the result equals `0.0` exactly within `abs=1e-12`
-
-#### Scenario: CG positive homogeneity
-- **WHEN** `CG(g)` and `CG(2·g)` are both evaluated for any non-zero gradient `g`
-- **THEN** `|CG(2·g) − 2·CG(g)| < 1e-6`
 ### Requirement: Six Visualization Module Protocol Stubs
 
 The package SHALL provide six `Protocol` stubs in `viz.py`: `PCA3D`, `DcHeatmap`, `Voronoi2D`, `TrajectoryAnimation`, `TensorBoardDashboard`, `PlantUMLDiagram`. Each SHALL expose a single method signature matching its public API (e.g. `PCA3D.render(centroids, *, camera_angles=(25.0, 135.0)) -> Figure`); `PCA3D.camera_angles` SHALL default to the tuple `(25.0, 135.0)`. The module SHALL export `IMPLEMENTATION_STACK = frozenset({"matplotlib", "scikit-learn", "scipy", "imageio", "tensorboard", "plantuml"})`. The `__all__` of `viz.py` SHALL contain exactly six module-level names.
@@ -411,6 +309,7 @@ The package's `CentroidDriver` SHALL enforce four semantic invariants that **can
 #### Scenario: Semantic invariants are enforced by the named test scenarios
 - **WHEN** the four named test scenarios (`test_empty_cell_preserves_centroid`, `test_spherical_norm_is_strictly_one`, `test_near_zero_candidate_fallback`, `test_near_zero_candidate_fallback_phase4`) all pass
 - **THEN** the empty-cell fallback, spherical re-projection, and near-zero candidate fallback invariants hold for `CentroidDriver` across all four active phases
+
 ### Requirement: Centroid Driver Invariant Test Scenarios
 
 The package's test suite SHALL include the following three tests, asserting the spherical re-projection and empty-cell fallback invariants on `CentroidDriver.step(...)`:
@@ -429,10 +328,6 @@ The package's test suite SHALL include the following three tests, asserting the 
 
 ---
 
-### Requirement: Beta Parameterization Operational Domain
-
-The package SHALL provide `inverse_temperature(gamma) -> Tensor` implementing the **parameterization-space** form `β = β_min + (β_max − β_min) · σ(γ)` with `β_min == 0.1` and `β_max == 32`. The package SHALL additionally provide `phase4_inverse_temperature(gamma_p) -> Tensor` implementing the **operational-domain** form `β^eff = 1 + 31 · σ(γ')` used in Phase 4 (the parameterization-space floor `0.1` and the operational-domain floor `1.0` are intentionally decoupled — the latter prevents routing resonance at runtime, the former keeps `σ'(γ)` non-degenerate in the cold-start region). The package SHALL provide `gamma_reset_for_phase4(beta_p3) -> float` implementing `γ' = ln((β_{p3} − 1) / (32 − β_{p3}))`; the worked example `gamma_reset_for_phase4(16.0) ≈ −0.0645385...` MUST hold within `abs=1e-4`. The package SHALL provide `beta_effective(gamma, phase, step, *, cfg) -> Tensor` returning `1.0` for `phase == 1`, `Clamp(inverse_temperature(gamma), 1.0, phase_beta_max(phase, step))` for `phase ∈ {2, 3}` (where `phase_beta_max(phase, step)` is the **time-varying** schedule ramp under the **pinned** linear-interpolation convention `phase_beta_max(phase, step) = box(phase).lo + (box(phase).hi − box(phase).lo) · (step − phase_start) / (phase_end − phase_start)` with `phase_end` exclusive: Phase 2 range `[6_000, 26_000)` ramp `1.0 → 4.0` (so `phase_beta_max(2, 6_000) = 1.0` exact at boundary start, `phase_beta_max(2, 16_000) = 2.5` exact at midpoint, `phase_beta_max(2, 25_999) = 1 + 3·19_999/20_000 = 3.99985`); Phase 3 range `[26_000, 56_000)` ramp `4.0 → 16.0` (so `phase_beta_max(3, 26_000) = 4.0` exact at boundary start = `box(3).lo`, `phase_beta_max(3, 41_000) = 4 + 12·15_000/30_000 = 10.0` exact at midpoint, `phase_beta_max(3, 55_999) = 4 + 12·29_999/30_000 = 15.9996`). `phase_beta_max` is **distinct** from the static `phase_beta_box(phase).hi` and the `step` parameter is required), and `phase4_inverse_temperature(gamma_p)` for `phase == 4`. The module SHALL export `MAX_GRAD_PER_C: Final[float] = 32.0` (operational-domain worst case, all domains) and `MAX_GRAD_PER_GAMMA: Final[float] = 15.95` (**parameterization-space** worst case `0.5 · (β_max − β_min)`; the **operational-domain Phase 4** worst case is `0.5 · 31 = 15.5` at `γ' = 0` (canonical export per `src/decompmoe/beta.py:39` `MAX_GRAD_PER_GAMMA_PHASE4: Final[float] = 0.5 * 31.0`); the two constants live in different domains and MUST NOT be conflated). (Matches master `wayfinder` Req 7 / Req 24 verbatim.)
-
 #### Scenario: Parameterization endpoints
 - **WHEN** `inverse_temperature(gamma)` is called with `gamma ∈ {-50, 0, 50}`
 - **THEN** the result is `≈ 0.1` / `16.05` (midpoint) / `≈ 32.0` respectively within `1e-3`
@@ -444,8 +339,6 @@ The package SHALL provide `inverse_temperature(gamma) -> Tensor` implementing th
 #### Scenario: beta_effective is continuous at Phase 3 → 4 boundary
 - **WHEN** `beta_effective(gamma_p=ln(15/16), phase=4, step=56_000)` is called
 - **THEN** the result equals `1 + 31 · σ(ln(15/16)) = 16.0` exactly (continuity with Phase 3's terminal `β_max`)
-
-
 
 ---
 
@@ -461,7 +354,9 @@ The package SHALL provide `CentroidDriver(phase: Phase) -> CentroidDriver` with 
 - Phase 3 (EMA_099): `c_i ← Normalize(0.99 · c_i + 0.01 · m_i) / ‖·‖₂`, driver Active, gradient channel Frozen.
 - Phase 4 (PROJECTED_SGD): When `grad is not None`: `candidate_i = c_i − eta · grad_i`; then `c_i^(t+1) = candidate_i / ‖candidate_i‖₂`. When `grad is None`: `c_i^(t+1) = c_i / ‖c_i‖₂` (L2 retraction of the input only). Both branches apply the Invariant #4 guard pattern: when `‖candidate_i‖₂ < 10⁻⁹`, fall back to `c_i^(t)` (no `clamp_min(ε)` denominator; the same `torch.where(use_old, prev, normalize(...))` pattern used in EMA). Driver Active, gradient channel Active.
 
-The `m_i` is the masked-mean over tokens assigned to expert `i`. The driver MUST enforce the empty-cell invariant: if `n_i = |T_i| = 0`, then `m_i ≡ c_i^(t−1)` (no `clamp_min(ε)` denominator). The driver MUST enforce the spherical re-projection invariant: `‖c_i^(t+1)‖₂ ≡ 1.0` after every step; on near-zero candidate `‖u_i‖₂ < 10⁻⁹`, fall back to `c_i^(t)`. The driver SHALL expose a `should_resurrect(f_per_expert, window_size, last_resurrection_step, current_step, *, threshold=1/(2·N_e), consec=200) -> set[int]` helper that flags expert indices whose mask-fraction `f_i` was below `1/(2·N_e)` for `200` consecutive steps (rate-limited to once per `1000`-step window). At MVP `N_e = 16`, `1/(2·N_e) = 1/32`; the rule is parameterized by `N_e`, not a hardcoded `1/128`.
+The `m_i` is the masked-mean over tokens assigned to expert `i`. The driver MUST enforce the empty-cell invariant: if `n_i = |T_i| = 0`, then `m_i ≡ c_i^(t−1)` (no `clamp_min(ε)` denominator). The driver MUST enforce the spherical re-projection invariant: `‖c_i^(t+1)‖₂ ≡ 1.0` after every step; on near-zero candidate `‖u_i‖₂ < 10⁻⁹`, fall back to `c_i^(t)`. The driver MAY call `decompmoe.safeguards.should_resurrect(f_history, current_step, last_resurrection_step, *, N_e, consec=DEAD_EXPERT_CONSEC_STEPS, rate_limit_steps=RESURRECTION_RATE_LIMIT_STEPS, threshold=None) -> set[int]` for dead-expert detection; the function itself lives in `safeguards.py` and is *called* from the driver (the driver MUST NOT define a same-named helper). When `threshold=None` is passed, the implementation derives the effective threshold via the private helper `_dead_expert_threshold(N_e) = 1/(2·N_e)`; at MVP `N_e = 16` this yields `1/32`. The dead-expert rule is parameterized by `N_e`, not hardcoded `1/128`. The constants `DEAD_EXPERT_CONSEC_STEPS = 200` and `RESURRECTION_RATE_LIMIT_STEPS = 1000` are `Final[int]` module-level constants (see `src/decompmoe/safeguards.py:30-31`); the spec references the constant identifiers rather than literal values to ensure the spec stays in lock-step with the code if these constants are retuned.
+
+**Source:** wayfinder/tickets/A6a-2.md (initial A6a-2 design intent); change `fix-openspec-doc-bugs` design.md (Decision 7 — threshold parameterization `1/(2·N_e)`); signature mirrors `src/decompmoe/safeguards.py:71-80` at commit `d3689a1`.
 
 The `step` signature `(*, grad=None, eta=1e-2)` REPLACES the legacy `(centroids, X, mask, eps=1e-6)` contract: the `eps` parameter is removed (no longer used by any active phase); the `grad` keyword is REQUIRED for the projected SGD step (no positional gradient argument); the `eta` keyword defaults to `1e-2` (conservative; spec does not pin a specific value beyond the linear convention); when `grad is None` the P4 branch is the identity L2 retraction (no SGD step applied — this is the backward-compatible fallback for callers that do not provide a gradient). Callers that previously passed `eps=1e-6` will need to remove the kwarg (breaking change; no in-repo callers pass `eps`).
 
@@ -483,7 +378,6 @@ The `step` signature `(*, grad=None, eta=1e-2)` REPLACES the legacy `(centroids,
 
 ---
 
-
 <a id="req-2"></a>
 
 ### Requirement: Spherical L2 Normalization — max(…z…, ε) Formula
@@ -503,7 +397,6 @@ The package SHALL provide `spherical_l2_normalize(z, eps=1e-6) -> Tensor` return
 - **THEN** the first application yields `‖out‖₂ = ‖z‖₂ / ε < 1` (sub-unit norm), and the second application normalizes to norm `1` (NOT idempotent in this regime)
 
 ---
-
 
 <a id="req-3"></a>
 
@@ -530,7 +423,6 @@ The package SHALL provide `inverse_temperature(gamma) -> Tensor` implementing th
 
 ---
 
-
 <a id="req-4"></a>
 
 ### Requirement: Frozen MVP Hyperparameter Set — D1 Geometric-Only Fields
@@ -555,7 +447,6 @@ The package SHALL provide a `MVPConfig` frozen dataclass whose locked constants 
 - **THEN** the set equals exactly `{'d_model', 'N_e', 'k', 'd_ffn', 'L', 'd_ffn_dense', 'd_c', 'H_kv', 'd_k', 'beta_initial', 'vocab_size'}` (11 fields; **`β_min` and `β_max` are NOT MVPConfig fields**; they live as `Final[float]` in `decompmoe/beta.py`)
 
 ---
-
 
 <a id="req-5"></a>
 
@@ -638,5 +529,3 @@ The four offline metric implementations MUST implement the closed forms above (a
 - **THEN** it raises `TypeError` referencing the closed form `CG = ‖∇_{W^{K, V, b}} L_total‖₂` (the gradient of a learnable parameter is necessarily a Tensor; non-Tensor inputs are a caller bug)
 - **AND WHEN** `CG(grad)` is called with `grad` being a `torch.Tensor` of non-floating-point dtype (`int`, `bool`, etc.)
 - **THEN** it raises `TypeError` (the gradient of a float-parameterized loss MUST be floating-point; integer / boolean tensors are caller bugs that would silently coerce to zero norm and defeat the stability-probe purpose)
-
-

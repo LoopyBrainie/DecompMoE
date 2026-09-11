@@ -271,3 +271,341 @@ def test_resurrect_expert_single_event_contract() -> None:
     assert β_new is not β_per_expert, (
         "β_new must be a NEW tensor (clone), not the input reference"
     )
+
+
+def test_no_other_module_defines_should_resurrect() -> None:
+    """The driver MUST NOT define a same-named helper — only `decompmoe.safeguards.should_resurrect` exists.
+
+    Guards the spec contract introduced at `decompmoe-skeleton` L206:
+    > "the driver MUST NOT define a same-named helper"
+
+    Iterates over every submodule of `decompmoe` (via `pkgutil.iter_modules`)
+    and asserts no module other than `decompmoe.safeguards` defines a
+    `should_resurrect` callable. A regression here would mean another module
+    has re-introduced the same helper (which historically caused ownership
+    ambiguity — see Finding #10 drift report from `d3689a1` and `0d87e32`).
+
+    **Note on enumeration** (code-review N4 fix): earlier draft iterated over
+    `vars(decompmoe)` which only contains modules explicitly re-exported by
+    `decompmoe/__init__.py`. That misses the 11 submodules that aren't
+    re-exported (`config`, `contracts`, `distance`, `experts`, `extraction`,
+    `gating`, `loss`, `metrics`, `schedule`, `sphere`, `viz`). Using
+    `pkgutil.iter_modules` against `decompmoe.__path__` enumerates ALL 13
+    submodules regardless of `__init__.py` re-exports.
+    """
+    import importlib
+    import pkgutil
+    import decompmoe
+
+    module_names = [
+        mod_info.name for mod_info in pkgutil.iter_modules(decompmoe.__path__, prefix="decompmoe.")
+    ]
+    # Also include the package __init__ itself for a sanity check.
+    module_names = ["decompmoe"] + sorted(set(module_names))
+
+    canonical_owner = "decompmoe.safeguards"
+    offending: list[tuple[str, object]] = []
+    for module_name in module_names:
+        mod = importlib.import_module(module_name)
+        if mod is safeguards:
+            continue  # canonical owner; should_resurrect is expected here
+        attr = getattr(mod, "should_resurrect", None)
+        if attr is not None:
+            offending.append((module_name, attr))
+
+    assert not offending, (
+        f"Modules other than {canonical_owner!r} define `should_resurrect`: "
+        f"{offending!r}. Per spec L206, only `decompmoe.safeguards` may expose "
+        f"the dead-expert helper. Re-introducing a same-named helper elsewhere "
+        f"is a spec-level regression."
+    )
+
+
+def test_named_constants_have_spec_values() -> None:
+    """Guard the 4 named-constant numerical claims in the spec delta (code-review N5 / CLAUDE.md §6 last bullet).
+
+    The skeleton spec L206 (Five Numerical Safeguard Helpers) + L210 (Centroid Driver reference) reference these `Final[int]` / `Final[float]`
+    module-level constants by name (rather than literal values) so the spec
+    stays in lock-step with the code if these constants are retuned:
+
+    - `DEAD_EXPERT_CONSEC_STEPS = 200` (integer; bare `==`)
+    - `RESURRECTION_RATE_LIMIT_STEPS = 1000` (integer; bare `==`)
+    - `LOSS_SPIKE_RATIO = 2.5` (float; `pytest.approx` with `abs=1e-12`)
+    - `LOSS_SPIKE_LR_SCALE = 0.8` (float; `pytest.approx` with `abs=1e-12`)
+
+    Per `CLAUDE.md` §6 last bullet, every spec formula with concrete numeric
+    values MUST have a `pytest.approx` (float closed-form) or exact `==`
+    (integer closed-form) direct guard. This test is that guard.
+    """
+    # Integer closed-form claims: bare `==` per CLAUDE.md §6 last bullet
+    # ("integer claims ... MUST use bare `==` integer equality ... NOT
+    # pytest.approx(...) in any form" — the effective-tolerance formula
+    # `max(abs, rel·|expected|)` scales with magnitude and defeats "钉值零容差").
+    assert safeguards.DEAD_EXPERT_CONSEC_STEPS == 200, (
+        f"DEAD_EXPERT_CONSEC_STEPS = {safeguards.DEAD_EXPERT_CONSEC_STEPS}, "
+        f"expected 200 (per spec L206 (Five Numerical Safeguard Helpers) + L210 (Centroid Driver reference))"
+    )
+    assert safeguards.RESURRECTION_RATE_LIMIT_STEPS == 1000, (
+        f"RESURRECTION_RATE_LIMIT_STEPS = {safeguards.RESURRECTION_RATE_LIMIT_STEPS}, "
+        f"expected 1000 (per spec L206 (Five Numerical Safeguard Helpers) + L210 (Centroid Driver reference))"
+    )
+
+    # (Integer closed-form claims continue below with the BETA saturation
+    # constants in the second-pass assertion block.)
+
+    # Float closed-form claims: pytest.approx with abs=1e-12 (the canonical
+    # "钉值零容差" tolerance for FP literals — see CLAUDE.md §6 last bullet
+    # integer-vs-float binary exemption rationale).
+    assert safeguards.LOSS_SPIKE_RATIO == pytest.approx(2.5, abs=1e-12), (
+        f"LOSS_SPIKE_RATIO = {safeguards.LOSS_SPIKE_RATIO}, "
+        f"expected 2.5 (per spec L206 item (5))"
+    )
+    assert safeguards.LOSS_SPIKE_LR_SCALE == pytest.approx(0.8, abs=1e-12), (
+        f"LOSS_SPIKE_LR_SCALE = {safeguards.LOSS_SPIKE_LR_SCALE}, "
+        f"expected 0.8 (per spec L206 item (5))"
+    )
+
+    # β saturation thresholds: closed-form derived from BETA_MAX.
+    # Per spec L206 item (4): `BETA_SATURATION_WARN = 0.95 · BETA_MAX` and
+    # `BETA_SATURATION_HALVE = 0.90 · BETA_MAX`. At MVP `BETA_MAX = 32`
+    # these evaluate to `30.4` and `28.8` respectively. We assert against
+    # the closed-form derivation (not the FP-literal rounded value) so the
+    # test stays in lock-step with `BETA_MAX` if it is retuned.
+    assert safeguards.BETA_SATURATION_WARN == pytest.approx(
+        0.95 * 32.0, abs=1e-12
+    ), (
+        f"BETA_SATURATION_WARN = {safeguards.BETA_SATURATION_WARN}, "
+        f"expected 0.95 · 32 = {0.95 * 32.0}"
+    )
+    assert safeguards.BETA_SATURATION_HALVE == pytest.approx(
+        0.90 * 32.0, abs=1e-12
+    ), (
+        f"BETA_SATURATION_HALVE = {safeguards.BETA_SATURATION_HALVE}, "
+        f"expected 0.90 · 32 = {0.90 * 32.0}"
+    )
+    # Also assert the MVP-evaluated literal value (per wayfinder L249):
+    # `BETA_SATURATION_WARN = 30.4` (95% of β_max), `BETA_SATURATION_HALVE
+    # = 28.8` (90% of β_max). The literal-evaluated form is FP-exact for
+    # `0.95 * 32.0 == 30.4` and `0.90 * 32.0 == 28.8` (both are representable
+    # in FP32 / FP64).
+    assert safeguards.BETA_SATURATION_WARN == pytest.approx(30.4, abs=1e-12)
+    assert safeguards.BETA_SATURATION_HALVE == pytest.approx(28.8, abs=1e-12)
+
+
+# ---------------------------------------------------------------------------
+# Closed-form `_dead_expert_threshold(N_e) = 1/(2·N_e)` direct guard
+# (verifies spec's `1/32` at MVP / `1/128` legacy closed-form derivations).
+# ---------------------------------------------------------------------------
+
+
+def test_dead_expert_threshold_mvp_closed_form() -> None:
+    """`_dead_expert_threshold(16) == 1/32` — MVP closed-form (per wayfinder L249).
+
+    Per wayfinder L249 + skeleton spec L206: `f_threshold = 1/(2·N_e)` and
+    "At MVP scale `N_e = 16`, `1/(2 · N_e) = 1/32`". Per CLAUDE.md §6 last
+    bullet, every spec formula with concrete numeric values MUST have a
+    `pytest.approx` (float closed-form) direct guard. This test asserts
+    both (a) the closed-form derivation `1/(2·16)` and (b) the MVP-evaluated
+    literal `1/32 = 0.03125` against `_dead_expert_threshold(16)`.
+    """
+    thr = safeguards._dead_expert_threshold(16)
+    # Closed-form derivation: `1 / (2 · N_e)` evaluated at N_e=16
+    assert thr == pytest.approx(1.0 / (2.0 * 16.0), abs=1e-12), (
+        f"_dead_expert_threshold(16) = {thr}, expected 1/(2·16) = {1.0 / 32.0}"
+    )
+    # MVP-evaluated literal: 1/32 = 0.03125 (FP-exact)
+    assert thr == pytest.approx(1.0 / 32.0, abs=1e-12), (
+        f"_dead_expert_threshold(16) = {thr}, expected 1/32 = {1.0 / 32.0}"
+    )
+    assert thr == pytest.approx(0.03125, abs=1e-12), (
+        f"_dead_expert_threshold(16) = {thr}, expected 0.03125 (FP-exact)"
+    )
+
+
+def test_dead_expert_threshold_legacy_N_e_64_closed_form() -> None:
+    """`_dead_expert_threshold(64) == 1/128` — legacy N_e=64 closed-form.
+
+    Per skeleton spec L206 / wayfinder L249: the previous hardcoded `1/128`
+    was the `N_e=64` instantiation of the `1/(2·N_e)` rule. Parameterizing
+    by N_e restores both MVP (`1/32`) and legacy (`1/128`) thresholds
+    from a single formula.
+    """
+    thr = safeguards._dead_expert_threshold(64)
+    assert thr == pytest.approx(1.0 / (2.0 * 64.0), abs=1e-12), (
+        f"_dead_expert_threshold(64) = {thr}, expected 1/(2·64) = {1.0 / 128.0}"
+    )
+    assert thr == pytest.approx(1.0 / 128.0, abs=1e-12), (
+        f"_dead_expert_threshold(64) = {thr}, expected 1/128 = {1.0 / 128.0}"
+    )
+    assert thr == pytest.approx(0.0078125, abs=1e-12), (
+        f"_dead_expert_threshold(64) = {thr}, expected 0.0078125 (FP-exact)"
+    )
+
+
+def test_threshold_implicit_in_mvp_test_data_below_spec_value() -> None:
+    """Test data `0.02 < 1/32` is a mathematical assumption — assert it explicitly.
+
+    Per CLAUDE.md §6 last bullet, every spec formula with concrete numeric
+    values MUST have a `pytest.approx` direct guard. `test_resurrection_
+    threshold_mvp_value` uses `0.02` as a value "below `1/32`" but only
+    documents the relationship in a comment. This test pins the
+    mathematical relationship explicitly so a future change to either
+    side breaks loudly.
+    """
+    # Closed-form derivation: spec `1/(2·N_e)` at N_e=16
+    threshold = safeguards._dead_expert_threshold(16)
+    # Mathematical premise: `0.02 < 1/32` MUST hold for the test data to be
+    # meaningful (otherwise the test is testing against the wrong baseline).
+    assert 0.02 < threshold, (
+        f"0.02 is NOT below threshold {threshold}; test data premise broken"
+    )
+    # And the spec-literal threshold 1/32 itself:
+    assert 0.02 < 1.0 / 32.0
+    # Sanity: 0.05 (the "above threshold" value) MUST be above threshold
+    assert 0.05 > threshold, (
+        f"0.05 is NOT above threshold {threshold}; test data premise broken"
+    )
+
+
+# ---------------------------------------------------------------------------
+# β saturation boundary cases (Finding #5: 50% / 30.4 严格边界未守护).
+# ---------------------------------------------------------------------------
+
+
+def test_beta_saturation_global_halve_at_exactly_50pct_returns_false() -> None:
+    """Exactly 50% of β_i > 28.8: NOT 'more than 50%' → returns False.
+
+    Per wayfinder L249: 'global LR ÷ 2 when **more than 50%** of experts
+    have `β_i > 28.8`'. `more than 50%` is strict (>50%), so the boundary
+    case `n/2` (e.g. 8/16 with N_e=16) MUST return False. Code L265 uses
+    `count > n/2` (strict). This test pins the boundary.
+    """
+    β = torch.zeros(16)
+    β[:8] = 30.0  # exactly 8/16 > 28.8 → 50% exactly
+    assert safeguards.beta_saturation_global_halve(β) is False, (
+        "exactly 50% is NOT 'more than 50%' per wayfinder L249"
+    )
+
+
+def test_beta_saturation_global_halve_just_over_50pct_returns_true() -> None:
+    """9/16 β_i > 28.8 (>50% strict): returns True.
+
+    Companion boundary test: just above the 50% threshold. Pins that the
+    `>` (strict) comparator is used, not `>=`.
+    """
+    β = torch.zeros(16)
+    β[:9] = 30.0  # 9/16 > 28.8 → 56.25% > 50%
+    assert safeguards.beta_saturation_global_halve(β) is True
+
+
+def test_beta_saturation_warning_at_exactly_30_4_returns_false() -> None:
+    """β_i == 30.4 (== threshold, strict `>`): returns False.
+
+    Per wayfinder L249: 'warning at `β_i > 30.4`' — strict greater-than.
+    Code L259 uses `(β_per_expert > BETA_SATURATION_WARN)` which is strict.
+    This test pins the strict-boundary semantics.
+    """
+    β = torch.full((16,), 20.0)
+    β[5] = 30.4  # exactly at threshold, NOT strictly above
+    assert safeguards.beta_saturation_warning(β) is False, (
+        "β_i == 30.4 (boundary) is NOT 'β_i > 30.4' per wayfinder L249"
+    )
+
+
+def test_beta_saturation_warning_just_above_30_4_returns_true() -> None:
+    """β_i = 30.5 (>30.4): returns True (companion to boundary test)."""
+    β = torch.full((16,), 20.0)
+    β[5] = 30.5
+    assert safeguards.beta_saturation_warning(β) is True
+
+
+# ---------------------------------------------------------------------------
+# `nan_ladder` LR-scale closed-form guard: `lr_scale = 0.1` ≡ `LR ÷ 10`
+# (per wayfinder L249 'LR ÷ 10' wording).
+# ---------------------------------------------------------------------------
+
+
+def test_nan_ladder_lr_scale_equivalence_to_lr_div_10() -> None:
+    """`nan_ladder(3)[1] == 0.1` is mathematically equivalent to `LR ÷ 10`.
+
+    Per wayfinder L249: '3 consecutive NaN trigger LR ÷ 10'. The code
+    expresses this as `lr_scale = 0.1` (multiplicative), which is
+    numerically equivalent to `LR × (1/10)`. The `0.1` FP literal is
+    FP-exactly equal to `1/10` (both are `0x3FB999999999999A` in IEEE-754
+    binary64). This test pins the mathematical equivalence per
+    CLAUDE.md §6 last bullet.
+    """
+    action, lr_scale, halt = safeguards.nan_ladder(3)
+    assert action == "halve_lr"
+    assert halt is False
+    # Closed-form: lr_scale × 10 MUST equal 1.0 (i.e. lr_scale IS 1/10).
+    assert lr_scale * 10.0 == pytest.approx(1.0, abs=1e-12), (
+        f"nan_ladder(3)[1] = {lr_scale}; lr_scale × 10 = {lr_scale * 10.0} ≠ 1.0"
+    )
+    # And the literal-evaluated form: 0.1 (FP-exact match with 1/10).
+    assert lr_scale == pytest.approx(0.1, abs=1e-12)
+    assert lr_scale == pytest.approx(1.0 / 10.0, abs=1e-12)
+
+
+def test_nan_ladder_zero_returns_skip_per_default() -> None:
+    """`nan_ladder(0)` (no NaN): returns ("skip", 1.0, False).
+
+    Per skeleton spec L206: 'for counts (1, 3, 10) respectively' —
+    `consecutive_nan ∉ {1, 3, 10}` is not explicitly specified in spec.
+    Code L72 fallback to `("skip", 1.0, False)` (defensive: do nothing on
+    no NaN). This test pins the default-behavior contract so a future
+    change to the ladder edge case breaks loudly.
+    """
+    assert safeguards.nan_ladder(0) == ("skip", 1.0, False)
+
+
+# ---------------------------------------------------------------------------
+# `should_resurrect` semantics note (Finding #1 — pending spec/code alignment
+# decision). The current implementation uses the per-step strict less-than
+# interpretation; the wayfinder wording `f_i^avg` is ambiguous. This test
+# pins the CURRENT (per-step) behavior so any future change to avg-style
+# semantics breaks loudly. Resolution requires a separate ticket.
+# ---------------------------------------------------------------------------
+
+
+def test_should_resurrect_current_per_step_semantic_pinned() -> None:
+    """Pin current `should_resurrect` per-step semantics (NOT avg-window).
+
+    Per wayfinder L249: 'triggered when `f_i^avg < 1/(2·N_e)` for 200
+    consecutive steps'. The `f_i^avg` notation is ambiguous between
+    (a) per-step `f_i` with `avg` as a notation convention, and
+    (b) literal average over a window. The current code (L97-L101)
+    implements (a): every snapshot in the last `consec` steps must have
+    `f_i < threshold`. This test demonstrates the difference with a
+    non-constant history where per-step vs avg would diverge.
+
+    Decision pending (separate ticket required): which interpretation is
+    canonical. This test PIN the CURRENT behavior — a future change to
+    avg-window semantics MUST update this test alongside the code.
+    """
+    N_e = 16
+    threshold = 1.0 / 32.0  # = 0.03125
+    # History: 199 snapshots at 0.02 (below), 1 snapshot at 0.04 (above).
+    # per-step reading: last snapshot 0.04 > threshold → NOT resurrected.
+    # avg reading: mean(0.02 × 199 + 0.04) / 200 = 0.02010 < 0.03125 → resurrected.
+    history = [[0.02] * N_e for _ in range(199)] + [[0.04] * N_e]
+    res = safeguards.should_resurrect(
+        history,
+        current_step=300,
+        last_resurrection_step=-2000,
+        N_e=N_e,
+    )
+    # Current code behavior (per-step strict less-than):
+    assert res == set(), (
+        f"per-step semantic: last snapshot 0.04 > threshold {threshold} "
+        f"→ expert NOT flagged; got {sorted(res)}. If this changes, the "
+        f"spec/code semantic decision has been made — update spec L206, "
+        f"wayfinder L249, and this test consistently."
+    )
+    # Avg-window reading would have flagged (sanity assertion, demonstrating
+    # the ambiguity): if we manually compute avg, the rule WOULD trigger.
+    avg = sum(sum(snap) for snap in history) / (len(history) * N_e)
+    assert avg < threshold, (
+        f"avg-window reading: mean(f_i) = {avg} < threshold {threshold}; "
+        f"avg interpretation WOULD trigger. See test docstring."
+    )
