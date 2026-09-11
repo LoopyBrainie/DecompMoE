@@ -522,7 +522,7 @@ The system MUST unify all centroid `c_i` lifecycle updates through a single `Cen
 
 Driver Channel guarantees: phases 1–3 execute Masked Spherical EMA at the prescribed `α` even when the Gradient Channel is Frozen (the previous "Phase 1 Frozen rule" matrix cell in A6b-1 is hereby superseded). Gradient Channel guarantees: phases 0–3 set `c_i.requires_grad = False` and exclude `c_i` from the AdamW parameter group; phase 4 sets `c_i.requires_grad = True` and registers `c_i` in AdamW.
 
-**Source:** change `fix-openspec-doc-bugs` design.md (Decision 2)
+**Source:** `wayfinder/tickets/A6b-1.md` (historical, phase freeze rule per phase; Driver/Gradient channel structure for this freeze added by `fix-openspec-doc-bugs` Decision 2), change `fix-openspec-doc-bugs` design.md (Decision 2)
 
 #### Scenario: Driver Channel Active during Gradient Channel Frozen
 - **WHEN** training is in Phase 1, 2, or 3 with the gradient channel Frozen for `c_i`
@@ -540,7 +540,7 @@ Driver Channel guarantees: phases 1–3 execute Masked Spherical EMA at the pres
 
 On entering Phase 4, the system MUST reset `γ` to `γ' = ln((β_{p3} − 1) / (32 − β_{p3}))` so that `β^eff` is continuous at the Phase 3 → 4 boundary. The worked example for `β_{p3} = 16.0` MUST evaluate to `γ' = ln(15/16) ≈ −0.064538...`. AdamW momentum for `γ` MUST be reset on the same boundary. The closed form is pinned: `gamma_reset_for_phase4(16.0) ≈ −0.0645` within `abs=1e-4`. (References Req 7 Invariant 3 / Req 24.)
 
-**Source:** change `fix-math-consistency-audit-2026-08` design.md (Decision 2)
+**Source:** `wayfinder/tickets/A4-1.md` (historical, γ parameterization origin: `β_min + (β_max−β_min)·σ(γ)`), `wayfinder/tickets/A6b-2.md` (historical, phase-boundary optimizer state policy); change `fix-math-consistency-audit-2026-08` design.md (Decision 2 — closed-form `γ' = ln((β_{p3}−1)/(32−β_{p3}))` added by this change)
 
 #### Scenario: gamma reset is a real root of the boundary continuity equation
 - **WHEN** the schedule enters Phase 4 with `β_{p3} = 16.0`
@@ -555,7 +555,7 @@ On entering Phase 4, the system MUST reset `γ` to `γ' = ln((β_{p3} − 1) / (
 
 The operational `β_max(t)` box for Phase 2 MUST be `(1.0, 4.0)`, NOT `(1.0, 32.0)`. The Phase 3 box MUST be `(4.0, 16.0)` (unchanged from prior revisions). The configuration-layer API `phase_beta_box(phase: int) -> tuple[float, float]` MUST return these values verbatim, and MUST NOT fall through to a default `(1.0, 32.0)` for Phase 2. The schedule-time-varying API `phase_beta_max(phase, step)` MUST return the time-varying upper bound `β_max(t)` that ramps `1.0 → 4.0` across Phase 2 and `4.0 → 16.0` across Phase 3 (linear in step between box endpoints), distinct from the static `phase_beta_box(phase).hi`. (References Req 14.)
 
-**Source:** change `fix-math-consistency-audit-2026-08` design.md (Decision 3)
+**Source:** `wayfinder/tickets/A6b-1.md` (historical, A6b-1 phase-ramp design intent (1.0→4.0 Phase 2, 4.0→16.0 Phase 3); `phase_beta_box` tuple-return API + exact-equal Scenario added by `fix-math-consistency-audit-2026-08` Decision 3), change `fix-math-consistency-audit-2026-08` design.md (Decision 3)
 
 #### Scenario: phase_beta_box returns the per-phase box, not the global [1, 32]
 - **WHEN** `phase_beta_box(2)` is called
@@ -574,9 +574,9 @@ The operational `β_max(t)` box for Phase 2 MUST be `(1.0, 4.0)`, NOT `(1.0, 32.
 
 ### Requirement: Resurrection Perturbation Per-Expert Contract
 
-The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **single cloned expert** (centroid and/or expert weights) — not the per-expert routing frequency vector `f_per_expert`. The perturbation API `resurrection_perturb_distribution(target_idx, *, eps_std=0.05)` MUST return a tensor whose leading dimension corresponds to a single expert slot (centroid shape `(d_c,)` for centroid perturbation, or expert-weight shape `(d_model · d_ffn,)` for weight perturbation), NOT the `(N_e,)` shape of `f_per_expert`. The accompanying `β_i ← 0.85 · β_{j*}` and `β_{j*} ← 0.85 · β_{j*}` mutation MUST execute as part of the same resurrection event. (References Req 13.)
+The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **single cloned expert** (centroid and/or expert weights) — not the per-expert routing frequency vector `f_per_expert`. The perturbation API `resurrection_perturb_distribution(f_per_expert, target_idx, eps_std=0.05, *, dim: int | None = None)` MUST accept `f_per_expert` as the leading positional argument (its `N_e` shape is required for downstream sanity checks), `target_idx` as a positional integer identifying the dead expert slot, `eps_std=0.05` as a positional-or-keyword Gaussian perturbation scale, and `dim` as a **keyword-only** parameter sourcing the per-expert dimensionality (centroid `d_c` or expert-weight `d_model · d_ffn`). `dim=None` MUST raise `TypeError` (explicit `dim` is required so the return-shape contract is enforced at the call site). The returned tensor MUST have leading dimension `dim` — corresponding to a single expert slot — NOT the `(N_e,)` shape of `f_per_expert`. The accompanying `β_i ← 0.85 · β_{j*}` and `β_{j*} ← 0.85 · β_{j*}` mutation MUST execute as part of the same resurrection event. (References Req 13.)
 
-**Source:** change `fix-math-consistency-audit-2026-08` design.md (Decision 4)
+**Source:** wayfinder/tickets/A6a-2.md (initial A6a-2 design intent); change `fix-math-consistency-audit-2026-08` design.md (Decision 4 — per-expert perturbation contract); signature mirrors `src/decompmoe/safeguards.py:105-133` at commit `263ac19 feat(safeguards): per-expert resurrection perturb shape + same-event beta decay`.
 
 #### Scenario: perturbation output shape matches a single expert slot
 - **WHEN** `resurrection_perturb_distribution(f_per_expert, target_idx=3, eps_std=0.05, dim=16)` is called (explicit `dim` required; `dim=None` raises `TypeError`)
@@ -591,7 +591,7 @@ The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **singl
 
 On entering Phase 4 with `β_{p3} = 16.0`, the operational effective β MUST equal `16.0` exactly at `t = 0` of Phase 4. This pins the closed form `β^eff(Phase 4, t=0) = 1 + 31 · σ(γ'(β_{p3}))` with `γ'(β_{p3}) = ln((β_{p3} − 1) / (32 − β_{p3}))`. The hard-clamp gradient-zero trap at the `[1.0, 32.0]` box boundary is intentionally avoided by the continuous reparameterization. **Limit-continuity note**: under the pinned `phase_end`-exclusive convention (see "Phase 2 β Box Equality"), Phase 3's `β_max` asymptotically approaches `16.0` from below as `step → 56_000⁻` (the last attainable value is `phase_beta_max(3, 55_999) = 15.9996`); the jump at the boundary is `4.0e-4`, which is small enough to be benign for gradient flow but large enough to require the limit-style wording. (References Req 7 Invariant 3 / Req 24.)
 
-**Source:** change `fix-math-consistency-audit-2026-08` design.md (Decision 2)
+**Source:** `wayfinder/tickets/A6b-2.md` (historical, phase-boundary optimizer state reset policy at P3 → P4; closed-form `γ'` derivation for β^eff continuity added by `fix-math-consistency-audit-2026-08` Decision 2), change `fix-math-consistency-audit-2026-08` design.md (Decision 2)
 
 #### Scenario: β^eff is continuous at Phase 3 → 4 boundary
 - **WHEN** the schedule transitions from Phase 3 to Phase 4 with `β_{p3} = 16.0`
@@ -606,7 +606,7 @@ On entering Phase 4 with `β_{p3} = 16.0`, the operational effective β MUST equ
 
 The bound `‖∂logit/∂C‖₂ ≤ β_max = 32` in Req 7 MUST be attained (not merely bounded above) at the worst-case configuration: `β = β_max = 32`, `‖C‖₂ = 1`, `‖c‖₂ = 1`, `c ⟂ C`. Under this configuration, `logit = β · (C^T c − 1) = 32 · (0 − 1) = −32` and `∂logit/∂C = β · c / ‖C‖ = 32 · c` so `‖∂logit/∂C‖₂ = 32.0` exactly. The bound `|∂logit/∂γ| ≤ 0.5 · (β_max − β_min) = 15.95` in Req 7 MUST be attained at `γ = 0, c = −C` (so `β = 16.05`, `inner = −1`, `(β_max − β_min) · σ'(γ) · (inner − 1) = 31.9 · 0.25 · (−2) = −15.95`). (References Req 7.)
 
-**Source:** change `fix-math-consistency-audit-2026-08` design.md (Decision 6)
+**Source:** `wayfinder/tickets/A4-1.md` (historical, MAX_GRAD_PER_C = β_max = 32 bound declared in A4-1; worst-case attainability verification at orthogonal unit vectors added by `fix-math-consistency-audit-2026-08` Decision 6), change `fix-math-consistency-audit-2026-08` design.md (Decision 6)
 
 #### Scenario: gradient bound is tight at orthogonal unit vectors
 - **WHEN** `logit = β_max · (C^T c − 1)` with `C = e_1`, `c = e_2`, `β = β_max`
@@ -625,7 +625,7 @@ The bound `‖∂logit/∂C‖₂ ≤ β_max = 32` in Req 7 MUST be attained (no
 
 The forward equation `x_out = x + Σ_{i ∈ I_k} p_i · Expert_i(x)` in Req 8 / Req 10 MUST hold bit-exactly under any `x`, any top-k selection `I_k`, any soft mixing `p_i`. The verification is **numerical**, not a source-grep test: given a stub `ExpertPool` whose `experts[i](x) = E_i` (fixed per expert), the gate's `x_out` MUST equal `x + Σ_{i ∈ I_k} p_i · E_i` within `1e-6`. (References Req 8.)
 
-**Source:** change `fix-math-consistency-audit-2026-08` design.md (Decision 7)
+**Source:** `wayfinder/tickets/A2-2.md` (historical, layer-wise head-aggregated routing topology that feeds the forward chain), `wayfinder/tickets/A4-2.md` (historical, top-k sparse mask + local softmax composition); change `fix-math-consistency-audit-2026-08` design.md (Decision 7 — closed-form numerical verification form `x_out = x + Σp_i·E_i` within `abs=1e-6` added by this change)
 
 #### Scenario: x_out is the closed-form residual add
 - **WHEN** the gate emits `x_out` for fixed `x`, `I_k`, `p_i`, and stub experts `E_i`
@@ -639,11 +639,11 @@ The forward equation `x_out = x + Σ_{i ∈ I_k} p_i · Expert_i(x)` in Req 8 / 
 
 ### Requirement: Resurrection Perturbation Per-Expert Contract — Single-Event Wrapper
 
-The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **single cloned expert** (centroid and/or expert weights) — not the per-expert routing frequency vector `f_per_expert`. The perturbation API `resurrection_perturb_distribution(target_idx, *, eps_std=0.05)` MUST return a tensor whose leading dimension corresponds to a single expert slot (centroid shape `(d_c,)` for centroid perturbation, or expert-weight shape `(d_model · d_ffn,)` for weight perturbation), NOT the `(N_e,)` shape of `f_per_expert`. The accompanying `β_i ← 0.85 · β_{j*}` and `β_{j*} ← 0.85 · β_{j*}` mutation MUST execute as part of the same resurrection event. (References Req 13.)
+The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **single cloned expert** (centroid and/or expert weights) — not the per-expert routing frequency vector `f_per_expert`. The perturbation API `resurrection_perturb_distribution(f_per_expert, target_idx, eps_std=0.05, *, dim: int | None = None)` MUST accept `f_per_expert` as the leading positional argument (its `N_e` shape is required for downstream sanity checks), `target_idx` as a positional integer identifying the dead expert slot, `eps_std=0.05` as a positional-or-keyword Gaussian perturbation scale, and `dim` as a **keyword-only** parameter sourcing the per-expert dimensionality (centroid `d_c` or expert-weight `d_model · d_ffn`). `dim=None` MUST raise `TypeError` (explicit `dim` is required so the return-shape contract is enforced at the call site). The returned tensor MUST have leading dimension `dim` — corresponding to a single expert slot — NOT the `(N_e,)` shape of `f_per_expert`. The accompanying `β_i ← 0.85 · β_{j*}` and `β_{j*} ← 0.85 · β_{j*}` mutation MUST execute as part of the same resurrection event. (References Req 13.)
 
 **The canonical single-event API is `resurrect_expert(i, j_star, β_per_expert, cfg) -> tuple[Tensor, Tensor]`** which returns `(c_perturbed, β_per_expert_new)` and guarantees that the centroid perturbation and the β double-write happen in the **same Python call stack** — no `yield` / `await` / background-task scheduling between the two operations. Callers MUST use `resurrect_expert` for the resurrection pathway; the two primitives `resurrection_perturb_distribution` and `apply_resurrection_beta_decay` remain available for low-level composition but their separate invocation does NOT satisfy the "same resurrection event" contract above. The wrapper signature takes `cfg: MVPConfig` so the per-expert dimensionality `cfg.d_c` is sourced from the canonical config rather than re-derived from `β_per_expert.shape` (which would conflate centroid dimension with the `N_e` routing dimension — the very bug the per-expert contract exists to prevent).
 
-**Source:** change `fix-math-consistency-audit-2026-08` design.md (Decision 4)
+**Source:** wayfinder/tickets/A6a-2.md (initial A6a-2 design intent); change `fix-math-consistency-audit-2026-08` design.md (Decision 4 — per-expert perturbation contract); signature mirrors `src/decompmoe/safeguards.py:105-133` at commit `263ac19 feat(safeguards): per-expert resurrection perturb shape + same-event beta decay`.
 
 #### Scenario: perturbation output shape matches a single expert slot
 
@@ -703,3 +703,30 @@ The system MUST guard every spec-anchored closed-form numerical claim such that 
 - **THEN** the assertion uses `pytest.approx(value, abs=1e-6)`. Other tests that verify bisection-derived Voronoi half-angles under the prior convention are EXPLICITLY OUT OF SCOPE for this Scenario until a future change audits them: `tests/test_sphere.py::test_voronoi_rad_precision_alignment` (asserting the conversion identity `67.24° × π/180 ≈ 1.1736 rad` at `abs=1e-4` — pre-existing test, conversion-identity perspective, not bisection-precision), `tests/test_sphere.py::test_versine_voronoi_closed_form` (asserting `versine_Voronoi` at `abs=1e-4` — pre-existing test, NOT in the audit envelope), and any other pre-existing tests that verify bisection-derived values with `abs=1e-4` or wider tolerance.
 
 
+### Requirement: Source Field Format Invariant for OpenSpec Specs
+
+Every `**Source:**` field in `openspec/specs/**/spec.md` MUST contain at least one literal `wayfinder/tickets/<ID>.md` reference as the **primary reverse-link**. A `change <name> design.md (Decision N)` reference MAY appear additionally as a **secondary** link, but its presence does NOT substitute for the primary ticket reference.
+
+When the ticket's value at the time of writing differs from the current spec value (e.g. a threshold changed by a later change), the primary ticket reference MUST use the `(historical, <original-value>; superseded by <change> Decision N)` annotation format — preserving the ticket's original value, marking it as historical, and naming the superseding change explicitly. Naked ticket references that omit the annotation but imply current-value parity with the spec are NOT permitted for tickets whose recorded value has been superseded.
+
+This invariant MUST be enforced at archive time by `scripts/lint_no_source_field_drift.py`, which greps `openspec/specs/**/spec.md` for `**Source:**` lines and rejects any line missing the `wayfinder/tickets/` substring. The rule is content-based (not line-number based) so it survives spec edits without producing chronic exemption-table rot. The rule is zero-exemption: NO lines are permitted to bypass it, including governance-level requirements whose design origin is a `CLAUDE.md` amendment rather than a ticket.
+
+#### Scenario: every Source field contains a wayfinder ticket reference
+
+- **WHEN** `scripts/lint_no_source_field_drift.py` is run against `openspec/specs/**/spec.md`
+- **THEN** the script enumerates every line beginning with `**Source:**` and verifies the line contains the substring `wayfinder/tickets/`
+- **AND** the script exits with code `0` if and only if every such line satisfies the substring check
+- **AND** the script outputs a per-line violation report (file path, line number, the violating line content) when any violation exists, with no aggregate-only summary that hides which line failed
+
+#### Scenario: superseded values use the historical annotation format
+
+- **WHEN** a spec Requirement's value differs from the corresponding `wayfinder/tickets/<ID>.md` original value
+- **THEN** the Source field MUST be written as `**Source:** \`wayfinder/tickets/<ID>.md\` (historical, <original-value>; superseded by <change-name> Decision <N>), change \`<change-name>\` design.md (Decision <N>)`
+- **AND** the `(historical, ...)` annotation MUST include the original value (e.g. a threshold, a constant, a formula term) so a reader can reconstruct the design history without leaving the spec
+
+#### Scenario: governance-origin requirements trigger lint failure
+
+- **WHEN** a spec Requirement's design origin is a `CLAUDE.md` amendment (or a commit amending `CLAUDE.md`) rather than any `wayfinder/tickets/*.md` ticket
+- **THEN** the Source field is **required** to still contain a `wayfinder/tickets/<ID>.md` reference with an honest `(historical, ...)` annotation; the lint rule does NOT recognize a "governance-origin" carve-out
+- **AND** any such requirement whose honest annotation cannot be written (because no A* ticket is its legitimate design predecessor) MUST be migrated to a separate governance capability (e.g. `openspec/specs/governance/spec.md`) before archive, so the wayfinder main spec never carries Source fields the lint rule cannot validate
+- **AND** until such migration occurs, the lint failure on that specific line is the **intended design signal** that the change owning that line is incomplete — it MUST NOT be silently suppressed by an exemption table
