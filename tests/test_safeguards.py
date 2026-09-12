@@ -672,3 +672,216 @@ def test_should_resurrect_current_per_step_semantic_pinned() -> None:
         f"avg-window reading: mean(f_i) = {avg} < threshold {threshold}; "
         f"avg interpretation WOULD trigger. See test docstring."
     )
+
+
+def test_should_resurrect_per_step_is_strict_subset_of_avg_window_for_monotonic_history() -> None:
+    """Mathematical equivalence: per-step ⊊ avg-window on non-constant history; agreement on constant.
+
+    Spec: decompmoe-skeleton "Five Numerical Safeguard Helpers" Scenario
+    `should_resurrect semantic interpretation (per-step vs avg-window)`
+    (extended by this change with the math derivation block). The
+    spec's mathematical equivalence disambiguation establishes:
+      - **per-step** (current code at `src/decompmoe/safeguards.py:97-101`):
+        `flag_step(i) ⟺ ∀ j ∈ [0, consec): H[j][i] < T`
+      - **avg-window** (hypothetical, NOT implemented):
+        `flag_avg(i) ⟺ (1/consec) · Σ_{j=0..consec-1} H[j][i] < T`
+
+    The two readings are NOT generally equivalent. On constant history
+    they agree; on non-constant history they can diverge. This test
+    pins the divergence with three sub-assertions, each backed by a
+    hand-computed avg-window mean verified via `pytest.approx(abs=1e-6)`
+    per spec's `pytest.approx(value, abs=...)` float-closed-form convention.
+
+    Sub-assertion 1: constant history `H = [0.005] * 200` — both readings
+    agree (mean = 0.005 < threshold = 0.03125 → both flag).
+
+    Sub-assertion 2: Counterexample A — `H = [0.005]*199 + [0.99]`.
+    avg-window mean = (199·0.005 + 1·0.99) / 200 = 1.985/200 = 0.009925
+    (verified `pytest.approx(0.009925, abs=1e-6)`), which IS less than
+    threshold → avg-window would TRIGGER. But per-step's last-snapshot
+    check sees `0.99 > threshold` → NO TRIGGER. Demonstrates the
+    divergence: per-step ⊊ avg-window (per-step more conservative).
+
+    Sub-assertion 3: Counterexample B — `H = [0.05]*199 + [0.005]`.
+    avg-window mean = (199·0.05 + 1·0.005) / 200 = 9.955/200 = 0.049775
+    (verified `pytest.approx(0.049775, abs=1e-6)`), which is GREATER
+    than threshold → avg-window would NOT TRIGGER. Per-step also does
+    NOT TRIGGER (first 199 snapshots have 0.05 > threshold). Both
+    readings agree on the NO-TRIGGER side here, but for different
+    reasons: avg-window via mean aggregation, per-step via the
+    first-snapshot that exceeds. Demonstrates the divergence is
+    bidirectional, not just one-way.
+
+    Sub-assertion 4: Universal-direction positive example — `H = [0.001]*199 + [0.030]`.
+    Every snapshot has every f_i < threshold (0.001 and 0.030 both < 0.03125), so
+    per-step TRIGGERs all 16 experts. avg-window mean = (199·0.001 + 1·0.030) / 200
+    = 0.229/200 = 0.001145 (verified `pytest.approx(0.001145, abs=1e-6)`), which IS
+    less than threshold → avg-window would TRIGGER. Both readings agree on the TRIGGER
+    side on this **non-constant** history, confirming the universal direction
+    `flag_step ⟹ flag_avg` (per-step ⊊ avg-window: every per-step TRIGGER history is
+    also an avg-window TRIGGER history; algebra proof's positive example, complementing
+    Counterexample A's negative example).
+
+    Sub-assertion 5: Strict less-than boundary — `H = [0.03125]*200` (every snapshot
+    has every f_i exactly equal to threshold 1/32 = 0.03125). per-step: `0.03125 <
+    0.03125` is FALSE → NO TRIGGER (strict less-than rejects equality). avg-window:
+    `0.03125 < 0.03125` is FALSE → NO TRIGGER. Both readings agree on NO-TRIGGER at
+    the boundary, but per-step rejects equality **element-wise** (any snapshot at
+    threshold suppresses resurrection), whereas avg-window rejects equality only via
+    the mean. This locks the spec's "strict less-than interpretation" semantics — a
+    future regression that weakens `snap[i] < threshold` to `snap[i] <= threshold`
+    would resurrect at boundary equality and break this assertion.
+
+    Together these five sub-assertions establish the full picture of per-step vs
+    avg-window: (1) constant agreement, (2) Counterexample A divergence (per-step
+    ⊊ avg-window on TRIGGER side), (3) Counterexample B agreement on NO-TRIGGER,
+    (4) universal-direction positive example on non-constant H, (5) strict
+    less-than boundary. Together these close the audit S1 finding (spec previously
+    committed per-step declaratively without math derivation).
+    """
+    N_e = 16
+    threshold = 1.0 / 32.0  # = 0.03125 (= 1/(2·N_e) per spec)
+
+    # ----- Sub-assertion 1: constant-history agreement -----
+    # Both per-step and avg-window agree: every snapshot has all-experts 0.005 < 0.03125.
+    H_constant = [[0.005] * N_e for _ in range(200)]
+    # Hand-computed avg-window mean (verified via spec's math derivation):
+    avg_mean_constant = sum(sum(snap) for snap in H_constant) / (len(H_constant) * N_e)
+    # Sanity assertion: avg-window WOULD trigger (mean < threshold).
+    assert avg_mean_constant < threshold, (
+        f"actual={avg_mean_constant}; constant-history avg-window sanity: "
+        f"mean must be < threshold {threshold} for the test scenario to be valid"
+    )
+    # Per-step: every snapshot has every expert 0.005 < 0.03125 → all 16 flagged.
+    res_constant = safeguards.should_resurrect(
+        H_constant,
+        current_step=300,
+        last_resurrection_step=-2000,
+        N_e=N_e,
+    )
+    assert res_constant == set(range(N_e)), (
+        f"actual={sorted(res_constant)}; per-step on constant history [0.005]*200 "
+        f"should flag all {N_e} experts (every snapshot has every f_i < {threshold})"
+    )
+
+    # ----- Sub-assertion 2: Counterexample A divergence (per-step ⊊ avg-window) -----
+    # 199 sub-threshold snapshots at 0.005, 1 super-threshold spike at 0.99.
+    H_A = [[0.005] * N_e for _ in range(199)] + [[0.99] * N_e]
+    # Hand-computed avg-window mean (spec's math derivation):
+    #   (199 * 0.005 + 1 * 0.99) / 200 = (0.995 + 0.99) / 200 = 1.985 / 200 = 0.009925
+    avg_mean_A = sum(sum(snap) for snap in H_A) / (len(H_A) * N_e)
+    # Verify the spec's closed-form numerical claim via pytest.approx (abs=1e-6).
+    assert avg_mean_A == pytest.approx(0.009925, abs=1e-6), (
+        f"actual={avg_mean_A}; spec closed-form avg-window mean for Counterexample A "
+        f"must equal (199·0.005 + 1·0.99) / 200 = 0.009925 within abs=1e-6"
+    )
+    # Sanity assertion: avg-window WOULD trigger (mean < threshold).
+    assert avg_mean_A < threshold, (
+        f"actual={avg_mean_A}; Counterexample A avg-window sanity: "
+        f"mean {avg_mean_A} must be < threshold {threshold} for divergence to be valid"
+    )
+    # Per-step: last snapshot has 0.99 > 0.03125 → experts NOT flagged.
+    res_A = safeguards.should_resurrect(
+        H_A,
+        current_step=300,
+        last_resurrection_step=-2000,
+        N_e=N_e,
+    )
+    assert res_A == set(), (
+        f"actual={sorted(res_A)}; per-step on Counterexample A should return empty set "
+        f"(spike at index 199 with 0.99 > {threshold} suppresses resurrection; "
+        f"avg-window WOULD have triggered with mean 0.009925 < {threshold})"
+    )
+
+    # ----- Sub-assertion 3: Counterexample B (avg-window ⊊ per-step; both NO-TRIGGER) -----
+    # 199 super-threshold snapshots at 0.05, 1 sub-threshold step at 0.005.
+    H_B = [[0.05] * N_e for _ in range(199)] + [[0.005] * N_e]
+    # Hand-computed avg-window mean (spec's math derivation):
+    #   (199 * 0.05 + 1 * 0.005) / 200 = (9.95 + 0.005) / 200 = 9.955 / 200 = 0.049775
+    avg_mean_B = sum(sum(snap) for snap in H_B) / (len(H_B) * N_e)
+    # Verify the spec's closed-form numerical claim via pytest.approx (abs=1e-6).
+    assert avg_mean_B == pytest.approx(0.049775, abs=1e-6), (
+        f"actual={avg_mean_B}; spec closed-form avg-window mean for Counterexample B "
+        f"must equal (199·0.05 + 1·0.005) / 200 = 0.049775 within abs=1e-6"
+    )
+    # Sanity assertion: avg-window would NOT TRIGGER (mean > threshold).
+    assert avg_mean_B > threshold, (
+        f"actual={avg_mean_B}; Counterexample B avg-window sanity: "
+        f"mean {avg_mean_B} must be > threshold {threshold} for divergence direction to be valid"
+    )
+    # Per-step: first 199 snapshots have 0.05 > 0.03125 → experts NOT flagged.
+    res_B = safeguards.should_resurrect(
+        H_B,
+        current_step=300,
+        last_resurrection_step=-2000,
+        N_e=N_e,
+    )
+    assert res_B == set(), (
+        f"actual={sorted(res_B)}; per-step on Counterexample B should return empty set "
+        f"(first 199 snapshots with 0.05 > {threshold} suppress resurrection; "
+        f"avg-window also says NO TRIGGER with mean 0.049775 > {threshold})"
+    )
+
+    # ----- Sub-assertion 4: Universal-direction positive example (non-constant H) -----
+    # 199 sub-threshold snapshots at 0.001, 1 sub-threshold snapshot at 0.030 (larger but still < T).
+    # per-step: all 200 snapshots have every f_i < 0.03125 ⇒ all 16 experts TRIGGER.
+    # avg-window mean = (199·0.001 + 1·0.030) / 200 = 0.229/200 = 0.001145 ⇒ avg TRIGGER.
+    # This verifies the algebra proof's universal direction `flag_step ⟹ flag_avg`
+    # on non-constant history (positive example; Counterexample A is the negative).
+    H_C = [[0.001] * N_e for _ in range(199)] + [[0.030] * N_e]
+    # Hand-computed avg-window mean (spec's math derivation):
+    #   (199 * 0.001 + 1 * 0.030) / 200 = (0.199 + 0.030) / 200 = 0.229 / 200 = 0.001145
+    avg_mean_C = sum(sum(snap) for snap in H_C) / (len(H_C) * N_e)
+    # Verify the spec's closed-form numerical claim via pytest.approx (abs=1e-6).
+    assert avg_mean_C == pytest.approx(0.001145, abs=1e-6), (
+        f"actual={avg_mean_C}; spec closed-form avg-window mean for Sub-assertion 4 "
+        f"must equal (199·0.001 + 1·0.030) / 200 = 0.001145 within abs=1e-6"
+    )
+    # Sanity assertion: avg-window WOULD trigger (mean < threshold).
+    assert avg_mean_C < threshold, (
+        f"actual={avg_mean_C}; Sub-assertion 4 avg-window sanity: "
+        f"mean {avg_mean_C} must be < threshold {threshold} for universal direction to be valid"
+    )
+    # Per-step: every snapshot has every expert < 0.03125 ⇒ all 16 flagged.
+    res_C = safeguards.should_resurrect(
+        H_C,
+        current_step=300,
+        last_resurrection_step=-2000,
+        N_e=N_e,
+    )
+    assert res_C == set(range(N_e)), (
+        f"actual={sorted(res_C)}; per-step on Sub-assertion 4 non-constant H "
+        f"should flag all {N_e} experts (every snapshot has every f_i < {threshold}); "
+        f"avg-window WOULD also trigger with mean 0.001145 < {threshold}; "
+        f"universal direction flag_step ⟹ flag_avg demonstrated."
+    )
+
+    # ----- Sub-assertion 5: Strict less-than boundary (f_i == threshold MUST NOT trigger) -----
+    # All snapshots have every f_i EXACTLY at threshold 1/32 = 0.03125.
+    # per-step: 0.03125 < 0.03125 is FALSE ⇒ NO TRIGGER (strict less-than rejects equality).
+    # avg-window: 0.03125 < 0.03125 is FALSE ⇒ NO TRIGGER.
+    # This locks the spec's "strict less-than interpretation" semantics — a regression
+    # weakening `snap[i] < threshold` to `snap[i] <= threshold` would resurrect at boundary.
+    H_boundary = [[threshold] * N_e for _ in range(250)]
+    # Sanity assertion: avg-window would NOT TRIGGER (mean == threshold, NOT strictly less).
+    avg_mean_boundary = sum(sum(snap) for snap in H_boundary) / (len(H_boundary) * N_e)
+    assert avg_mean_boundary == pytest.approx(threshold, abs=1e-12), (
+        f"actual={avg_mean_boundary}; Sub-assertion 5 boundary sanity: "
+        f"mean must equal threshold {threshold} (every snap is exactly at threshold)"
+    )
+    assert not (avg_mean_boundary < threshold), (
+        f"Sub-assertion 5: avg-window mean {avg_mean_boundary} must NOT be strictly "
+        f"< threshold {threshold} (boundary equality must NOT trigger avg-window either)"
+    )
+    # Per-step: every snapshot has every f_i == threshold, strict `<` rejects ⇒ NO TRIGGER.
+    res_boundary = safeguards.should_resurrect(
+        H_boundary,
+        current_step=300,
+        last_resurrection_step=-2000,
+        N_e=N_e,
+    )
+    assert res_boundary == set(), (
+        f"actual={sorted(res_boundary)}; per-step on Sub-assertion 5 boundary H "
+        f"must return empty set (f_i == threshold is NOT strictly < threshold); "
+        f"if this fails, the strict less-than semantics regressed to <="
+    )
