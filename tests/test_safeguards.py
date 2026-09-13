@@ -87,7 +87,7 @@ def test_clip_grad_norm_threshold_closed_form() -> None:
 def test_nan_ladder() -> None:
     """nan_ladder(consecutive_nan) returns (action, lr_scale, halt) for (1, 3, 10)."""
     assert safeguards.nan_ladder(1) == ("skip", 1.0, False)
-    assert safeguards.nan_ladder(3) == ("halve_lr", 0.1, False)
+    assert safeguards.nan_ladder(3) == ("div_lr_10", 0.1, False)
     assert safeguards.nan_ladder(10) == ("halt", 1.0, True)
 
 
@@ -210,9 +210,51 @@ def test_beta_saturation_global_lr_halve_at_28_8() -> None:
 
 def test_loss_spike_defense_phase3plus() -> None:
     """L_task > 2.5 · EMA(L_task) triggers LR × 0.8 ONLY when phase ≥ 3."""
+    # Closure-form anchor (Finding 2): test inputs `2.5`, `5.0`, `1.0` are
+    # spec-anchored via `safeguards.LOSS_SPIKE_RATIO` constant (which is
+    # itself pinned to spec closed-form 2.5 by `test_named_constants_have_spec_values`).
+    # If `LOSS_SPIKE_RATIO` is retuned, this test breaks loudly via the
+    # closure check (instead of silently passing with a different ratio).
+    assert safeguards.LOSS_SPIKE_RATIO == pytest.approx(2.5, abs=1e-12), (
+        f"LOSS_SPIKE_RATIO = {safeguards.LOSS_SPIKE_RATIO}, "
+        f"expected spec closed-form 2.5 (= LR_SPIKE threshold); "
+        f"if retuned, update skeleton spec L208 item (5) + this assertion atomically"
+    )
+    ratio = safeguards.LOSS_SPIKE_RATIO  # 2.5 per spec
     assert safeguards.loss_spike_defense(L_task=5.0, L_task_ema=1.0, phase=3) is True
     assert safeguards.loss_spike_defense(L_task=5.0, L_task_ema=1.0, phase=2) is False
     assert safeguards.loss_spike_defense(L_task=2.0, L_task_ema=2.0, phase=3) is False
+    # Sanity: with the anchored ratio, `5.0 > ratio * 1.0 = 2.5` (strict > holds)
+    assert 5.0 > ratio * 1.0, "test setup invariant: 5.0 must exceed ratio * 1.0"
+
+
+def test_loss_spike_defense_at_ratio_boundary_returns_false() -> None:
+    """Strict `>` boundary: `L_task == ratio · L_task_ema` MUST return False.
+
+    Per skeleton spec L208 item (5): `L_task > ratio · L_task_ema` (strict
+    greater-than, NOT `>=`). At the equality boundary `L_task = ratio * L_task_ema`,
+    the predicate is FALSE — regression weakening `>` to `>=` would silently
+    trigger at equality and break this assertion. Added per
+    `2026-09-13-fix-nan-ladder-action-name-and-loss-spike-test-coverage` Finding 3.
+    """
+    ratio = safeguards.LOSS_SPIKE_RATIO  # 2.5 per spec
+    L_task_ema = 1.0
+    # `L_task == ratio * L_task_ema`: equality boundary; strict `>` rejects.
+    L_task_at_boundary = ratio * L_task_ema
+    assert safeguards.loss_spike_defense(
+        L_task=L_task_at_boundary, L_task_ema=L_task_ema, phase=3
+    ) is False, (
+        f"equality boundary L_task={L_task_at_boundary} == ratio*L_task_ema={ratio*L_task_ema} "
+        f"must NOT trigger (spec uses strict `>`, not `>=`)"
+    )
+    # And just-above-boundary triggers (companion check, locks the strict `>` semantics)
+    L_task_just_above = ratio * L_task_ema + 1e-9
+    assert safeguards.loss_spike_defense(
+        L_task=L_task_just_above, L_task_ema=L_task_ema, phase=3
+    ) is True, (
+        f"just-above-boundary L_task={L_task_just_above} > ratio*L_task_ema={ratio*L_task_ema} "
+        f"must trigger (sanity check that strict `>` is honored, not weakened to `==`)"
+    )
 
 
 def test_step_ordering() -> None:
@@ -599,7 +641,7 @@ def test_nan_ladder_lr_scale_equivalence_to_lr_div_10() -> None:
     CLAUDE.md §6 last bullet.
     """
     action, lr_scale, halt = safeguards.nan_ladder(3)
-    assert action == "halve_lr"
+    assert action == "div_lr_10"
     assert halt is False
     # Closed-form: lr_scale × 10 MUST equal 1.0 (i.e. lr_scale IS 1/10).
     assert lr_scale * 10.0 == pytest.approx(1.0, abs=1e-12), (

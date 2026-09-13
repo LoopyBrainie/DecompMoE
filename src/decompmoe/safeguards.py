@@ -5,7 +5,7 @@ Standard training step:
 
 Five safeguards (A6a-2):
     1. Global gradient clipping at threshold 1.0.
-    2. NaN detection & escalation ladder (1 → skip, 3 → halve_lr, 10 → halt).
+    2. NaN detection & escalation ladder (1 → skip, 3 → div_lr_10, 10 → halt).
     3. Dead-expert splitting/resurrection (rate-limited to 1 per 1000 steps).
     4. β saturation guard (warning at 30.4 = 0.95·β_max; LR halve at 28.8 = 0.90·β_max).
     5. Loss spike defense (LR × 0.8 when phase ≥ 3 and L_task > 2.5·EMA(L_task)).
@@ -48,7 +48,7 @@ STEP_ORDER: Final[tuple[str, ...]] = (
 )
 
 
-NaNAction = Literal["skip", "halve_lr", "halt"]
+NaNAction = Literal["skip", "div_lr_10", "halt"]
 
 
 def clip_global_grad_norm_(params, max_norm: float = 1.0) -> float:
@@ -62,7 +62,7 @@ def nan_ladder(consecutive_nan: int) -> tuple[NaNAction, float, bool]:
     if consecutive_nan >= 10:
         return ("halt", 1.0, True)
     if consecutive_nan >= 3:
-        return ("halve_lr", 0.1, False)
+        return ("div_lr_10", 0.1, False)
     if consecutive_nan >= 1:
         return ("skip", 1.0, False)
     return ("skip", 1.0, False)
