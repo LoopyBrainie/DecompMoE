@@ -835,7 +835,7 @@ def test_should_resurrect_per_step_is_strict_subset_of_avg_window_for_monotonic_
         f"avg-window WOULD have triggered with mean 0.009925 < {threshold})"
     )
 
-    # ----- Sub-assertion 3: Counterexample B (avg-window ⊊ per-step; both NO-TRIGGER) -----
+    # ----- Sub-assertion 3: Counterexample B (both per-step and avg-window: NO-TRIGGER; empty sets) -----
     # 199 super-threshold snapshots at 0.05, 1 sub-threshold step at 0.005.
     H_B = [[0.05] * N_e for _ in range(199)] + [[0.005] * N_e]
     # Hand-computed avg-window mean (spec's math derivation):
