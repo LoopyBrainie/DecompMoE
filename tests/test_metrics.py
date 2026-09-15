@@ -194,6 +194,22 @@ def test_sp_60_degree_offset() -> None:
     assert sp.item() == pytest.approx(0.5, abs=1e-6)
 
 
+def test_sp_antipodal_aligned_inputs() -> None:
+    """C_t == -c_{a(t)} for all t → SP == -1.0 within abs=1e-6.
+
+    Spec: wayfinder ADDED "SP closed-form on antipodal-aligned inputs".
+    Lower-bound closed-form witness symmetric to `test_sp_orthonormal_aligned_inputs`
+    (upper bound = +1.0) and `test_sp_60_degree_offset` (middle = +0.5).
+    Each per-expert purity SP_i = c_iᵀ(-c_i) = -1 by definition (‖-c_i‖₂ = 1).
+    """
+    N_e, d_c, T = 4, 8, 40
+    centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
+    assign = torch.randint(0, N_e, (T,))
+    C = -centroids[assign]  # antipode of assigned centroid for every token
+    sp = metrics.SP(centroids, assign, C)
+    assert sp.item() == pytest.approx(-1.0, abs=1e-6)
+
+
 def test_sp_skips_empty_experts() -> None:
     """SP averages over non-empty experts only (‖T_i‖₁ > 0), not zeros."""
     N_e, d_c, T = 4, 8, 20
