@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 
 from decompmoe import safeguards
+from decompmoe import beta as beta_mod
 
 
 def test_clip_grad_norm_threshold() -> None:
@@ -564,6 +565,57 @@ def test_named_constants_have_spec_values() -> None:
     # in FP32 / FP64).
     assert safeguards.BETA_SATURATION_WARN == pytest.approx(30.4, abs=1e-12)
     assert safeguards.BETA_SATURATION_HALVE == pytest.approx(28.8, abs=1e-12)
+
+
+def test_max_grad_constants_principle_form() -> None:
+    """Guard the 4 MAX_GRAD_* constants against silent factor-collapse retunes
+    (code-review finding F2.7 on `2026-09-05-follow-up-review-fixes`).
+
+    Each constant is asserted against its closed-form derivation chain (not
+    against a literal FP value), so that a future retune of any individual
+    factor (sigmoid derivative extreme, antipodal inner-product extreme,
+    parameterization span, Phase-4 span) forces the test to keep all
+    factors in lock-step per `CLAUDE.md §6 第 8 条` (formula must reflect
+    mathematical principle).
+
+    Principle-form chains (per `src/decompmoe/beta.py` after
+    `2026-09-16-fix-followup-review-findings` refactor):
+
+    - `MAX_GRAD_PER_GAMMA = σ'(0) · 2 · (β_max − β_min)
+                          = 0.25 · 2 · 31.9 = 15.95`
+    - `MAX_GRAD_PER_GAMMA_PHASE4 = σ'(0) · 2 · 31.0
+                                 = 0.25 · 2 · 31.0 = 15.5`
+    - `_MAX_GRAD_BETA_PHASE4_INTERNAL = 31.0 · σ'(0)
+                                     = 31.0 · 0.25 = 7.75`
+    - `MAX_GRAD_PER_C = 32.0` (integer closed-form: bare `==` per
+      `governance/spec.md req-gov-1`).
+    """
+    # Float closed-form: pytest.approx with abs=1e-12 (钉值零容差)
+    assert beta_mod.MAX_GRAD_PER_GAMMA == pytest.approx(
+        0.25 * 2 * 31.9, abs=1e-12
+    ), (
+        f"MAX_GRAD_PER_GAMMA = {beta_mod.MAX_GRAD_PER_GAMMA}, "
+        f"expected σ'(0)·2·(β_max−β_min) = 0.25·2·31.9 = {0.25 * 2 * 31.9}"
+    )
+    assert beta_mod.MAX_GRAD_PER_GAMMA_PHASE4 == pytest.approx(
+        0.25 * 2 * 31.0, abs=1e-12
+    ), (
+        f"MAX_GRAD_PER_GAMMA_PHASE4 = {beta_mod.MAX_GRAD_PER_GAMMA_PHASE4}, "
+        f"expected σ'(0)·2·31 = 0.25·2·31 = {0.25 * 2 * 31.0}"
+    )
+    assert beta_mod._MAX_GRAD_BETA_PHASE4_INTERNAL == pytest.approx(
+        31.0 * 0.25, abs=1e-12
+    ), (
+        f"_MAX_GRAD_BETA_PHASE4_INTERNAL = {beta_mod._MAX_GRAD_BETA_PHASE4_INTERNAL}, "
+        f"expected 31·σ'(0) = 31·0.25 = {31.0 * 0.25}"
+    )
+    # Integer closed-form: bare `==` per `governance/spec.md req-gov-1`
+    # ("integer claims MUST use bare `==` ... NOT pytest.approx in any form"
+    # — the effective-tolerance formula `max(abs, rel·|expected|)` scales with
+    # magnitude and defeats 钉值零容差).
+    assert beta_mod.MAX_GRAD_PER_C == 32.0, (
+        f"MAX_GRAD_PER_C = {beta_mod.MAX_GRAD_PER_C}, expected 32.0"
+    )
 
 
 # ---------------------------------------------------------------------------

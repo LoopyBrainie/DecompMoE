@@ -96,8 +96,8 @@ def test_grad_gamma_bound() -> None:
 
     Spec: wayfinder ADDED "Closed-Form Gradient Bound Worst Case":
     |dσ/dγ| ≤ 0.25 at γ=0; |Cᵀc − 1| maximal (= 2) when c = −C.
-    0.5·31.9·0.25·... closed form: 0.5·(β_max−β_min)·0.5·2 = 15.95 only via
-    |∂β/∂γ|·|Cᵀc−1| ≤ 0.5·31.9·0.5·2 — the spec-pinned value is 15.95.
+    |∂β/∂γ|·|Cᵀc−1| ≤ σ'(0) · 2 · (β_max − β_min)
+                        = 0.25 · 2 · 31.9 = 15.95 — the spec-pinned value is 15.95.
     """
     torch.manual_seed(0)
     d_c = 16
@@ -109,9 +109,21 @@ def test_grad_gamma_bound() -> None:
     inner = (C_unit * c_unit).sum()
     logit = beta.inverse_temperature(gamma) * (inner - 1.0)
     grad = torch.autograd.grad(logit, gamma)[0]
-    expected = beta.MAX_GRAD_PER_GAMMA
-    assert abs(grad.item()) == pytest.approx(expected, abs=1e-3), (
-        f"worst-case |∂logit/∂γ| = {abs(grad.item())}, expected {expected}"
+    # Reference the principle-form derivation chain (not `beta.MAX_GRAD_PER_GAMMA`
+    # which is itself derived as `SIGMA_PRIME_AT_ZERO * ANTIPODAL_INNER_EXTREME *
+    # (BETA_MAX - BETA_MIN)`). This forces the test to track all three factors.
+    # `abs=1e-6` per `CLAUDE.md §6 第 8 条` (bisection Voronoi 一律 `abs=1e-6`):
+    # the autograd computation accumulates ~1.9e-7 FP error vs the principle-chain
+    # analytic value, which is below 1e-6 but above the 1e-12 "钉值零容差" floor
+    # (the latter applies only to FP-exact constant-vs-literal comparisons, not
+    # autograd-vs-analytic comparisons).
+    assert abs(grad.item()) == pytest.approx(
+        beta.SIGMA_PRIME_AT_ZERO * beta.ANTIPODAL_INNER_EXTREME * (beta.BETA_MAX - beta.BETA_MIN),
+        abs=1e-6,
+    ), (
+        f"worst-case |∂logit/∂γ| = {abs(grad.item())}, expected "
+        f"σ'(0)·2·(β_max−β_min) = "
+        f"{beta.SIGMA_PRIME_AT_ZERO * beta.ANTIPODAL_INNER_EXTREME * (beta.BETA_MAX - beta.BETA_MIN)}"
     )
 
 
@@ -159,11 +171,19 @@ def test_max_grad_per_gamma_phase4() -> None:
     c_unit = -C_unit.clone()  # c = −C (antipodal worst case: Cᵀc − 1 = −2)
     logit = beta.phase4_inverse_temperature(gamma_p) * ((C_unit * c_unit).sum() - 1.0)
     grad = torch.autograd.grad(logit, gamma_p)[0]
+    # Reference the principle-form derivation chain (not `beta.MAX_GRAD_PER_GAMMA_PHASE4`
+    # which is itself derived as `ANTIPODAL_INNER_EXTREME * _MAX_GRAD_BETA_PHASE4_INTERNAL`
+    # = `ANTIPODAL_INNER_EXTREME * 31.0 * SIGMA_PRIME_AT_ZERO`). This forces the test
+    # to track all three factors (antipodal extreme, Phase-4 span, sigmoid-derivative
+    # extreme). `abs=1e-6` per `CLAUDE.md §6 第 8 条` (autograd-vs-analytic comparison
+    # tolerates FP error accumulation, distinct from 钉值零容差 floor of 1e-12 which
+    # applies only to FP-exact constant-vs-literal).
     assert abs(grad.item()) == pytest.approx(
-        beta.MAX_GRAD_PER_GAMMA_PHASE4, abs=1e-3
+        beta.ANTIPODAL_INNER_EXTREME * 31.0 * beta.SIGMA_PRIME_AT_ZERO, abs=1e-6
     ), (
         f"Phase-4 worst case |∂logit/∂γ'| = {abs(grad.item())}, "
-        f"expected {beta.MAX_GRAD_PER_GAMMA_PHASE4}"
+        f"expected 2·31·σ'(0) = "
+        f"{beta.ANTIPODAL_INNER_EXTREME * 31.0 * beta.SIGMA_PRIME_AT_ZERO}"
     )
 
 

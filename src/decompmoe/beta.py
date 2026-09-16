@@ -31,9 +31,18 @@ BETA_MIN: Final[float] = 0.1
 BETA_MAX: Final[float] = 32.0
 # ‖∂logit/∂C‖₂ ≤ β_max = 32 (per Req 7 / A4-1)
 MAX_GRAD_PER_C: Final[float] = 32.0
-# |∂logit/∂γ| ≤ 0.5 · (β_max − β_min) = 15.95 (per Req 7 / A4-1)
+# Sigmoid derivative extreme: σ'(0) = max σ(γ)·(1 − σ(γ)) over γ ∈ ℝ.
+# Canonical name for grep-testability against future sigmoid retunes
+# (per `CLAUDE.md §6 第 8 条`: formula must reflect mathematical principle).
+SIGMA_PRIME_AT_ZERO: Final[float] = 0.25
+# Antipodal inner-product extreme: |Cᵀc − 1| = 2 when c = −C (worst case
+# on the unit sphere). Canonical name for grep-testability against future
+# inner-product extreme retunes.
+ANTIPODAL_INNER_EXTREME: Final[float] = 2.0
+# |∂logit/∂γ| ≤ σ'(0) · |Cᵀc − 1|_max · (β_max − β_min)
+#               = 0.25 · 2 · 31.9 = 15.95 (per Req 7 / A4-1)
 # Domain: PARAMETERIZATION-space worst case (full sigmoid domain γ ∈ ℝ).
-MAX_GRAD_PER_GAMMA: Final[float] = 0.5 * (BETA_MAX - BETA_MIN)
+MAX_GRAD_PER_GAMMA: Final[float] = SIGMA_PRIME_AT_ZERO * ANTIPODAL_INNER_EXTREME * (BETA_MAX - BETA_MIN)
 # Operational-domain Phase 4 β-gradient worst case (NO inner-product factor):
 #   β^eff(γ') = 1 + 31·σ(γ') ⇒ |∂β^eff/∂γ'| = 31·σ'(γ') ≤ 31·σ'(0) = 31·0.25 = 7.75.
 # This bounds ONLY the β-as-function-of-γ' gradient; for the logit gradient
@@ -43,14 +52,14 @@ MAX_GRAD_PER_GAMMA: Final[float] = 0.5 * (BETA_MAX - BETA_MIN)
 # chain `31·σ'(0)·2 = 15.5` below stays traceable without re-deriving in callers.
 # Skeleton ADDED "Beta Parameterization Operational Domain" only requires
 # exporting `MAX_GRAD_PER_GAMMA_PHASE4` (the bound with inner factor).
-_MAX_GRAD_BETA_PHASE4_INTERNAL: Final[float] = 31.0 * 0.25  # = 7.75
+_MAX_GRAD_BETA_PHASE4_INTERNAL: Final[float] = 31.0 * SIGMA_PRIME_AT_ZERO  # = 7.75
 # Operational-domain Phase 4 logit-gradient worst case (WITH inner factor):
 #   |∂logit/∂γ'| = |∂β/∂γ'| · |Cᵀc − 1| ≤ 7.75 · 2 = 15.5
 # attained at γ' = 0 (max σ') and antipodal (Cᵀc = −1 ⇒ inner = −2).
 # Derivation chain (per L42-45 above): reuses `_MAX_GRAD_BETA_PHASE4_INTERNAL`
 # so a retune of the internal constant propagates through to the exported
 # bound without silent divergence.
-MAX_GRAD_PER_GAMMA_PHASE4: Final[float] = 2.0 * _MAX_GRAD_BETA_PHASE4_INTERNAL  # = 7.75·2 = 15.5
+MAX_GRAD_PER_GAMMA_PHASE4: Final[float] = ANTIPODAL_INNER_EXTREME * _MAX_GRAD_BETA_PHASE4_INTERNAL  # = 7.75·2 = 15.5
 
 
 # ---------------------------------------------------------------------------
