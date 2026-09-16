@@ -43,33 +43,57 @@ def test_lb_gradient_flows_through_P_i() -> None:
 
     Spec: skeleton "Loss Composition With Staged Lambda" Scenario
     `L_lb gradient flows through P_i only`. Verifies the spec-mandated
-    double-factor closed form `L_lb = N_e · Σ f.detach() · P`:
+    double-factor closed form `L_lb = α · N_e · Σ f.detach() · P`:
       - P_i path is differentiable (gradient flows back into logit chain)
       - f_i path is blocked by `.detach()`
+
+    Closed-form guard: under uniform routing `f = P = 1/N_e`, the spec
+    closed form gives
+      - `L_lb_raw = N_e · Σ (1/N_e) · (1/N_e) = 1.0`
+      - `L_lb = α · L_lb_raw = 0.01 · 1.0 = 0.01` (`α = 0.01` Switch-style)
+      - `∂L_lb / ∂P[b,n,i] = α · N_e · f_det_i / (B·N)`
+        = `0.01 · 16 · (1/16) / (1·4) = 0.0025` for the chosen (B=1, N=4) setup.
+        (Each entry is constant per i; the `α`, `N_e`, and `(B·N)` scaling
+        factors are all essential — dropping α would silently raise the
+        gradient to 0.25, dropping N_e would silently reduce it to α/(BN),
+        and the per-(B,N) entry aggregation is what brings the per-(b,n,i)
+        gradient below the per-i gradient.)
+    This guards against silent zero-grad regressions and against any future
+    refactor that drops either the `α` Switch-style weight or the `N_e`
+    scaling factor or weakens the `f.detach()` barrier.
     """
     torch.manual_seed(0)
-    B, N, N_e = 1, 4, 8
-    f = torch.nn.Parameter(torch.softmax(torch.randn(B, N, N_e), dim=-1))
-    p = torch.nn.Parameter(torch.softmax(torch.randn(B, N, N_e), dim=-1))
+    B, N, N_e = 1, 4, 16  # MVP N_e=16 per CLAUDE.md §5 MVP hyperparameters
+    f_uniform = torch.nn.Parameter(torch.full((B, N, N_e), 1.0 / N_e))
+    p_uniform = torch.nn.Parameter(torch.full((B, N, N_e), 1.0 / N_e))
     task_logits = torch.randn(B, N, 32)
     targets = torch.randint(0, 32, (B, N))
     c = torch.nn.functional.normalize(torch.randn(N_e, 16), dim=-1)
-    parts = loss_mod.L_total(task_logits, targets, f, p, c, phase=1, step=1_000)
-    grad_p = torch.autograd.grad(parts.L_lb, p, retain_graph=True)[0]
+    parts = loss_mod.L_total(task_logits, targets, f_uniform, p_uniform, c, phase=1, step=1_000)
+    # Closed-form guard on the forward value (spec Req 11: α=0.01 pinned).
+    assert parts.L_lb.item() == pytest.approx(0.01, abs=1e-6), (
+        f"L_lb(uniform) = {parts.L_lb.item()}, expected α · 1.0 = 0.01 per "
+        f"spec closed form α · N_e · Σ (1/N_e) · (1/N_e)"
+    )
+    grad_p = torch.autograd.grad(parts.L_lb, p_uniform, retain_graph=True)[0]
     # f MUST be detached inside L_total (spec contract); if f were used in the
     # autograd graph, ∂L_lb/∂f would be a non-None tensor (zero or nonzero).
     # The spec-mandated behavior: grad_f is exactly None (= f not in graph).
     # If a future change routes f through the graph (even if grad is numerically
     # zero), this assertion catches it.
-    grad_f = torch.autograd.grad(parts.L_lb, f, retain_graph=True, allow_unused=True)[0]
+    grad_f = torch.autograd.grad(parts.L_lb, f_uniform, retain_graph=True, allow_unused=True)[0]
     assert grad_f is None, (
         "∂L_lb/∂f_i must be detached (f not in graph); "
         f"got grad_f with shape {tuple(grad_f.shape) if grad_f is not None else 'None'}"
     )
-    # ∂L_lb/∂P_i ≠ 0 (gradient flows).
+    # Closed-form guard on ∂L_lb/∂P[b,n,i]: under uniform routing, every entry
+    # equals `α · N_e · f_det_i / (B·N) = 0.01 · 16 · (1/16) / 4 = 0.0025`.
+    expected_grad = 0.01 * N_e * (1.0 / N_e) / (B * N)  # = α / (B·N) = 0.0025
     assert torch.isfinite(grad_p).all()
-    assert grad_p.abs().max().item() > 1e-12, (
-        f"∂L_lb/∂P_i should be nonzero; got max |grad| = {grad_p.abs().max().item():.3e}"
+    assert torch.allclose(grad_p, torch.full_like(grad_p, expected_grad), atol=1e-6), (
+        f"∂L_lb/∂P[b,n,i] under uniform f=P=1/{N_e} must equal "
+        f"α · N_e · f_det_i / (B·N) = {expected_grad} element-wise; "
+        f"got min={grad_p.min().item():.3e}, max={grad_p.max().item():.3e}"
     )
 
 
