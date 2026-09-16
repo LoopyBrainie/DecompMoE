@@ -168,6 +168,44 @@ def test_cg_l2_norm_closed_form() -> None:
     )
 
 
+def test_cg_n_eq_1_returns_magnitude() -> None:
+    """CG n=1 boundary behavior per `wayfinder Req 20 (CG)` + ADDED Requirement "CG n=1 boundary behavior".
+
+    Spec anchor: `openspec/specs/wayfinder/spec.md` Req 20 (CG)
+    `CG = ‖∇_{W^{K, V, b}} L_total‖₂` (parent requirement) + ADDED Requirement
+    "CG n=1 boundary behavior" (4 Scenarios: 1D positive / 1D negative /
+    1D zero / multi-dim `numel()==1`). Audit review LOW 7 (CRIT-3 silent
+    change at n=1 boundary): single-element inputs map to abs(value)
+    directly via L2-norm definition (no special-case branch),
+    dimension-agnostic because L2 norm depends only on `numel()`.
+    """
+    # 1D positive: spec Scenario "CG n=1 positive value"
+    g_pos_1d = torch.tensor([5.0])
+    actual_pos_1d = metrics.CG(g_pos_1d).item()
+    assert actual_pos_1d == pytest.approx(5.0, abs=1e-12), f"actual={actual_pos_1d}"
+
+    # 1D negative: spec Scenario "CG n=1 negative value"
+    g_neg_1d = torch.tensor([-5.0])
+    actual_neg_1d = metrics.CG(g_neg_1d).item()
+    assert actual_neg_1d == pytest.approx(5.0, abs=1e-12), f"actual={actual_neg_1d}"
+
+    # 1D zero: spec Scenario "CG n=1 zero value"
+    g_zero_1d = torch.tensor([0.0])
+    actual_zero_1d = metrics.CG(g_zero_1d).item()
+    assert actual_zero_1d == pytest.approx(0.0, abs=1e-12), f"actual={actual_zero_1d}"
+
+    # Multi-dim numel==1: spec Scenario "CG n=1 multi-dim numel==1"
+    # L2 norm is dimension-agnostic when numel()==1; spec text allows
+    # any rank so long as `g.numel() == 1`.
+    g_pos_2d = torch.tensor([[5.0]])
+    actual_pos_2d = metrics.CG(g_pos_2d).item()
+    assert actual_pos_2d == pytest.approx(5.0, abs=1e-12), f"actual={actual_pos_2d}"
+
+    g_neg_3d = torch.tensor([[[-5.0]]])
+    actual_neg_3d = metrics.CG(g_neg_3d).item()
+    assert actual_neg_3d == pytest.approx(5.0, abs=1e-12), f"actual={actual_neg_3d}"
+
+
 def test_sp_orthonormal_aligned_inputs() -> None:
     """C_t == c_{a(t)} for all t → SP == 1.0 within abs=1e-6."""
     N_e, d_c, T = 4, 8, 40
