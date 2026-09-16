@@ -439,7 +439,8 @@ The system MUST report eight metrics in two classes, each with a precise closed-
 - **WHEN** `CG(g)` and `CG(2·g)` are both evaluated for any non-zero gradient `g`
 - **THEN** `|CG(2·g) − 2·CG(g)| < 1e-6` (L2 norm is positively homogeneous of degree 1)
 
-<a id="req-34"></a>
+<a id="req-35"></a>
+
 ### Requirement: CG n=1 boundary behavior
 
 The `CG = ‖∇_{W^{K, V, b}} L_total‖₂` metric MUST satisfy the L2-norm identity at the `n=1` boundary: for any single-element gradient tensor `g` with `‖g‖₂ = |g.item()|`. When `g.numel() == 1`, the metric MUST return `abs(g.item())` (no special-case branch — the L2 norm definition handles it directly). The behavior is dimension-agnostic: `g` may be 1D, 2D, or N-D so long as `g.numel() == 1`.
@@ -461,7 +462,6 @@ The `CG = ‖∇_{W^{K, V, b}} L_total‖₂` metric MUST satisfy the L2-norm id
 #### Scenario: CG n=1 multi-dim numel==1
 - **WHEN** `CG(torch.tensor([[5.0]]))` or `CG(torch.tensor([[[-5.0]]]))` is called with a multi-dimensional tensor whose `numel()` equals `1`
 - **THEN** the result equals the absolute value of the sole element (`5.0` or `-5.0` → `5.0`) exactly within `abs=1e-12` (L2 norm is dimension-agnostic when `numel()==1`)
-<a id="req-21"></a>
 
 ### Requirement: Six-Module Visualization Toolchain
 
@@ -672,6 +672,8 @@ The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **singl
 - **AND** `β_per_expert_new is not β_per_expert` (immutability: the input tensor is never mutated in-place; `apply_resurrection_beta_decay` clones internally)
 
 <a id="req-33"></a>
+
+<a id="req-34"></a>
 
 ### Requirement: Source Field Format Invariant for OpenSpec Specs
 

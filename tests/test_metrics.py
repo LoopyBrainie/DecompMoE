@@ -205,6 +205,22 @@ def test_cg_n_eq_1_returns_magnitude() -> None:
     actual_neg_3d = metrics.CG(g_neg_3d).item()
     assert actual_neg_3d == pytest.approx(5.0, abs=1e-12), f"actual={actual_neg_3d}"
 
+    # L2-norm identity sanity check (per spec Requirement "CG n=1 boundary behavior"
+    # anchor #req-35 "MUST satisfy the L2-norm identity" wording): explicitly pin
+    # `metrics.CG` to the L2-norm reduce path. On numel=1 tensors the value equals
+    # abs(value) either way, so the 5 pytest.approx assertions above don't actually
+    # distinguish L2-norm from abs(sum)/abs(max) implementations (both coincidentally
+    # return abs(value) for single-element inputs). This bare `==` against
+    # `torch.linalg.norm(g).item()` pins the implementation path: any rewrite to
+    # sum/max identity would break here. FP-exact because sqrt(g²) is exact for
+    # |g| ≤ 2^52 in IEEE-754 binary64, so no `pytest.approx` is needed.
+    actual_l2_path = metrics.CG(g_pos_1d).item()
+    assert actual_l2_path == torch.linalg.norm(g_pos_1d).item(), (
+        f"actual CG={actual_l2_path}; L2 norm reduce path "
+        f"torch.linalg.norm={torch.linalg.norm(g_pos_1d).item()}; "
+        f"CG must reduce via L2 norm, not abs(.sum()) or abs(.max())"
+    )
+
 
 def test_sp_orthonormal_aligned_inputs() -> None:
     """C_t == c_{a(t)} for all t → SP == 1.0 within abs=1e-6."""
