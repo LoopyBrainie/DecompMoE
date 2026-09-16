@@ -9,7 +9,7 @@ Phase boundaries (Req 14 / A6b-1) for total_steps = 100_000:
 
 Schedule-time β parameterization functions (skeleton "Beta Parameterization
 Operational Domain"):
-    - `gamma_reset_for_phase4(β_exit)` — γ reset at phase-4 entry.
+    - `gamma_reset_for_phase4(beta_p3)` — γ reset at phase-4 entry.
     - `phase_beta_max(phase, step)` — time-varying operational box hi.
     - `beta_effective(γ_p, phase, step)` — clamped operational β^eff.
 
@@ -26,6 +26,8 @@ from typing import Final
 
 import torch
 from torch import Tensor
+
+from decompmoe.beta import BETA_MAX
 
 _DEFAULT_TOTAL: Final[int] = 100_000
 _PHASE_RATIOS: Final[tuple[float, ...]] = (0.01, 0.05, 0.20, 0.30, 0.44)
@@ -81,7 +83,16 @@ def phase_step_frozen_names(phase: int) -> set[str]:
 
 
 def phase_beta_box(phase: int) -> tuple[float, float]:
-    """Return the (lo, hi) dynamic box for β in the given phase."""
+    """Return the (lo, hi) dynamic box for β in the given phase.
+
+    For MVP (Phase 1–4) the spec only pins boxes for Phase 2 `(1.0, 4.0)`
+    and Phase 3 `(4.0, 16.0)`. The `return (1.0, 32.0)` fallback applies
+    to phases the spec does not constrain (Phase 0 K-Means seeding, Phase 1
+    `β^eff = 1.0` fixed, Phase 4 continuous reparameterization without a
+    box clamp, and any future phase ≥ 5). MVP training flow does not hit
+    this fallback; tests pin the static fallback for Phase 4
+    (see `tests/test_schedule.py::test_phase4_b_dynamic_box`).
+    """
     if phase == 2:
         return (1.0, 4.0)
     if phase == 3:
@@ -114,16 +125,18 @@ def phase_beta_max(phase: int, step: int, total_steps: int = _DEFAULT_TOTAL) -> 
     return lo + (hi - lo) * progress
 
 
-def gamma_reset_for_phase4(beta_exit: float = 16.0) -> float:
+def gamma_reset_for_phase4(beta_p3: float = 16.0) -> float:
     """γ reset value placing β^eff exactly at the phase-3 exit value.
 
     Spec (skeleton "Beta Parameterization Operational Domain"): at phase-4
     entry the γ parameter is reset so that
-    `phase4_inverse_temperature(γ_reset) == β_exit` (= 16.0 at MVP).
-    Closed form: `γ_reset = ln(β_exit − 1) − ln(32 − β_exit)`;
-    at β_exit = 16 this evaluates to ln(15/16) ≈ −0.0645385.
+    `phase4_inverse_temperature(γ_reset) == β_p3` (= 16.0 at MVP).
+    Closed form: `γ_reset = ln(β_p3 − 1) − ln(β_max − β_p3)` where
+    `β_max = 32` is the algorithmic ceiling (per `decompmoe.beta.BETA_MAX`,
+    not MVPConfig);
+    at β_p3 = 16 this evaluates to ln(15/16) ≈ −0.0645385.
     """
-    return math.log(beta_exit - 1.0) - math.log(31.0 + 1.0 - beta_exit)
+    return math.log(beta_p3 - 1.0) - math.log(BETA_MAX - beta_p3)
 
 
 def beta_effective(
@@ -138,7 +151,7 @@ def beta_effective(
       Phase 2-3: Clamp(β^param(γ), 1.0, β_max(t))               — line 496
                  where β^param(γ) = 0.1 + 31.9 · σ(γ)
       Phase 4:  β^eff = 1 + 31 · σ(γ')                          — line 497
-                 (γ' = γ_reset_for_phase4(β_exit)); no clamp.
+                 (γ' = γ_reset_for_phase4(β_p3)); no clamp.
 
     Signature is exactly 3 args: no dead `cfg` param (the constants
     β_min / β_max / 31 / 31.9 are module-level in `decompmoe.beta`).
@@ -153,23 +166,15 @@ def beta_effective(
         return torch.tensor(1.0)
     if phase in (2, 3):
         # Spec line 496: Clamp(β^param(γ), 1.0, β_max(t))
-        try:
-            beta_raw = inverse_temperature(torch.as_tensor(float(gamma_p)))
-            cap = phase_beta_max(phase, step)
-            return torch.tensor(float(beta_raw.clamp(min=1.0, max=cap).item()))
-        except (TypeError, ValueError) as exc:
-            raise ValueError(
-                f"invalid (gamma_p, phase, step): {gamma_p!r}, {phase}, {step}"
-            ) from exc
+        beta_raw = inverse_temperature(torch.as_tensor(float(gamma_p)))
+        cap = phase_beta_max(phase, step)
+        return torch.tensor(float(beta_raw.clamp(min=1.0, max=cap).item()))
     if phase == 4:
         # Spec line 497: 1 + 31 · σ(γ'); the γ' reset already places this
-        # at β_exit on entry, so no further clamp needed (spec does not
+        # at β_p3 on entry, so no further clamp needed (spec does not
         # request one for Phase 4).
-        try:
-            beta_raw = phase4_inverse_temperature(torch.as_tensor(float(gamma_p)))
-            return torch.tensor(float(beta_raw.item()))
-        except (TypeError, ValueError) as exc:
-            raise ValueError(f"invalid gamma_p={gamma_p!r} in phase 4") from exc
+        beta_raw = phase4_inverse_temperature(torch.as_tensor(float(gamma_p)))
+        return torch.tensor(float(beta_raw.item()))
     raise ValueError(f"unknown phase: {phase}")
 
 

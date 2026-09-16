@@ -58,18 +58,7 @@ PATTERNS: list[tuple[str, str]] = [
 # than scattered inline. Add new entries only with a rationale commit that
 # cites concrete input-validation evidence (e.g. "float(x) on None raises
 # TypeError; float(NaN) raises ValueError").
-JUSTIFIED_EXEMPTIONS: list[tuple[str, int, str]] = [
-    (
-        "src/decompmoe/schedule.py",
-        160,
-        "input validation: float(gamma_p) raises TypeError on None / ValueError on NaN (beta_effective phase 2/3)",
-    ),
-    (
-        "src/decompmoe/schedule.py",
-        171,
-        "input validation: float(gamma_p) raises TypeError on None / ValueError on NaN (beta_effective phase 4)",
-    ),
-]
+JUSTIFIED_EXEMPTIONS: list[tuple[str, int, str]] = []
 
 
 def main() -> int:

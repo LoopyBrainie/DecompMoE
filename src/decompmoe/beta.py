@@ -39,11 +39,18 @@ MAX_GRAD_PER_GAMMA: Final[float] = 0.5 * (BETA_MAX - BETA_MIN)
 # This bounds ONLY the β-as-function-of-γ' gradient; for the logit gradient
 # (`logit = β · (Cᵀc − 1)`), the inner-product factor |Cᵀc − 1|_max = 2
 # multiplies this and yields the bound below.
-MAX_GRAD_BETA_PHASE4: Final[float] = 31.0 * 0.25  # = 7.75
+# INTERNAL intermediate value (NOT in `__all__`): kept here so the derivation
+# chain `31·σ'(0)·2 = 15.5` below stays traceable without re-deriving in callers.
+# Skeleton ADDED "Beta Parameterization Operational Domain" only requires
+# exporting `MAX_GRAD_PER_GAMMA_PHASE4` (the bound with inner factor).
+_MAX_GRAD_BETA_PHASE4_INTERNAL: Final[float] = 31.0 * 0.25  # = 7.75
 # Operational-domain Phase 4 logit-gradient worst case (WITH inner factor):
 #   |∂logit/∂γ'| = |∂β/∂γ'| · |Cᵀc − 1| ≤ 7.75 · 2 = 15.5
 # attained at γ' = 0 (max σ') and antipodal (Cᵀc = −1 ⇒ inner = −2).
-MAX_GRAD_PER_GAMMA_PHASE4: Final[float] = 0.5 * 31.0  # = 7.75·2 = 15.5
+# Derivation chain (per L42-45 above): reuses `_MAX_GRAD_BETA_PHASE4_INTERNAL`
+# so a retune of the internal constant propagates through to the exported
+# bound without silent divergence.
+MAX_GRAD_PER_GAMMA_PHASE4: Final[float] = 2.0 * _MAX_GRAD_BETA_PHASE4_INTERNAL  # = 7.75·2 = 15.5
 
 
 # ---------------------------------------------------------------------------
@@ -77,7 +84,6 @@ __all__ = [
     "BETA_MAX",
     "MAX_GRAD_PER_C",
     "MAX_GRAD_PER_GAMMA",
-    "MAX_GRAD_BETA_PHASE4",
     "MAX_GRAD_PER_GAMMA_PHASE4",
     "inverse_temperature",
     "phase4_inverse_temperature",

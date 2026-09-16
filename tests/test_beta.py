@@ -9,6 +9,7 @@ import pytest
 import torch
 
 from decompmoe import beta
+from decompmoe.beta import _MAX_GRAD_BETA_PHASE4_INTERNAL
 from decompmoe.config import MVPConfig
 
 # ---------------------------------------------------------------------------
@@ -129,6 +130,19 @@ def test_constants_exported() -> None:
     assert abs(beta.MAX_GRAD_PER_GAMMA - 15.95) < 1e-6
 
 
+def test_max_grad_per_gamma_phase4_closed_form() -> None:
+    """Phase-4 logit-gradient bound closed-form check (per Req 7 / A4-1).
+
+    Spec derivation: |∂logit/∂γ'|_max = 31·σ'(0)·|Cᵀc − 1|_max
+                   = 31·0.25·2 = 15.5.
+    Guards against silent divergence between the internal β-only bound
+    (`_MAX_GRAD_BETA_PHASE4_INTERNAL`) and the exported logit bound
+    (`MAX_GRAD_PER_GAMMA_PHASE4`) — derivation chain promise in
+    `decompmoe.beta` L42-45.
+    """
+    assert beta.MAX_GRAD_PER_GAMMA_PHASE4 == pytest.approx(15.5, abs=1e-6)
+
+
 def test_max_grad_per_gamma_phase4() -> None:
     """Operational-domain Phase 4 worst case: γ' = 0, c = −C (antipodal) →
     |∂logit/∂γ'| == 15.5 within abs=1e-3.
@@ -165,9 +179,14 @@ def test_max_grad_beta_phase4() -> None:
     gamma_p = torch.nn.Parameter(torch.tensor(0.0))
     beta_only = beta.phase4_inverse_temperature(gamma_p)
     grad = torch.autograd.grad(beta_only, gamma_p)[0]
+    # Reference the renamed internal constant directly so the test tracks
+    # any retune of the derivation chain (single source of truth — avoids
+    # the inline-literal anti-pattern that would silently pass if the
+    # derivation were ever generalized, e.g. to a non-symmetric sigmoid
+    # extreme).
     assert abs(grad.item()) == pytest.approx(
-        beta.MAX_GRAD_BETA_PHASE4, abs=1e-3
+        _MAX_GRAD_BETA_PHASE4_INTERNAL, abs=1e-3
     ), (
         f"Phase-4 worst case |∂β^eff/∂γ'| = {abs(grad.item())}, "
-        f"expected {beta.MAX_GRAD_BETA_PHASE4}"
+        f"expected {_MAX_GRAD_BETA_PHASE4_INTERNAL}"
     )
