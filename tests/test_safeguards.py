@@ -745,10 +745,10 @@ def test_nan_ladder_zero_returns_skip_per_default() -> None:
 def test_should_resurrect_current_per_step_semantic_pinned() -> None:
     """Pin current `should_resurrect` per-step semantics (NOT avg-window).
 
-    Per wayfinder L249: 'triggered when `f_i^avg < 1/(2·N_e)` for 200
+    Per wayfinder Req 13 (anchor #req-13): 'triggered when `f_i^avg < 1/(2·N_e)` for 200
     consecutive steps'. The `f_i^avg` notation is ambiguous between
     (a) per-step `f_i` with `avg` as a notation convention, and
-    (b) literal average over a window. The current code (L97-L101)
+    (b) literal average over a window. The current code (L71-80)
     implements (a): every snapshot in the last `consec` steps must have
     `f_i < threshold`. This test demonstrates the difference with a
     non-constant history where per-step vs avg would diverge.
@@ -773,8 +773,8 @@ def test_should_resurrect_current_per_step_semantic_pinned() -> None:
     assert res == set(), (
         f"per-step semantic: last snapshot 0.04 > threshold {threshold} "
         f"→ expert NOT flagged; got {sorted(res)}. If this changes, the "
-        f"spec/code semantic decision has been made — update spec L206, "
-        f"wayfinder L249, and this test consistently."
+        f"spec/code semantic decision has been made — update spec L266-286, "
+        f"wayfinder Req 13 (anchor #req-13), and this test consistently."
     )
     # Avg-window reading would have flagged (sanity assertion, demonstrating
     # the ambiguity): if we manually compute avg, the rule WOULD trigger.
@@ -792,7 +792,7 @@ def test_should_resurrect_per_step_is_strict_subset_of_avg_window_for_monotonic_
     `should_resurrect semantic interpretation (per-step vs avg-window)`
     (extended by this change with the math derivation block). The
     spec's mathematical equivalence disambiguation establishes:
-      - **per-step** (current code at `src/decompmoe/safeguards.py:97-101`):
+      - **per-step** (current code at `src/decompmoe/safeguards.py:71-80`):
         `flag_step(i) ⟺ ∀ j ∈ [0, consec): H[j][i] < T`
       - **avg-window** (hypothetical, NOT implemented):
         `flag_avg(i) ⟺ (1/consec) · Σ_{j=0..consec-1} H[j][i] < T`
@@ -973,7 +973,7 @@ def test_should_resurrect_per_step_is_strict_subset_of_avg_window_for_monotonic_
     # avg-window: 0.03125 < 0.03125 is FALSE ⇒ NO TRIGGER.
     # This locks the spec's "strict less-than interpretation" semantics — a regression
     # weakening `snap[i] < threshold` to `snap[i] <= threshold` would resurrect at boundary.
-    H_boundary = [[threshold] * N_e for _ in range(250)]
+    H_boundary = [[threshold] * N_e for _ in range(200)]
     # Sanity assertion: avg-window would NOT TRIGGER (mean == threshold, NOT strictly less).
     avg_mean_boundary = sum(sum(snap) for snap in H_boundary) / (len(H_boundary) * N_e)
     assert avg_mean_boundary == pytest.approx(threshold, abs=1e-12), (
