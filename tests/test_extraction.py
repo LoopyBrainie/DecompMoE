@@ -139,7 +139,18 @@ def test_complexity_budget() -> None:
 
 
 def test_full_differentiability() -> None:
-    """All inputs to extract_C receive finite gradients (D-path)."""
+    """All inputs to extract_C receive finite gradients (D-path).
+
+    Closed-form guard (CLAUDE.md §6 last bullet): the original assertions
+    only checked `p.grad is not None` + `torch.isfinite(p.grad).all()`.
+    That admits a silent zero-gradient regression (a refactor that detaches
+    one of the inputs before reaching `extract_C` would produce a `None`
+    gradient — caught by `is not None` — but a more subtle bug that zeroes
+    the gradient via e.g. accidentally detaching inside the function would
+    produce a finite-but-zero `grad` tensor that slipped through both
+    checks). The `grad.norm() > 1e-12` guard catches the silent-zero case
+    explicitly.
+    """
     torch.manual_seed(0)
     B, H_kv, N, d_k, d_c = 1, 4, 2, 8, 4
     K = torch.randn(B, H_kv, N, d_k, dtype=torch.double) * 0.1
@@ -158,6 +169,15 @@ def test_full_differentiability() -> None:
     for name, p in [("K", K), ("V", V), ("W_K", W_K), ("W_V", W_V), ("b", b)]:
         assert p.grad is not None, f"{name} got no gradient"
         assert torch.isfinite(p.grad).all(), f"{name} gradient has NaN/Inf"
+        # Silent zero-grad guard: any grad with norm ≤ 1e-12 is suspicious
+        # (the test setup uses scale ~0.1 inputs so a non-zero gradient is
+        # expected; a flat-zero grad means something detached inside the
+        # pipeline).
+        assert p.grad.norm().item() > 1e-12, (
+            f"{name} gradient is silent zero (‖grad‖₂ = "
+            f"{p.grad.norm().item():.3e} ≤ 1e-12); check for accidental "
+            f".detach() or STE inside extract_C"
+        )
 
 
 def test_no_surrogate_in_codebase() -> None:
@@ -273,6 +293,15 @@ def test_near_zero_candidate_fallback() -> None:
     candidate `u_i` has `‖u_i‖₂ < 1e-9` (degenerate isotropic collapse),
     the driver MUST fall back to the previous centroid `c_i^(t)` to
     prevent NaN and preserve spherical boundedness.
+
+    Closed-form guard (CLAUDE.md §6 last bullet): the byte-exact
+    preservation invariant `out[i] == centroids[i]` (atol=1e-12) is the
+    canonical preservation check, mirroring `test_empty_cell_preserves_centroid`
+    (the empty-cell fallback test). The previous loose `atol=1e-6` for the
+    norm + a finiteness-only check permits any drift up to ~1e-6 to slip
+    through silently; the byte-exact `torch.allclose(..., atol=1e-12)`
+    matches the precision of `test_empty_cell_preserves_centroid:233` and
+    pins the spec contract.
     """
     torch.manual_seed(0)
     from decompmoe.extraction import CentroidDriver, Phase
@@ -298,6 +327,13 @@ def test_near_zero_candidate_fallback() -> None:
     # All centroids remain on the unit sphere (Issue ⑥ derivative).
     norms = out.norm(dim=-1)
     assert torch.allclose(norms, torch.ones_like(norms), atol=1e-6)
+    # Byte-exact preservation guard (mirrors test_empty_cell_preserves_centroid):
+    # every centroid must equal its input within machine-epsilon identity.
+    assert torch.allclose(out, centroids, atol=1e-12), (
+        f"near-zero candidate fallback must preserve all centroids element-wise; "
+        f"got max |out - centroids| = "
+        f"{(out - centroids).abs().max().item():.3e}"
+    )
 
 
 def test_near_zero_candidate_fallback_phase4() -> None:
