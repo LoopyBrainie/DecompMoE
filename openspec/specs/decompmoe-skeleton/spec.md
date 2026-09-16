@@ -1,9 +1,11 @@
 # decompmoe-skeleton Specification
 
 ## Purpose
-Defines the observable, testable behavior of the DecompMoE skeleton: type-safe contracts (`MVPConfig`, Protocol stubs for `GeometricRouter` / `TerritoryHolder` / `BlockAdapter`) and pure-function mathematical primitives that materialize the 21 Requirements × 34 Scenarios of the main `wayfinder` spec into Python. The skeleton is formalize-only — no executable forward/backward; every public symbol carries a behavioral contract that downstream changes (training, inference, baselines) MUST honor.
+Defines the observable, testable behavior of the DecompMoE skeleton: type-safe contracts (`MVPConfig`, Protocol stubs for `GeometricRouter` / `TerritoryHolder` / `BlockAdapter`) and pure-function mathematical primitives that materialize the geometric-routing design of the main `wayfinder` spec into Python. The skeleton is formalize-only — no executable forward/backward; every public symbol carries a behavioral contract that downstream changes (training, inference, baselines) MUST honor.
 
 ## Requirements
+
+<a id="req-1"></a>
 
 ### Requirement: Canonical Package And Version Identifier
 
@@ -16,6 +18,8 @@ The package SHALL expose `decompmoe.__canonical_name__ == "DecompMoE"`, `decompm
 #### Scenario: Alias preserved
 - **WHEN** `decompmoe.__alias__` is accessed
 - **THEN** it returns the literal string `"GeoMoE"` for documentation continuity
+
+<a id="req-2"></a>
 
 ### Requirement: Total And Active Parameter Estimator
 
@@ -32,6 +36,8 @@ LayerNorm gains, `β_i`, `c_i`, `W^O` are excluded from the estimator (not expos
 #### Scenario: 452M / 100M agreement
 - **WHEN** `compute_total_and_active(MVPConfig())` is called
 - **THEN** the first value equals `452_329_984` exactly and the second equals `100_008_448` exactly (closed-form, no interval; each term derived from the four accounting assumptions)
+
+<a id="req-3"></a>
 
 ### Requirement: Active FLOPs Parity Against Dense Baseline
 
@@ -53,6 +59,8 @@ At MVP with `d_model=1024, N_e=16, k=2, d_ffn=2048, d_ffn_dense=4096, L=4` the p
 - **WHEN** `flops_per_token(cfg, MOE_MVP)` is called with `cfg.L == 4`
 - **THEN** the result equals `134_217_728` exactly (= `4 · 33_554_432`)
 
+<a id="req-4"></a>
+
 ### Requirement: Wire-Level Contracts
 
 The package SHALL provide `Protocol` classes `GeometricRouter`, `TerritoryHolder`, and `BlockAdapter` that expose ONLY the methods/attributes required by Req 3, 4, 16, 17, 18. `GeometricRouter` SHALL declare `extract_C(K, V) -> Tensor`, `gating_logits(C) -> Tensor`, `route(x, logits) -> Tensor`. `GeometricRouter` SHALL NOT declare any `kv_cache_c` attribute (Req 16 / 17 violation would be caught statically). `TerritoryHolder` SHALL declare `territory_volume() -> float`, `active_territories() -> set[int]`, `coverage_balance_loss() -> Tensor`. `BlockAdapter` SHALL declare `forward_residual(x, ...) -> Tensor`. None of these Protocols SHALL contain an executable body (signatures only).
@@ -60,6 +68,8 @@ The package SHALL provide `Protocol` classes `GeometricRouter`, `TerritoryHolder
 #### Scenario: Router signatures present
 - **WHEN** `GeometricRouter` is inspected via `typing.get_type_hints` or `inspect.signature`
 - **THEN** `extract_C`, `gating_logits`, `route` are listed and `kv_cache_c` is absent from the annotation set
+
+<a id="req-5"></a>
 
 ### Requirement: Inverse-Temperature Sigmoid With Gradient Bounds
 
@@ -81,6 +91,8 @@ The package SHALL provide `inverse_temperature(γ) -> Tensor` implementing `β =
 - **WHEN** `torch.autograd.gradcheck` is run on `logit = β · (Cᵀc − 1)` with `β ≤ β_max`
 - **THEN** `‖∂logit/∂C‖₂ ≤ β_max = 32.0`
 
+<a id="req-6"></a>
+
 ### Requirement: Voronoi Self-Consistency Threshold
 
 The package SHALL provide `canonical_voronoi_angle(num_experts: int, signature_dim: int) -> float` returning the closed-form Voronoi half-angle on `S^{signature_dim − 1}`, computed as the unique `θ ∈ (0, π/2]` solving `½ · I_{sin² θ}((d_c − 1)/2, 1/2) = 1/N_e` (regularized incomplete beta function). The implementation MUST compute this value via bisection on the equation (residual `< 1e-9`), NOT via a hard-coded table. The package SHALL also provide `voronoi_angle(centroids: Tensor) -> float` for the offline measurement layer (computes the realized half-angle from an actual centroid tensor; NOT for use in the training hot path). At MVP `d_c = 16`, `canonical_voronoi_angle(N_e=16, d_c=16)` SHALL return `≈ 1.1736 rad (≈ 67.24°)` (within `abs=1e-4` rad on the residual `< 1e-9` criterion), strictly greater than the specialist-collapse boundary `θ_{1/e}(β=16) = arccos(1 − 1/β) = arccos(15/16) ≈ 20.36°`. `canonical_voronoi_angle(N_e=64, d_c=16)` SHALL return `≈ 1.0205 rad (≈ 58.47°)` (within the same residual bound). The associated `versine_Voronoi = 1 − cos θ` (NOT `D_chord` which is the square root `√(2(1 − cos θ))`) is the cap height / spherical versine. The previous closed-form bound `arctan(π / √d_c) ≈ 38.146°` is incorrect (depends on `d_c` only, contradicts MVP geometry, and self-contradicts the same-sentence `θ_{1/e} ≈ 20.36°` value via the wrong formula `arctan(1/β) = 3.58°`); it MUST NOT appear in any implementation. (Matches master `wayfinder` Req 11 verbatim.)
@@ -96,6 +108,8 @@ The package SHALL provide `canonical_voronoi_angle(num_experts: int, signature_d
 #### Scenario: no hard-coded table values
 - **WHEN** `src/decompmoe/sphere.py` is grepped for the MVP values `0.9076`, `0.4494`, `0.380`, `0.0971`
 - **THEN** zero matches (no fast-path table — every input must bisect)
+
+<a id="req-7"></a>
 
 ### Requirement: C Extraction Four-Step Pipeline
 
@@ -117,6 +131,8 @@ The package SHALL provide `extract_C(K, V, proj_W_K, proj_W_V, proj_b, *, H_kv, 
 - **WHEN** `H_kv = 8` GQA input is processed
 - **THEN** the cross-head mean uses the `1/H_kv` factor (mathematical equivalence to a manual `mean(..., dim=1)`)
 
+<a id="req-8"></a>
+
 ### Requirement: Isotropic Squared-Chord Distance And Logit
 
 The package SHALL provide `squared_chord(C, c_i) -> Tensor = 1 − Cᵀc_i` and `logit(C, c_i, β) -> Tensor = β · (Cᵀc_i − 1)`. The `logit` function signature SHALL NOT contain a parameter named `w_i` (A4-2 / CLAUDE.md §6 invariant). The output range of `squared_chord` SHALL be `[0, 2]`; the output range of `logit` SHALL be `[−2β, 0]`.
@@ -133,6 +149,8 @@ The package SHALL provide `squared_chord(C, c_i) -> Tensor = 1 − Cᵀc_i` and 
 - **WHEN** `inspect.signature(logit)` is examined
 - **THEN** no parameter named `w_i` (or any scalar per-expert weight) is present
 
+<a id="req-9"></a>
+
 ### Requirement: Top-K Sparse Mask With Local Softmax
 
 The package SHALL provide `topk_mask_with_neg_inf(logits, k) -> Tensor` masking non-top-k entries with `−float("inf")` (NOT a large finite negative). It SHALL provide `local_softmax(masked_logits) -> Tensor` that exponentiates only over the non-`-inf` entries and normalizes so `Σ_i p_i == 1` over the active set. The forward equation `x_out = x + Σ_{i ∈ I_k} p_i · Expert_i(x)` SHALL be the ONLY routing equation present in the `gating` module (grep test).
@@ -148,6 +166,8 @@ The package SHALL provide `topk_mask_with_neg_inf(logits, k) -> Tensor` masking 
 #### Scenario: Zero gradient on masked entries
 - **WHEN** `torch.autograd.grad(p_k, logits)` is called for masked indices
 - **THEN** the gradient component is exactly `0.0`
+
+<a id="req-10"></a>
 
 ### Requirement: Standard SwiGLU Expert With No Shared Branch
 
@@ -172,6 +192,8 @@ The package SHALL provide `SwiGLUExpert(cfg) -> nn.Module` whose `forward(x)` co
 #### Scenario: No custom kernel import
 - **WHEN** `experts.py` is grepped for `cpp_extension` and `triton`
 - **THEN** zero matches
+
+<a id="req-11"></a>
 
 ### Requirement: Loss Composition With Staged Lambda
 
@@ -200,6 +222,8 @@ The package SHALL provide `L_total(task_logits, targets, f_per_expert, p_per_exp
 #### Scenario: L_lb gradient flows through P_i only
 - **WHEN** `L_lb` is back-propagated
 - **THEN** `∂L_lb / ∂P_i ≠ 0` (differentiable through `P_i`) and `∂L_lb / ∂f_i ≡ 0` (blocked by `.detach()`)
+
+<a id="req-12"></a>
 
 ### Requirement: Five Numerical Safeguard Helpers
 
@@ -261,6 +285,8 @@ The package SHALL provide five standalone helpers in `safeguards.py`: (1) `clip_
 
   **Open follow-up**: a future ticket adopting avg-window semantics would re-evaluate the trigger condition as `flag_avg(i)` above, and MUST update spec + code + the `test_should_resurrect_current_per_step_semantic_pinned` guard test atomically; the existing guard test in `tests/test_safeguards.py` continues to pin the current per-step behavior.
 
+<a id="req-13"></a>
+
 ### Requirement: Five-Phase Schedule State Machine
 
 The package SHALL provide `phase_id(step: int) -> int` returning `0` for `step ∈ [0, 999]`, `1` for `[1_000, 5_999]`, `2` for `[6_000, 25_999]`, `3` for `[26_000, 55_999]`, `4` for `[56_000, 100_000]`. The package SHALL provide `phase_step_frozen_names(phase: int) -> set[str]` returning the **gradient-channel** parameter-name set to freeze per phase (`{"c_i", "beta_i", "W_K", "W_V", "b"}` for phase 1; `{"c_i", "beta_i"}` for phase 2 — `W_K/W_V/b` are unfrozen in phase 2 to allow them to train under the EMA; `{"c_i"}` for phase 3 — `beta_i` is unfrozen; empty for phases 0/4). The package SHALL provide `should_reset_adam(prev_phase: int, next_phase: int) -> bool` returning `True` exactly when `prev_phase == 3 and next_phase == 4`. The advisory signals (`R_H`, `S_load`, `R_β-sat`, `L_sep/WB`) SHALL be exposed via `advisory_signals(...)` but SHALL NEVER trigger phase transitions (state-machine invariance under perturbed advisory is asserted).
@@ -281,6 +307,8 @@ The package SHALL provide `phase_id(step: int) -> int` returning `0` for `step �
 - **WHEN** `should_reset_adam(3, 4)` is called
 - **THEN** it returns `True`; for every other `(prev, next)` pair it returns `False`
 
+<a id="req-14"></a>
+
 ### Requirement: Six Visualization Module Protocol Stubs
 
 The package SHALL provide six `Protocol` stubs in `viz.py`: `PCA3D`, `DcHeatmap`, `Voronoi2D`, `TrajectoryAnimation`, `TensorBoardDashboard`, `PlantUMLDiagram`. Each SHALL expose a single method signature matching its public API (e.g. `PCA3D.render(centroids, *, camera_angles=(25.0, 135.0)) -> Figure`); `PCA3D.camera_angles` SHALL default to the tuple `(25.0, 135.0)`. The module SHALL export `IMPLEMENTATION_STACK = frozenset({"matplotlib", "scikit-learn", "scipy", "imageio", "tensorboard", "plantuml"})`. The `__all__` of `viz.py` SHALL contain exactly six module-level names.
@@ -297,6 +325,8 @@ The package SHALL provide six `Protocol` stubs in `viz.py`: `PCA3D`, `DcHeatmap`
 - **WHEN** `viz.IMPLEMENTATION_STACK` is inspected
 - **THEN** it equals the six-element frozenset above
 
+<a id="req-15"></a>
+
 ### Requirement: Hard-Constraint Grep Invariants
 
 The package SHALL satisfy the following source-level invariants, asserted by **literal-token grep tests** (any invariant requiring data-flow / semantic analysis is NOT a grep invariant; see Requirement "Centroid Driver Semantic Invariants" for the semantic layer):
@@ -311,6 +341,8 @@ The package SHALL satisfy the following source-level invariants, asserted by **l
 #### Scenario: Hard constraints hold
 - **WHEN** the literal-token grep invariants above are evaluated against `src/decompmoe/`
 - **THEN** all invariants pass
+
+<a id="req-16"></a>
 
 ### Requirement: Centroid Driver Semantic Invariants
 
@@ -327,6 +359,8 @@ The package's `CentroidDriver` SHALL enforce four semantic invariants that **can
 #### Scenario: Semantic invariants are enforced by the named test scenarios
 - **WHEN** the four named test scenarios (`test_empty_cell_preserves_centroid`, `test_spherical_norm_is_strictly_one`, `test_near_zero_candidate_fallback`, `test_near_zero_candidate_fallback_phase4`) all pass
 - **THEN** the empty-cell fallback, spherical re-projection, and near-zero candidate fallback invariants hold for `CentroidDriver` across all four active phases
+
+<a id="req-17"></a>
 
 ### Requirement: Centroid Driver Invariant Test Scenarios
 
@@ -346,7 +380,7 @@ The package's test suite SHALL include the following three tests, asserting the 
 
 ---
 
-<a id="req-1"></a>
+<a id="req-18"></a>
 
 ### Requirement: Centroid Four-Phase Lifecycle Driver — Phase-4 SGD Step Extension
 
@@ -382,7 +416,7 @@ The `step` signature `(*, grad=None, eta=1e-2)` REPLACES the legacy `(centroids,
 
 ---
 
-<a id="req-2"></a>
+<a id="req-19"></a>
 
 ### Requirement: Spherical L2 Normalization — max(…z…, ε) Formula
 
@@ -402,7 +436,7 @@ The package SHALL provide `spherical_l2_normalize(z, eps=1e-6) -> Tensor` return
 
 ---
 
-<a id="req-3"></a>
+<a id="req-20"></a>
 
 ### Requirement: Beta Parameterization Operational Domain — D1 Module-Level Constants
 
@@ -427,7 +461,7 @@ The package SHALL provide `inverse_temperature(gamma) -> Tensor` implementing th
 
 ---
 
-<a id="req-4"></a>
+<a id="req-21"></a>
 
 ### Requirement: Frozen MVP Hyperparameter Set — D1 Geometric-Only Fields
 
@@ -452,7 +486,7 @@ The package SHALL provide a `MVPConfig` frozen dataclass whose locked constants 
 
 ---
 
-<a id="req-5"></a>
+<a id="req-22"></a>
 
 ### Requirement: Eight Metrics And Classification — CG Type Guard
 

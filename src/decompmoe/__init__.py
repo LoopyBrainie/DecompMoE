@@ -1,8 +1,8 @@
 """DecompMoE — Decomposed Mixture of Experts (canonical name).
 
 The package provides type-safe contracts, frozen MVP hyperparameters, and
-pure-function mathematical primitives that materialize the 21 Requirements ×
-34 Scenarios of `openspec/specs/wayfinder/spec.md`. It is formalize-only:
+pure-function mathematical primitives that materialize the geometric-routing
+design of `openspec/specs/wayfinder/spec.md` into Python. It is formalize-only:
 no executable forward/backward pass; downstream changes implement the runtime.
 
 Naming convention (Req 1):
