@@ -119,8 +119,32 @@ def resurrection_perturb_distribution(
     `dim=None` raises `TypeError` to prevent silent use of
     `f_per_expert.shape[-1] == N_e` (which would violate the per-expert
     contract by returning an `(N_e,)` perturbation).
+
+    The leading positional `f_per_expert` is the canonical per-expert
+    routing-frequency tensor — its **trailing axis** MUST equal `N_e`,
+    with leading dims arbitrary (e.g. `(N_e,)`, `(T, N_e)`,
+    `(B, N, N_e)`). The trailing-axis = `N_e` contract is enforced by
+    the **canonical call site `resurrect_expert`** (which holds both
+    `β_per_expert` and `f_per_expert` and verifies
+    `f_per_expert.shape[-1] == β_per_expert.shape[0]`); this primitive
+    performs only the cheap `ndim ≥ 1` sanity guard so a 0-D scalar
+    cannot reach the perturbation. The value itself is not consumed by
+    the perturbation (the perturbation is a fresh Gaussian sample
+    independent of the routing distribution); the parameter exists for
+    caller symmetry with `resurrect_expert`'s single-event contract
+    (spec Req 32).
     """
     del target_idx  # contract signature only; perturbation is one vector
+    # Layer-1 sanity guard: 0-D scalar/empty tensor cannot reach the
+    # perturbation. The layer-2 trailing-axis = N_e contract is enforced
+    # at the canonical call site (`resurrect_expert`) which holds both
+    # β_per_expert and f_per_expert — this primitive is intentionally
+    # MVPConfig-free for testability and direct-call ergonomic use.
+    if f_per_expert.ndim < 1:
+        raise ValueError(
+            f"f_per_expert must have ndim ≥ 1 (trailing axis is N_e); "
+            f"got ndim={f_per_expert.ndim}, shape={tuple(f_per_expert.shape)}"
+        )
     if dim is None:
         raise TypeError(
             "resurrection_perturb_distribution requires explicit `dim` "
@@ -197,12 +221,29 @@ def resurrect_expert(
             f"resurrect_expert indices out of range: i={i}, j_star={j_star}, "
             f"β_per_expert.shape[0]={N}"
         )
-    # The perturbation API ignores its first positional arg (per the
-    # per-expert contract — the perturbation is a fresh Gaussian sample
-    # independent of the routing distribution). Pass an empty tensor to
-    # avoid the misleading variable name `f_per_expert`.
+    # Layer-2 trailing-axis = N_e contract (spec Req 28 / Req 32 L644):
+    # `β_per_expert ∈ R^{N_e}` — canonical 1-D, length exactly `cfg.N_e`.
+    # The wrapper holds both `β_per_expert` and `f_per_expert`, so we can
+    # pair them and verify the per-expert axis agrees against the SPEC
+    # constant `cfg.N_e`, NOT against the input's own shape[0] (which would
+    # be a vacuous self-check for any 1-D tensor — shape[-1] == shape[0]).
+    # The primitive alone cannot perform this check because it doesn't
+    # have N_e context; the wrapper is the natural enforcement point.
+    f_per_expert = β_per_expert.detach()
+    if f_per_expert.shape[-1] != cfg.N_e:
+        raise ValueError(
+            f"f_per_expert trailing axis must equal N_e (= cfg.N_e "
+            f"= {cfg.N_e}); got f_per_expert.shape={tuple(f_per_expert.shape)}"
+        )
+    # Pass the (detached) β_per_expert as the leading positional arg of
+    # the perturbation primitive — this satisfies the spec's "f_per_expert
+    # leading positional argument" contract while reusing the data we
+    # already have on hand. The primitive's layer-1 ndim ≥ 1 guard
+    # accepts any tensor with a trailing axis (including 1-D (N_e,) and
+    # 3-D (B, N, N_e)); the layer-2 pair-check above is the canonical
+    # N_e verification.
     c_perturbed = resurrection_perturb_distribution(
-        torch.empty(0), j_star, eps_std=eps_std, dim=cfg.d_c
+        f_per_expert, j_star, eps_std=eps_std, dim=cfg.d_c
     )
     β_per_expert_new = apply_resurrection_beta_decay(β_per_expert, j_star, i)
     return c_perturbed, β_per_expert_new

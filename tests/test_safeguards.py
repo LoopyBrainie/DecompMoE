@@ -85,10 +85,17 @@ def test_clip_grad_norm_threshold_closed_form() -> None:
 
 
 def test_nan_ladder() -> None:
-    """nan_ladder(consecutive_nan) returns (action, lr_scale, halt) for (1, 3, 10)."""
-    assert safeguards.nan_ladder(1) == ("skip", 1.0, False)
-    assert safeguards.nan_ladder(3) == ("div_lr_10", 0.1, False)
-    assert safeguards.nan_ladder(10) == ("halt", 1.0, True)
+    """nan_ladder(consecutive_nan) returns (action, lr_scale, halt) for (1, 3, 10).
+
+    Closed-form guards per CLAUDE.md §6 last bullet: `lr_scale` is a float
+    closed-form value (0.1 = LR ÷ 10 per wayfinder Req 13 wording) and
+    MUST be checked via `pytest.approx(..., abs=1e-12)` rather than bare
+    tuple equality. Bare tuple equality permits `0.10000001` to silently
+    pass; `pytest.approx` pins the FP literal to its spec value.
+    """
+    assert safeguards.nan_ladder(1) == ("skip", pytest.approx(1.0, abs=1e-12), False)
+    assert safeguards.nan_ladder(3) == ("div_lr_10", pytest.approx(0.1, abs=1e-12), False)
+    assert safeguards.nan_ladder(10) == ("halt", pytest.approx(1.0, abs=1e-12), True)
 
 
 def test_resurrection_trigger_window() -> None:
@@ -97,22 +104,46 @@ def test_resurrection_trigger_window() -> None:
     Spec (wayfinder Req 13 + archived spec): `threshold = 1 / (2·N_e)`.
     MVP N_e=16 → threshold = 1/32. With `f_i = 1/256 < 1/32` for all
     experts and all 250 steps, the rule fires.
+
+    Closed-form guard (CLAUDE.md §6 last bullet): the rate-limit window is
+    `RESURRECTION_RATE_LIMIT_STEPS = 1000` (spec closed-form constant,
+    declared at `src/decompmoe/safeguards.py:31`). The test exercises the
+    boundary explicitly via `current_step − last_resurrection_step`:
+      - Δ = 2300 (> 1000): resurrection fires (res non-empty).
+      - Δ = 300 (< 1000): rate-limited (res2 empty).
+    Pinning the boundary on the spec constant catches silent retunes of
+    `RESURRECTION_RATE_LIMIT_STEPS` (the previous setup hardcoded `Δ=300`
+    without anchoring on `1000`, so a retune to e.g. `200` would not break
+    the inequality assertion and would pass silently).
     """
     N_e = 16
     history = [[1 / 256] * N_e for _ in range(250)]
+    RATE_LIMIT = safeguards.RESURRECTION_RATE_LIMIT_STEPS  # 1000 per spec
+    assert RATE_LIMIT == 1000, (
+        f"test setup precondition violated: RESURRECTION_RATE_LIMIT_STEPS "
+        f"= {RATE_LIMIT}, expected 1000 (spec closed-form constant)"
+    )
+    current_step = 300
     res = safeguards.should_resurrect(
         history,
-        current_step=300,
-        last_resurrection_step=-2000,
+        current_step=current_step,
+        last_resurrection_step=current_step - 2300,  # Δ = 2300 > 1000 → fires
         N_e=N_e,
         consec=200,
     )
     res2 = safeguards.should_resurrect(
         history,
-        current_step=300,
-        last_resurrection_step=0,
+        current_step=current_step,
+        last_resurrection_step=current_step - 300,  # Δ = 300 < 1000 → rate-limited
         N_e=N_e,
         consec=200,
+    )
+    # Explicit boundary assertions on the closed-form constant.
+    assert (current_step - (current_step - 2300)) >= RATE_LIMIT, (
+        "Δ=2300 must be ≥ RESURRECTION_RATE_LIMIT_STEPS=1000 (fires branch)"
+    )
+    assert (current_step - (current_step - 300)) < RATE_LIMIT, (
+        "Δ=300 must be < RESURRECTION_RATE_LIMIT_STEPS=1000 (rate-limited branch)"
     )
     assert len(res) > 0, "first call must flag at least one expert"
     assert len(res2) == 0, "second call within window must be rate-limited to empty"
@@ -375,6 +406,44 @@ def test_resurrect_expert_single_event_contract() -> None:
             ), f"β_new[{k}] unexpectedly modified"
     assert β_new is not β_per_expert, (
         "β_new must be a NEW tensor (clone), not the input reference"
+    )
+
+
+def test_resurrect_expert_rejects_wrong_length_beta() -> None:
+    """`β_per_expert.shape[-1] != cfg.N_e` MUST raise ValueError (spec Req 32 L644 contract).
+
+    Spec: wayfinder Req 32 (anchor L627) + Scenario "same-event beta decay"
+    WHEN clause (L644): `β_per_expert ∈ R^{N_e}` — canonical 1-D, length
+    exactly `cfg.N_e = 16`. The wrapper holds the layer-2 trailing-axis = N_e
+    check and MUST reject any 1-D `β` whose length disagrees with the spec
+    contract. Before this fix, the wrapper performed a vacuous self-check
+    (`f_per_expert.shape[-1] != β_per_expert.shape[0]` with
+    `f_per_expert = β_per_expert.detach()`), which is identically true for
+    any 1-D `β` (shape[-1] == shape[0]) and silently let wrong-length β
+    through. After the fix, the check is anchored on `cfg.N_e` (the spec
+    constant, MVP `N_e = 16`) — meaningful, not vacuous.
+    """
+    from decompmoe.config import MVPConfig
+
+    cfg = MVPConfig()
+    assert cfg.N_e == 16, (
+        f"test setup precondition violated: MVPConfig().N_e = {cfg.N_e}, "
+        f"expected 16 (per CLAUDE.md §5 MVP hyperparameters)"
+    )
+
+    # 1-D β of length 8 ≠ cfg.N_e=16 → MUST raise ValueError.
+    β_wrong = torch.ones(8)
+    with pytest.raises(ValueError, match=r"trailing axis must equal N_e"):
+        safeguards.resurrect_expert(0, 2, β_wrong, cfg)
+
+    # Canonical 1-D β of length cfg.N_e=16 → MUST pass (no raise).
+    β_ok = torch.ones(cfg.N_e)
+    c_perturbed, β_new = safeguards.resurrect_expert(0, 2, β_ok, cfg)
+    assert c_perturbed.shape == (cfg.d_c,), (
+        f"canonical 1-D β must succeed; got c_perturbed.shape={c_perturbed.shape}"
+    )
+    assert β_new.shape == (cfg.N_e,), (
+        f"β_new must preserve length cfg.N_e; got {β_new.shape}"
     )
 
 
