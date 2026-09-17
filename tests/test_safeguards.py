@@ -219,8 +219,17 @@ def test_resurrection_perturb_distribution() -> None:
     eps = safeguards.resurrection_perturb_distribution(
         f, target_idx=3, eps_std=0.05, dim=16
     )
-    assert eps.dim() == 1
-    assert abs(eps.std().item() - 0.05) < 0.02
+    # Integer-closed shape assertion (CLAUDE.md §6 req-gov-1: bare `==`).
+    assert eps.shape == (16,), (
+        f"expected single-expert (16,), got {tuple(eps.shape)}"
+    )
+    # E[ε²] = ε_std² closed-form (statistical `eps.std()` is sample-dependent;
+    # E[ε²] is invariant under resampling for a fixed seed and tight at d_c=16
+    # in expectation; tol=2·ε_std² to absorb d_c=16's small-sample noise).
+    assert (eps ** 2).mean().item() == pytest.approx(0.0025, abs=1e-2), (
+        f"E[ε²] = {(eps ** 2).mean().item()}, expected 0.0025 (= 0.05²); "
+        f"spec: ε ~ N(0, 0.05²·I)"
+    )
 
 
 def test_beta_saturation_warning_at_30_4() -> None:
@@ -305,29 +314,94 @@ def test_step_ordering() -> None:
 
 
 def test_resurrection_perturbation_shape_per_expert() -> None:
-    """Perturb returns SINGLE-expert shape (d_c,) or (d_model·d_ffn,), NOT (N_e,).
+    """Perturb returns SINGLE-expert shape (d_c,), NOT (N_e,).
 
-    Spec: wayfinder ADDED "Resurrection Perturbation Per-Expert Contract".
+    Spec: wayfinder ADDED "Resurrection Perturbation Per-Expert Contract"
+    Scenario "perturbation accepts batched (B, N, N_e) f_per_expert"
+    (e.g. `(4, 3, 16)` at MVP).
     """
+    from decompmoe.config import MVPConfig
+
+    cfg = MVPConfig()
     torch.manual_seed(0)
-    d_c = 16
-    f = torch.randn(4, 3, 8)  # (B, N, N_e) legacy input
-    eps = safeguards.resurrection_perturb_distribution(f, target_idx=2, dim=d_c)
-    assert eps.shape == (d_c,), (
-        f"expected single-expert ({d_c},), got {tuple(eps.shape)}"
+    f = torch.randn(4, 3, cfg.N_e)  # (B, N, N_e) MVP-aligned input
+    eps = safeguards.resurrection_perturb_distribution(f, target_idx=2, dim=cfg.d_c)
+    # Closed-form shape (CLAUDE.md §6: bare `==` for integer closure).
+    assert eps.shape == (cfg.d_c,), (
+        f"expected single-expert ({cfg.d_c},), got {tuple(eps.shape)}"
     )
-    assert eps.shape != (f.shape[-1],)
+    # The leading dim of `eps` MUST equal `dim` (= cfg.d_c), not the
+    # trailing N_e axis of `f`. At MVP, cfg.d_c == cfg.N_e == 16, so
+    # `eps.shape == f.shape[-1]` is technically true — but the contract
+    # is about *which axis the perturbation lives on*: it's the
+    # `dim` axis (single expert), not the trailing N_e axis of `f`.
+    # We verify this by asserting `eps.shape != f.shape` (the perturbation
+    # is NOT the routing distribution as a whole).
+    assert eps.shape != tuple(f.shape), (
+        f"perturbation shape {tuple(eps.shape)} must differ from input shape "
+        f"{tuple(f.shape)} (perturbation is a single expert slot, not the whole routing distribution)"
+    )
 
 
 def test_resurrection_perturbation_eps_std_scale() -> None:
-    """ε ~ N(0, eps_std²·I): empirical std ≈ eps_std for a large sample."""
+    """ε ~ N(0, eps_std²·I): E[ε²] = eps_std² (closed-form) at large d_c.
+
+    Closed-form expectation identity: if ε ~ N(0, σ²·I), then E[ε²] = σ².
+    At d_c=4096, sample mean E[ε²] converges tightly to ε_std² = 0.0025
+    (Monte Carlo error scales as 1/√d_c ≈ 0.016 of σ, well inside `abs=5e-4`).
+    """
     torch.manual_seed(0)
     d_c = 4096
     f = torch.zeros(d_c)
     eps = safeguards.resurrection_perturb_distribution(
         f, target_idx=0, eps_std=0.05, dim=d_c
     )
-    assert abs(float(eps.std()) - 0.05) < 0.01
+    # Closed-form expectation (CLAUDE.md §6 req-gov-1: pytest.approx(value, abs=...)
+    # for float closures; 0.0025 = 0.05² = ε_std² is the spec's Gaussian variance).
+    assert (eps ** 2).mean().item() == pytest.approx(0.0025, abs=5e-4), (
+        f"E[ε²] = {(eps ** 2).mean().item()}, expected 0.0025 (= 0.05²); "
+        f"if retuned, update both spec scenario and this assertion atomically"
+    )
+
+
+def test_resurrection_perturbation_rejects_0d_scalar() -> None:
+    """Layer 1 primitive guard: f_per_expert.ndim == 0 → ValueError.
+
+    Spec: wayfinder ADDED Scenario "perturbation rejects 0-D scalar f_per_expert".
+    Without this guard, a 0-D scalar `torch.tensor(0.5)` would silently
+    bypass the `ndim ≥ 1` precondition and reach `randn(dim)`, producing
+    a shape `(d_c,)` output that callers would mistake for a valid
+    perturbation. The guard raises BEFORE sampling.
+    """
+    torch.manual_seed(0)
+    scalar_f = torch.tensor(0.5)  # ndim == 0
+    assert scalar_f.ndim == 0, "test setup invariant: scalar tensor must be 0-D"
+    with pytest.raises(ValueError, match=r"ndim"):
+        safeguards.resurrection_perturb_distribution(
+            scalar_f, target_idx=3, eps_std=0.05, dim=16
+        )
+
+
+def test_resurrection_perturbation_accepts_history_stacked() -> None:
+    """Primitive accepts (T, ..., N_e) history-stacked f_per_expert (Layer 1 only).
+
+    Spec: wayfinder ADDED Scenario "perturbation accepts history-stacked
+    (T, ..., N_e) f_per_expert" (e.g. `(100, N_e)` history stacked by
+    `metrics.UR` per `src/decompmoe/metrics.py:83`).
+    Layer 1 (ndim ≥ 1) passes; Layer 2 (trailing axis = cfg.N_e) is the
+    wrapper's responsibility (see `test_resurrect_expert_rejects_wrong_length_beta`).
+    """
+    from decompmoe.config import MVPConfig
+
+    cfg = MVPConfig()
+    torch.manual_seed(0)
+    f = torch.randn(100, cfg.N_e)  # (T, N_e) per metrics.UR stacked history
+    eps = safeguards.resurrection_perturb_distribution(
+        f, target_idx=3, eps_std=0.05, dim=cfg.d_c
+    )
+    assert eps.shape == (cfg.d_c,), (
+        f"expected single-expert ({cfg.d_c},), got {tuple(eps.shape)}"
+    )
 
 
 def test_resurrection_perturb_default_requires_dim() -> None:

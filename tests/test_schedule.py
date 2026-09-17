@@ -135,7 +135,7 @@ def test_beta_effective_phase_4_continuity() -> None:
     convention with exclusive end gives the witness value
     4 + 12·(55_999−26_000)/(56_000−26_000) ≈ 15.9996.
     """
-    g_reset = schedule.gamma_reset_for_phase4(16.0)
+    g_reset = schedule.gamma_reset_for_phase4(beta_p3=16.0)
     assert schedule.beta_effective(g_reset, 4, 56_000).item() == pytest.approx(
         16.0, abs=1e-6
     )
