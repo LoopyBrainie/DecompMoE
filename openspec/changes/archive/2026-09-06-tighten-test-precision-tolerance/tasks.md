@@ -1,0 +1,18 @@
+## 1. Tighten integer closed-form guards (LOW-1, LOW-2)
+
+- [x] 1.1 Edit `tests/test_config.py::test_total_param_estimate` (L53-67): replace 3 integer `==` at L64 (`total == 452_329_984`), L65 (`active == 100_008_448`), L67 (`_router_params_per_layer(cfg) == 32_896`) with `pytest.approx(value, abs=0)`; each message embeds `f"actual={...}"` per `CLAUDE.md` §3 convention. Verify: `uv run pytest tests/test_config.py::test_total_param_estimate -v` passes with the 3 new `pytest.approx` assertions visible in verbose output.
+- [x] 1.2 Edit `tests/test_config.py::test_flops_per_layer_exact_33554432` (L70-86): replace 2 integer `==` at L80 (`per_layer * 4 == 134_217_728`) and L81 (`per_layer == 33_554_432`) with `pytest.approx(value, abs=0)`; each message embeds `f"actual={...}"`. Verify: `uv run pytest tests/test_config.py::test_flops_per_layer_exact_33554432 -v` passes.
+
+## 2. Tighten bisection Voronoi angle tolerance (LOW-3, LOW-4) + correct LOW-3 (16,16) literal
+
+- [x] 2.1 Edit `tests/test_sphere.py::test_voronoi_monotone_in_ne` (L88-93): (a) tighten L90 from `pytest.approx(1.173547, abs=1e-4)` to `pytest.approx(1.173548, abs=1e-6)` — correcting the 6dp truncation error in the existing literal (`1.173547` is `1.27e-6` off actual bisection `1.1735482746999482`, would silently fail at `abs=1e-6`); (b) tighten L91 from `pytest.approx(1.165848, abs=1e-4)` to `pytest.approx(1.165848, abs=1e-6)` (literal unchanged, already within `2.97e-7` of actual bisection `1.1658482974`). Verify: `uv run pytest tests/test_sphere.py::test_voronoi_monotone_in_ne -v` passes; values `1.1735482747` (16,16) and `1.1658482974` (17,16) are within 1e-6 of their claimed literals per bisection witness.
+- [x] 2.2 Edit `tests/test_sphere.py::test_voronoi_canonical_N_e_dependence` (L138-152): tighten L148 from `pytest.approx(1.020507, abs=1e-4)` to `pytest.approx(1.020507, abs=1e-6)` (literal unchanged, already within `1.66e-7` of actual bisection `1.0205068336`). Verify: `uv run pytest tests/test_sphere.py::test_voronoi_canonical_N_e_dependence -v` passes.
+
+## 3. Full-suite regression check
+
+- [x] 3.1 Run `uv run pytest tests/ -v` and confirm every existing test (including `test_voronoi_residual_below_1e_minus_9` witness at `< 1e-9` and `test_voronoi_rad_precision_alignment` literal-directionality check on `1.1736 rad = 67.24° × π/180`) still passes under the new tolerances; specifically verify no cross-test regression in `tests/test_config.py` (where `test_flops_total_exact_134217728` at L84-86 is intentionally left untouched per Decision 4 in design.md).
+
+## 4. Post-review follow-ups (apply phase cleanup + future work)
+
+- [x] 4.1 **Docstring rot fix at `tests/test_sphere.py::test_voronoi_monotone_in_ne` L85**: the docstring (L84-86) still says `N_e=16 → θ ≈ 1.173547 rad (67.239°)` after the LOW-3 literal correction `1.173547 → 1.173548` was applied to L90. Update L85 from `1.173547 rad` to `1.173548 rad` to keep docstring and assertion consistent (L86's `1.165848 rad` and assertion at L91 are both `1.165848 rad` — already consistent, no change needed). Verify: `uv run pytest tests/test_sphere.py::test_voronoi_monotone_in_ne -v` still passes; `grep -n "1.173547" tests/test_sphere.py` returns no matches in the docstring (only in git history).
+- [ ] 4.2 **Future change candidate (out of this PR's scope)**: open a follow-up change to systematically tighten remaining `==` integer checks across `tests/test_config.py` (e.g. `test_flops_total_exact_134217728` L86, and any others outside this change's audit envelope) for full `CLAUDE.md` §6 第 8 条 compliance. See `design.md` Decision 4 "Tension with `CLAUDE.md` §6 第 8 条 acknowledged" for the rationale.
