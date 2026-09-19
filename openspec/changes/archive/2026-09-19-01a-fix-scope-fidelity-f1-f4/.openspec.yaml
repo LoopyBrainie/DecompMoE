@@ -1,0 +1,11 @@
+schema: spec-driven
+created: 2026-09-19
+# This change is a process/scope-correction change — it edits the planning
+# artifacts (proposal.md / design.md / tasks.md) of the sibling audit evidence
+# change `.audit/audit-verification/opsx-changes/01-fix-ticket-stale-numerical-4file-batch/`.
+# No spec-anchored behavior changes — closed-form formulas, MVPConfig defaults,
+# test assertions, and Source fields remain semantically identical; only the
+# planning fidelity (scope coverage + drift-convention documentation) is
+# corrected. Per skill template: "A change with no capabilities at all (pure
+# refactor, tooling, docs) must set skip_specs: true."
+skip_specs: true
