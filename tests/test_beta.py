@@ -34,8 +34,8 @@ def test_beta_monotone() -> None:
 
 
 def test_beta_param_init_default() -> None:
-    """MVPConfig().beta_initial == 1.0 (proxy for γ₀ ≈ −3.5 per plan §ST-02)."""
-    assert MVPConfig().beta_initial == 1.0
+    """MVPConfig().beta_initial ≈ 1.035 (per spec req-7 L122 closed-form; proxy for γ₀ ≈ −3.5)."""
+    assert MVPConfig().beta_initial == pytest.approx(1.035, abs=1e-6), f"actual={MVPConfig().beta_initial}"
 
 
 # ---------------------------------------------------------------------------

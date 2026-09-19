@@ -47,11 +47,12 @@ class MVPConfig:
     d_c: int = 16
     H_kv: int = 8
     d_k: int = 128
-    # Initial inverse-temperature β₀ = 1.0 — proxy for γ₀ ≈ −3.5 (the exact
-    # γ₀ is pending a spec-level backfill change, tracked as `★ TODO` in the
-    # plan §ST-02). Stored here so downstream code can read the canonical
+    # Initial inverse-temperature β₀ ≈ 1.035 — per spec req-7 L122 closed-form
+    # β_0 = 0.1 + 31.9·σ(γ₀) with γ₀ ≈ −3.5 (proxy for Phase 1 宽门控探索).
+    # 50-digit mpmath (verify-7 axis-α): σ(γ_init=−3.5) = 0.029312230751356318865,
+    # β_0 = 1.0350601609682665718. Stored here so downstream code can read the canonical
     # default without reaching into the `beta` module.
-    beta_initial: float = 1.0
+    beta_initial: float = 1.035
     # Embedding table size — required to reconcile 452M total. With vocab=32K
     # and d_model=1024, embedding contributes 32M, leaving 420M for the
     # transformer stack (matches Req 11 within ±1%).
