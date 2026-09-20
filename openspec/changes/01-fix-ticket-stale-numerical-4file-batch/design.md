@@ -45,7 +45,7 @@
 
 **Choice**: `src/decompmoe/config.py:50-54` `beta_initial: float = 1.0` → `beta_initial: float = 1.035`；L50-53 docstring `tracked as \`★ TODO\` in the plan §ST-02` 移除，改 `per spec req-7 L122 closed-form β_0 = 1.035060 (verified at 50-digit mpmath: σ(γ_init=−3.5) = 0.029312230751356318865, β_0 = 1.0350601609682665718)`。
 
-**Rationale**: MVPConfig.beta_initial 是 dead field（src/ 仅 config.py:54 定义，verify-6 lock-down 无任何文件读取），修改无 runtime 传染。**1.0 vs 1.035060 选择**：选 `1.035` (3 位有效数字) 与 spec req-7 L122 `β_0 ≈ 1.035` narrative 风格对齐；**不选** `1.035060` (6 位有效数字) 因 MVPConfig 字段是"概略初始值"而非"精确闭式锚点"。docstring 移除 TODO 追踪是 follow-up（cycle-6 已 trace TODO 是"已知但未修复 drift"的信号）；改后 docstring 明文"per spec req-7 L122 closed-form"建立 spec → src 权威链。
+**Rationale**: MVPConfig.beta_initial 是 dead field（src/ 仅 config.py:54 定义，verify-6 lock-down 无任何文件读取），修改无 runtime 传染。**1.0 vs 1.035060 选择**：选 `1.035` (4 位有效数字) 与 spec req-7 L122 `β_0 ≈ 1.035` narrative 风格对齐；**不选** `1.035060` (6 位有效数字) 因 MVPConfig 字段是"概略初始值"而非"精确闭式锚点"。docstring 移除 TODO 追踪是 follow-up（cycle-6 已 trace TODO 是"已知但未修复 drift"的信号）；改后 docstring 明文"per spec req-7 L122 closed-form"建立 spec → src 权威链。
 
 **Alternatives considered**:
 - (a) 默认值改 `1.035060` (6 位有效数字) —— 拒绝：MVPConfig 字段风格是 narrative 概略，与 spec narrative 风格一致更重要
@@ -85,6 +85,48 @@
 - (b) 改 `A4-1, A4-2, A6b-1` 但用 `(historical, ...)` 标注 A4-2 / A6b-1 —— 拒绝：A4-2 与 A6b-1 不是 historical superseded ticket，它们是当前 spec 仍引用的现行 ticket
 - (c) 仅补 A6b-1（不补 A4-2）—— 拒绝：cycle-7 finding 3 明确指出两 ticket 都漏报；A4-2 与 L124 w_i 引用直接关联
 
+### Decision 6: test_beta_param_init_default 从自指改 closed-form 推导（amended by verifier F1 CRITICAL）
+
+**Choice**: `tests/test_beta.py:38` `assert MVPConfig().beta_initial == pytest.approx(1.035, abs=1e-6)` 改 `expected = 0.1 + 31.9 * float(torch.sigmoid(torch.tensor(-3.5))); assert MVPConfig().beta_initial == pytest.approx(expected, abs=1e-3)`。`abs=1e-3` 涵盖 narrative 截断 (`1.035060 → 1.035` diff = 0.000060) + 闭式计算容差。
+
+**Rationale**: 原 test 是**自指**——`MVPConfig.beta_initial` 默认值 = `1.035`，test 字面值 = `1.035`，diff = 0.0 永远 PASS，**未守护 spec L122 闭式 `β_0 = 0.1 + 31.9·σ(γ_init=−3.5)` 的数学推导**。这违反 CLAUDE.md §6 第 8 条"spec 中每个含具体数值的算式必须有 `pytest.approx(value, abs=...)` 直接对账"原则。改成从 `β_min + (β_max−β_min)·σ(γ)` 闭式推导 expected 后，test 真正守护 spec → code 的数学链：若有人未来"优化" `inverse_temperature` 为 `1 + 31·σ(γ)`（Phase 4 风格），closed-form 期望会变，test 会 fail。
+
+**Alternatives considered**:
+- (a) 保留自指 + 改用 `MVPConfig().beta_initial` 直接断言为 `1.035`（保留原状）—— 拒绝：违反 CLAUDE.md §6 第 8 条，test 等同假 PASS
+- (b) 改 `pytest.approx(1.035060, abs=1e-6)`（精确 50-digit 字面）—— 拒绝：`MVPConfig.beta_initial = 1.035`（4 位 narrative），与 1.035060 diff = 6e-5 > abs=1e-6 会失败。必须从闭式推导而不是字面字面值对字面字面值
+- (c) 加新 test function + 保留旧 test —— 拒绝：旧 test 自指仍假 PASS，违反 §6 第 8 条；要么改要么删，不能共存
+
+### Decision 7: 新增 `test_sigma_prime_gamma_init_health_check` 守护 spec L122 σ'(−3.5)（amended by verifier F2 HIGH）
+
+**Choice**: 在 `tests/test_beta.py` 加新 test function（不动 `test_grad_gamma_bound`）：
+```python
+def test_sigma_prime_gamma_init_health_check() -> None:
+    """Spec L122: σ'(−3.5) ≈ 0.02845 (narrative 5 sig figs; 50-digit = 0.0284530...)."""
+    g = torch.tensor(-3.5)
+    s = torch.sigmoid(g)
+    sp = s * (1 - s)
+    assert sp.item() == pytest.approx(0.02845302387973555984, abs=1e-15)
+    assert sp.item() == pytest.approx(0.02845, abs=1e-5)
+```
+
+**Rationale**: spec L122 narrative `σ'(−3.5) ≈ 0.02845` + 50-digit mpmath `0.02845302387973555984` 是 spec 数学锚点。当前 cycle-7 verify-7 验证通过 audit 脚本（`.audit/verify_*.py`），但**archive 后 audit dir 会被 drop**，唯一持久的守护是 pytest。现有 `test_grad_gamma_bound` 只测 γ=0（worst case `σ'(0) = 0.25`），不测 γ=−3.5 的 cold-start region。新 test 用 `abs=1e-15` 守护 50-digit 闭式（钉值零容差）+ `abs=1e-5` 守护 narrative 5 位有效数字（spec 端精度披露）。
+
+**Alternatives considered**:
+- (a) 改 `test_grad_gamma_bound` 加 γ=−3.5 case —— 拒绝：`test_grad_gamma_bound` 是 logit gradient worst case 测试（γ=0 + 完整 adversarial setup），混 cold-start health-check 会破坏 test intent 单一性
+- (b) 仅 narrative 断言（不守 50-digit 闭式）—— 拒绝：50-digit 闭式是 spec 数学真相的核心，archive 后必须由 pytest 守护
+- (c) 在 audit 脚本永久保留 —— 拒绝：archive workflow 会 drop `.audit/`，这不是 durable solution
+
+### Decision 8: decompmoe-skeleton spec req-21 narrative `β_initial` 数值同步（amended by verifier F3 HIGH）
+
+**Choice**: `openspec/specs/decompmoe-skeleton/spec.md:471,473` narrative `β_initial == 1.0` / `β_initial = 1.0` 同步 wayfinder spec L122 改 `β_initial ≈ 1.035`（narrative 风格）。加 `decompmoe-skeleton` MODIFIED Requirements delta 在本 change 的 `specs/decompmoe-skeleton/spec.md`。
+
+**Rationale**: Proposal 初稿误判"无 decompmoe-skeleton spec delta (skeleton spec 端干净)"——verifier cycle-09 验证阶段发现 skeleton spec narrative stale：`β_initial == 1.0` 与 wayfinder spec L122 `β_0 ≈ 1.035` + 代码 `MVPConfig.beta_initial = 1.035` 三方矛盾。修复方式：保留 skeleton spec 11 字段集合声明（不变），仅 narrative 数值同步 wayfinder。
+
+**Alternatives considered**:
+- (a) 不动 skeleton spec，把 verifier F3 列为 follow-up —— 拒绝：spec 三方矛盾会让 reader 困惑（"MVPConfig.beta_initial 究竟是 1.0 还是 1.035？"），low-cost fix 应当 in-scope
+- (b) 删除 skeleton spec `β_initial` 字段（声明 dead field 不应有 narrative）—— 拒绝：超出 scope（删除字段涉及 test_config.py 11 字段测试）
+- (c) skeleton spec narrative 改精确值 `β_initial = 1.035060`（与闭式对齐）—— 拒绝：与 MVPConfig narrative 风格（4 位有效数字）不一致，会产生新的 spec ↔ code 不一致
+
 ## Risks / Trade-offs
 
 - **[Risk]** ticket supersede annotation 加错位置导致 reader 读到 stale 数字而非 supersede 注释。Mitigation：annotation 加 stale 数字**紧邻行**（同一行末尾或下一行），并明示 `(historical, ...)` 与 `(superseded by ...)` 两段
@@ -94,6 +136,7 @@
 - **[Risk]** `tests/test_beta.py:38` `pytest.approx(1.035, abs=1e-6)` 与现有 141 tests 行为冲突。Mitigation：cycle-6 verify-6 已 lock-down 该 test 是唯一消费方；修改后 test 全绿即可
 - **[Risk]** Windows Edit tool CRLF contamination（src/ + ticket + tests + spec）。Mitigation：每个 Edit 后跑 `git diff --stat` 验证 LF 保留；必要时 `sed -i 's/\r$//'`（per `[[windows-edit-crlf-pitfall]]` memory）
 - **[Risk]** 50-digit mpmath 重算脚本 `verify_beta0_alpha.py` 与 `verify_ticket_a41_alpha.py` 在 verify-4/7 已 lock-down；本 change 无需重跑，仅 spec/ticket/src/tests 四端对齐到 50-digit 锚点
+- **[Risk]** (F3 amended) skeleton spec narrative stale → 三方矛盾（wayfinder spec ↔ skeleton spec ↔ MVPConfig）。Mitigation：Decision 8 同步 wayfinder spec L122 `β_0 ≈ 1.035` 到 skeleton spec req-21 L471/473 narrative；新加 `decompmoe-skeleton` MODIFIED delta 固化 in spec 端
 
 ## Migration Plan
 

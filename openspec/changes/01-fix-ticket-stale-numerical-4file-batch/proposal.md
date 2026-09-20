@@ -4,6 +4,8 @@
 
 附 cycle-7 finding 2 / 3 两条 LOW：`specs/wayfinder/spec.md` L122 narrative `σ'(−3.5) ≈ 0.0284` 精度欠一位（50-digit mpmath = `0.02845302387973555984`，应改 `≈ 0.02845` 与 β_0 narrative 精度风格对齐）；`specs/wayfinder/spec.md` L126 Source 字段只列 `A4-1`，但 req-7 正文 L120 / L124 显式引用 `A6b-1` (AdamW momentum reset) + `A4-2` (w_i 剔除)，应补齐反链。
 
+附额外 LOW finding（cycle-09 verifier 验证阶段发现）：`openspec/specs/decompmoe-skeleton/spec.md` L471 + L473 narrative 仍写 `β_initial == 1.0` / `β_initial = 1.0`，与本 change 的 wayfinder spec L122 `β_0 ≈ 1.035` + 代码 `MVPConfig.beta_initial = 1.035` 矛盾。skeleton spec 端本轮 proposal 初稿误判"无 delta"——本 amended 提交修正该判断并加 decompmoe-skeleton MODIFIED delta。
+
 **传染链状态**（verify-6 + verify-9 lock-down）：`spec ↔ src/decompmoe/beta.py` ✓ CLEAN（用 spec L115 Sigmoid 闭式，不读 `MVPConfig.beta_initial`）；`spec ↔ src/decompmoe/sphere.py` ✓ CLEAN（用 `canonical_voronoi_angle` API，无 52° 硬编码）；`spec ↔ tests/test_sphere.py` ✓ CLEAN + GUARDED（`test_voronoi_canonical_mvp_value` 等守 canonical API）；`spec ↔ ticket` ⚠️ STALE（仅 ticket 端 stale，spec 钉死 67.24°）；`spec ↔ MVPConfig.beta_initial` ⚠️ STALE（1.0 vs 1.035060）；`MVPConfig.beta_initial ↔ src/` ⚠️ DEAD FIELD（`src/` 全树 0 读取，仅 `tests/test_beta.py:38` assert）。
 
 **D1 决策保留**（沿用 `fix-math-consistency-and-contract-closure-2026-09` design.md D1）：算法常量 `β_min = 0.1` / `β_max = 32` 位于 `decompmoe/beta.py` 模块级 `Final[float]`，MVPConfig 仅承载几何常量 + `beta_initial` 字段。本 change **不修改** `decompmoe/beta.py` 模块级常量，不引入新 cfg 形参，不引入新 MVPConfig 字段；仅修改 `MVPConfig.beta_initial` 默认值（从 1.0 → 1.035）。
@@ -19,7 +21,7 @@
 
 ### ticket 端 supersede annotation（3 项，**追加不删原值**保持 lineage 可读）
 
-3. **ticket `A5-3.md` L62** —— 在 `~52° (估算)` 行后追加 `(historical, ~52° estimate; superseded by spec req-11 L185 bisection 67.24° via change fix-math-consistency-audit-2026-08 Decision 1)`。复用 spec L247 已建立的 canonical 格式。
+3. **ticket `A5-3.md` L62** —— 在 `~52° (估算)` 行后追加 `(historical, ~52° estimate; superseded by spec req-11 L185 bisection 67.24° via change fix-math-consistency-audit-2026-08 Decision 1)`。本 change 引入 ticket-side 紧凑 supersede annotation 格式（blockquote + `(historical, ...)` 起首 + `superseded by spec <req> <text> via change <name> Decision N` 收尾），与 spec L247 spec-side canonical 格式"intent 平行"——`fix-openspec-doc-bugs` Decision 7 处理的 A6a-2 L63 走"保留原值 + 加 supersede annotation"路径，本 change 与之结构性一致但细节简化（去 backtick + 用 `;` 而非 em-dash）以适配 markdown list cell。
 4. **ticket `A1-1.md` L97** —— 在 `θ_Voronoi≈52°` 行后追加 `(historical, θ_Voronoi≈52° estimate; superseded by spec req-11 L185 bisection 67.24° via change fix-math-consistency-audit-2026-08 Decision 1)`。与 A5-3 L62 走完全平行路径——cycle-5 finding 锁定 A5-3 + A1-1 两个 ticket 端源头。
 5. **ticket `A4-1.md` L58** —— 在 `β_0 ≈ 1.0` 行后追加 `(historical, β_0 ≈ 1.0 estimate; superseded by spec req-7 L122 closed-form β_0 = 1.035060 via change fix-math-consistency-audit-2026-08 Decision 1)`。
 
@@ -51,18 +53,20 @@
 
 ### Modified Capabilities
 
-`wayfinder`（2 处 spec delta，L122 narrative + L126 Source 字段）。无 `decompmoe-skeleton` spec delta（cycle-5/6/7 全部锁定 ticket 端 + `src/config.py` + `tests/test_beta.py`，skeleton spec 端干净）。无 `governance` spec delta（CLAUDE.md §6 第 8 条已通过 `governance/spec.md` req-gov-1 第 2 条覆盖浮点闭式 `pytest.approx(value, abs=...)` 义务）。
+`wayfinder`（2 处 spec delta，L122 narrative + L126 Source 字段）。`decompmoe-skeleton`（1 处 spec delta，req-21 L471 + L473 narrative `β_initial` 数值同步 wayfinder spec L122 `β_0 ≈ 1.035`）。无 `governance` spec delta（CLAUDE.md §6 第 8 条已通过 `governance/spec.md` req-gov-1 第 2 条覆盖浮点闭式 `pytest.approx(value, abs=...)` 义务）。
 
 ## Impact
 
 - **Affected code**（surgical edits per CLAUDE.md §3）：
   - `src/decompmoe/config.py:50-54` —— `MVPConfig.beta_initial` 默认值 1.0 → 1.035 + docstring TODO 移除
+  - `openspec/specs/decompmoe-skeleton/spec.md:471,473` —— req-21 narrative `β_initial == 1.0` / `β_initial = 1.0` 同步 wayfinder spec L122 `β_0 ≈ 1.035`（amended by verifier cycle-09 review）
   - `wayfinder/tickets/A5-3.md:62` —— θ_Voronoi 行后加 historical supersede annotation（**仅追加，不改值**）
   - `wayfinder/tickets/A1-1.md:97` —— θ_Voronoi≈52° 行后加 historical supersede annotation（**仅追加，不改值**）
   - `wayfinder/tickets/A4-1.md:58` —— β_0 ≈ 1.0 行后加 historical supersede annotation（**仅追加，不改值**）
 
-- **Affected tests**（1 文件）：
-  - `tests/test_beta.py:37-38` —— `test_beta_param_init_default` 改 `pytest.approx(1.035, abs=1e-6)` + docstring 更新
+- **Affected tests**（1 文件 + 1 新增 test function）：
+  - `tests/test_beta.py:36-38` —— `test_beta_param_init_default` 从自指字段字面值改**从 spec 闭式推导**：`MVPConfig().beta_initial == pytest.approx(0.1 + 31.9·σ(−3.5), abs=1e-3)` + docstring 更新（amended by verifier cycle-09 review）
+  - `tests/test_beta.py` 新增 `test_sigma_prime_gamma_init_health_check` —— 守护 spec L122 `σ'(−3.5) ≈ 0.02845` 的 50-digit mpmath 闭式 + narrative 精度双断言（amended by verifier cycle-09 review）
 
 - **Affected APIs / dependencies**：
   - `MVPConfig.beta_initial` 默认值 1.0 → 1.035 —— **数值修改，不是 API 变更**。该字段是 dead field（`src/` 全树无读取，verify-6 lock-down），修改仅影响 tests 端，无 runtime 传染。
