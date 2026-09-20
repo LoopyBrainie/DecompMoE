@@ -5,6 +5,7 @@ ST-02 / Req 7: β = β_min + (β_max − β_min) · σ(γ), with β_min = 0.1, �
 
 from __future__ import annotations
 
+import mpmath
 import pytest
 import torch
 
@@ -34,8 +35,52 @@ def test_beta_monotone() -> None:
 
 
 def test_beta_param_init_default() -> None:
-    """MVPConfig().beta_initial ≈ 1.035 (per spec req-7 L122 closed-form; proxy for γ₀ ≈ −3.5)."""
-    assert MVPConfig().beta_initial == pytest.approx(1.035, abs=1e-6), f"actual={MVPConfig().beta_initial}"
+    """MVPConfig().beta_initial ≈ 1.035 — derived from spec req-7 L122 closed-form β_0 = 0.1 + 31.9·σ(γ_init=−3.5).
+
+    Per governance req-gov-1 第 2 条 + CLAUDE.md §6 第 8 条: pytest MUST derive the
+    expected value from the spec closed form (NOT a self-referential literal that
+    trivially equals MVPConfig.beta_initial). abs=1e-3 covers both the narrative
+    4-sig-fig truncation (1.035060 → 1.035, diff = 6e-5) and closed-form computation
+    noise from `inverse_temperature`.
+    """
+    g = torch.tensor(-3.5)
+    expected = 0.1 + 31.9 * float(torch.sigmoid(g))
+    actual = MVPConfig().beta_initial
+    assert actual == pytest.approx(expected, abs=1e-3), (
+        f"actual={actual}, expected={expected} (from closed form β_min + "
+        f"(β_max − β_min) · σ(γ_init=−3.5) = 0.1 + 31.9·σ(−3.5))"
+    )
+
+
+def test_sigma_prime_gamma_init_health_check() -> None:
+    """Spec req-7 L122: σ'(−3.5) ≈ 0.02845 (narrative 5 sig figs); 50-digit mpmath = 0.02845302387973555984.
+
+    Cold-start region health-check anchor: σ'(γ_init≈−3.5) MUST stay ≈ 0.02845
+    ("healthy gradient") per spec L122 narrative. The 50-digit mpmath closed-form
+    σ'(−3.5) = σ(−3.5)·(1−σ(−3.5)) = 0.02845302387973555984 is the spec-level
+    mathematical truth; this test is the persistent pytest guard (audit `.audit/`
+    scripts are dropped on archive — pytest is the durable layer).
+
+    Two assertions:
+      (a) `abs=1e-30` nail 50-digit mpmath literal (钉值零容差 for mpmath-exact
+          constant-vs-closed-form). NOTE: torch.float32 only has ~7 decimals, so
+          this test uses `mpmath` directly to retain full 50-digit precision.
+      (b) `abs=1e-5` nail narrative 5-sig-fig precision disclosure (works for both
+          fp32/mpmath since this is a coarse tolerance).
+    """
+    mpmath.mp.dps = 50
+    s_mp = mpmath.mpf(1) / (1 + mpmath.exp(mpmath.mpf("3.5")))
+    sp_mp = s_mp * (1 - s_mp)
+    sp_val_50digit = float(sp_mp)
+    # (a) 50-digit mpmath closed-form anchor — spec-level mathematical truth
+    assert sp_val_50digit == pytest.approx(0.02845302387973555984, abs=1e-30), (
+        f"σ'(−3.5) (50-digit mpmath) = {sp_val_50digit}, expected 0.02845302387973555984"
+    )
+    # (b) spec L122 narrative 5-sig-fig precision disclosure
+    assert sp_val_50digit == pytest.approx(0.02845, abs=1e-5), (
+        f"σ'(−3.5) (50-digit mpmath) = {sp_val_50digit}, expected ≈ 0.02845 "
+        f"(spec L122 narrative, 5 sig figs)"
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -468,9 +468,9 @@ The package SHALL provide `inverse_temperature(gamma) -> Tensor` implementing th
 
 ### Requirement: Frozen MVP Hyperparameter Set — D1 Geometric-Only Fields
 
-The package SHALL provide a `MVPConfig` frozen dataclass whose locked constants equal: `d_model == 1024`, `N_e == 16`, `k == 2`, `d_ffn == 2048`, `L == 4`, `d_ffn_dense == 4096`, `d_c == 16`, `H_kv == 8`, `d_k == 128`, `β_initial == 1.0`. Attempting to mutate any field SHALL raise `dataclasses.FrozenInstanceError`. A factory function `MVPConfig()` SHALL return an instance with all default values.
+The package SHALL provide a `MVPConfig` frozen dataclass whose locked constants equal: `d_model == 1024`, `N_e == 16`, `k == 2`, `d_ffn == 2048`, `L == 4`, `d_ffn_dense == 4096`, `d_c == 16`, `H_kv == 8`, `d_k == 128`, `β_initial ≈ 1.035` (per wayfinder spec req-7 L122 closed-form `β_0 = 0.1 + 31.9·σ(γ_init)` with `γ_init ≈ −3.5`; 50-digit mpmath `β_0 = 1.0350601609682665718`). Attempting to mutate any field SHALL raise `dataclasses.FrozenInstanceError`. A factory function `MVPConfig()` SHALL return an instance with all default values.
 
-**MVPConfig carries only GEOMETRIC constants** (model shape: `d_model`, `N_e`, `k`, `d_ffn`, `L`, `d_ffn_dense`, `d_c`, `H_kv`, `d_k`, `vocab_size`) **plus the specific initial value `β_initial = 1.0`**. The algorithmic range constants `β_min = 0.1` and `β_max = 32` live as module-level `Final[float]` in `decompmoe/beta.py` (NOT in MVPConfig), per `design.md` Decision 1: "Algorithmic constants live with their usage site". MVPConfig does not carry `β_min` or `β_max` fields, and the canonical sources for those constants are `decompmoe.beta.BETA_MIN` and `decompmoe.beta.BETA_MAX`.
+**MVPConfig carries only GEOMETRIC constants** (model shape: `d_model`, `N_e`, `k`, `d_ffn`, `L`, `d_ffn_dense`, `d_c`, `H_kv`, `d_k`, `vocab_size`) **plus the specific initial value `β_initial ≈ 1.035`** (narrative 4-sig-fig; spec req-7 L122 closed-form anchor). The algorithmic range constants `β_min = 0.1` and `β_max = 32` live as module-level `Final[float]` in `decompmoe/beta.py` (NOT in MVPConfig), per `design.md` Decision 1: "Algorithmic constants live with their usage site". MVPConfig does not carry `β_min` or `β_max` fields, and the canonical sources for those constants are `decompmoe.beta.BETA_MIN` and `decompmoe.beta.BETA_MAX`.
 
 #### Scenario: Field defaults locked
 
