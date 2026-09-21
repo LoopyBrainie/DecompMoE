@@ -1,0 +1,44 @@
+# Spec Delta
+
+## MODIFIED Requirements
+
+### Requirement: 4070 MVP Hyperparameter Set
+
+The system MUST, for the 4070 8 GB MVP target, adopt `d_model = 1024`, `N_e = 16`, `k = 2`, `d_ffn = 2048`, `L = 4`, `d_c = 16`, `H = 8`, `H_kv = 8`, `d_k = 128`, `V = 32_000`. Total parameters ≈ 452 M and active parameters ≈ 100 M. The MoE active FLOPs MUST be 1:1 with a Dense baseline whose `d_ffn_dense = 4096` (each MoE token performs exactly two expert FFNs of width 2048). The geometric self-consistency check MUST hold (`θ_Voronoi > θ_{1/e}` strictly under the MVP configuration, with the closed-form residual `½ · I_{sin²θ}((d_c−1)/2, 1/2) − 1/N_e` evaluating to less than `1e-9` for the reported `θ`).
+
+**Closed-form Voronoi half-angle (definitional layer)**: For N_e equal-area cells on `S^{d_c − 1}`, `θ_Voronoi(N_e, d_c)` is the unique `θ ∈ (0, π/2]` solving `½ · I_{sin² θ}((d_c − 1)/2, 1/2) = 1/N_e`, where `I_x(a, b)` is the regularized incomplete beta function. Equivalently, `versine_Voronoi(N_e, d_c) = 1 − cos θ_Voronoi` is the per-expert spherical **versine** (cap height, `1 − cos θ`); it MUST NOT be confused with `D_chord = √(2(1 − cos θ))` which uses the same `(1 − cos θ)` base but takes the square root to obtain chord length. MVP tabulated values (independent root-finding, residual `< 1e-9`):
+- `θ_Voronoi(16, 16) ≈ 67.24° (≈ 1.1735 rad)`, `versine_Voronoi(16, 16) ≈ 0.6131`.
+- `θ_Voronoi(64, 16) ≈ 58.47° (1.0205 rad)`, `versine_Voronoi(64, 16) ≈ 0.4771`.
+
+The canonical configuration-layer API `canonical_voronoi_angle(num_experts: int, signature_dim: int) -> float` MUST return this closed-form value (computed via bisection on the equation, NOT via a hard-coded table). The measurement-layer API `voronoi_angle(centroids: Tensor) -> float` MUST compute the realized Voronoi half-angle from an actual centroid tensor (offline use only, never in the training hot path). The specialist-collapse boundary `θ_{1/e}(β) = arccos(1 − 1/β)` MUST strictly satisfy `θ_Voronoi(N_e=16, d_c=16) > θ_{1/e}(β=16) = arccos(15/16) ≈ 20.36°`.
+
+**Parameter-count accounting (four explicit assumptions, MVP scale)**:
+1. **Weight tying** — input embedding `W_emb ∈ R^{V × d_model}` is shared with `lm_head` (no extra lm_head parameter). Without tying, total grows from 452 M to ≈ 484 M.
+2. **GQA degenerates to MHA at MVP scale** — `H_kv · d_k = 8 · 128 = 1024 = d_model`, so attention parameters reduce to `4 · d_model²` per layer exactly; if true GQA is later enabled (`H_kv · d_k < d_model`), the formula `P_attn/layer = 2 · d_model² + 2 · d_model · d_kv` (with `d_kv = H_kv · d_k`) MUST be used.
+3. **No Q/K/V/O biases** — `W^Q, W^K, W^V, W^O` carry no bias term.
+4. **Router term — exact, not rounding residual** — the low-rank routing projections `W^K, W^V ∈ R^{d_c × d_k}` (one per H_kv head) and bias `b ∈ R^{d_c}` contribute **exactly** `P_router/layer = H_kv · (2 · d_k · d_c + d_c) = 8 · (2 · 128 · 16 + 16) = 32_896` parameters, totaling `P_router = L · 32_896 = 131_584` across the model. LayerNorm gains, `β_i`, `c_i`, `W^O` are all excluded from the estimator (`MVPConfig` does not currently expose them as learnable parameters at MVP scale).
+
+**Closed-form parameter totals**: `P_expert = 3 · d_model · d_ffn = 3 · 1024 · 2048 = 6_291_456` (SwiGLU 3-matrix); `P_total = P_emb + L · (4 · d_model² + N_e · P_expert + P_router/layer) = 32_768_000 + 4 · (4_194_304 + 100_663_296 + 32_896) = 32_768_000 + 4 · 104_890_496 = 32_768_000 + 419_561_984 = 452_329_984` exactly; `P_active = P_emb + L · (4 · d_model² + k · P_expert + P_router/layer) = 32_768_000 + 4 · (4_194_304 + 12_582_912 + 32_896) = 32_768_000 + 4 · 16_810_112 = 32_768_000 + 67_240_448 = 100_008_448` exactly.
+
+**Source:** `wayfinder/tickets/A5-3.md`, `wayfinder/tickets/A8-1.md`, change `fix-openspec-doc-bugs` design.md (Decision 4, 8), change `fix-math-consistency-audit-2026-08` design.md (Decision 1)
+
+#### Scenario: Active FLOPs parity
+- **WHEN** MoE active FLOPs per token are computed against a Dense baseline
+- **THEN** MoE per-token active FLOPs equal Dense per-token active FLOPs within the agreed alignment accounting
+
+#### Scenario: Geometric self-consistency
+- **WHEN** the boundary threshold `θ_{1/e}` is evaluated under `β = 16`
+- **THEN** the per-layer Voronoi angle `θ_Voronoi(16, 16)` from `canonical_voronoi_angle(16, 16)` exceeds `θ_{1/e}` by a margin that prevents specialist collapse
+
+#### Scenario: Voronoi angle is N_e- and d_c-dependent
+- **WHEN** `canonical_voronoi_angle(N_e, d_c)` is evaluated at `(64, 16)`
+- **THEN** the result is `≈ 58.47°`, distinct from `canonical_voronoi_angle(16, 16) ≈ 67.24°` (the function depends on both arguments, not `d_c` alone)
+
+#### Scenario: MVP N_e=16 pinned for Phase 0 K-Means seeding (dormant bug warning)
+- **WHEN** any future implementation of Phase 0 Spherical K-Means seeding (per spec req-14 "Five-Phase Time-Driven Schedule" Phase 0 description) references wayfinder ticket `A6b-1.md` L100 (which historically stated `Spherical k-means 聚 N_e = 64 类`)
+- **THEN** the implementation MUST use the MVP `N_e = 16` from this Requirement (and `d_c = 16` from this Requirement) — NOT the ticket's historical `N_e = 64` value. The historical 4.0x ratio (64/16) would produce `N_e = 64` clusters of which `64 − 16 = 48` are "orphan clusters" never receiving any routing probability mass under the MVP `k = 2` top-k routing (per this Requirement `k = 2`), a fatal topology bug
+- **AND** the `territory_seeding` code identifier from spec req-2 is the canonical name for the Phase 0 seeding module (track via a separate change for the Phase 0 K-Means implementation; this Scenario pins only the `N_e = 16` value, not the module name)
+
+#### Scenario: Voronoi closed-form residual is bounded
+- **WHEN** the returned `θ` from `canonical_voronoi_angle(N_e, d_c)` is substituted into `½ · I_{sin²θ}((d_c − 1)/2, 1/2)`
+- **THEN** the residual `|½ · I_{sin²θ}((d_c − 1)/2, 1/2) − 1/N_e| < 1e-9` (proves the value is actually a root of the spec's equation, not a hard-coded constant)
