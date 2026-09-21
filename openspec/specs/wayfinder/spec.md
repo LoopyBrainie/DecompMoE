@@ -228,6 +228,11 @@ The canonical configuration-layer API `canonical_voronoi_angle(num_experts: int,
 - **WHEN** `canonical_voronoi_angle(N_e, d_c)` is evaluated at `(64, 16)`
 - **THEN** the result is `≈ 58.47°`, distinct from `canonical_voronoi_angle(16, 16) ≈ 67.24°` (the function depends on both arguments, not `d_c` alone)
 
+#### Scenario: MVP N_e=16 pinned for Phase 0 K-Means seeding (dormant bug warning)
+- **WHEN** any future implementation of Phase 0 Spherical K-Means seeding (per spec req-14 "Five-Phase Time-Driven Schedule" Phase 0 description) references wayfinder ticket `A6b-1.md` L100 (which historically stated `Spherical k-means 聚 N_e = 64 类`)
+- **THEN** the implementation MUST use the MVP `N_e = 16` from this Requirement (and `d_c = 16` from this Requirement) — NOT the ticket's historical `N_e = 64` value. The historical 4.0x ratio (64/16) would produce `N_e = 64` clusters of which `64 − 16 = 48` are "orphan clusters" never receiving any routing probability mass under the MVP `k = 2` top-k routing (per this Requirement `k = 2`), a fatal topology bug
+- **AND** the `territory_seeding` code identifier from spec req-2 is the canonical name for the Phase 0 seeding module (track via a separate change for the Phase 0 K-Means implementation; this Scenario pins only the `N_e = 16` value, not the module name)
+
 #### Scenario: Voronoi closed-form residual is bounded
 - **WHEN** the returned `θ` from `canonical_voronoi_angle(N_e, d_c)` is substituted into `½ · I_{sin²θ}((d_c − 1)/2, 1/2)`
 - **THEN** the residual `|½ · I_{sin²θ}((d_c − 1)/2, 1/2) − 1/N_e| < 1e-9` (proves the value is actually a root of the spec's equation, not a hard-coded constant)
