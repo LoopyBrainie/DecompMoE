@@ -101,7 +101,7 @@ This re-proposal captures the verified ground truth as a fresh OpenSpec change s
 - **[Risk]** Apply 阶段写文件与 git 已 merge 内容产生冲突。**Mitigation**: 先 `git apply --check` 验证无 diff；如产生 conflict，apply 阶段用 `--3way` merge 解决
 - **[Risk]** spec delta 5 个 Scenarios 的篇幅超出 cycle-5/6/7 原始 cycle-09 verifier amend 范围，被审 reviewer 质疑 scope 蔓延。**Mitigation**: proposal.md "Why" 段已显式说明本 change 是 re-proposal 而非新增 scope；spec delta 严格 match live spec.md L136-L153 现状
 - **[Risk]** 4 处行号改 L36 与 snapshot 漂移历史冲突，未来 reader 难以追溯"snapshot 当时为何用 L132"。**Mitigation**: 此风险由 snapshot 自身保留承担；re-proposal 不承担"snapshot drift 历史注释"职责
-- **[Risk]** test_beta.py 双断言（50-digit + narrative）与 governance req-gov-1 第 2 条 "浮点闭式 MUST pytest.approx" 可能误读。**Mitigation**: 双断言的语义不同 — `0.02845302387973555984 abs=1e-15` 是 FP-exact 50-digit mpmath literal 钉值；`0.02845 abs=1e-5` 是 L122 narrative 5-sig-fig 精度披露；两者互补而非冗余
+- **[Risk]** test_beta.py 双断言（50-digit + narrative）与 governance req-gov-1 第 2 条 "浮点闭式 MUST pytest.approx" 可能误读。**Mitigation**: 双断言的语义不同 — `0.02845302387973555984 abs=1e-30` 是 FP-exact 50-digit mpmath literal 钉值（`diff = 0.0` 因 float64 round-trip 验证）；`0.02845 abs=1e-5` 是 L122 narrative 5-sig-fig 精度披露；两者互补而非冗余
 
 ## Migration Plan
 

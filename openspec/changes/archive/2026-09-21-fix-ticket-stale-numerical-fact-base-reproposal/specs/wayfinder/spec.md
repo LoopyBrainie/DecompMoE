@@ -36,7 +36,7 @@ Per-expert scalar weights `w_i` MUST NOT appear in the logit; the mixing weight 
 
 #### Scenario: σ'(−3.5) is guarded by a 50-digit mpmath pytest assertion (durable across archive of `.audit/`)
 - **WHEN** `σ'(γ) = σ(γ) · (1 − σ(γ))` is evaluated at `γ = −3.5` in `tests/test_beta.py`
-- **THEN** there MUST exist a pytest assertion `σ'(−3.5) == pytest.approx(0.02845302387973555984, abs=1e-15)` that nails the 50-digit mpmath closed form (钉值零容差 for FP-exact literal-vs-closed-form comparison)
+- **THEN** there MUST exist a pytest assertion `σ'(−3.5) == pytest.approx(0.02845302387973555984, abs=1e-30)` that nails the 50-digit mpmath closed form (钉值零容差 for FP-exact literal-vs-closed-form comparison; 1e-30 ≤ 1e-15 spec 阈值 so test is a strict subset of the spec requirement)
 - **AND** a paired assertion `σ'(−3.5) == pytest.approx(0.02845, abs=1e-5)` that nails the L122 narrative 5-sig-fig precision disclosure
 - **AND** this test MUST be retained after archive of `.audit/audit-verification/` (i.e., it lives in the durable `tests/` tree, not in the drop-on-archive audit tree)
 

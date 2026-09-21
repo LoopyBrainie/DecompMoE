@@ -32,13 +32,13 @@ This change is a fact-base re-proposal that re-establishes the original fix as a
 
 - `tests/test_beta.py`:
   - L37-52 `test_beta_param_init_default`: rewrite to derive expected from spec closed-form `expected = 0.1 + 31.9 * float(torch.sigmoid(g))` and assert `actual == pytest.approx(expected, abs=1e-3)` — guards against self-referential literal trap (cycle-09 verifier F1 CRITICAL)
-  - L55-... `test_sigma_prime_gamma_init_health_check` (NEW): dual assertion `pytest.approx(0.02845302387973555984, abs=1e-15)` for 50-digit mpmath literal + `pytest.approx(0.02845, abs=1e-5)` for narrative 5-sig-fig; archive-durable guard
+  - L55-... `test_sigma_prime_gamma_init_health_check` (NEW): dual assertion `pytest.approx(0.02845302387973555984, abs=1e-30)` for 50-digit mpmath literal (FP-exact float64 round-trip; diff = 0.0 verified) + `pytest.approx(0.02845, abs=1e-5)` for narrative 5-sig-fig; archive-durable guard
 
 ### Ticket supersede annotations (3 files, 3 lines)
 
-- `wayfinder/tickets/A5-3.md` L63: append `> (historical, ~52° estimate; superseded by spec req-11 L185 bisection 67.24° via change fix-math-consistency-audit-2026-08 Decision 1)` after the `θ_Voronoi ~52°` row
+- `wayfinder/tickets/A5-3.md` L63: append `> (historical, ~52° estimate; superseded by spec req-11 L204 bisection 67.24° via change fix-math-consistency-audit-2026-08 Decision 1)` after the `θ_Voronoi ~52°` row
 - `wayfinder/tickets/A4-1.md` L59: append `> (historical, β_0 ≈ 1.0 estimate; superseded by spec req-7 L122 closed-form β_0 = 1.035060 via change fix-math-consistency-audit-2026-08 Decision 1)` after `β_0 ≈ 1.0` row
-- `wayfinder/tickets/A1-1.md` L98: append `> (historical, θ_Voronoi≈52° estimate; superseded by spec req-11 L185 bisection 67.24° via change fix-math-consistency-audit-2026-08 Decision 1)` after `θ_Voronoi≈52°` row (cycle-5 #1 同源 ticket 端源头 per audit-verification.md L36)
+- `wayfinder/tickets/A1-1.md` L98: append `> (historical, θ_Voronoi≈52° estimate; superseded by spec req-11 L204 bisection 67.24° via change fix-math-consistency-audit-2026-08 Decision 1)` after `θ_Voronoi≈52°` row (cycle-5 #1 同源 ticket 端源头 per audit-verification.md L36)
 
 **BREAKING**: none. All changes are tightening of existing precision or annotation; no behavioral semantics change.
 
