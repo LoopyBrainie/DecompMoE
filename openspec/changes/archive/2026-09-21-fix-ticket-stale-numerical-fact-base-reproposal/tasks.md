@@ -2,9 +2,9 @@
 
 ## 1. Pre-apply Validation
 
-- [ ] 1.1 Run `openspec validate fix-ticket-stale-numerical-fact-base-reproposal --strict` and verify exit=0 with no "Unknown item" or "MODIFIED-but-not-found" warnings
-- [ ] 1.2 Run `git log --oneline | grep -E "adf41ef|2d7e85a|229016f|11bebc6"` and verify all 4 commits are present on current branch (anchor: ground truth already in repo)
-- [ ] 1.3 Run `git show adf41ef --stat` and verify 6 files changed (wayfinder/spec.md + src/config.py + tests/test_beta.py + 3 ticket files)
+- [x] 1.1 Run `openspec validate fix-ticket-stale-numerical-fact-base-reproposal --strict` and verify exit=0 with no "Unknown item" or "MODIFIED-but-not-found" warnings. Actual: `Change 'fix-ticket-stale-numerical-fact-base-reproposal' is valid` exit=0.
+- [x] 1.2 Run `git log --oneline | grep -E "adf41ef|2d7e85a|229016f|11bebc6"` and verify all 4 commits are present on current branch (anchor: ground truth already in repo). Actual: all 4 commits present.
+- [x] 1.3 Run `git show adf41ef --stat` and verify 6 files changed (wayfinder/spec.md + src/config.py + tests/test_beta.py + 3 ticket files). Actual: 6 files, 12 insertions(+) / 8 deletions(-).
 
 ## 2. Fact-Base Cross-Reference
 
