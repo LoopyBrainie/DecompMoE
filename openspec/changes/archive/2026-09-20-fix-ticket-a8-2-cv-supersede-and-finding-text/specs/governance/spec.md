@@ -1,0 +1,24 @@
+## ADDED Requirements
+
+### Requirement: Governance advisory note — ticket A8-2 L70/L74 supersede annotation follows CLAUDE.md §3 source-field rules
+
+The system SHALL NOT introduce a new governance `req-gov-N` Requirement as part of this change. The existing `req-gov-1` ("Test Guard Precision for Closed-Form Numerical Claims", `openspec/specs/governance/spec.md` L7-L25 (anchor L7 unchanged; body L9-L25 drifted +2)) is sufficient for the integer-vs-float assertion-form concern, and this change does not introduce any new closed-form numerical claims that require additional guard rules.
+
+The ticket `(historical, <原值 reading>; superseded by spec req-N L### via <change> Decision M)` annotation pattern appended to `wayfinder/tickets/A8-2.md` L70 + L74 in this change MUST be a **CLAUDE.md §3 source-field rules application** — the annotation SHALL verbatim reference the spec requirement anchor (`req-20 L389`), the wayfinder ticket (`A8-2.md`), and the spec-end chain-of-authority decisions (`fix-openspec-doc-bugs` Decision 8 + `fix-math-consistency-audit-2026-08` Decision 5). This matches the existing source-field convention established by `req-gov-1` Policy lineage (L21) and is enforced by `scripts/lint_no_source_field_drift.py` (per CLAUDE.md §3 "Source 反链" rules).
+
+**Why no new governance Requirement is introduced by this change**:
+
+- governance req-gov-1 already formalizes integer-vs-float assertion discipline; this change does not introduce any new closed-form numerical claims, so req-gov-1 scope is unchanged
+- The ticket `(historical, ...)` annotation pattern is a textual application of CLAUDE.md §3 source-field rules (3-反链齐 + backtick-wrapped + main 反链 first), enforced by the existing `scripts/lint_no_source_field_drift.py` lint gate; no new governance Requirement is required to formalize this pattern
+- The planned change `09-fix-claude-md-ticket-advisory-boundary` (currently a `.audit/audit-verification/opsx-changes/09-fix-claude-md-ticket-advisory-boundary/` planning draft, NOT YET proposed/applied/archived) intended to introduce a future governance Requirement formalizing the **ticket advisory boundary** concept (advisory scope vs operational impact distinction, monitoring obligation, drift remediation protocol). That planned Requirement would be `req-gov-2` *if* and when `09-fix-claude-md-ticket-advisory-boundary` is actually proposed and archived. **This change is NOT contingent on that planned Requirement being live** — the ticket annotations in this change apply CLAUDE.md §3 source-field rules, which are already in force independent of any planned future governance Requirement
+- No governance Requirement is referenced for finding-text 微调 (`.audit/spec-math-audit.md` is a temporary evidence file per `.audit/README.md` L3, not a governance-anchored document)
+
+**Source:** `CLAUDE.md` (governance/CLAUDE.md back-link per CLAUDE.md §3 Workflow Conventions source-field rules)
+
+#### Scenario: Ticket A8-2 L70 + L74 annotations follow CLAUDE.md §3 source-field rules verbatim
+
+- **WHEN** `wayfinder/tickets/A8-2.md` L70 + L74 italic `(historical, ..., superseded by spec req-20 L408 ... via ...)` annotations are appended
+- **THEN** each annotation contains the canonical pattern verbatim: `(historical, <原值 reading>; superseded by spec req-N L### via <change> Decision M)` — 3-反链齐 (ticket + spec anchor + change Decision), backtick-wrapped, with the spec anchor (`wayfinder/tickets/A8-2.md` for the wayfinder ticket-side 反链; `req-20 L408 uncentered second moment` for the spec-side 反链; `fix-openspec-doc-bugs Decision 8 + fix-math-consistency-audit-2026-08 Decision 5` for the change-side 反链)
+- **AND** no new `governance` Requirement is introduced (the existing `req-gov-1` integer-vs-float guard + CLAUDE.md §3 source-field rules are sufficient for this drift remediation instance; the planned `09-fix-claude-md-ticket-advisory-boundary` ticket-advisory-boundary formalization is a separate future change)
+- **AND** the `.audit/` evidence file edits (`.audit/spec-math-audit.md` L524 + `.audit/audit-verification.md` verify-15 verdict) do NOT require new governance anchoring — `.audit/` is a temporary audit evidence library (per `.audit/README.md` L3), not governed by spec Requirements
+- **AND** the `governance` spec.md anchor coverage remains unchanged (existing `req-gov-1` anchor at L7 is not affected by this change; this ADDED Requirement does NOT introduce a `req-gov-2` anchor — `req-gov-2` would only be introduced by the planned `09-fix-claude-md-ticket-advisory-boundary` change when it is actually proposed and archived)
