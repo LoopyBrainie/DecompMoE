@@ -39,18 +39,27 @@
 
 ## 7. Commit
 
-- [ ] 7.1 Stage: `git add wayfinder/tickets/A6a-2.md` (only). Verify with `git diff --cached --stat` that exactly 1 file is staged with +1 / -0.
-- [ ] 7.2 Commit on `dev` (NOT main or release; per CLAUDE.md §4 branch architecture): `git commit -m "fix(ticket): A6a-2 L63 supersede annotation per cycle-9 audit-verification (1/128 → 1/(2·N_e))" -m "ticket A6a-2 L63 f_i^avg < 1/128 hardcoded 是 N_e=64 design 时代数值快照,与 spec req-13 L268 f_threshold = 1/(2·N_e) 参数化形式不一致. spec L270 Source 已含 (historical, threshold 1/128) supersede 注释; src/decompmoe/safeguards.py L34-36 已参数化 + L29 legacy 注释已合规. ticket 端是唯一 stale 数值源头 (per audit-verification verify-12 L820-853). 在 ticket L63 行末追加 italic annotation, 保留决策链不替代原值. 0 文件 src/spec/tests/CLAUDE.md 改动. Refs: audit-verification.md L853 (verify-12 fix recommendation) + spec req-13 L268 + spec req-34 L723 (canonical historical annotation form)." -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"`. Verify with `git log -1 --format=%s` that the commit message matches the agreed wording.
+- [x] 7.1 Stage: `git add wayfinder/tickets/A6a-2.md` (only). Verify with `git diff --cached --stat` that exactly 1 file is staged with +1 / -0. **Actual**: stage + commit 已由 parallel Claude session 跑完，落地为 commit `4905434` (2026-09-22 00:50:02)；commit message title 略作修订为 `fix(ticket): A6a-2 L63 supersede annotation line-ref follow-up (L245 → L268)` 并加上 follow-up rationale body。
+- [x] 7.2 Commit on `dev` (NOT main or release; per CLAUDE.md §4 branch architecture). **Actual**: commit 4905434 在 dev 上（ahead 21 commits from origin/dev）；HEAD's `wayfinder/tickets/A6a-2.md` L63 含 `L268`（已对照 fix spec req-13 L268 当前正本）。
 
 ## 8. Archive prep (post-commit, optional in this change's scope)
 
-- [ ] 8.1 Run `openspec validate fix-ticket-a6a-2-f-threshold-supersede --strict --type change` and verify PASS (skip_specs zero-deltas accepted).
+- [x] 8.1 Run `openspec validate fix-ticket-a6a-2-f-threshold-supersede --strict --type change` and verify PASS (skip_specs zero-deltas accepted). **Actual**: exit 0；"Change 'fix-ticket-a6a-2-f-threshold-supersede' is valid" + ℹ skip_specs info note.
 - [ ] 8.2 (out of scope of this change) `/opsx:archive` once user instructs: this moves the change from `openspec/changes/fix-ticket-a6a-2-f-threshold-supersede/` to `openspec/changes/archive/YYYY-MM-DD-fix-ticket-a6a-2-f-threshold-supersede/`.
 - [ ] 8.3 (out of scope) Audit-verification `.audit/.../opsx-changes/02-fix-ticket-a6a-2-f-threshold-supersede/` long-version planning snapshot remains as evidence; this OpenSpec change's `openspec/changes/<date>-fix-ticket-a6a-2-f-threshold-supersede/` archive directory supersedes it on archive.
 
 ## 9. Evidence linkage to audit-verification
 
-- [ ] 9.1 The applied commit (per §7.2) is the canonical handle for cross-cycle closure: future audit-verification cycles can run `git log --oneline -- wayfinder/tickets/A6a-2.md` to find this commit and `git show <commit>` to read its body for the evidence chain references.
+- [x] 9.1 The applied commit (per §7.2) is the canonical handle for cross-cycle closure: future audit-verification cycles can run `git log --oneline -- wayfinder/tickets/A6a-2.md` to find this commit and `git show <commit>` to read its body for the evidence chain references. **Actual**: commit `4905434` 在 `git log --oneline -- wayfinder/tickets/A6a-2.md` 中可查，commit body 含完整 audit-verification evidence chain 引用。
 - [ ] 9.2 Cross-cycle closure spread: `audit-verification/README.md` §"Change ↔ Finding ↔ Meta 三方映射" L128-136 maps `02-fix-ticket-a6a-2-f-threshold-supersede` ↔ cycle-9 finding 1. After archive, that mapping's status changes from `planning 草案` to `archived` (manually updated or via OpenSpec tooling convention).
+
+## 10. Code-review follow-up (verifier findings, F4.0 only actionable in this change scope)
+
+- [x] 10.1 Add `test_should_resurrect_consec_step_boundary_exact` to `tests/test_safeguards.py` pinning the `consec=200` two-sided boundary: `len(f_history) == 199` (< consec) → empty set; `len(f_history) == 200` (= consec, all snapshots below threshold) → all N_e experts flagged. Test runs and passes (1.0 added, 197/197 total green). Closes verifier Finding F4.0. **Implementation note**: test imports `DEAD_EXPERT_CONSEC_STEPS` + `_dead_expert_threshold` from `decompmoe.safeguards` (introspection, not behavior coupling); integer closed-form pinned via bare `==` (req-gov-1 integer closure protocol); float closed-form via `_dead_expert_threshold(N_e)` evaluation (req-gov-1 float closure protocol). Also includes a third sub-case: `consec=199` with `len(history)=200` to confirm `>= consec` works (catches both off-by-one directions).
+- [ ] 10.2 (out of scope, separate change required) Verifier Finding F5.0: `openspec/specs/wayfinder/spec.md` L776 cites "L251" as the canonical live example of Source-field `(historical, threshold 1/128)` annotation, but L251 is blank; actual Source field is at L270. This is **pre-existing spec drift**, not introduced by this change. Fix requires modifying the spec — outside `skip_specs: true` scope of this change. Open as separate spec-only change (e.g., `fix-spec-req-34-canonical-example-line-ref`).
+
+## 11. False-positive findings (verifier F1.0/F2.0/F3.0 — no action)
+
+- [x] 11.1 Verifier F1.0/F2.0/F3.0 reported "off-by-one" line-ref drift between change artifacts (`L264/L268/L270`) and spec content. Independent re-verification using PowerShell `Get-Content` 0-indexed array semantics + 1-indexed display labels confirmed all line refs in the change artifacts (`L264` anchor / `L268` body / `L270` Source field) MATCH the actual spec content (verified at commit 4905434 HEAD). Verifier mis-indexed PowerShell arrays (treated `[265]` as 1-indexed L265 when it is 1-indexed L266, and `[269]` as L269 when it is 1-indexed L270). No code or document change — annotation left verbatim.
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>
