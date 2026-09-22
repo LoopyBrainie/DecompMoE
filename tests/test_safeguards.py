@@ -911,6 +911,92 @@ def test_should_resurrect_current_per_step_semantic_pinned() -> None:
     )
 
 
+def test_should_resurrect_consec_step_boundary_exact() -> None:
+    """Pin `consec=200` boundary: history length 199 → empty set; history length 200 → fires.
+
+    Per spec req-13 (anchor `<a id="req-13">` at L264, body at L268): "triggered when
+    `f_i^avg < 1 / (2 · N_e)` for 200 consecutive steps". The trigger MUST NOT
+    fire before `consec` consecutive steps have accumulated, and MUST fire
+    exactly when `consec` consecutive steps all satisfy the threshold
+    condition. The two-sided boundary at `len(f_history) == consec` is
+    implementation-defined but load-bearing: a regression that flips
+    `len(f_history) < consec` to `len(f_history) <= consec - 1` would
+    silently trigger at 199 steps; a regression to `<= consec` would
+    silently skip the trigger at exactly 200 steps. Both regressions
+    slip past tests that use 250-step history (`test_resurrection_threshold_mvp_value`).
+
+    Spec req-13 / L268 + L770 closes the trigger event in `set()` return;
+    integer closed-form via bare `==` per req-gov-1 (DEAD_EXPERT_CONSEC_STEPS=200).
+    """
+    from decompmoe.safeguards import (
+        DEAD_EXPERT_CONSEC_STEPS,
+        _dead_expert_threshold,
+    )
+
+    # Integer closed-form pin (per req-gov-1 integer closure protocol).
+    assert DEAD_EXPERT_CONSEC_STEPS == 200, (
+        f"DEAD_EXPERT_CONSEC_STEPS = {DEAD_EXPERT_CONSEC_STEPS}, "
+        f"expected 200 per spec req-13 L268"
+    )
+
+    N_e = 16
+    threshold = _dead_expert_threshold(N_e)  # = 1/32 = 0.03125 (exact)
+    f_below = 0.02  # strictly below threshold (0.02 < 0.03125)
+    assert f_below < threshold, (
+        f"setup invariant: f_below {f_below} must be < threshold {threshold}"
+    )
+
+    # (a) len(f_history) == 199 (one short of consec): NOT enough history → empty set.
+    history_199 = [[f_below] * N_e for _ in range(DEAD_EXPERT_CONSEC_STEPS - 1)]
+    assert len(history_199) == 199, (
+        f"setup invariant: history_199 length must be {DEAD_EXPERT_CONSEC_STEPS - 1}, got {len(history_199)}"
+    )
+    res_199 = safeguards.should_resurrect(
+        history_199,
+        current_step=300,
+        last_resurrection_step=-2000,
+        N_e=N_e,
+    )
+    assert res_199 == set(), (
+        f"len(f_history) == 199 (< consec=200) must yield empty set; got {sorted(res_199)}. "
+        f"A regression that loosens `len(f_history) < consec` would silently trigger here."
+    )
+
+    # (b) len(f_history) == 200 (= consec): exactly enough, all snapshots strictly
+    # below threshold → all N_e=16 experts flagged.
+    history_200 = [[f_below] * N_e for _ in range(DEAD_EXPERT_CONSEC_STEPS)]
+    assert len(history_200) == 200, (
+        f"setup invariant: history_200 length must be {DEAD_EXPERT_CONSEC_STEPS}, got {len(history_200)}"
+    )
+    res_200 = safeguards.should_resurrect(
+        history_200,
+        current_step=300,
+        last_resurrection_step=-2000,
+        N_e=N_e,
+    )
+    expected_flagged = set(range(N_e))
+    assert res_200 == expected_flagged, (
+        f"len(f_history) == 200 (= consec=200) with all snapshots below threshold "
+        f"must yield exactly all {N_e} experts flagged; got {sorted(res_200)} "
+        f"vs expected {sorted(expected_flagged)}. A regression that tightens "
+        f"`len(f_history) < consec` to `<= consec - 1` would silently skip this trigger."
+    )
+
+    # (c) Additional: also pin the integer closed-form via the rate-limit boundary
+    # to ensure no off-by-one in either consec check. Use a smaller consec for clarity.
+    res_short_consec = safeguards.should_resurrect(
+        history_200,  # 200 steps
+        current_step=300,
+        last_resurrection_step=-2000,
+        N_e=N_e,
+        consec=199,  # smaller than history → consec condition should fire
+    )
+    assert res_short_consec == expected_flagged, (
+        f"consec=199 with len(history)=200 must still fire (history >= consec). "
+        f"Got {sorted(res_short_consec)} vs expected {sorted(expected_flagged)}."
+    )
+
+
 def test_should_resurrect_per_step_is_strict_subset_of_avg_window_for_monotonic_history() -> None:
     """Mathematical equivalence: per-step ⊊ avg-window on non-constant history; agreement on constant.
 
