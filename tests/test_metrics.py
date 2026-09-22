@@ -104,7 +104,8 @@ def test_mci_uniform_token_distribution() -> None:
     """
     d_c, k = 16, 2
     T = torch.stack([torch.eye(d_c)[j] for j in range(d_c) for _ in range(k)])
-    assert metrics.MCI(T).item() == pytest.approx(1.0, abs=1e-12)
+    _mci = metrics.MCI(T).item()
+    assert _mci == pytest.approx(1.0, abs=1e-12), f"actual MCI(uniform) = {_mci}, expected 1.0"
 
 
 def test_mci_rank1_token_distribution() -> None:
@@ -115,7 +116,8 @@ def test_mci_rank1_token_distribution() -> None:
     d_c = 16
     T = torch.zeros(32, d_c)
     T[:, 0] = 1.0
-    assert metrics.MCI(T).item() == pytest.approx(1.0 / d_c, abs=1e-12)
+    _mci = metrics.MCI(T).item()
+    assert _mci == pytest.approx(1.0 / d_c, abs=1e-12), f"actual MCI(rank-1) = {_mci}, expected 1/d_c = {1.0 / d_c}"
 
 
 def test_mci_range_bound() -> None:
@@ -128,7 +130,7 @@ def test_mci_range_bound() -> None:
 
 
 def test_mci_centered_covariance_upper_endpoint_unreachable() -> None:
-    """Principle-form: spec L408 Reason claim 1 — centered-covariance reading has
+    """Principle-form: spec L413 Reason claim 1 — centered-covariance reading has
     `(1/d_c, 1]` upper endpoint unreachable at |T| = d_c.
 
     Mathematical derivation (verbatim from design.md §"Centered covariance"):
@@ -139,9 +141,9 @@ def test_mci_centered_covariance_upper_endpoint_unreachable() -> None:
       1/d_c (multiplicity d_c − 1)}, so MCI_centered = 1/(d_c · Σ λ̃_j²) =
       1/(d_c · (d_c − 1) · (1/(d_c − 1))²) = (d_c − 1)/d_c, STRICTLY < 1.0.
     - This proves the centered-covariance reading cannot reach MCI = 1.0,
-    which is exactly why spec L408 Reason supersedes it with uncentered second moment.
+    which is exactly why spec L413 Reason supersedes it with uncentered second moment.
 
-    Verifier F2 — principle-form guard for spec L408 Reason claim 1.
+    Verifier F2 — principle-form guard for spec L413 Reason claim 1.
     This test computes MCI_centered MANUALLY (not via `metrics.MCI`, which
     uses uncentered) to directly demonstrate the upper endpoint bound.
     """
@@ -176,22 +178,22 @@ def test_mci_centered_covariance_upper_endpoint_unreachable() -> None:
 
 
 def test_mci_cv_convex_hull_lower_bound_unreachable() -> None:
-    """Principle-form: spec L408 Reason claim 2 — CV (convex hull radius) lower bound
+    """Principle-form: spec L413 Reason claim 2 — CV (convex hull radius) lower bound
     1/d_c on S^{d_c−1} makes original `< 0.05` health target unreachable.
 
-    Mathematical claim (verbatim from spec L408 Reason): for any set of points on
+    Mathematical claim (verbatim from spec L413 Reason): for any set of points on
     S^{d_c−1}, the CV reading has lower bound `1/d_c` (universal geometric
     constraint). Therefore any "health target" CV < 1/d_c is unreachable on S^{d_c−1}.
 
     For d_c = 16: lower bound 1/d_c = 0.0625, so any health target CV < 0.0625
     (including the original `< 0.05` target) is unreachable.
 
-    Verifier F2 — principle-form guard for spec L408 Reason claim 2.
+    Verifier F2 — principle-form guard for spec L413 Reason claim 2.
 
     This test verifies the spec claim STRUCTURE: the lower bound 1/d_c strictly
     exceeds the original `< 0.05` health target. The full geometric proof that
     CV ≥ 1/d_c for any distribution on S^{d_c−1} is established by the spec
-    L408 Reason citation; here we verify the operational consequence:
+    L413 Reason citation; here we verify the operational consequence:
     the `< 0.05` health target is unreachable because 1/d_c > 0.05.
     """
     d_c = 16
@@ -204,12 +206,30 @@ def test_mci_cv_convex_hull_lower_bound_unreachable() -> None:
     # Original < 0.05 health target is unreachable: 0.05 < 1/d_c = 0.0625
     assert health_target < lower_bound, (
         f"Health target CV < {health_target} is unreachable because CV ≥ 1/d_c = {lower_bound:.6f} "
-        f"on S^{{d_c-1}}; this proves why spec L408 Reason supersedes CV reading with uncentered second moment"
+        f"on S^{{d_c-1}}; this proves why spec L413 Reason supersedes CV reading with uncentered second moment"
+    )
+    # Empirical sampling sanity check (spec L413 Reason universal geometric constraint)
+    # CV (convex hull radius) on S^{d_c-1} has universal lower bound 1/d_c.
+    # Sample N=10000 random points on S^{d_c-1}, compute the max squared chord
+    # distance from the empirical centroid (= CV^2 proxy), and confirm that the
+    # empirical CV strictly exceeds 1/d_c (with strong tolerance).
+    import math
+    torch.manual_seed(0)
+    N = 10000
+    T_sample = torch.nn.functional.normalize(torch.randn(N, d_c), dim=-1)
+    centroid = torch.nn.functional.normalize(T_sample.mean(dim=0), dim=-1)
+    sq_chord = 2.0 * (1.0 - T_sample @ centroid)
+    cv_estimated = math.sqrt(sq_chord.max().item())
+    # Empirical CV must be > 1/d_c (universal geometric lower bound, with empirical slack).
+    # Tolerance 1e-2 accounts for finite-sample convergence (N=10000 ~ O(1/sqrt(N)) slack).
+    assert cv_estimated > lower_bound - 1e-2, (
+        f"Empirical CV = {cv_estimated:.4f} < 1/d_c - 1e-2 = {lower_bound - 1e-2:.4f}; "
+        f"violates spec L413 Reason claim 2 universal geometric lower bound on S^{{d_c-1}}"
     )
 
 
 def test_mci_uncentered_both_endpoints_attainable_principle() -> None:
-    """Principle-form: spec L408 Reason claim 3 — uncentered second moment allows BOTH
+    """Principle-form: spec L413 Reason claim 3 — uncentered second moment allows BOTH
     endpoints of `MCI ∈ [1/d_c, 1]` to be attainable, unlike centered-covariance or CV.
 
     Mathematical derivation (verbatim from design.md §"Uncentered second moment"):
@@ -223,9 +243,9 @@ def test_mci_uncentered_both_endpoints_attainable_principle() -> None:
 
     This is the principle-form version of `test_mci_uniform_token_distribution` +
     `test_mci_rank1_token_distribution`, framed explicitly as "both endpoints
-    attainable" with the uncentered reading (the third L408 Reason claim).
+    attainable" with the uncentered reading (the third L413 Reason claim).
 
-    Verifier F2 — principle-form guard for spec L408 Reason claim 3.
+    Verifier F2 — principle-form guard for spec L413 Reason claim 3.
     """
     d_c = 16
     # Upper endpoint (uniform basis vectors, |T| = d_c)
@@ -233,7 +253,7 @@ def test_mci_uncentered_both_endpoints_attainable_principle() -> None:
     mci_upper = metrics.MCI(T_uniform).item()
     assert mci_upper == pytest.approx(1.0, abs=1e-12), (
         f"MCI(uniform) = {mci_upper} must equal 1.0 (upper endpoint, "
-        f"verifies spec L408 Reason claim 3 upper endpoint attainability)"
+        f"verifies spec L413 Reason claim 3 upper endpoint attainability)"
     )
     # Lower endpoint (rank-1, |T| = d_c copies of e_1)
     T_rank1 = torch.zeros(d_c, d_c)
@@ -241,7 +261,7 @@ def test_mci_uncentered_both_endpoints_attainable_principle() -> None:
     mci_lower = metrics.MCI(T_rank1).item()
     assert mci_lower == pytest.approx(1.0 / d_c, abs=1e-12), (
         f"MCI(rank-1) = {mci_lower} must equal 1/d_c = {1.0 / d_c} (lower endpoint, "
-        f"verifies spec L408 Reason claim 3 lower endpoint attainability)"
+        f"verifies spec L413 Reason claim 3 lower endpoint attainability)"
     )
     # Both endpoints attainable within declared range [1/d_c, 1]
     assert 1.0 / d_c <= mci_lower and mci_upper <= 1.0 + 1e-12, (

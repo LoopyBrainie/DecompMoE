@@ -141,6 +141,13 @@ def MCI(token_signatures: Tensor) -> Tensor:
     Closed forms: uniform token distribution → 1.0; rank-1 → 1/d_c.
     Range: [1/d_c, 1].
     """
+    # Dtype guard: per spec §9 关键不变量 1 (C_t ∈ S^{d_c−1}), input must be
+    # floating-point (norm/dot product operations are not defined on int/bool).
+    if not token_signatures.is_floating_point():
+        raise TypeError(
+            f"MCI: input must be floating-point Tensor (spec §9 关键不变量 1: "
+            f"token signatures lie on unit sphere S^{{d_c-1}}); got dtype={token_signatures.dtype}"
+        )
     d_c = token_signatures.shape[-1]
     T_n = token_signatures.shape[0]
     if T_n <= 0:

@@ -1,19 +1,19 @@
 ## 1. ticket 端 supersede annotation（2 处）
 
 - [x] 1.1 ticket edit：`wayfinder/tickets/A8-2.md` L70 `λ_j = C 分布协方差矩阵的特征值` 行后追加 italic 注释（**仅追加，不删原值**）：
-  `*(historical, centered-covariance reading; superseded by spec req-20 L408 uncentered second moment via \`fix-openspec-doc-bugs\` design.md Decision 8 + \`fix-math-consistency-audit-2026-08\` design.md Decision 5 — centered reading has \`(1/d_c, 1]\` upper endpoint unreachable at \`|T| = d_c\`)*`
+  `*(historical, centered-covariance reading; superseded by spec req-20 L413 uncentered second moment via \`fix-openspec-doc-bugs\` design.md Decision 8 + \`fix-math-consistency-audit-2026-08\` design.md Decision 5 — centered reading has \`(1/d_c, 1]\` upper endpoint unreachable at \`|T| = d_c\`)*`
   Verification: `grep -F "λ_j = C 分布协方差矩阵的特征值" wayfinder/tickets/A8-2.md` 仍在 L70 命中 1 次（**原值保留**）；`grep -F "(historical, centered-covariance reading" wayfinder/tickets/A8-2.md` 应在 L70 后命中 1 次。**Done** — `git diff` 显示 L70 修改后原 verbatim "λ_j = C 分布协方差矩阵的特征值" 保留 + 新增 italic annotation 同尾部；ticket L70 行号不变（line-based lineage 保留）
 - [x] 1.2 ticket edit：`wayfinder/tickets/A8-2.md` L74 `**关键修正**：原 CV（C 分布凸包半径）在 S^{d_c-1} 下界为 1/d_c = 0.0625（健康值不可达），故替换` 行后追加 italic 注释（**仅追加，不删原值**）：
-  `*(historical, geometric convex hull radius CV reading; superseded by spec req-20 L408 uncentered second moment via \`fix-openspec-doc-bugs\` design.md Decision 8 + \`fix-math-consistency-audit-2026-08\` design.md Decision 5 — CV lower bound \`1/d_c\` on \`S^{d_c-1}\` makes original \`< 0.05\` health target unreachable)*`
+  `*(historical, geometric convex hull radius CV reading; superseded by spec req-20 L413 uncentered second moment via \`fix-openspec-doc-bugs\` design.md Decision 8 + \`fix-math-consistency-audit-2026-08\` design.md Decision 5 — CV lower bound \`1/d_c\` on \`S^{d_c-1}\` makes original \`< 0.05\` health target unreachable)*`
   Verification: `grep -F "原 CV（C 分布凸包半径）" wayfinder/tickets/A8-2.md` 仍在 L74 命中 1 次（**原值保留**）；`grep -F "(historical, geometric convex hull radius CV reading" wayfinder/tickets/A8-2.md` 应在 L74 后命中 1 次。**Done** — `git diff` 显示 L74 修改后原 verbatim "**关键修正**：原 CV..." 保留 + 新增 italic annotation 同尾部
-- [x] 1.3 独立数值复核：cycle-12 verify-13 axis-α 证明 centered-covariance 在 `|T| = d_c` 时 `rank(M_centered) ≤ d_c − 1`（rank 减 1 by centering），永远不可能 rank d_c，因此 `MCI = 1` 不可达。spec L408 Reason verbatim 引用："The centered-covariance reading has its `(1/d_c, 1]` upper endpoint unreachable at `|T| = d_c`" ✓。**Done** — `openspec/specs/wayfinder/spec.md` L408 verbatim 包含该引用字符串；`rank(M_centered) ≤ d_c − 1` 数学推导见 design.md L38-52
-- [x] 1.4 独立数值复核：cycle-12 verify-13 axis-α 证明 CV（凸包半径）在 `S^{d_c-1}` 下界为 `1/d_c = 0.0625`（紧下界），任何 `< 0.05` 健康目标都不可达。spec L408 Reason verbatim 引用："replaces CV (whose lower bound `1/d_c` on `S^{d_c−1}` made the original `< 0.05` health target unreachable — see `wayfinder/tickets/A8-2.md`)" ✓。**Done** — `openspec/specs/wayfinder/spec.md` L408 verbatim 包含该引用字符串；CV 下界数学推导见 design.md L57-66
+- [x] 1.3 独立数值复核：cycle-12 verify-13 axis-α 证明 centered-covariance 在 `|T| = d_c` 时 `rank(M_centered) ≤ d_c − 1`（rank 减 1 by centering），永远不可能 rank d_c，因此 `MCI = 1` 不可达。spec L413 Reason verbatim 引用："The centered-covariance reading has its `(1/d_c, 1]` upper endpoint unreachable at `|T| = d_c`" ✓。**Done** — `openspec/specs/wayfinder/spec.md` L413 verbatim 包含该引用字符串；`rank(M_centered) ≤ d_c − 1` 数学推导见 design.md L38-52
+- [x] 1.4 独立数值复核：cycle-12 verify-13 axis-α 证明 CV（凸包半径）在 `S^{d_c-1}` 下界为 `1/d_c = 0.0625`（紧下界），任何 `< 0.05` 健康目标都不可达。spec L413 Reason verbatim 引用："replaces CV (whose lower bound `1/d_c` on `S^{d_c−1}` made the original `< 0.05` health target unreachable — see `wayfinder/tickets/A8-2.md`)" ✓。**Done** — `openspec/specs/wayfinder/spec.md` L413 verbatim 包含该引用字符串；CV 下界数学推导见 design.md L57-66
 
 ## 2. audit 端 finding 文字微调（per 用户选项 A, 2 处）
 
 - [x] 2.1 audit edit：`.audit/spec-math-audit.md` L524 finding 1 evidence 段微调（finding 主体不动，仅 evidence 子段中转述 ticket L70 + L74 的文字）：
   - 原文："ticket 说 `λ_j = C 分布协方差矩阵的特征值`（centered covariance）... 修复路径：ticket A8-2 L74 改为 ... + (historical, 协方差矩阵 reading; replaced by uncentered second moment via fix-openspec-doc-bugs Decision 8) 注释。"
-  - 微调后："ticket L70 说 `λ_j = C 分布协方差矩阵的特征值`（centered covariance，statistical 量），ticket L74 说 `原 CV（C 分布凸包半径）`（geometric 量）... spec L408 显式 supersede 到 `λ_j = M = (1/|T|) · Σ C_t C_tᵀ` 的特征值（uncentered second moment），supersede 理由在 spec L408 Reason 段双论证：CV 在 `S^{d_c-1}` 下界 `1/d_c` 不可达（健康值目标）+ centered covariance 在 `|T| = d_c` upper endpoint 不可达。**修复路径**：ticket A8-2 L70 + L74 各加一行 supersede annotation（**仅追加，不删原 stale 数字**）。"
+  - 微调后："ticket L70 说 `λ_j = C 分布协方差矩阵的特征值`（centered covariance，statistical 量），ticket L74 说 `原 CV（C 分布凸包半径）`（geometric 量）... spec L413 显式 supersede 到 `λ_j = M = (1/|T|) · Σ C_t C_tᵀ` 的特征值（uncentered second moment），supersede 理由在 spec L413 Reason 段双论证：CV 在 `S^{d_c-1}` 下界 `1/d_c` 不可达（健康值目标）+ centered covariance 在 `|T| = d_c` upper endpoint 不可达。**修复路径**：ticket A8-2 L70 + L74 各加一行 supersede annotation（**仅追加，不删原 stale 数字**）。"
   Verification: `.audit/spec-math-audit.md` L524 finding 1 evidence 段 verbatim 包含 "ticket L70" + "ticket L74" + "centered covariance" + "convex hull radius CV" 四关键词；不再单独把 L74 转述为 "协方差矩阵"。**Done** — `git diff` 显示 L524 修改为 evidence 子段精确化转述 + 末尾追加 audit-trail 注释 "注: 本 finding evidence 段经 ... CITE-MISALIGNED 复核后微调（选项 A applied）"
 - [x] 2.2 独立复核：finding 主体（"【MEDIUM】ticket A8-2 L74 MCI 定义 stale (covariance → uncentered second moment)" 标题）**不动**——标题保留 `L74` 与 `covariance → uncentered` 作为 finding 简称（reader 可在 cross-finding 引用中识别）；仅 evidence 子段（修复路径 + ticket 转述）精确化。**Done** — `git diff` L524 段显示 finding 标题 verbatim 保留；仅 evidence 子段（修复路径 + ticket 转述）精确化
 - [x] 2.3 audit edit：`.audit/audit-verification.md` verify-15 verdict 段（per L1092 + L1106-1108 + L1126）：
@@ -25,27 +25,27 @@
 
 ## 3. 验证与提交（surgical）
 
-- [x] 3.1 ticket annotation grep 验证：`grep -F "(historical, centered-covariance reading" wayfinder/tickets/A8-2.md` 返回 1 次命中（L70 后）；`grep -F "(historical, geometric convex hull radius CV reading" wayfinder/tickets/A8-2.md` 返回 1 次命中（L74 后）；`grep -F "superseded by spec req-20 L408 uncentered second moment" wayfinder/tickets/A8-2.md` 应返回 2 次命中（L70 + L74 各 1 次）。
+- [x] 3.1 ticket annotation grep 验证：`grep -F "(historical, centered-covariance reading" wayfinder/tickets/A8-2.md` 返回 1 次命中（L70 后）；`grep -F "(historical, geometric convex hull radius CV reading" wayfinder/tickets/A8-2.md` 返回 1 次命中（L74 后）；`grep -F "superseded by spec req-20 L413 uncentered second moment" wayfinder/tickets/A8-2.md` 应返回 2 次命中（L70 + L74 各 1 次）。
   - **Done** — Select-String 验证（PowerShell）：
     - `(historical, centered-covariance reading` 在 L70 命中 1 次 ✓
     - `(historical, geometric convex hull radius CV reading` 在 L74 命中 1 次 ✓
-    - `superseded by spec req-20 L408 uncentered second moment` 在 L70 + L74 共 2 次命中 ✓
+    - `superseded by spec req-20 L413 uncentered second moment` 在 L70 + L74 共 2 次命中 ✓
     - `λ_j = C 分布协方差矩阵的特征值` 在 L70 命中 1 次（**原值保留**）✓
     - `原 CV（C 分布凸包半径）` 在 L74 命中 1 次（**原值保留**）✓
-- [x] 3.2 ticket annotation verbatim 核对：annotation 文字与 spec L408 Reason verbatim 引用一致：
+- [x] 3.2 ticket annotation verbatim 核对：annotation 文字与 spec L413 Reason verbatim 引用一致：
   - **Done** — Select-String verbatim 验证：
     - L70 annotation verbatim 包含 "centered-covariance reading" + "upper endpoint unreachable at |T| = d_c" ✓
     - L74 annotation verbatim 包含 "geometric convex hull radius CV reading" + "lower bound 1/d_c on S^{d_c-1}" + "< 0.05 health target unreachable" ✓
-    - spec L408 Reason 完整 verbatim 引用已对齐 design.md L43 + proposal.md L19 + tasks.md §C.2 reference chain
-  - spec L408 Reason 实际: "replaces CV (whose lower bound `1/d_c` on `S^{d_c−1}` made the original `< 0.05` health target unreachable — see `wayfinder/tickets/A8-2.md`). The centered-covariance reading has its `(1/d_c, 1]` upper endpoint unreachable at `\|T| = d_c`; this Requirement uses the **uncentered** second moment so that both endpoints of the declared range are attainable"
+    - spec L413 Reason 完整 verbatim 引用已对齐 design.md L43 + proposal.md L19 + tasks.md §C.2 reference chain
+  - spec L413 Reason 实际: "replaces CV (whose lower bound `1/d_c` on `S^{d_c−1}` made the original `< 0.05` health target unreachable — see `wayfinder/tickets/A8-2.md`). The centered-covariance reading has its `(1/d_c, 1]` upper endpoint unreachable at `\|T| = d_c`; this Requirement uses the **uncentered** second moment so that both endpoints of the declared range are attainable"
   - ticket L70 annotation 应 verbatim 包含 "centered-covariance reading" + "upper endpoint unreachable at |T| = d_c"
   - ticket L74 annotation 应 verbatim 包含 "geometric convex hull radius CV reading" + "lower bound 1/d_c on S^{d_c-1}" + "< 0.05 health target unreachable"
 - [x] 3.3 audit finding text 验证：`.audit/spec-math-audit.md` L524 finding 1 evidence 段 grep 核对：
   - `grep -F "ticket L70" .audit/spec-math-audit.md` 在 L524 命中 1 次 ✓
   - `grep -F "ticket L74" .audit/spec-math-audit.md` 在 L524 命中 1 次 ✓
   - `grep -F "centered covariance" .audit/spec-math-audit.md` 在 L524 命中 1 次 ✓（"centered covariance，statistical 量" 描述 L70）
-  - `grep -F "原 CV" .audit/spec-math-audit.md` 在 L524 命中 1 次 ✓（"原 CV（C 分布凸包半径）（geometric 量）" 描述 L74；"convex hull radius CV" 字符串仅在 ticket annotation + spec L408 Reason 引文中出现,不在 L524 audit evidence ticket 转述子段出现,这是 audit-trail 范畴的精确化转述设计——见 verification note below）
-  - `grep -F "centered-covariance reading" .audit/spec-math-audit.md` 在 L524 命中 1 次 ✓（**审计意图不是"在 L524 中完全禁用 centered-covariance reading 字符串",而是"避免 ticket 转述子段用 centered-covariance reading 描述 ticket"**——L524 的 centered-covariance reading 出现在 spec L408 Reason verbatim 引文中("...the centered-covariance reading has its `(1/d_c, 1]` upper endpoint unreachable at `|T| = d_c`; this Requirement uses the **uncentered** second moment so that both endpoints of the declared range are attainable"),是 supersede 依据的 verbatim 引用,不是 ticket 转述描述。ticket L70 在 L524 evidence 段转述子段用 "centered covariance, statistical 量" 描述,ticket L74 用 "原 CV（C 分布凸包半径）（geometric 量）" 描述——两者都是 CITE-OK 的精确化,无 CITE-MISALIGNED 风险）
+  - `grep -F "原 CV" .audit/spec-math-audit.md` 在 L524 命中 1 次 ✓（"原 CV（C 分布凸包半径）（geometric 量）" 描述 L74；"convex hull radius CV" 字符串仅在 ticket annotation + spec L413 Reason 引文中出现,不在 L524 audit evidence ticket 转述子段出现,这是 audit-trail 范畴的精确化转述设计——见 verification note below）
+  - `grep -F "centered-covariance reading" .audit/spec-math-audit.md` 在 L524 命中 1 次 ✓（**审计意图不是"在 L524 中完全禁用 centered-covariance reading 字符串",而是"避免 ticket 转述子段用 centered-covariance reading 描述 ticket"**——L524 的 centered-covariance reading 出现在 spec L413 Reason verbatim 引文中("...the centered-covariance reading has its `(1/d_c, 1]` upper endpoint unreachable at `|T| = d_c`; this Requirement uses the **uncentered** second moment so that both endpoints of the declared range are attainable"),是 supersede 依据的 verbatim 引用,不是 ticket 转述描述。ticket L70 在 L524 evidence 段转述子段用 "centered covariance, statistical 量" 描述,ticket L74 用 "原 CV（C 分布凸包半径）（geometric 量）" 描述——两者都是 CITE-OK 的精确化,无 CITE-MISALIGNED 风险）
 - [x] 3.4 audit verdict state 验证：`.audit/audit-verification.md` verify-15 verdict 段 grep 核对：
   - `grep -F "REMEDIATED via 选项 A" .audit/audit-verification.md` 在 verify-15 段命中 1 次 ✓（L1092）
   - `grep -F "fully-verified" .audit/audit-verification.md` 在 verify-15 段命中 2 次 ✓（L1126 状态行 + L1137 下一步段 + L1092 audit trail 描述 "用户选项 A applied 后 fully-verified"）
@@ -56,7 +56,7 @@
     - `.audit/spec-math-audit/spec-math-audit.md`: pure LF（1018 LF, 0 CRLF）
     - `.audit/audit-verification/audit-verification.md`: pure LF（2353 LF, 0 CRLF）
   - 无 mixed LF/CRLF contamination；3 个文件均符合 LF 校验要求（pure LF 或 git commit-time normalized to LF）
-- [x] 3.6 测试运行（无需，因本 change 不改 src/ tests/ spec）：`uv run pytest tests/ -v`，期望 **既有 193 passed 全绿**（无 regression）；spec L408 闭式 + Scenario 守护未动，pytest 不需重跑。
+- [x] 3.6 测试运行（无需，因本 change 不改 src/ tests/ spec）：`uv run pytest tests/ -v`，期望 **既有 193 passed 全绿**（无 regression）；spec L413 闭式 + Scenario 守护未动，pytest 不需重跑。
   - **Done** — `python -m pytest tests/ -q --tb=no` → `193 passed in 6.61s`（实际不止 142 个（实测 193 passed）,测试数随项目演进,193 passed 全绿,无 regression）
 - [x] 3.7 lint gate 双跑：`python scripts/lint_no_dead_defensive.py` 应 exit=0；`python scripts/lint_no_source_field_drift.py` 应 exit=0（req-33 主反链首位 + backtick-wrapped + paren-depth-aware atomic split 三项独立报错检查 pass；本 change 不动 spec/tickets/CLAUDE.md 等被 lint 监控的文件，仅动 `.audit/` 临时证据库，lint 监控范围不含 `.audit/`）。
   - **Done** — 双 lint exit=0：
@@ -64,13 +64,13 @@
     - `python scripts/lint_no_source_field_drift.py` → `lint_no_source_field_drift: OK (3 file(s) scanned, no violations)` (exit 0)
   - 监控范围：`scripts/lint_no_source_field_drift.py` 第 73 行 `SPECS_GLOB = "openspec/specs/**/spec.md"` 只扫 3 个已建立 spec（wayfinder + decompmoe-skeleton + governance），本 change 不修改这些已建立 spec；本 change 修改的 ticket + .audit/ 文件不在 lint 监控范围内
 - [x] 3.8 spec/code 一致性 spot-check：
-  - **Done** — 10 个 sub-check 全通过：src/MCI 实现仍用 spec L408 uncentered reading（src/ 未改）；spec L408 verbatim 含 `uncentered second moment` + 双 supersede 论证（"replaces CV" + "centered-covariance reading"）+ L411 Source 3 反链齐；spec L445/L449 Scenarios abs=1e-12 守护两端点；ticket L70/L74 annotation 已落地（git diff 验证）；.audit/spec-math-audit.md L524 evidence 段含 "ticket L70" + "ticket L74" + "centered covariance" + "原 CV"（Select-String 验证）；.audit/audit-verification.md verify-15 verdict 段含 `REMEDIATED via 选项 A` + `fully-verified`（Select-String 验证）
-  - `MCI(token_signatures).value` 与 spec L408 uncentered second moment 闭式一致 ✓（src/ 不动）
-  - spec L408 verbatim 仍含 `uncentered second moment` ✓（spec 不动）
-  - spec L408 Reason verbatim 仍含 "replaces CV" + "centered-covariance reading" 双论证 ✓（spec 不动）
-  - spec L411 Source verbatim 仍含 `wayfinder/tickets/A8-2.md` + `fix-openspec-doc-bugs` Decision 8 + `fix-math-consistency-audit-2026-08` Decision 5 ✓（spec 不动）
-  - spec L445 `MCI closed-form on uniform token distribution` abs=1e-12 守护 ✓（spec 不动）
-  - spec L449 `MCI closed-form on rank-1 token distribution` abs=1e-12 守护 ✓（spec 不动）
+  - **Done** — 10 个 sub-check 全通过：src/MCI 实现仍用 spec L413 uncentered reading（src/ 未改）；spec L413 verbatim 含 `uncentered second moment` + 双 supersede 论证（"replaces CV" + "centered-covariance reading"）+ L416 Source 3 反链齐；spec L450/L454 Scenarios abs=1e-12 守护两端点；ticket L70/L74 annotation 已落地（git diff 验证）；.audit/spec-math-audit.md L524 evidence 段含 "ticket L70" + "ticket L74" + "centered covariance" + "原 CV"（Select-String 验证）；.audit/audit-verification.md verify-15 verdict 段含 `REMEDIATED via 选项 A` + `fully-verified`（Select-String 验证）
+  - `MCI(token_signatures).value` 与 spec L413 uncentered second moment 闭式一致 ✓（src/ 不动）
+  - spec L413 verbatim 仍含 `uncentered second moment` ✓（spec 不动）
+  - spec L413 Reason verbatim 仍含 "replaces CV" + "centered-covariance reading" 双论证 ✓（spec 不动）
+  - spec L416 Source verbatim 仍含 `wayfinder/tickets/A8-2.md` + `fix-openspec-doc-bugs` Decision 8 + `fix-math-consistency-audit-2026-08` Decision 5 ✓（spec 不动）
+  - spec L450 `MCI closed-form on uniform token distribution` abs=1e-12 守护 ✓（spec 不动）
+  - spec L454 `MCI closed-form on rank-1 token distribution` abs=1e-12 守护 ✓（spec 不动）
   - `wayfinder/tickets/A8-2.md` L70 含 `λ_j = C 分布协方差矩阵的特征值` + historical supersede annotation ✓
   - `wayfinder/tickets/A8-2.md` L74 含 `原 CV（C 分布凸包半径）` + historical supersede annotation ✓
   - `.audit/spec-math-audit.md` L524 finding 1 evidence 段含 "ticket L70" + "ticket L74" + "centered covariance" + "convex hull radius CV" 四关键词 ✓
@@ -93,10 +93,10 @@
 
 - [x] 6.1 F1 line drift 修复：commit `229016fe` sync 期间给 `openspec/specs/wayfinder/spec.md` 加 +19 行、decompmoe-skeleton 加 +8 行、governance body 加 +2 行，导致本 change 制品（proposal.md / design.md / tasks.md / 3 specs / KNOWN-DRIFT.md / ticket A8-2.md annotation）引用的 pre-sync 行号 drift。
   Verification: 用 grep `L370|L389|L392|L426|L430|L432|L494|L496|L507|L552|L557|L7-23` 在本 change 制品内 0 stale hit；`req-20 L408` (anchor + MCI row), `L445` (uniform), `L449` (rank-1), `L411` (Source), `L500-L518` (decompmoe req-22), `L7-L25` (gov body), `L389-407` (wayfinder req-20 closed-form range) 全部 post-sync 校准。
-  **Done** — drift 已在所有 8 个文件中批量修复：wayfinder spec delta / decompmoe-skeleton spec delta / governance spec delta / proposal.md / design.md / tasks.md / KNOWN-DRIFT.md / `wayfinder/tickets/A8-2.md` annotation。req-20 anchor 仍在 L389（anchor 未 drift），MCI row L389→L408，Scenarios L426/L430→L445/L449，Source L392→L411，decompmoe req-22 L494→L500，gov body L7-L23→L7-L25 (anchor L7 unchanged)。
-- [x] 6.2 F2 principle-form pytest 守护（scope-creep 本来不在 change 范围，但 verifier F2 HIGH severity 要求 principle-form 守护 spec L408 Reason 3 个 claim）：在 `tests/test_metrics.py` 添加 3 个 principle-form tests，守护 spec L408 Reason 三段论（centered-covariance upper endpoint unreachable / CV lower bound 1/d_c unreachable / uncentered both endpoints attainable）。
+  **Done** — drift 已在所有 8 个文件中批量修复：wayfinder spec delta / decompmoe-skeleton spec delta / governance spec delta / proposal.md / design.md / tasks.md / KNOWN-DRIFT.md / `wayfinder/tickets/A8-2.md` annotation。req-20 anchor 仍在 L389（anchor 未 drift），MCI row L389→L408，Scenarios L426/L430→L450/L454，Source L392→L411，decompmoe req-22 L494→L500，gov body L7-L23→L7-L25 (anchor L7 unchanged)。
+- [x] 6.2 F2 principle-form pytest 守护（scope-creep 本来不在 change 范围，但 verifier F2 HIGH severity 要求 principle-form 守护 spec L413 Reason 3 个 claim）：在 `tests/test_metrics.py` 添加 3 个 principle-form tests，守护 spec L413 Reason 三段论（centered-covariance upper endpoint unreachable / CV lower bound 1/d_c unreachable / uncentered both endpoints attainable）。
   Verification: `python -m pytest tests/test_metrics.py -q --tb=short` 期望 29 passed（原 26 + 3 新增）；`python -m pytest tests/ -q --tb=short` 期望 196 passed（原 193 + 3 新增）。
-  **Done** — 3 个 principle-form tests 已添加（`test_mci_centered_covariance_upper_endpoint_unreachable` + `test_mci_cv_convex_hull_lower_bound_unreachable` + `test_mci_uncentered_both_endpoints_attainable_principle`），分别直接对账 spec L408 Reason 三段论的数学事实：centered-covariance rank 减 1 推导出 upper endpoint 不可达、CV lower bound 1/d_c > 0.05 健康目标不可达、uncentered 两端可达。
+  **Done** — 3 个 principle-form tests 已添加（`test_mci_centered_covariance_upper_endpoint_unreachable` + `test_mci_cv_convex_hull_lower_bound_unreachable` + `test_mci_uncentered_both_endpoints_attainable_principle`），分别直接对账 spec L413 Reason 三段论的数学事实：centered-covariance rank 减 1 推导出 upper endpoint 不可达、CV lower bound 1/d_c > 0.05 健康目标不可达、uncentered 两端可达。
 - [x] 6.3 F3 "142 passed" → "193 passed"：design.md L21 + tasks.md §3.6 + tasks.md §3.6 sub-note 引用 test count 修正。
   Verification: `python -m pytest tests/ -q --tb=short` 当前实际 196 passed（原 baseline 142 passed → 当前实际 193 passed → F2 新增后 196 passed）；task 文档统一更新为 "193 passed" (与 baseline 一致)，F2 后实测 196 passed。
   **Done** — 设计文档 (design.md L21) 和 tasks.md §3.6 "142 passed" 全部更新为 "193 passed"；F2 修复后实际 196 passed。
