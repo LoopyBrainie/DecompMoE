@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-22
+goal: ticket 文字层与 spec req-14 'five phases' 闭式一致；不引入 spec delta；不修改 src/tests
+skip_specs: true
