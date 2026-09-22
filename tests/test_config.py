@@ -118,6 +118,57 @@ def test_canonical_name() -> None:
     assert decompmoe.__canonical_name__ == "DecompMoE"
 
 
-def test_alias_preserved() -> None:
+def test_alias_adopted() -> None:
     """`decompmoe.__alias__` must be the literal string "GeoMoE" for documentation continuity."""
     assert decompmoe.__alias__ == "GeoMoE"
+
+
+def test_geomee_not_used_as_code_identifier() -> None:
+    """`GeoMoE` MUST appear only as string literal/docstring, never as a Python identifier.
+
+    Principle guard (NAR-1 wording: "The alias MUST appear only in design prose and
+    never as a code identifier."). Source-tree audit uses `ast.walk` to enumerate
+    every Name / FunctionDef.name / ClassDef.name / Attribute.attr in
+    `src/decompmoe/**/*.py` EXCLUDING `__init__.py` (the latter legitimately
+    exposes `__alias__ = "GeoMoE"` as a public string constant). Any identifier
+    named `GeoMoE` or starting with `GeoMoE` in any other module violates the
+    principle.
+
+    This is review-based enforcement (no runtime regression risk because the
+    implementation never imports `GeoMoE` as a symbol), but it guards against
+    accidental future drift such as `class GeoMoEFoo` or `def GeoMoE_bar()`.
+    """
+    import ast
+    import pathlib
+
+    pkg_root = pathlib.Path(decompmoe.__file__).resolve().parent
+    violations: list[tuple[str, int, str]] = []
+
+    for py_path in sorted(pkg_root.glob("**/*.py")):
+        if py_path.name == "__init__.py":
+            # `__init__.py` is the single canonical home for `__alias__ = "GeoMoE"`
+            # and the alias docstring; skip it.
+            continue
+        try:
+            tree = ast.parse(py_path.read_text(encoding="utf-8"))
+        except SyntaxError:
+            # Don't mask unrelated syntax errors with this principle guard.
+            continue
+        for node in ast.walk(tree):
+            ident: str | None = None
+            kind: str | None = None
+            if isinstance(node, ast.Name) and node.id.startswith("GeoMoE"):
+                ident, kind = node.id, "Name"
+            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.name.startswith("GeoMoE"):
+                ident, kind = node.name, type(node).__name__
+            elif isinstance(node, ast.Attribute) and node.attr.startswith("GeoMoE"):
+                ident, kind = node.attr, "Attribute"
+            if ident is not None:
+                violations.append((str(py_path.relative_to(pkg_root.parent)), node.lineno, f"{kind}={ident}"))
+
+    assert not violations, (
+        "GeoMoE must not appear as a Python identifier outside `__init__.py`. "
+        "Per NAR-1 wording: 'The alias MUST appear only in design prose and never "
+        "as a code identifier.' Violations:\n"
+        + "\n".join(f"  {p}:L{ln} {kind}" for p, ln, kind in violations)
+    )
