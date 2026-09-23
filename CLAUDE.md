@@ -90,6 +90,8 @@ Phase boundaries (cumulative cutpoints): 1 K / 6 K / 26 K / 56 K / 100 K
 
 > **2026-08-21 裁决**：wayfinder 不再是必改制品。本仓库以 OpenSpec 为唯一真相源；ticket 仅作历史决策记录（参考性、非约束性）。新变更一律走 OpenSpec 工作流，不再单独 patch tickets。
 
+> **2026-09-19 边界补充**（cycle-7 audit-verification meta-洞察 boundary clarification，per `.audit/audit-verification.md` L581 显式建议）：ticket 是 advisory non-binding，但 **advisory ≠ 无影响**。ticket stale 仍可能通过三传染通道污染 `src/`：(i) MVPConfig 默认值直接抄 ticket 数值（实证：`commit adf41ef` 2026-09-19 cycle-5/6/7 batch fix 已关闭 `MVPConfig.beta_initial: 1.0 ← ticket A4-1 β_0 ≈ 1.0` 单向污染）；(ii) tests `assert == stale_value` LOCKS 传染（同 `adf41ef`：`tests/test_beta.py::test_beta_param_init_default` 原 `assert MVPConfig().beta_initial == 1.0` 已迁移 `pytest.approx(expected, abs=1e-3)`）；(iii) reader-ticket-not-spec 复制 stale 数值（cycle-9 worst-case：`wayfinder/tickets/A6a-2.md` 历史 `f_i^avg < 1/128` vs spec `1 / (2·N_e)` 参数化，`src/decompmoe/safeguards.py:34-36` 已用 spec 形式）。**监控义务**：audit-verification loop 须周期性 check ticket ↔ spec ↔ `src/` 三角漂移，**传染链已断**（per `adf41ef` cycle-5/6/7 + cycle-12 `commit d239f57` 2026-09-21 + cycle-13 `commit f077be8`）不豁免监控——剩余 cycle-9/12/13 ticket-stale family 仍需周期复核。**修复协议 (a)+(b)+(c) 三步**：ticket 端 `(historical, <原值>; superseded by spec req-N L### via <change> Decision M)` 注释；`src/` 默认值同步 spec canonical；tests `pytest.approx(spec_value, abs=...)` 迁移（遵循 `CLAUDE.md` §6 第 8 条 + `req-gov-1`）。**形式化约束**：上述 4 条 obligations 由 `openspec/specs/governance/spec.md` req-gov-4 形式化，audit-verification loop 可对照该 Requirement 复核。
+
 ## 9. Key Data Flow（几何路由一次完整 forward）
 
 ```
