@@ -8,6 +8,7 @@ from __future__ import annotations
 import inspect
 from pathlib import Path
 
+import pytest
 import torch
 
 from decompmoe import extraction
@@ -467,3 +468,64 @@ def test_phase_4_grad_none_preserves_legacy_l2_retraction() -> None:
     # Spherical re-projection invariant: ‖c_i^(t+1)‖₂ == 1.
     norms = out.norm(dim=-1)
     assert torch.allclose(norms, torch.ones_like(norms), atol=1e-7)
+
+
+def test_territory_seeding_raises_not_implemented_with_spec_citation() -> None:
+    """territory_seeding is a deferred Phase 0 contract (spec req-2 + req-6 + req-10).
+
+    MVP scope (CLAUDE.md §7) places training execution out-of-scope, so the
+    function unconditionally raises NotImplementedError with a verbatim
+    pointer to the spec clauses. This test guards the contract.
+
+    Spherical K-Means mathematical precondition per spec req-10: input points
+    must lie on the unit sphere `S^{d_c-1}`. Test feeds L2-normalized points
+    to honor the precondition (the function does not validate in MVP).
+    """
+    torch.manual_seed(0)
+    C_batch = torch.randn(64, 16)  # 64 random 16-d points
+    # Spherical precondition: L2-normalize to S^{d_c-1}.
+    C_batch = C_batch / C_batch.norm(dim=-1, keepdim=True)
+    N_e = 16
+    d_c = 16
+
+    # Verbatim 4-token contract. Capture actual message per governance req-gov-1
+    # + CLAUDE.md §6 第 7 条 ("失败信息必带 f"actual={...}" 内嵌值").
+    with pytest.raises(NotImplementedError) as exc_info:
+        extraction.territory_seeding(C_batch, N_e, d_c=d_c)
+    msg = str(exc_info.value)
+    for token in ("Phase 0", "deferred to the training-time caller", "req-2", "req-6"):
+        assert token in msg, (
+            f"territory_seeding must cite {token!r} in NotImplementedError; "
+            f"actual={msg!r}"
+        )
+
+    # Signature contract: parameter names + kinds + keyword-only d_c enforced.
+    sig = inspect.signature(extraction.territory_seeding)
+    assert list(sig.parameters) == ["C_batch", "N_e", "d_c"]
+    assert sig.parameters["C_batch"].kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
+    assert sig.parameters["N_e"].kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
+    assert sig.parameters["d_c"].kind is inspect.Parameter.KEYWORD_ONLY
+
+    # Type annotation contract (per spec req-10 verbatim signature).
+    # `from __future__ import annotations` is in effect, so inspect.signature
+    # returns annotation strings, not the type objects themselves.
+    assert sig.parameters["C_batch"].annotation == "Tensor"
+    assert sig.parameters["N_e"].annotation == "int"
+    assert sig.parameters["d_c"].annotation == "int"
+    assert sig.return_annotation == "Tensor"
+
+    # __all__ export contract (satisfies req-2 identifier-map MUST-be-in-codebase).
+    assert "territory_seeding" in extraction.__all__
+
+    # Import-side-effect contract (spec Scenario 2 second AND clause): named
+    # import resolves without ImportError and yields the same function object.
+    from decompmoe.extraction import territory_seeding as imported_fn
+    assert imported_fn is extraction.territory_seeding
+    assert callable(imported_fn)
+
+    # Spherical K-Means precondition guard: input points lie on S^{d_c-1}.
+    norms = C_batch.norm(dim=-1)
+    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-6), (
+        f"test premise broken: C_batch must be L2-normalized; "
+        f"actual norms min={norms.min().item()!r}, max={norms.max().item()!r}"
+    )

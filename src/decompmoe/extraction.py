@@ -172,8 +172,57 @@ class CentroidDriver:
         raise ValueError(f"Unknown phase={self.phase!r}")
 
 
+def territory_seeding(
+    C_batch: Tensor,
+    N_e: int,
+    *,
+    d_c: int,
+) -> Tensor:
+    """Canonical Phase 0 K-Means contract — deferred to training-time caller.
+
+    Spec (wayfinder req-6 "C Extraction Differentiability And Centroid
+    Lifecycle", Phase 0 sub-clause + new Requirement req-10 "Territory
+    Seeding Deferred Contract"): the Spherical K-Means initialization
+    `c_i^(t+1) = KMeans(C)` is **deferred to the training-time caller**.
+    MVP scope per CLAUDE.md §7 places training execution out-of-scope, so
+    this function is a thin contract placeholder that satisfies req-2
+    "Formal Symbols And Code Naming" identifier-map membership
+    (`territory_seeding` MUST be a codebase identifier) without
+    implementing the actual K-Means.
+
+    Spherical K-Means mathematical precondition: `C_batch ∈ (S^{d_c-1})^T`
+    (unit-sphere points — `‖C_batch[t]‖₂ ≡ 1.0` for all `t`). This
+    function does NOT perform runtime unit-sphere validation in MVP
+    (deferred state); future active implementation MUST enforce it.
+
+    Returns
+    -------
+    Tensor of shape (N_e, d_c)
+        The K-Means centroids. **Never returned in MVP** — this function
+        unconditionally raises NotImplementedError.
+
+    Raises
+    ------
+    NotImplementedError
+        Always. The verbatim message references spec req-2 + req-6 + req-10
+        so future callers receive a self-locating error pointing to the
+        deferred contract clauses.
+    """
+    raise NotImplementedError(
+        f"territory_seeding: Phase 0 Spherical K-Means initialization is "
+        f"deferred to the training-time caller per wayfinder spec req-2 "
+        f"(identifier map), req-6 (Phase 0 sub-clause), and req-10 "
+        f"(Territory Seeding Deferred Contract). Inputs were "
+        f"C_batch.shape={tuple(C_batch.shape)}, N_e={N_e}, d_c={d_c}. "
+        f"Drivers and inference-time callers MUST NOT invoke this "
+        f"function; use CentroidDriver(Phase.SEEDING).step(centroids, X, "
+        f"mask) for the no-op Phase 0 contract."
+    )
+
+
 __all__ = [
     "extract_C",
     "Phase",
     "CentroidDriver",
+    "territory_seeding",
 ]
