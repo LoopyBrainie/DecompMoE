@@ -67,6 +67,7 @@
   - 同一 axis 的同类 finding ≥ 3 条 → 触发批量 OpenSpec change proposal
   - 任何"spec 算式与 wayfinder 直接冲突"或"pytest 闭式数学反向被现有测试锁死" → 立即升级为单条 OpenSpec change（紧急）
 - 升级流程：`.audit/spec-math-audit.md` 中的 finding → `/opsx:propose` → review → `/opsx:apply` → `/opsx:archive`（archive 前置 lint gate 必须 `exit=0`，CLAUDE.md §3）。
+- **dormant bug 升级条款**（跨 loop 共享）：finding 当前 0 active impact 但 `latent_risk ∈ {MEDIUM, HIGH} ∨ trigger_probability ∈ {MEDIUM, HIGH}`（任一维度 ≥ MEDIUM 即升）→ 升级为 `HIGH dormant-bug`（与"已传染 src/ 重 reactive HIGH"共存但语义不同）。详见 `governance/spec.md` req `Loop Severity Framework Gap Closure` Scenario `Dormant bug latent risk × trigger probability escalates to HIGH` + §DecompMoE audit-verification loop axis-γ dormant bug 子段。
 
 ### Cycle 编排建议
 
@@ -115,11 +116,12 @@
      - `CITE-OK` — cited text 与 finding 转述字面一致或语义一致
      - `CITE-MISALIGNED` — cited text 存在但 finding 转述有偏差（夸大/缩小/反向）
      - `CITE-MISSING` — cited line 不存在（finding 引用了过期行号或外部文件）
-   - **(γ) severity 评级复核**：结合 α + β 结论复核 finding 的 severity：
+   - **(γ) severity 评级复核**：结合 α + β 结论复核 finding 的 severity。**Reading finding text first rule**：复核开始前**必须**先 grep finding 文本 against 关键词集合 `{"低危", "正面记录", "正面alignment", "不构成硬冲突", "phasing deferred", "not implemented", "NOT IMPLEMENTED", "no_op", "deferred"}`——若 finding 已显式分级 LOW/INFO 则 verdict **必须**采用 finding 自身分级（`{"低危","不构成硬冲突"}` → verdict-LOW；`{"正面记录","正面alignment"}` → verdict-INFO；`{"phasing deferred","not implemented","NOT IMPLEMENTED","no_op","deferred"}` → 触发 dormant-bug 评估），禁止默认 MEDIUM 惯性。具体规则由 `governance/spec.md` req `Loop Severity Framework Gap Closure` Scenario `Audit self-correction reads finding-text-explicit severity before defaulting to MEDIUM` 钉死。
      - MEDIUM（如 finding 准确且 actionable）：保留
      - 实际是 LOW（如 finding 准确但影响很小）：降级
      - 实际是 INFO（如 finding 是正面记录或 spec 内部冗余）：降级
      - 实际是 HIGH（如 finding 漏报或夸小，且已传染 src/）：升级
+     - **实际是 HIGH（dormant bug）**：finding 当前 0 active impact 但 `latent_risk ∈ {MEDIUM, HIGH} ∨ trigger_probability ∈ {MEDIUM, HIGH}`（任一维度 ≥ MEDIUM 即升）—— 升级为 `HIGH dormant-bug`。例：cycle-13 Phase 0 K-Means NOT IMPLEMENTED 是 dormant bug（latent_risk=HIGH × trigger_probability=HIGH）。触发函数由 `governance/spec.md` req `Loop Severity Framework Gap Closure` Scenario `Dormant bug latent risk × trigger probability escalates to HIGH` 钉死，禁止 ad-hoc 升级。两 HIGH 升级路径（已传染 src/ 与 dormant bug）共存但语义不同，分别独立判定。
 3. **写 verdict**：追加到 `.audit/audit-verification.md`（**新文件**，独立于 `spec-math-audit.md`），单段格式：
    ```
    ## YYYY-MM-DD verify-N finding cycle-M-finding-K axis-α|β|γ
@@ -196,3 +198,4 @@
 - 2026-09-18：verify-8 完成 — cycle-7 finding #1 axis-β 文本层 CITE-OK×4 (spec L122/L115 + ticket A4-1 L58 + 数值差 0.035060 全 verbatim 命中)。**跨 finding cited text 复用实证**: spec L122 在 verify-2/5/8 三次独立 CITE-OK, spec L115 在 verify-5/8 两次 CITE-OK —— spec 是稳定真相锚点, ticket 是 stale 源头, CLAUDE.md §2 真相源层级元审计视角 cross-validated。双轴 (α+β) VERIFIED。下一步：verify-9 axis-γ severity + finding 2 σ' 精度复核。
 - 2026-09-18：verify-8 完成 — cycle-7 finding #1 axis-β 文本层 **CITE-OK×9** (spec L115/L122/L126 + ticket A4-1 L39/L42/L50/L58/L65-67 + MVPConfig L50-54 全部 verbatim 或语义等价)。双轴 (α+β) VERIFIED。finding 精度披露瑕疵 (副产物, 与 cycle-6 同型): cycle-7 evidence 段 σ'(-3.5) = 0.02845 / σ(-3.5) = 0.02931 vs 50-digit 0.028453023880 / 0.029312230751 — 数值正确但披露精度仅 5/1 位有效数字, 待 verify-9 axis-γ 复核时正式提出。**跨 cycle axis-β 比较**: cycle-5 axis-β (verify-2) CITE-OK×4, cycle-6 axis-β (verify-5) CITE-OK×3, cycle-7 axis-β (verify-8) CITE-OK×9 — cycle-7 引用最多, 因为 finding 是 req-7 12 闭式 + ticket ↔ spec drift 一站式审查。下一步：verify-9 axis-γ severity 评级复核 + 复核传染链 (cycle-7 ticket 端 vs cycle-5 ticket 端 vs cycle-6 src 端, 三者传染链结构对比)。
 - 2026-09-18：verify-9 完成 — cycle-7 finding #1 axis-γ severity **SEVERITY-OK** (MEDIUM 评级恰当) + **跨 cycle 传染链结构横向 lock-down**: cycle-5 单点 stale (ticket 唯一污染源) / cycle-6 三级传染 (ticket → MVPConfig → tests LOCKS) / cycle-7 ticket 端源头 (与 cycle-6 是同一条 drift 的两端, 合起来 = 完整因果链)。**CLAUDE.md §2 真相源层级元审计 cross-validated**: spec 是钉死真相 (含完整闭式), ticket 是手算摘要 (信息量少), ticket stale → src/ 单向污染 — **advisory 不等于无影响** 是 cycle-7 相对 cycle-5 的新洞察, 建议更新 CLAUDE.md §8 加一句"ticket stale 仍可能传染 src/, 需以 cycle-6/7 模式监控"。finding 精度披露瑕疵 (LOW addendum, 与 cycle-6 同型): cycle-7 evidence 段精度风格不对齐 (5/1/6 位有效数字 vs spec L122 4 位 narrative 风格)。**3 条 MEDIUM finding 三轴 (α+β+γ) fully-verified** = audit-verification loop 终止条件已满足。**cross-cycle pattern → OpenSpec change 触发**: cycle-5/6/7 形成单一 MEDIUM drift family (ticket stale → src/tests 传染), 阈值 ≥ 3 条同类 finding 已满足, 建议打包成单条 OpenSpec change: 4-file batch fix (ticket A5-3 L62 + A4-1 L58 + MVPConfig L54 + test_beta.py L38) 同一 proposal, 修复后 3 条 MEDIUM finding 同时关闭。下一步: 待用户决策 (a) `/loop stop` 终止本 loop / (b) 启动 spec-math audit loop 续审剩余 LOW/INFO finding / (c) 直接走 OpenSpec change 把 3 条 MEDIUM finding 打包修复。
+- 2026-09-23: fix-loops-md-dormant-bug-framework 落地两条过程条款——(a) dormant bug 升级触发器（`latent_risk ∈ {MEDIUM, HIGH} ∨ trigger_probability ∈ {MEDIUM, HIGH}` ⇒ severity-up to `HIGH dormant-bug`）；(b) audit 自我校核（reading-finding-text-first rule，禁用默认 MEDIUM 惯性）。`openspec/specs/governance/spec.md` 新增 req-gov-3 `Loop Severity Framework Gap Closure`。meta-06（severity 误标 2/24 = 8.3%）+ meta-08（dormant bug framework gap）双 meta-发现闭环。本次入库也含 LOOPS.md 自身（先前 untracked；commit `dd8b9d7 chore(audit): import LOOPS.md to version control`）。
