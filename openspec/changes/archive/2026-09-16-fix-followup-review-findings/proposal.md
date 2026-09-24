@@ -5,7 +5,7 @@
 ## What Changes
 
 ### Spec text refinements
-- **`openspec/specs/wayfinder/spec.md` L185** (F1.2): `≈ 67.24° (1.1735 rad)` → `≈ 67.24° (≈ 1.1735 rad)`. Add `≈` to rad for rad↔deg bijection awareness; symmetrize with `decompmoe-skeleton/spec.md` L98 + L102 (which already use `≈` for both).
+- **`openspec/specs/wayfinder/spec.md` L234** (F1.2; line ref corrected post-archive: actual spec drift fix landed in commit `237efd3`, not in this change's commit `ad64063`; original change proposal recorded L185 as the pre-apply baseline): `≈ 67.24° (1.1735 rad)` → `≈ 67.24° (≈ 1.1735 rad)`. Add `≈` to rad for rad↔deg bijection awareness; symmetrize with `decompmoe-skeleton/spec.md` L98 + L102 (which already use `≈` for both).
 - **`openspec/specs/decompmoe-skeleton/spec.md` L98** (F1.7): rephrase `(within abs=1e-4 rad on the residual < 1e-9 criterion)` → `(within abs=1e-4 rad, with the bisection residual < 1e-9)`. Separates the two tolerance constraints (value tolerance vs. equation residual) for syntactic clarity.
 
 ### Code refactor (principle-form constants)

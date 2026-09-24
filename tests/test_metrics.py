@@ -356,9 +356,9 @@ def test_cg_n_eq_1_returns_magnitude() -> None:
     # `torch.linalg.norm(g).item()` pins the implementation path: any rewrite to
     # sum/max identity would break here. FP-exact because sqrt(g²) is exact for
     # |g| ≤ 2^52 in IEEE-754 binary64, so no `pytest.approx` is needed.
-    actual_l2_path = metrics.CG(g_pos_1d).item()
-    assert actual_l2_path == torch.linalg.norm(g_pos_1d).item(), (
-        f"actual CG={actual_l2_path}; L2 norm reduce path "
+    # Reuse actual_pos_1d (computed at L326) instead of recomputing CG(g_pos_1d) here.
+    assert actual_pos_1d == torch.linalg.norm(g_pos_1d).item(), (
+        f"actual CG={actual_pos_1d}; L2 norm reduce path "
         f"torch.linalg.norm={torch.linalg.norm(g_pos_1d).item()}; "
         f"CG must reduce via L2 norm, not abs(.sum()) or abs(.max())"
     )

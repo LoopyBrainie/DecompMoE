@@ -16,7 +16,7 @@
 
 ### Modified Capabilities
 
-- `wayfinder` — ADDED Requirement `CG n=1 boundary behavior`(4 个 Scenario 守护 `numel()==1` 输入的 L2 范数行为,dimension-agnostic)。逻辑上属于 active `wayfinder` Req 20 (CG) 的子需求;不破坏现有 Req 结构(原 Req 20 已有 Scenario "CG zero-gradient invariance" L434 / "CG positive homogeneity" L438,本 ADDED Requirement 填补 `numel()==1` 边界场景,新 anchor `req-34` 落在 L438 与 req-21 之间)。
+- `wayfinder` — ADDED Requirement `CG n=1 boundary behavior`(4 个 Scenario 守护 `numel()==1` 输入的 L2 范数行为,dimension-agnostic)。逻辑上属于 active `wayfinder` Req 20 (CG) 的子需求;不破坏现有 Req 结构(原 Req 20 已有 Scenario "CG zero-gradient invariance" L488 / "CG positive homogeneity" L492,本 ADDED Requirement 填补 `numel()==1` 边界场景,新 anchor `req-35` 落在 L498（CG n=1 boundary behavior 标题行）与 req-22 之间)。
 
 ## Impact
 

@@ -36,7 +36,7 @@
 
 ### Decision 1: Anchor relocation vs anchor renumbering
 
-**Choice**: 把 `<a id="req-34">` 从 CG n=1 boundary (L442) 物理移动到 Source Field Format Invariant (L676)，给 CG n=1 boundary 新 anchor `<a id="req-35">`。
+**Choice**: 把 `<a id="req-34">` 从 CG n=1 boundary (L496) 物理移动到 Source Field Format Invariant (L742)，给 CG n=1 boundary 新 anchor `<a id="req-35">`。
 
 **Rationale**:
 - governance spec L3 + `tests/test_lint_no_source_field_drift.py:3` 的跨引用反向期望 `req-34` 指向 governance-origin Scenario（Source Field Format Invariant 子句），这是 wayfinder spec 的**真实意图**

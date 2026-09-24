@@ -9,7 +9,7 @@
   - `CG(torch.tensor([-5.0])) == pytest.approx(5.0, abs=1e-12)`（负元素 magnitude）
   - `CG(torch.tensor([0.0])) == pytest.approx(0.0, abs=1e-12)`（zero）
 - [x] 2.2 docstring 反链 `wayfinder Req 20 (CG) L390` + ADDED "CG n=1 boundary behavior"（CLAUDE.md §3 测试需 spec 锚点；原 change 写 L394，现已漂移到 L390）
-- [x] 2.3 位置：紧跟 `test_cg_l2_norm_closed_form` 之后（保持 CG 测试闭环）；具体插入点为 L169（`test_cg_l2_norm_closed_form` 函数体结束于 L168，下一函数 `test_sp_orthonormal_aligned_inputs` 定义于 L171）
+- [x] 2.3 位置：紧跟 `test_cg_l2_norm_closed_form` 之后（保持 CG 测试闭环）；具体插入点为 L313（`test_cg_l2_norm_closed_form` 函数体结束于 L310，下一函数 `test_sp_orthonormal_aligned_inputs` 定义于 L367） **(line ref corrected post-archive; the original tasks.md recorded L169 as pre-`fix-cg-n-1-test-anchor-collision-and-math-coverage` apply baseline)** 
 
 ## 3. Verify
 

@@ -9,8 +9,8 @@
 
 ## What Changes (actual diff only)
 
-- **`openspec/specs/wayfinder/spec.md`**（在 archive 时合并）**ADDED Requirement `CG n=1 boundary behavior`** + 3 个 Scenario（positive / negative / zero 单元素输入的 `CG(g) == abs(g.item())` 闭式对账）+ **`**Source:**` 字段**（治理 req-33 + `scripts/lint_no_source_field_drift.py` 硬约束）。Anchor: Req 20 (CG) 表 **L390** `CG = ‖∇_{W^{K, V, b}} L_total‖₂`（2026-09-15 后 spec 因 FLOPs consistency 调整行号漂移，L394 → L390；原 change 锚点需随之刷新）
-- **`tests/test_metrics.py::test_cg_n_eq_1_returns_magnitude`** 新增：3 个闭式对账（`CG([5.0]) == 5.0`、`CG([-5.0]) == 5.0`、`CG([0.0]) == 0.0`），docstring 反链 `wayfinder Req 20 (CG) L390 + ADDED "CG n=1 boundary behavior"` 作为 spec anchor
+- **`openspec/specs/wayfinder/spec.md`**（在 archive 时合并）**ADDED Requirement `CG n=1 boundary behavior`** + 4 个 Scenario（positive / negative / zero 单元素 + multi-dim `numel()==1` 输入的 `CG(g) == abs(g.item())` 闭式对账，4th Scenario 由 commit `b8c149c` 在 `ground-cg-n-eq-1-test` apply 时补入）+ **`**Source:**` 字段**（治理 req-33 + `scripts/lint_no_source_field_drift.py` 硬约束）。Anchor: Req 20 (CG) 表 **L390** `CG = ‖∇_{W^{K, V, b}} L_total‖₂`（2026-09-15 后 spec 因 FLOPs consistency 调整行号漂移，L394 → L390；原 change 锚点需随之刷新）
+- **`tests/test_metrics.py::test_cg_n_eq_1_returns_magnitude`** 新增：5 个闭式对账（`CG([5.0]) == 5.0` / `CG([-5.0]) == 5.0` / `CG([0.0]) == 0.0` / `CG([[5.0]]) == 5.0` 2D 正 / `CG([[[-5.0]]]) == 5.0` 3D 负），后 2 个由 commit `b8c149c` 在 `ground-cg-n-eq-1-test` apply 时补入，docstring 反链 `wayfinder Req 20 (CG) L390 + ADDED "CG n=1 boundary behavior"` 作为 spec anchor
 - 无 code 改动（`metrics.py::CG` 实现 `torch.linalg.norm(grad)` 已正确，仅补 spec anchor + test 守护）
 
 ## Capabilities
@@ -21,7 +21,7 @@
 
 ### Modified Capabilities
 
-- `wayfinder` — ADDED Requirement `CG n=1 boundary behavior`（3 个 Scenario 守护 `n=1` 输入的 L2 范数行为）
+- `wayfinder` — ADDED Requirement `CG n=1 boundary behavior`（4 个 Scenario 守护 `numel()==1` 输入的 L2 范数行为，dimension-agnostic）
 
 ## Impact
 

@@ -1,6 +1,6 @@
 ## 1. Spec Text Refinement (F1.2 + F1.7)
 
-- [x] 1.1 `openspec/specs/wayfinder/spec.md` L185：`≈ 67.24° (1.1735 rad)` → `≈ 67.24° (≈ 1.1735 rad)` (F1.2 rad↔deg bijection awareness；验证：与 `decompmoe-skeleton/spec.md` L98 + L102 `≈ 1.1735 rad (≈ 67.24°)` 风格对称)
+- [x] 1.1 `openspec/specs/wayfinder/spec.md` L234：**(line ref corrected post-archive; actual spec drift fix landed in commit `237efd3` before this change's archive)** `≈ 67.24° (1.1735 rad)` → `≈ 67.24° (≈ 1.1735 rad)` (F1.2 rad↔deg bijection awareness；验证：与 `decompmoe-skeleton/spec.md` L98 + L102 `≈ 1.1735 rad (≈ 67.24°)` 风格对称)
 - [x] 1.2 `openspec/specs/decompmoe-skeleton/spec.md` L98：`(within abs=1e-4 rad on the residual < 1e-9 criterion)` → `(within abs=1e-4 rad, with the bisection residual < 1e-9)` (F1.7 分离 value tolerance 与 equation residual；验证：`Select-String -Path spec.md -Pattern "abs=1e-4 rad, with the bisection residual < 1e-9"` 应在 L98 命中)
 
 ## 2. Code Refactor — Principle-Form Constants (F2.1 + F2.2)

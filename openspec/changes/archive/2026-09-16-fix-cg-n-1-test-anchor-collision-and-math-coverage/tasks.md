@@ -26,7 +26,7 @@
 - [ ] 6.1 `Select-String -Path openspec\specs\wayfinder\spec.md -Pattern 'id="req-34"'` returns exactly 1 hit at the Source Field Format Invariant Requirement position (L676+).
 - [ ] 6.2 `Select-String -Path openspec\specs\wayfinder\spec.md -Pattern 'id="req-35"'` returns exactly 1 hit at the CG n=1 boundary behavior position (L442+).
 - [ ] 6.3 `Select-String -Path openspec\specs\wayfinder\spec.md -Pattern 'governance-origin requirements trigger lint failure'` returns exactly 1 hit at a line position UNDER the new `req-34` anchor (visually within 5 lines after `id="req-34"`).
-- [ ] 6.4 `Select-String -Path openspec\specs\wayfinder\spec.md -Pattern 'id="req-' | Group-Object` returns 35 distinct anchors (`req-1` through `req-35` with the historical gaps at req-6/10/16 unchanged; `req-34` and `req-35` both present once).
+- [ ] 6.4 `Select-String -Path openspec\specs\wayfinder\spec.md -Pattern 'id="req-' | Group-Object` returns 34 distinct anchors (`req-1` through `req-36` with the historical gaps at req-16/req-21; `req-34` and `req-35` both present once, `req-36` belongs to a later change).
 - [x] 6.5 `uv run pytest tests/test_metrics.py::test_cg_n_eq_1_returns_magnitude -v` → 1 PASSED (6 assertions: 5 existing + 1 new L2-norm sanity check, no regression) ✅. → 6 assertions all PASS (5 existing + 1 new L2-norm sanity check, no regression).
 
 ## 5. Archive
