@@ -4,7 +4,7 @@
 
 ## What Changes
 
-- **`openspec/changes/ground-cg-n-eq-1-test/specs/wayfinder/spec.md`**(本 change 的 delta,apply 时同步入 active spec)**ADDED Requirement `CG n=1 boundary behavior`** + 4 个 Scenario(positive / negative / zero 1D 单元素 + multi-dim `numel()==1` 单元素,`CG(g) == abs(g.item())` 闭式对账,`abs=1e-12`)。Anchor: `req-34`(active `wayfinder` spec L442);parent requirement 为 `wayfinder` Req 20 (CG) `CG = ‖∇‖₂`(anchor `<a id="req-20">` at active spec L370)。Source: archived delta `openspec/changes/archive/2026-09-05-add-cg-n-eq-1-test/` + `wayfinder/tickets/A8-2.md`(Eight Metrics 设计 lineage,lint gate "first item MUST be per-capability primary ticket lineage")+ `tests/test_metrics.py::test_cg_n_eq_1_returns_magnitude` + `/code-review max` LOW 7(audit trigger)。ADDED Requirement 文案、Scenario 标题、闭式数值自 archived delta 起逐步演化(原 delta 仅 3 个 1D Scenario;实际 apply 通过 `commit b8c149c` 扩展至 4 个 Scenario,新增 `multi-dim numel==1` 覆盖 `g.shape ∈ {1, [1,1], [1,1,1]}`)。
+- **`openspec/changes/ground-cg-n-eq-1-test/specs/wayfinder/spec.md`**(本 change 的 delta,apply 时同步入 active spec)**ADDED Requirement `CG n=1 boundary behavior`** + 4 个 Scenario(positive / negative / zero 1D 单元素 + multi-dim `numel()==1` 单元素,`CG(g) == abs(g.item())` 闭式对账,`abs=1e-12`)。Anchor: `req-35`(active `wayfinder` spec L442);parent requirement 为 `wayfinder` Req 20 (CG) `CG = ‖∇‖₂`(anchor `<a id="req-20">` at active spec L370)。Source: archived delta `openspec/changes/archive/2026-09-05-add-cg-n-eq-1-test/` + `wayfinder/tickets/A8-2.md`(Eight Metrics 设计 lineage,lint gate "first item MUST be per-capability primary ticket lineage")+ `tests/test_metrics.py::test_cg_n_eq_1_returns_magnitude` + `/code-review max` LOW 7(audit trigger)。ADDED Requirement 文案、Scenario 标题、闭式数值自 archived delta 起逐步演化(原 delta 仅 3 个 1D Scenario;实际 apply 通过 `commit b8c149c` 扩展至 4 个 Scenario,新增 `multi-dim numel==1` 覆盖 `g.shape ∈ {1, [1,1], [1,1,1]}`)。
 - **`tests/test_metrics.py`**(test 函数定义于 L171,docstring 锚点字符串于 L174):docstring 直接写 `Spec anchor: \`openspec/specs/wayfinder/spec.md\` Req 20 (CG) ... + ADDED Requirement "CG n=1 boundary behavior"`,从一开始就指向 active spec 而非 archive-only delta(apply 时不需要 ground 的二次 surgical edit,因为 `b8c149c` 一次性写好了正确反链)。test 含 5 个 `pytest.approx(..., abs=1e-12)` 断言:1D positive / 1D negative / 1D zero / 2D positive / 3D negative,每个断言失败消息嵌入 `f"actual={...}"`(`governance/spec.md` req-gov-1 obligation 4)。
 - 无 code 改动(CG 实现 `torch.linalg.norm(grad)` 已正确;abs=1e-12 测试已 PASS)。
 
@@ -21,7 +21,7 @@
 ## Impact
 
 - 受影响文件(apply 已由 `commit b8c149c` 在 2026-09-16 一次性完成):
-  - `openspec/specs/wayfinder/spec.md`(+23 行:ADDED Requirement `req-34` + 4 个 Scenario + lint-compliant Source)
+  - `openspec/specs/wayfinder/spec.md`(+23 行:ADDED Requirement `req-35` + 4 个 Scenario + lint-compliant Source)
   - `tests/test_metrics.py`(+38 行:`test_cg_n_eq_1_returns_magnitude` 5 个 `pytest.approx(abs=1e-12)` 断言 + docstring 锚点字符串)
 - 不动:`openspec/changes/archive/2026-09-05-add-cg-n-eq-1-test/` 与 `openspec/changes/archive/2026-09-16-add-cg-n-eq-1-test/` 物理文件(OpenSpec archive append-only 历史日志)
 - 反链:`/code-review max` LOW 7 审查结论;archived delta `2026-09-05-add-cg-n-eq-1-test/proposal.md`;archived delta `2026-09-16-add-cg-n-eq-1-test/`(本次 supersession);`CLAUDE.md §2` 真相源层级;active spec `wayfinder` Req 20 (CG) `req-20` L370 `CG = ‖∇‖₂`;`tests/test_metrics.py::test_cg_n_eq_1_returns_magnitude`(L171-211)

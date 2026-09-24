@@ -324,39 +324,43 @@ def test_cg_n_eq_1_returns_magnitude() -> None:
     # 1D positive: spec Scenario "CG n=1 positive value"
     g_pos_1d = torch.tensor([5.0])
     actual_pos_1d = metrics.CG(g_pos_1d).item()
-    assert actual_pos_1d == pytest.approx(5.0, abs=1e-12), f"actual={actual_pos_1d}"
+    assert actual_pos_1d == pytest.approx(5.0, abs=1e-15), f"actual={actual_pos_1d}"
 
     # 1D negative: spec Scenario "CG n=1 negative value"
     g_neg_1d = torch.tensor([-5.0])
     actual_neg_1d = metrics.CG(g_neg_1d).item()
-    assert actual_neg_1d == pytest.approx(5.0, abs=1e-12), f"actual={actual_neg_1d}"
+    assert actual_neg_1d == pytest.approx(5.0, abs=1e-15), f"actual={actual_neg_1d}"
 
     # 1D zero: spec Scenario "CG n=1 zero value"
     g_zero_1d = torch.tensor([0.0])
     actual_zero_1d = metrics.CG(g_zero_1d).item()
-    assert actual_zero_1d == pytest.approx(0.0, abs=1e-12), f"actual={actual_zero_1d}"
+    assert actual_zero_1d == pytest.approx(0.0, abs=1e-15), f"actual={actual_zero_1d}"
 
     # Multi-dim numel==1: spec Scenario "CG n=1 multi-dim numel==1"
     # L2 norm is dimension-agnostic when numel()==1; spec text allows
     # any rank so long as `g.numel() == 1`.
     g_pos_2d = torch.tensor([[5.0]])
     actual_pos_2d = metrics.CG(g_pos_2d).item()
-    assert actual_pos_2d == pytest.approx(5.0, abs=1e-12), f"actual={actual_pos_2d}"
+    assert actual_pos_2d == pytest.approx(5.0, abs=1e-15), f"actual={actual_pos_2d}"
 
     g_neg_3d = torch.tensor([[[-5.0]]])
     actual_neg_3d = metrics.CG(g_neg_3d).item()
-    assert actual_neg_3d == pytest.approx(5.0, abs=1e-12), f"actual={actual_neg_3d}"
+    assert actual_neg_3d == pytest.approx(5.0, abs=1e-15), f"actual={actual_neg_3d}"
 
     # L2-norm identity sanity check (per spec Requirement "CG n=1 boundary behavior"
-    # anchor #req-35 "MUST satisfy the L2-norm identity" wording): explicitly pin
-    # `metrics.CG` to the L2-norm reduce path. On numel=1 tensors the value equals
-    # abs(value) either way, so the 5 pytest.approx assertions above don't actually
-    # distinguish L2-norm from abs(sum)/abs(max) implementations (both coincidentally
-    # return abs(value) for single-element inputs). This bare `==` against
-    # `torch.linalg.norm(g).item()` pins the implementation path: any rewrite to
-    # sum/max identity would break here. FP-exact because sqrt(g²) is exact for
-    # |g| ≤ 2^52 in IEEE-754 binary64, so no `pytest.approx` is needed.
-    # Reuse actual_pos_1d (computed at L326) instead of recomputing CG(g_pos_1d) here.
+    # anchor #req-35 "MUST satisfy the L2-norm identity" wording): documents the
+    # FP-exact equality `actual == torch.linalg.norm(g).item()` for the L2-norm
+    # reduce path. **Caveat: at numel=1 this sanity check does NOT actually
+    # discriminate between L2-norm / abs(sum) / abs(max) implementations** —
+    # all three coincidentally return `abs(value)` for single-element tensors
+    # (L2=sqrt(g²)=|g|, abs(sum)=|g|, abs(max)=|g| for `g.numel()==1`). The actual
+    # L2-vs-other-norms discriminator lives in the sibling test
+    # `test_cg_l2_norm_closed_form` (req-20 coverage at L286-310), where the
+    # assertion `CG(torch.tensor([3.0, 4.0])) == pytest.approx(5.0)` is uniquely
+    # satisfied by L2-norm (L1=7.0, abs(sum)=7.0, abs(max)=4.0 — only L2=5.0).
+    # This bare `==` is FP-exact because `sqrt(g²)` is exact for `|g| ≤ 2^52` in
+    # IEEE-754 binary64, so no `pytest.approx` is needed. Reuse `actual_pos_1d`
+    # (computed at L326) instead of recomputing CG(g_pos_1d) here.
     assert actual_pos_1d == torch.linalg.norm(g_pos_1d).item(), (
         f"actual CG={actual_pos_1d}; L2 norm reduce path "
         f"torch.linalg.norm={torch.linalg.norm(g_pos_1d).item()}; "

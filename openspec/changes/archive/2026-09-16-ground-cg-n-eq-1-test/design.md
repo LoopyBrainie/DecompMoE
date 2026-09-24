@@ -4,12 +4,12 @@
 
 **2026-09-16 实际 apply 路径(commit `b8c149c`,作为 `2026-09-16-add-cg-n-eq-1-test` apply 阶段一次性完成):**
 - ADDED Requirement `CG n=1 boundary behavior` + 4 个 Scenario(positive / negative / zero 1D + multi-dim `numel()==1`)同步入 active spec
-- 新 anchor `<a id="req-34">` 落在 L442(在 "CG positive homogeneity" Scenario L440 与原 `<a id="req-21">` 锚之间)
+- 新 anchor `<a id="req-35">` 落在 L442(在 "CG positive homogeneity" Scenario L440 与原 `<a id="req-21">` 锚之间)
 - Source 字段采用 lint-compliant 格式,primary reverse-link 指向 `wayfinder/tickets/A8-2.md`(per `scripts/lint_no_source_field_drift.py` "first item MUST be per-capability primary ticket lineage")
 - `tests/test_metrics.py::test_cg_n_eq_1_returns_magnitude` 在 L171-211 定义(38 行,5 个 `pytest.approx(abs=1e-12)` 断言),docstring L174 直接写 `Spec anchor: \`openspec/specs/wayfinder/spec.md\` Req 20 (CG) ... + ADDED Requirement "CG n=1 boundary behavior"`(active spec 锚点,非 archive-only delta 路径)
 - ground 原 propose 的"surgical edit L179 docstring"工作被 b8c149c 一次性完成,不再需要
 
-本 change 当前定位(post-adjustment):**planning artifacts 与现实对齐的 audit record**。所有 apply 工作已由 `b8c149c` 完成;本 change 的 artifacts 现在反映 b8c149c 后的最终状态(`req-34` anchor / 4 Scenarios / lint-compliant Source / test 函数 L171-211 / 5 个断言 / 188 passed)。
+本 change 当前定位(post-adjustment):**planning artifacts 与现实对齐的 audit record**。所有 apply 工作已由 `b8c149c` 完成;本 change 的 artifacts 现在反映 b8c149c 后的最终状态(`req-35` anchor / 4 Scenarios / lint-compliant Source / test 函数 L171-211 / 5 个断言 / 188 passed)。
 
 ## Goals / Non-Goals
 
@@ -73,7 +73,7 @@
 
 ## Risks / Trade-offs
 
-- **[Risk] ADDED Requirement 与 parent Req 20 的层级关系混乱** → **Mitigation**: 新 anchor `<a id="req-34">` 物理上落在 Req 20 cluster (L434-440 Scenarios) 与原 req-21 anchor 之间(L464),渲染时按顺序展示,清晰分组;ADDED Requirement 文本明确"dimension-agnostic ... `g.numel() == 1`",承接 Req 20 的 `CG = ‖∇‖₂` 定义。
+- **[Risk] ADDED Requirement 与 parent Req 20 的层级关系混乱** → **Mitigation**: 新 anchor `<a id="req-35">` 物理上落在 Req 20 cluster (L434-440 Scenarios) 与原 req-21 anchor 之间(L464),渲染时按顺序展示,清晰分组;ADDED Requirement 文本明确"dimension-agnostic ... `g.numel() == 1`",承接 Req 20 的 `CG = ‖∇‖₂` 定义。
 
 - **[Risk] Source 字段格式漂移** → **Mitigation**: 本 change delta(Source field)的 primary reverse-link 为 `wayfinder/tickets/A8-2.md`,对齐 active spec 现存格式与 `scripts/lint_no_source_field_drift.py` "first item MUST be per-capability primary ticket lineage" 要求;`lint_no_source_field_drift.py` exit=0 验证。
 
@@ -85,7 +85,7 @@
 
 1. **Apply 阶段**(已完成,by `commit b8c149c` 2026-09-16):
    - ADDED Requirement `CG n=1 boundary behavior` + 4 Scenarios 同步入 active `openspec/specs/wayfinder/spec.md`(L442-463)
-   - 新 anchor `<a id="req-34">` 写入
+   - 新 anchor `<a id="req-35">` 写入
    - `test_cg_n_eq_1_returns_magnitude` 在 `tests/test_metrics.py` L171-211 定义,docstring L174 写 active spec 锚点
    - 验收基线:`uv run pytest tests/ -v` → 188 passed, 1 warning;两 lint gate exit=0
 2. **本 change post-apply no-op**(当前步骤):

@@ -1,8 +1,16 @@
+<!--
+(historical, anchor was <a id="req-34"> at L442 of live openspec/specs/wayfinder/spec.md when this change was archived by commit b842a53 on 2026-09-16; superseded by fix-cg-n-1-test-anchor-collision-and-math-coverage commit f16cb12 which relabeled "CG n=1 boundary behavior" Requirement's anchor to <a id="req-35"> at live L496 and moved req-34 anchor to live L740 "Source Field Format Invariant for OpenSpec Specs" Requirement).
+
+This archive spec delta was edited to <a id="req-35"> for grep consistency with live spec; the original req-34 anchor identity is preserved in this annotation block per archive corrective change fix-archive-ground-cg-n-eq-1-test-stale-anchor (2026-09-24, parent pattern from fix-wayfinder-spec-req-33-orphan-anchor-and-archive-historian Decision 2).
+
+Mirrors the ticket-side `(historical, ...; superseded by ...)` annotation pattern from `wayfinder/tickets/A8-2.md` L70 + L74 (per `governance/spec.md` req-gov-2 "Ticket `(historical, ...)` supersede annotation pattern — CLAUDE.md §3 source-field rules application").
+-->
+
 # wayfinder Specification (delta)
 
 ## ADDED Requirements
 
-<a id="req-34"></a>
+<a id="req-35"></a>
 ### Requirement: CG n=1 boundary behavior
 
 The `CG = ‖∇_{W^{K, V, b}} L_total‖₂` metric MUST satisfy the L2-norm identity at the `n=1` boundary: for any single-element gradient tensor `g` with `‖g‖₂ = |g.item()|`. When `g.numel() == 1`, the metric MUST return `abs(g.item())` (no special-case branch — the L2 norm definition handles it directly). The behavior is dimension-agnostic: `g` may be 1D, 2D, or N-D so long as `g.numel() == 1`.

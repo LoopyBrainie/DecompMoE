@@ -1,7 +1,7 @@
 ## 1. Spec Sync (delta → active wayfinder spec)
 
-- [x] 1.1 ADDED Requirement `CG n=1 boundary behavior` 同步入 `openspec/specs/wayfinder/spec.md` L442-463(`req-34` anchor + Requirement body + 4 Scenarios + lint-compliant Source)。**执行者:** `commit b8c149c` (2026-09-16, `2026-09-16-add-cg-n-eq-1-test` apply 阶段)。verify `grep -A2 "CG n=1 boundary" openspec/specs/wayfinder/spec.md` 命中 ADDED Requirement 标题 + 4 个 Scenario 标题(positive / negative / zero / multi-dim numel==1)。✅
-- [x] 1.2 `openspec validate ground-cg-n-eq-1-test --strict` 通过——本 change delta 已与 active spec 一致(4 Scenarios、lint-compliant Source、`req-34` anchor)。verify 输出 `Valid change: ground-cg-n-eq-1-test`,无 strict 错误,无 schema violation。✅
+- [x] 1.1 ADDED Requirement `CG n=1 boundary behavior` 同步入 `openspec/specs/wayfinder/spec.md` L442-463(`req-35` anchor + Requirement body + 4 Scenarios + lint-compliant Source)。**执行者:** `commit b8c149c` (2026-09-16, `2026-09-16-add-cg-n-eq-1-test` apply 阶段)。verify `grep -A2 "CG n=1 boundary" openspec/specs/wayfinder/spec.md` 命中 ADDED Requirement 标题 + 4 个 Scenario 标题(positive / negative / zero / multi-dim numel==1)。✅
+- [x] 1.2 `openspec validate ground-cg-n-eq-1-test --strict` 通过——本 change delta 已与 active spec 一致(4 Scenarios、lint-compliant Source、`req-35` anchor)。verify 输出 `Valid change: ground-cg-n-eq-1-test`,无 strict 错误,无 schema violation。✅
 
 ## 2. Test Docstring Fix (active spec anchor on L174)
 
