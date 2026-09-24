@@ -611,7 +611,7 @@ Driver Channel guarantees: phases 1–3 execute Masked Spherical EMA at the pres
 
 ### Requirement: Operational Domain γ' Reset Closed-Form Worked Example
 
-On entering Phase 4, the system MUST reset `γ` to `γ' = ln((β_{p3} − 1) / (32 − β_{p3}))` so that `β^eff` is continuous at the Phase 3 → 4 boundary. The worked example for `β_{p3} = 16.0` MUST evaluate to `γ' = ln(15/16) ≈ −0.064538...`. AdamW momentum for `γ` MUST be reset on the same boundary. The closed form is pinned: `gamma_reset_for_phase4(16.0) ≈ −0.0645` within `abs=1e-4`. (References Req 7 Invariant 3 / Req 24.)
+On entering Phase 4, the system MUST reset `γ` to `γ' = ln((β_{p3} − 1) / (32 − β_{p3}))` so that `β^eff` is continuous at the Phase 3 → 4 boundary. The worked example for `β_{p3} = 16.0` MUST evaluate to `γ' = ln(15/16) ≈ −0.0645385...`. AdamW momentum for `γ` MUST be reset on the same boundary. The closed form is pinned: `gamma_reset_for_phase4(16.0) ≈ −0.06454` within `abs=1e-4`. (References Req 7 Invariant 3 / Req 24.)
 
 **Source:** `wayfinder/tickets/A4-1.md` (historical, γ parameterization origin: `β_min + (β_max−β_min)·σ(γ)`), `wayfinder/tickets/A6b-2.md` (historical, phase-boundary optimizer state policy); change `fix-math-consistency-audit-2026-08` design.md (Decision 2 — closed-form `γ' = ln((β_{p3}−1)/(32−β_{p3}))` added by this change)
 
