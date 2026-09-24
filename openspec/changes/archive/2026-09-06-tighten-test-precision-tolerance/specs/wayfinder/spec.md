@@ -1,3 +1,20 @@
+<!--
+(historical, original proposal superseded; req-33 finally landed as governance/req-gov-1 via migrate-l678-source commit 34b37be).
+
+This archive delta represents the **original 2026-09-06 proposal** for `tighten-test-precision-tolerance`:
+- Proposed integer closed-form form: `pytest.approx(<int_literal>, abs=0)` (per archive/2026-09-06-tighten-test-precision-tolerance/design.md Decision 1).
+- **Never applied** as a delta to live `openspec/specs/wayfinder/spec.md` because the policy was reversed by commits:
+  - `bec147d` (2026-09-07 21:21:31) — CLAUDE.md §6 第 8 条 amendment introducing the integer-vs-float binary exemption ("整数闭式: bare `==`; 浮点闭式: pytest.approx(..., abs=...)")
+  - `83a0503` (2026-09-07 22:02:52) — CLAUDE.md §3 sync + remaining `pytest.approx(..., abs=0)` integer sites migrated to bare `==`
+- The **actual final landing** of the closed-form-precision policy happened via:
+  1. `tighten-closed-form-eq-integer-checks` (commit `6f22278`, 2026-09-08) — added req-33 "Test Guard Precision for Closed-Form Numerical Claims" to live `wayfinder/spec.md` (with policy already reversed to bare `==` form per `bec147d + 83a0503`)
+  2. `migrate-l678-source` (commit `34b37be`, 2026-09-12) — moved req-33 from `wayfinder/spec.md` (anchor at L662, Requirement body L664-L703, full block L662-L705 = 44 lines including 2 trailing blanks; **NOT** L662-L704 as initially annotated — verified via `git show 34b37be~1:openspec/specs/wayfinder/spec.md`) to new `governance/spec.md` as `req-gov-1` (governance-origin lineage per `CLAUDE.md` §6 第 8 条 amendments)
+
+Future audit readers: this file's `## ADDED Requirements` body below is **the original 2026-09-06 proposal as archived**, NOT what was applied to live `wayfinder/spec.md`. Live authoritative home is `openspec/specs/governance/spec.md` req-gov-1.
+
+Mirrors the ticket-side `(historical, ...; superseded by ...)` annotation pattern from `wayfinder/tickets/A8-2.md` L70 + L74 (per `governance/spec.md` req-gov-2 "Ticket `(historical, ...)` supersede annotation pattern — CLAUDE.md §3 source-field rules application").
+-->
+
 ## ADDED Requirements
 
 ### Requirement: Test Guard Precision for Closed-Form Numerical Claims

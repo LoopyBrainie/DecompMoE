@@ -737,8 +737,6 @@ The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **singl
 - **AND** `c_perturbed.shape == (cfg.d_c,)` (single-expert slot shape, consistent with the perturbation output shape scenario above)
 - **AND** `β_per_expert_new is not β_per_expert` (immutability: the input tensor is never mutated in-place; `apply_resurrection_beta_decay` clones internally)
 
-<a id="req-33"></a>
-
 <a id="req-34"></a>
 
 ### Requirement: Source Field Format Invariant for OpenSpec Specs
