@@ -178,17 +178,32 @@ def test_grad_gamma_bound() -> None:
 
 
 def test_constants_exported() -> None:
-    """beta module must export MAX_GRAD_PER_C and MAX_GRAD_PER_GAMMA as Final[float]."""
+    """beta module must export MAX_GRAD_PER_C and MAX_GRAD_PER_GAMMA as Final[float],
+    with the logit-gradient bound asserted against its principle-form derivation chain
+    `σ'(0) · 2 · (β_max − β_min) = 0.25 · 2 · 31.9 = 15.95` (per Req 7 declaration +
+    Req 30 derivation / A4-1).
+
+    The literal `0.25 * 2 * 31.9` (rather than `beta.SIGMA_PRIME_AT_ZERO *
+    beta.ANTIPODAL_INNER_EXTREME * (beta.BETA_MAX - beta.BETA_MIN)`) is used so that
+    a future retune of any sub-constant forces this test to fail, exposing silent
+    factor-collapse drift. `abs=1e-12` per `governance/spec.md req-gov-1` item 2
+    (浮点闭式, tolerance matching FP-exact precision) + project convention for
+    FP-exact constant-vs-literal comparisons.
+    """
     assert hasattr(beta, "MAX_GRAD_PER_C")
     assert hasattr(beta, "MAX_GRAD_PER_GAMMA")
     assert isinstance(beta.MAX_GRAD_PER_C, float)
     assert isinstance(beta.MAX_GRAD_PER_GAMMA, float)
     assert beta.MAX_GRAD_PER_C == 32.0
-    assert abs(beta.MAX_GRAD_PER_GAMMA - 15.95) < 1e-6
+    assert beta.MAX_GRAD_PER_GAMMA == pytest.approx(0.25 * 2 * 31.9, abs=1e-12), (
+        f"actual MAX_GRAD_PER_GAMMA = {beta.MAX_GRAD_PER_GAMMA}, "
+        f"expected σ'(0)·2·(β_max−β_min) = 0.25·2·31.9 = {0.25 * 2 * 31.9}"
+    )
 
 
 def test_max_grad_per_gamma_phase4_closed_form() -> None:
-    """Phase-4 logit-gradient bound closed-form check (per Req 7 / A4-1).
+    """Phase-4 logit-gradient bound closed-form check (per Req 22 Operational Domain
+    declaration + Req 30 derivation chain / A4-1).
 
     Spec derivation: |∂logit/∂γ'|_max = 31·σ'(0)·|Cᵀc − 1|_max
                    = 31·0.25·2 = 15.5.
@@ -197,7 +212,10 @@ def test_max_grad_per_gamma_phase4_closed_form() -> None:
     (`MAX_GRAD_PER_GAMMA_PHASE4`) — derivation chain promise in
     `decompmoe.beta` L42-45.
     """
-    assert beta.MAX_GRAD_PER_GAMMA_PHASE4 == pytest.approx(15.5, abs=1e-6)
+    assert beta.MAX_GRAD_PER_GAMMA_PHASE4 == pytest.approx(0.25 * 2 * 31.0, abs=1e-12), (
+        f"actual MAX_GRAD_PER_GAMMA_PHASE4 = {beta.MAX_GRAD_PER_GAMMA_PHASE4}, "
+        f"expected σ'(0)·2·31 = 0.25·2·31 = {0.25 * 2 * 31.0}"
+    )
 
 
 def test_max_grad_per_gamma_phase4() -> None:

@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-24
+goal: 补齐 ad64063 principle-form migration 半迁移缺口 —— tests/test_beta.py L187 (test_constants_exported) + L200 (test_max_grad_per_gamma_phase4_closed_form) 改用 literal principle chain 钉值 + 钉值零容差 abs=1e-12，对齐 ad64063 设计意图 + governance req-gov-1
+skip_specs: true
