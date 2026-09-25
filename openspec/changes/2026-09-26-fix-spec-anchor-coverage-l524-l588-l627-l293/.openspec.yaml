@@ -1,0 +1,18 @@
+# OpenSpec change manifest
+# skip_specs: true — pure structural anchor coverage fix, no Requirement body / Source field / behavior change
+# Per OpenSpec spec-driven workflow: "Use skip_specs: true only when no spec-level behavior changes
+# (pure refactor, tooling, docs) — specs describe behavior, so if behavior does not change, no spec
+# should change either. Do not invent a requirement just to satisfy validation."
+# Precedent: archived change 2026-09-24-fix-wayfinder-spec-req-33-orphan-anchor-and-archive-historian
+# (Decision 1) used the same skip_specs: true rationale for orphan anchor cleanup.
+
+skip_specs: true
+
+# Capabilities affected by this change (per-capability lint rule scope)
+capabilities:
+  - wayfinder
+  - decompmoe-skeleton
+
+# Note: governance capability NOT touched — the historical req-33 orphan was migrated to
+# governance/req-gov-1 in commit 34b37be and lives there authoritatively. This change does NOT
+# affect governance/spec.md.
