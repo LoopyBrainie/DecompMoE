@@ -156,9 +156,17 @@ def test_resurrection_threshold_mvp_value() -> None:
     Spec: archived `fix-openspec-doc-bugs` corrects the hardcoded `1/128`
     to the parameterized `1/(2·N_e)` form. At MVP N_e=16 the threshold
     evaluates to 1/32 = 0.03125.
+
+    Per CLAUDE.md §6 第 8 条 (spec-driven test closure): f_i inputs MUST be
+    derived from the spec closed-form threshold (NOT hardcoded narrative
+    anchors), so a future retune of the spec threshold (or of MVP `N_e`)
+    forces the test to track. The `threshold * 0.99` and `threshold * 1.01`
+    patterns are anchored on `threshold = 1.0/(2.0*N_e)`, the spec's
+    derivation identity for `_dead_expert_threshold(N_e)`.
     """
     N_e = 16
-    history = [[0.02] * N_e for _ in range(250)]  # f_i = 0.02 < 1/32 = 0.03125
+    threshold = 1.0 / (2.0 * N_e)  # spec closed-form 1/(2·N_e), MVP → 1/32
+    history = [[threshold * 0.99] * N_e for _ in range(250)]  # f_i = threshold·0.99 < 1/(2·16)
     res = safeguards.should_resurrect(
         history,
         current_step=300,
@@ -166,8 +174,11 @@ def test_resurrection_threshold_mvp_value() -> None:
         N_e=N_e,
         consec=200,
     )
-    assert len(res) > 0, "MVP threshold 1/32 must trigger resurrection at f_i=0.02"
-    history2 = [[0.05] * N_e for _ in range(250)]  # 0.05 > 1/32
+    assert len(res) > 0, (
+        f"MVP threshold 1/(2·N_e) at N_e=16 must trigger resurrection "
+        f"at f_i=threshold·0.99 (actual f_i={threshold*0.99}, threshold={threshold})"
+    )
+    history2 = [[threshold * 1.01] * N_e for _ in range(250)]  # f_i = threshold·1.01 > 1/(2·16)
     res2 = safeguards.should_resurrect(
         history2,
         current_step=300,
@@ -175,7 +186,10 @@ def test_resurrection_threshold_mvp_value() -> None:
         N_e=N_e,
         consec=200,
     )
-    assert len(res2) == 0, "f_i = 0.05 > 1/32 must NOT trigger resurrection"
+    assert len(res2) == 0, (
+        f"f_i=threshold·1.01 > 1/(2·16) threshold={threshold} must NOT trigger "
+        f"(actual f_i={threshold*1.01})"
+    )
 
 
 def test_resurrection_threshold_N_e_64_legacy_value() -> None:
@@ -185,9 +199,15 @@ def test_resurrection_threshold_N_e_64_legacy_value() -> None:
     hardcoded `1/128` was the `N_e=64` instantiation of the same
     `1/(2·N_e)` rule. Parameterizing by N_e restores both MVP (1/32)
     and legacy (1/128) thresholds from a single formula.
+
+    Per CLAUDE.md §6 第 8 条 (spec-driven test closure): f_i inputs MUST be
+    derived from the spec closed-form threshold (NOT hardcoded narrative
+    anchors `1/200`/`0.01`), so the test tracks any retune of the spec
+    threshold or of legacy `N_e`.
     """
     N_e = 64
-    history = [[1 / 200] * N_e for _ in range(250)]  # 1/200 < 1/128 = 0.0078125
+    threshold = 1.0 / (2.0 * N_e)  # spec closed-form 1/(2·N_e), legacy → 1/128
+    history = [[threshold * 0.99] * N_e for _ in range(250)]  # f_i = threshold·0.99 < 1/(2·64)
     res = safeguards.should_resurrect(
         history,
         current_step=300,
@@ -195,8 +215,11 @@ def test_resurrection_threshold_N_e_64_legacy_value() -> None:
         N_e=N_e,
         consec=200,
     )
-    assert len(res) > 0, "N_e=64 threshold 1/128 must trigger at f_i=1/200"
-    history2 = [[0.01] * N_e for _ in range(250)]  # 0.01 > 1/128
+    assert len(res) > 0, (
+        f"N_e=64 threshold 1/(2·N_e) at N_e=64 must trigger resurrection "
+        f"at f_i=threshold·0.99 (actual f_i={threshold*0.99}, threshold={threshold})"
+    )
+    history2 = [[threshold * 1.01] * N_e for _ in range(250)]  # f_i = threshold·1.01 > 1/(2·64)
     res2 = safeguards.should_resurrect(
         history2,
         current_step=300,
@@ -204,7 +227,10 @@ def test_resurrection_threshold_N_e_64_legacy_value() -> None:
         N_e=N_e,
         consec=200,
     )
-    assert len(res2) == 0, "f_i = 0.01 > 1/128 must NOT trigger"
+    assert len(res2) == 0, (
+        f"f_i=threshold·1.01 > 1/(2·64) threshold={threshold} must NOT trigger "
+        f"(actual f_i={threshold*1.01})"
+    )
 
 
 def test_resurrection_perturb_distribution() -> None:
@@ -692,12 +718,6 @@ def test_max_grad_constants_principle_form() -> None:
     )
 
 
-# ---------------------------------------------------------------------------
-# Closed-form `_dead_expert_threshold(N_e) = 1/(2·N_e)` direct guard
-# (verifies spec's `1/32` at MVP / `1/128` legacy closed-form derivations).
-# ---------------------------------------------------------------------------
-
-
 def test_dead_expert_threshold_mvp_closed_form() -> None:
     """`_dead_expert_threshold(16) == 1/32` — MVP closed-form (per wayfinder L249).
 
@@ -739,31 +759,6 @@ def test_dead_expert_threshold_legacy_N_e_64_closed_form() -> None:
     )
     assert thr == pytest.approx(0.0078125, abs=1e-12), (
         f"_dead_expert_threshold(64) = {thr}, expected 0.0078125 (FP-exact)"
-    )
-
-
-def test_threshold_implicit_in_mvp_test_data_below_spec_value() -> None:
-    """Test data `0.02 < 1/32` is a mathematical assumption — assert it explicitly.
-
-    Per CLAUDE.md §6 last bullet, every spec formula with concrete numeric
-    values MUST have a `pytest.approx` direct guard. `test_resurrection_
-    threshold_mvp_value` uses `0.02` as a value "below `1/32`" but only
-    documents the relationship in a comment. This test pins the
-    mathematical relationship explicitly so a future change to either
-    side breaks loudly.
-    """
-    # Closed-form derivation: spec `1/(2·N_e)` at N_e=16
-    threshold = safeguards._dead_expert_threshold(16)
-    # Mathematical premise: `0.02 < 1/32` MUST hold for the test data to be
-    # meaningful (otherwise the test is testing against the wrong baseline).
-    assert 0.02 < threshold, (
-        f"0.02 is NOT below threshold {threshold}; test data premise broken"
-    )
-    # And the spec-literal threshold 1/32 itself:
-    assert 0.02 < 1.0 / 32.0
-    # Sanity: 0.05 (the "above threshold" value) MUST be above threshold
-    assert 0.05 > threshold, (
-        f"0.05 is NOT above threshold {threshold}; test data premise broken"
     )
 
 
