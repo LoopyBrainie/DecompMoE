@@ -192,6 +192,8 @@ The system MUST implement each expert as a Standard SwiGLU FFN, isomorphic to th
 - **WHEN** the system is deployed on a supported framework
 - **THEN** the SwiGLU FFN runs through that framework's fused SwiGLU kernel with no custom CUDA / / retargeting replacement
 
+<a id="req-21"></a>
+
 ### Requirement: No Shared Expert (Pure Geometric Routing)
 
 The system MUST NOT include a shared expert. The forward equation MUST remain exactly `x_out = x + Σ_{i ∈ I_k} p_i · Expert_i(x)`. The system MUST preserve three mathematical guarantees: (1) no variance drift `Var[Δx | x] ≤ σ_e²`; (2) no slot encroachment between experts; (3) alignment with Mixtral's active-parameter accounting. The guarantees depend on the dual premise that experts are independently initialized and the training run is long enough for them to differentiate; the cross-covariance being approximately zero is a derived property, not an enforced one.
@@ -347,6 +349,8 @@ The system MUST combine three trigger layers: (Layer 1) Time-Driven hard cut at 
 #### Scenario: Advisory signals not to auto-trigger
 - **WHEN** an advisory signal crosses any threshold before its corresponding time-driven boundary
 - **THEN** the system logs the advisory but does NOT advance the phase
+
+<a id="req-16"></a>
 
 ### Requirement: Prefill And Decode Share The Same Algorithm
 
