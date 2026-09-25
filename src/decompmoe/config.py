@@ -1,6 +1,6 @@
 """Frozen 4070 MVP hyperparameters + total/active parameter estimator.
 
-This module materializes Req 1, Req 2, Req 11, and Req 19 of
+This module materializes Req 11 and Req 19 of
 `openspec/specs/wayfinder/spec.md`:
 
     - `MVPConfig` is a `frozen=True` dataclass whose fields are the locked
@@ -92,8 +92,8 @@ def compute_total_and_active(cfg: MVPConfig) -> tuple[int, int]:
                                     + router_per_layer)
 
     With `MVPConfig()` (vocab=32K, d_model=1024, L=4, N_e=16, k=2):
-        total ≈ 451M (within ±1% of 452M, target 448M–456M)
-        active ≈ 99M (within ±1% of 100M, target 99M–101M)
+        total = 452_329_984 (≈452.33M, exact per spec req-11 L245)
+        active = 100_008_448 (≈100.01M, exact per spec req-11 L245)
     """
     embedding = cfg.vocab_size * cfg.d_model
     attn = _attention_params_per_layer(cfg)
