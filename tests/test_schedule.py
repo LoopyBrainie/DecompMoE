@@ -83,10 +83,10 @@ def test_phase_step_frozen_names_phase_0_and_4_empty_set() -> None:
 
 
 def test_phase3_b_ramp() -> None:
-    assert schedule.phase_beta_max(phase=3, step=26_000) == 4.0
-    assert abs(schedule.phase_beta_max(phase=3, step=55_999) - 15.9996) < 1e-4
-    mid = schedule.phase_beta_max(phase=3, step=41_000)
-    assert 9.0 < mid < 11.0
+    """Phase 3 ramp pins at canonical + boundary positions (closed-form abs=1e-9 per req-gov-1 §2)."""
+    assert schedule.phase_beta_max(phase=3, step=26_000) == pytest.approx(4.0, abs=1e-9)
+    assert schedule.phase_beta_max(phase=3, step=55_999) == pytest.approx(15.9996, abs=1e-9)
+    assert schedule.phase_beta_max(phase=3, step=41_000) == pytest.approx(10.0, abs=1e-9)
 
 
 def test_phase4_b_dynamic_box() -> None:
@@ -138,6 +138,9 @@ def test_phase_beta_max_is_time_varying() -> None:
     assert schedule.phase_beta_max(2, 16_000) == pytest.approx(2.5, abs=1e-9)
     assert schedule.phase_beta_max(3, 26_000) == pytest.approx(4.0, abs=1e-9)
     assert schedule.phase_beta_max(3, 41_000) == pytest.approx(10.0, abs=1e-9)
+    # Boundary witness (Phase 2 last in-phase step, exclusive end) — symmetric
+    # to the Phase-3 boundary witness in test_beta_effective_phase_4_continuity.
+    assert schedule.phase_beta_max(2, 25_999) == pytest.approx(3.99985, abs=1e-9)
 
 
 def test_gamma_reset_for_phase4_boundary_continuity() -> None:
