@@ -1,0 +1,20 @@
+## 1. Apply delta to decompmoe-skeleton spec
+
+- [x] 1.1 Apply 7 textual replacements in `openspec/specs/decompmoe-skeleton/spec.md` body paragraphs (L220, L244, L248, L260 × 4 references) replacing literal `wayfinder L249` (and one bare `L249` reference on L260) with stable anchor form `wayfinder Req 13 'Numerical Safeguards' (anchor `#req-13`)` per `proposal.md - What Changes`; verify by running `grep -nE 'L249|wayfinder L' openspec/specs/decompmoe-skeleton/spec.md` returning **zero matches** AND `grep -cE 'wayfinder Req 13' openspec/specs/decompmoe-skeleton/spec.md` returning **≥ 7 matches** (specifically the 7 inserted references plus any pre-existing `Req 13` mentions, which is 0 in the current spec — so the count should be exactly 7).
+- [x] 1.2 Spot-check the diff preserves all numeric math byte-identically (counterexamples `(199·0.005 + 1·0.99)/200 = 1.985/200 = 0.009925` and `(199·0.05 + 1·0.005)/200 = 9.955/200 = 0.049775`, threshold `1/(2·N_e) = 1/32`, `consec = 200`, etc.); verify by `git diff openspec/specs/decompmoe-skeleton/spec.md` showing changes ONLY in the 4 affected lines (L220, L244, L248, L260) and that no numeric/math literal changes.
+- [x] 1.3 Confirm the delta spec at `openspec/changes/2026-09-12-replace-literal-wayfinder-l249-with-anchor-ref/specs/decompmoe-skeleton/spec.md` matches the final applied text byte-identically; verify by `diff <(grep -E 'wayfinder Req 13' openspec/changes/.../specs/decompmoe-skeleton/spec.md) <(grep -E 'wayfinder Req 13' openspec/specs/decompmoe-skeleton/spec.md)` returning no diff (i.e., the delta's edited block and the main spec's edited block are identical).
+
+## 2. Lint gates (pre-archive required)
+
+- [x] 2.1 Run `python scripts/lint_no_source_field_drift.py` from repo root; verify `exit=0` AND stdout ends with `lint_no_source_field_drift: OK (2 file(s) scanned, no violations)` (decompmoe-skeleton + wayfinder; both Source fields unchanged). The pre-existing L206 Source field already references `wayfinder/tickets/A6a-2.md` — verify the grep `-c 'wayfinder/tickets/' openspec/specs/decompmoe-skeleton/spec.md` returns ≥ 1 (already true before this change).
+- [x] 2.2 Run `python scripts/lint_no_dead_defensive.py` from repo root; verify `exit=0`. This lint targets `*args` / `**kwargs` / defensive-only code patterns in `src/decompmoe/`; since this change touches no code, expect zero deltas vs. the pre-change baseline.
+
+## 3. Cross-file sanity (no other "wayfinder L###" references left)
+
+- [x] 3.1 Grep entire `openspec/` tree for `wayfinder L[0-9]+` pattern; verify **zero matches** post-apply. Pre-apply baseline: 4 matches in `decompmoe-skeleton/spec.md` (L220, L244, L248, L260 — 7 actual occurrences but grep counts unique lines). Post-apply expectation: 0 matches across all of `openspec/`. Verify with `grep -rnE 'wayfinder L[0-9]+' openspec/` returning only the empty result with exit=1.
+- [x] 3.2 Grep `wayfinder/spec.md` to confirm the `<a id="req-13"></a>` anchor at L245 + Requirement 13 title `Numerical Safeguards` at L247 are still present (unchanged by this change); verify by `grep -nE '<a id="req-13">|Requirement: Numerical Safeguards' openspec/specs/wayfinder/spec.md` returning both lines intact.
+
+## 4. Archive via OpenSpec workflow
+
+- [x] 4.1 Run `openspec archive --change 2026-09-12-replace-literal-wayfinder-l249-with-anchor-ref`; verify delta spec is merged into `openspec/specs/decompmoe-skeleton/spec.md` (the `## MODIFIED Requirements` block in `openspec/changes/2026-09-12-replace-literal-wayfinder-l249-with-anchor-ref/specs/decompmoe-skeleton/spec.md` overwrites the matching Requirement body in the main spec) and the change folder is moved to `openspec/changes/archive/`.
+- [x] 4.2 Post-archive verification: re-run `python scripts/lint_no_source_field_drift.py` (exit=0 still expected) AND `grep -nE 'L249' openspec/specs/decompmoe-skeleton/spec.md` returns zero matches; verify archive folder contains the 4 artifacts (`proposal.md`, `design.md`, `tasks.md`, `specs/decompmoe-skeleton/spec.md`).
