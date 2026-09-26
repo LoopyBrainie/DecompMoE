@@ -23,11 +23,12 @@ Cycle-N+1 audit-verification loop 2026-09-26 经 L4-F1 finding 二次扫描识�
 
 ### Decision 1 — Anchor 选择
 
-**Choice**:
-- L530 Six-Module Visualization Toolchain → `<a id="req-25"></a>`
-- L594 CentroidDriver Dual-Channel Architecture Contract → `<a id="req-27"></a>`
-- L633 Phase 2 β Box Equality → `<a id="req-33"></a>`
-- L303 Five-Phase Schedule State Machine → `<a id="req-13"></a>`
+**Choice** (final state @ HEAD `2d0950b` 2026-09-26 15:13:03):
+- L524 Six-Module Visualization Toolchain → `<a id="req-25"></a>` ✅ (committed by `2d0950b`)
+- L588 CentroidDriver Dual-Channel Architecture Contract → `<a id="req-27"></a>` ✅ (committed by `2d0950b`)
+- L627 Phase 2 β Box Equality → `<a id="req-33"></a>` ✅ (committed by `2d0950b`, resuscitated from `24118d6` orphan slot)
+- L293 Five-Phase Schedule State Machine → `<a id="req-13"></a>` ✅ (committed by `de96ba6` parallel session, 2026-09-26 14:58:47; out of this change scope)
+- L313 Six Visualization Module Protocol Stubs → `<a id="req-14"></a>` ✅ (already in HEAD, never deleted; pre-existing assumption in original plan was wrong)
 
 **Rationale**:
 - 全部为**自然 slot**（嵌在已有 req-N ↔ req-(N+1) 之间），0 cascade 风险。

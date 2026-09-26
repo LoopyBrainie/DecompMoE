@@ -3,14 +3,19 @@
 ## 1. Pre-flight verify (idempotent guard)
 
 - [x] 1.1 Verify current state via `grep -nE '<a id="req-(25|27|33)"></a>' openspec/specs/wayfinder/spec.md` returns **0 matches**
-- [x] 1.2 Verify current state via `grep -nE '<a id="req-13"></a>' openspec/specs/decompmoe-skeleton/spec.md` returns **0 matches**
+- [x] 1.2 Verify current state via `grep -nE '<a id="req-(13|14)"></a>' openspec/specs/decompmoe-skeleton/spec.md` returns **0 matches** (req-13 expected missing at plan time; req-14 expected present in HEAD)
 - [x] 1.3 Verify byte-level CRLF on target files: `($bytes | Where-Object { $_ -eq 13 }).Count` MUST be **0** on both `wayfinder/spec.md` and `decompmoe-skeleton/spec.md` before edits
 - [x] 1.4 Verify current Requirement heading positions:
   - wayfinder/spec.md L530 = Six-Module Visualization Toolchain
-  - wayfinder/spec.md L594 = CentroidDriver Dual-Channel Architecture Contract
-  - wayfinder/spec.md L633 = Phase 2 β Box Equality
-  - decompmoe-skeleton/spec.md L303 = Five-Phase Schedule State Machine
-- [x] 1.5 Verify post-plan snapshot drift: plan used L524/L588/L627/L293, current state is L530/L594/L633/L303 (drift +6/+6/+6/+10). Plan explicitly notes "实测当前行号而非 plan 行号作为 anchor" — drift is non-blocking.
+  - wayfinder/spec.md L596 = CentroidDriver Dual-Channel Architecture Contract (drift +2 from plan L594 due to intervening commits)
+  - wayfinder/spec.md L637 = Phase 2 β Box Equality (drift +4 from plan L633 due to 2 prior inserts)
+  - decompmoe-skeleton/spec.md L303 = Five-Phase Schedule State Machine (req-13 anchor already added by `de96ba6` parallel session; out of this change scope)
+  - decompmoe-skeleton/spec.md L325 = Six Visualization Module Protocol Stubs (req-14 anchor needs restore; deleted accidentally by Voronoi precision disclosure in-flight session)
+- [x] 1.5 Verify post-plan snapshot drift: plan used L524/L588/L627/L293, current state is L530/L596/L637/L303 (drift +6/+6/+6/+10). Plan explicitly notes "实测当前行号而非 plan 行号作为 anchor" — drift is non-blocking.
+- [x] 1.6 **Scope revision** (post-`de96ba6` AND post-`2d0950b`): original 4-anchor plan reduced to 3-wayfinder + 1-decompmoe-skeleton-restore (req-14). Per git reflog:
+  - `de96ba6` (2026-09-26 14:58:47, Python reviewer session mvs_c1970089aa9341cda22ce41910b792a1): independently closed req-13 anchor gap
+  - `2d0950b` (2026-09-26 15:13:03, precision-disclosure session): closed wayfinder req-25/27/33 anchors + Voronoi precision disclosure archive
+  - Final state @ HEAD: both specs 100% anchor coverage. **All target anchors completed by parallel sessions.**
 
 ## 2. Create OpenSpec change directory
 
@@ -82,25 +87,28 @@
 - [x] 3.3.2 Post-edit grep: `grep -nF 'Phase 2 β Box Equality' openspec/specs/wayfinder/spec.md` MUST return ≥1 hit
 - [x] 3.3.3 Lineage note: req-33 was previously deleted by archived change `2026-09-24-fix-wayfinder-spec-req-33-orphan-anchor-and-archive-historian` (commit `24118d6`) at historical L740. This commit revives req-33 to anchor L633 Phase 2 β Box Equality — different Requirement from the original orphan (which was `Test Guard Precision for Closed-Form Numerical Claims`, migrated to governance/req-gov-1).
 
-### 3.4 decompmoe-skeleton/spec.md — insert req-13 before L303
+### 3.4 decompmoe-skeleton/spec.md — restore req-14 anchor before L325
 
-- [x] 3.4.1 Edit `openspec/specs/decompmoe-skeleton/spec.md` to insert `<a id="req-13"></a>` before `### Requirement: Five-Phase Schedule State Machine` at L303
-  - Same boundary discipline
+- [x] 3.4.1 Edit `openspec/specs/decompmoe-skeleton/spec.md` to restore `<a id="req-14"></a>` before `### Requirement: Six Visualization Module Protocol Stubs` at L325
+  - **Note**: req-13 anchor at L303 was already inserted by parallel session `de96ba6` (2026-09-26 14:58:47). This task replaces the original "insert req-13" task.
   - Proposed `old_string`:
     ```
-    **Open follow-up**: a future ticket adopting avg-window semantics would re-evaluate the trigger condition as `flag_avg(i)` above, and MUST update spec + code + the `test_should_resurrect_current_per_step_semantic_pinned` guard test atomically; the existing guard test in `tests/test_safeguards.py` continues to pin the current per-step behavior.
+    - **WHEN** `should_reset_adam(3, 4)` is called
+    - **THEN** it returns `True`; for every other `(prev, next)` pair it returns `False`
 
-    ### Requirement: Five-Phase Schedule State Machine
+    ### Requirement: Six Visualization Module Protocol Stubs
     ```
   - Proposed `new_string`:
     ```
-    **Open follow-up**: a future ticket adopting avg-window semantics would re-evaluate the trigger condition as `flag_avg(i)` above, and MUST update spec + code + the `test_should_resurrect_current_per_step_semantic_pinned` guard test atomically; the existing guard test in `tests/test_safeguards.py` continues to pin the current per-step behavior.
+    - **WHEN** `should_reset_adam(3, 4)` is called
+    - **THEN** it returns `True`; for every other `(prev, next)` pair it returns `False`
 
-    <a id="req-13"></a>
+    <a id="req-14"></a>
 
-    ### Requirement: Five-Phase Schedule State Machine
+    ### Requirement: Six Visualization Module Protocol Stubs
     ```
-- [x] 3.4.2 Post-edit grep: `grep -nF 'Five-Phase Schedule State Machine' openspec/specs/decompmoe-skeleton/spec.md` MUST return ≥1 hit
+- [x] 3.4.2 Post-edit grep: `grep -nF 'Six Visualization Module Protocol Stubs' openspec/specs/decompmoe-skeleton/spec.md` MUST return ≥1 hit
+- [x] 3.4.3 Verify decompmoe-skeleton anchor count: `grep -c '<a id="req-' openspec/specs/decompmoe-skeleton/spec.md` MUST return **23** (no narrative back-links)
 
 ## 4. Post-edit verify
 

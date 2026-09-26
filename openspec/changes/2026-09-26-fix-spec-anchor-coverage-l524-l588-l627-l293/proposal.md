@@ -9,11 +9,33 @@
 | spec 文件 | Requirement heading | 当前行号 | 缺 anchor |
 |---|---|---|---|
 | wayfinder/spec.md | Six-Module Visualization Toolchain | L530 | req-25 |
-| wayfinder/spec.md | CentroidDriver Dual-Channel Architecture Contract | L594 | req-27 |
-| wayfinder/spec.md | Phase 2 β Box Equality | L633 | req-33 |
-| decompmoe-skeleton/spec.md | Five-Phase Schedule State Machine | L303 | req-13 |
+| wayfinder/spec.md | CentroidDriver Dual-Channel Architecture Contract | L596 | req-27 |
+| wayfinder/spec.md | Phase 2 β Box Equality | L637 | req-33 |
+| decompmoe-skeleton/spec.md | Six Visualization Module Protocol Stubs | L325 | req-14 |
 
 行号相对 plan snapshot (`L524/L588/L627/L293`) 漂移了 `+6/+6/+6/+10` —— 这反映 plan 创建后 spec 继续被其它 in-flight change 微调；本 change 用**实测当前行号**而非 plan 行号作为 anchor。
+
+## Scope revision（2026-09-26 15:13 reflog 实证）
+
+原始 plan 包含 4 个 anchor 修复（3 wayfinder + 1 decompmoe-skeleton req-13）。实施期间，并行 sessions 通过 2 个 commit 完整实现了所有 anchor 修复：
+
+1. **`de96ba6`** (2026-09-26 14:58:47, Python reviewer session mvs_c1970089aa9341cda22ce41910b792a1): 完成 decompmoe-skeleton req-13 anchor + 加 2 principle tests
+2. **`2d0950b`** (2026-09-26 15:13:03, 后续 precision-disclosure session): 完成 wayfinder req-25/27/33 anchors + 1 reviewer finding 处理 + Voronoi precision disclosure 归档
+
+**最终 anchor coverage @ HEAD `2d0950b`**:
+- `wayfinder/spec.md`: 36 Requirements / 37 anchor occurrences (36 unique anchors + 1 narrative back-link at L824) → **100% coverage**
+- `decompmoe-skeleton/spec.md`: 23 Requirements / 25 anchor occurrences (23 unique anchors + 2 narrative references) → **100% coverage**
+
+**本 change 在 HEAD 已经完整关闭**:
+- wayfinder req-25/27/33 ✅ (commit `2d0950b`)
+- decompmoe-skeleton req-13 ✅ (commit `de96ba6`)
+- decompmoe-skeleton req-14 ✅ (在 HEAD 始终存在)
+
+**Artifact 用途变更**: 本 change dir (`openspec/changes/2026-09-26-fix-spec-anchor-coverage-l524-l588-l627-l293/`) 不再用于 apply spec 改动。其用途转为：
+1. 文档记录 plan 演化过程（plan 4-anchor → scope-revised → parallel-closed-by-2d0950b）
+2. 标注 `req-33` 是从 archived orphan slot `24118d6` 复用的整数 slot（lineage 完整可追溯）
+
+后续可经 `/opsx:archive 2026-09-26-fix-spec-anchor-coverage-l524-l588-l627-l293` 归档此 change dir。
 
 ## What changes
 
