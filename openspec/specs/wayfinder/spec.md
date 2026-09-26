@@ -141,9 +141,9 @@ Per-expert scalar weights `w_i` MUST NOT appear in the logit; the mixing weight 
 - **WHEN** the logit is computed for gating
 - **THEN** no learnable per-expert scalar weight `w_i` participates in `logit = β(C^T c − 1)`; mixing weights are exactly the softmax probabilities `p_i`
 
-#### Scenario: σ'(−3.5) narrative precision matches 50-digit mpmath within 5 significant figures
+#### Scenario: σ'(−3.5) narrative precision matches 50-digit mpmath within 4 significant figures (narrative form)
 - **WHEN** `σ'(γ) = σ(γ) · (1 − σ(γ))` is evaluated at `γ = −3.5`
-- **THEN** the narrative value `σ'(−3.5) ≈ 0.02845` matches the 50-digit mpmath value `0.02845302387973555984` truncated at 5 significant figures (diff `|0.028453 − 0.02845| = 3e-6`, relative `0.011%`, well below `1e-6` tolerance); this is the "healthy gradient" health-check anchor for the cold-start region `γ_init ≈ −3.5`
+- **THEN** the narrative value `σ'(−3.5) ≈ 0.02845` matches the 50-digit mpmath value `0.02845302387973555984` rounded to 4 significant figures (round-half-up at 5dp or truncate-then-format, both yield `0.02845`); the 5-sig-fig truncation would yield `0.028453`, NOT displayed; the discrepancy is intentional — narrative precision is 4 sig figs to align with `β_0 ≈ 1.035` (4 sig fig) closed-form style elsewhere in this Requirement (per Decision 4 of change `01-fix-ticket-stale-numerical-4file-batch` proposal); this is the "healthy gradient" health-check anchor for the cold-start region `γ_init ≈ −3.5`
 
 #### Scenario: MVPConfig.beta_initial default derives from spec closed-form β_min + (β_max−β_min)·σ(γ_init), NOT self-referential literal
 - **WHEN** `MVPConfig().beta_initial` is asserted against a pytest.approx value
@@ -153,7 +153,7 @@ Per-expert scalar weights `w_i` MUST NOT appear in the logit; the mixing weight 
 #### Scenario: σ'(−3.5) is guarded by a 50-digit mpmath pytest assertion (durable across archive of `.audit/`)
 - **WHEN** `σ'(γ) = σ(γ) · (1 − σ(γ))` is evaluated at `γ = −3.5` in `tests/test_beta.py`
 - **THEN** there MUST exist a pytest assertion `σ'(−3.5) == pytest.approx(0.02845302387973555984, abs=1e-30)` that nails the 50-digit mpmath closed form (钉值零容差 for FP-exact literal-vs-closed-form comparison; 1e-30 ≤ 1e-15 spec 阈值 so test is a strict subset of the spec requirement)
-- **AND** a paired assertion `σ'(−3.5) == pytest.approx(0.02845, abs=1e-5)` that nails the L122 narrative 5-sig-fig precision disclosure
+- **AND** a paired assertion `σ'(−3.5) == pytest.approx(0.02845, abs=1e-5)` that nails the L122 narrative 4-sig-fig precision disclosure
 - **AND** this test MUST be retained after archive of `.audit/audit-verification/` (i.e., it lives in the durable `tests/` tree, not in the drop-on-archive audit tree)
 
 #### Scenario: Source field lists all three referenced tickets
@@ -232,9 +232,15 @@ The canonical API contract name `territory_seeding` (per req-2 "Formal Symbols A
 
 The system MUST, for the 4070 8 GB MVP target, adopt `d_model = 1024`, `N_e = 16`, `k = 2`, `d_ffn = 2048`, `L = 4`, `d_c = 16`, `H = 8`, `H_kv = 8`, `d_k = 128`, `V = 32_000`. Total parameters ≈ 452 M and active parameters ≈ 100 M. The MoE active FLOPs MUST be 1:1 with a Dense baseline whose `d_ffn_dense = 4096` (each MoE token performs exactly two expert FFNs of width 2048). The geometric self-consistency check MUST hold (`θ_Voronoi > θ_{1/e}` strictly under the MVP configuration, with the closed-form residual `½ · I_{sin²θ}((d_c−1)/2, 1/2) − 1/N_e` evaluating to less than `1e-9` for the reported `θ`).
 
-**Closed-form Voronoi half-angle (definitional layer)**: For N_e equal-area cells on `S^{d_c − 1}`, `θ_Voronoi(N_e, d_c)` is the unique `θ ∈ (0, π/2]` solving `½ · I_{sin² θ}((d_c − 1)/2, 1/2) = 1/N_e`, where `I_x(a, b)` is the regularized incomplete beta function. Equivalently, `versine_Voronoi(N_e, d_c) = 1 − cos θ_Voronoi` is the per-expert spherical **versine** (cap height, `1 − cos θ`); it MUST NOT be confused with `D_chord = √(2(1 − cos θ))` which uses the same `(1 − cos θ)` base but takes the square root to obtain chord length. MVP tabulated values (independent root-finding, residual `< 1e-9`):
+**Closed-form Voronoi half-angle (definitional layer)**: For N_e equal-area cells on `S^{d_c − 1}`, `θ_Voronoi(N_e, d_c)` is the unique `θ ∈ (0, π/2]` solving `½ · I_{sin² θ}((d_c − 1)/2, 1/2) = 1/N_e`, where `I_x(a, b)` is the regularized incomplete beta function. Equivalently, `versine_Voronoi(N_e, d_c) = 1 − cos θ_Voronoi` is the per-expert spherical **versine** (cap height, `1 − cos θ`); it MUST NOT be confused with `D_chord = √(2(1 − cos θ))` which uses the same `(1 − cos θ)` base but takes the square root to obtain chord length. MVP tabulated values (independent root-finding, impl-internal residual `< 1e-9` per `src/decompmoe/sphere.py::_betainc_regularized`; true closed-form residual vs mpmath at the bisection output is `≈ 4.15e-7` for `(N_e=16, d_c=16)` and `≈ 1.43e-9` for `(N_e=64, d_c=16)`, both well within the `< 1e-6` test tolerance prescribed by `openspec/specs/governance/spec.md` req-gov-1 §3 — see the frame-disambiguation obligation in req-gov-1 §4):
 - `θ_Voronoi(16, 16) ≈ 67.24° (≈ 1.1735 rad)`, `versine_Voronoi(16, 16) ≈ 0.6131`.
 - `θ_Voronoi(64, 16) ≈ 58.47° (1.0205 rad)`, `versine_Voronoi(64, 16) ≈ 0.4771`.
+
+> **Display precision note**:
+> - `θ_Voronoi(16, 16) ≈ 67.24° (≈ 1.1735 rad)`: `67.24°` (4-decimal-degree = ~4-sig-fig for angle) and `≈ 1.1735 rad` (4-decimal-rad = ~5-sig-fig for rad) are dual prose forms referring to the same impl bisection output `1.1735482746999482 rad = 67.2393145636...°`. The two displays differ by `67.24° × π/180 − 1.1735 ≈ 5.94e-5 rad` due to independent prose rounding; both lie within the `< 1e-4 rad` test tolerance permitted by `openspec/specs/governance/spec.md` req-gov-1 §2 ("float closed-form claims MUST use `pytest.approx(value, abs=...)` with tolerance matching the closed-form computation's actual precision").
+> - `θ_Voronoi(64, 16) ≈ 58.47° (1.0205 rad)`: similar dual-prose pattern; impl output `1.0205068335735599 rad = 58.47073...°`; display diff `58.47° × π/180 − 1.0205 ≈ −5.99e-6 rad` (negative: `58.47° × π/180 = 1.0204940... rad < 1.0205 rad`), magnitude `|diff| ≈ 5.99e-6 rad` well within the `< 1e-4 rad` tolerance.
+>
+> The prose-form-vs-impl-output gap and the within-form dual-display gap together demonstrate that **prose angle precision ≠ impl-bit precision**: the `≈` symbol already signals spec-narrative precision disclosure, not strict equality.
 
 The canonical configuration-layer API `canonical_voronoi_angle(num_experts: int, signature_dim: int) -> float` MUST return this closed-form value (computed via bisection on the equation, NOT via a hard-coded table). The measurement-layer API `voronoi_angle(centroids: Tensor) -> float` MUST compute the realized Voronoi half-angle from an actual centroid tensor (offline use only, never in the training hot path). The specialist-collapse boundary `θ_{1/e}(β) = arccos(1 − 1/β)` MUST strictly satisfy `θ_Voronoi(N_e=16, d_c=16) > θ_{1/e}(β=16) = arccos(15/16) ≈ 20.36°`.
 
@@ -521,6 +527,8 @@ The `CG = ‖∇_{W^{K, V, b}} L_total‖₂` metric MUST satisfy the L2-norm id
 - **WHEN** `CG(torch.tensor([[5.0]]))` or `CG(torch.tensor([[[-5.0]]]))` is called with a multi-dimensional tensor whose `numel()` equals `1`
 - **THEN** the result equals the absolute value of the sole element (`5.0` or `-5.0` → `5.0`) exactly within `abs=1e-12` (L2 norm is dimension-agnostic when `numel()==1`)
 
+<a id="req-25"></a>
+
 ### Requirement: Six-Module Visualization Toolchain
 
 The system MUST provide a production-ready visualization toolchain with six modules: 3D PCA scatter (fixed camera angles 25°/135°);` `D_c` heatmap with Optimal Leaf Ordering;` 2D Voronoi tessellation with elliptical β fitting;` trajectory animation with fixed `W_PCA` across frames;` TensorBoard dashboard;` and PlantUML diagram documentation. The implementation stack MUST be `matplotlib`, `scikit-learn`, `scipy`, `imageio`, `tensorboard`, and `plantuml`.
@@ -585,6 +593,8 @@ The system MUST maintain a clean separation between two domains: the **parameter
 - **WHEN** Phase 4 is entered at `β_{p3} = 16.0`
 - **THEN** `γ' = ln(15/16) ≈ −0.0645385...` is set, AdamW momentum for `γ` is reset, and `β^eff(Phase 4, t=0) = 16.0` exactly (continuity)
 
+<a id="req-27"></a>
+
 ### Requirement: CentroidDriver Dual-Channel Architecture Contract
 
 The system MUST unify all centroid `c_i` lifecycle updates through a single `CentroidDriver` abstraction, with strictly orthogonal Driver Channel (gradient-free) and Gradient Channel (AdamW) responsibilities:
@@ -623,6 +633,8 @@ On entering Phase 4, the system MUST reset `γ` to `γ' = ln((β_{p3} − 1) / (
 
 - **WHEN** the schedule enters Phase 4 with `β_{p3} = 16.0`
 - **THEN** `γ' = ln((16 − 1) / (32 − 16)) = ln(15/16) ≈ −0.0645385...` and the resulting `β^eff(Phase 4, t=0) = 1 + 31 · σ(γ') = 16.0` exactly (continuity at the boundary)
+
+<a id="req-33"></a>
 
 ### Requirement: Phase 2 β Box Equality
 

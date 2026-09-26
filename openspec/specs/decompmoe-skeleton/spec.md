@@ -105,6 +105,16 @@ The package SHALL provide `canonical_voronoi_angle(num_experts: int, signature_d
 - **WHEN** `canonical_voronoi_angle(num_experts=64, signature_dim=16)` is called
 - **THEN** the returned angle satisfies `|½ · I_{sin²θ}(7.5, 0.5) − 1/64| < 1e-9` AND equals `≈ 1.0205 rad (≈ 58.47°)` (the function depends on both `num_experts` and `signature_dim`, not `signature_dim` alone)
 
+#### Scenario: Bisection output + narrative precision disclosure
+
+- **WHEN** reviewing the MVP self-consistency Scenario above (`≈ 1.1735 rad`) and the N_e-dependence Scenario above (`≈ 1.0205 rad`)
+- **THEN** the reader understands:
+  - `≈ 1.1735 rad` / `≈ 1.0205 rad` are narrative prose at ~4-decimal precision; NOT exact bisection values
+  - The impl bisection OUTPUT is `1.1735482746999482 rad` (N_e=16) / `1.0205068335735599 rad` (N_e=64) at 16-digit precision
+  - The impl-internal residual vs `src/decompmoe/sphere.py::_betainc_regularized` at the impl output is `< 1e-14` (per `tests/test_sphere.py::test_voronoi_residual_below_1e_minus_9`)
+  - The true closed-form residual vs mpmath `betainc(regularized=True)` at the impl output is `4.15e-7` (N_e=16) / `1.43e-9` (N_e=64); the N_e=64 impl output sits just above the `< 1e-9` reference floor at `1.43e-9` (close to the bisection noise floor; NOT below it, despite the small magnitude), while the N_e=16 impl output has larger residual (~`4e-7`) but still well within the `< 1e-6` spec tolerance per `openspec/specs/governance/spec.md` req-gov-1 §3
+  - The discrepancy `~8.49e-7 rad` (N_e=16) / `~8.79e-9 rad` (N_e=64) between mpmath true bisection solve and impl output reflects the Gauss–Legendre 8-point 60-segment systematic error in `_betainc_regularized`, bounded to < 1 ppm
+
 #### Scenario: no hard-coded table values
 - **WHEN** `src/decompmoe/sphere.py` is grepped for the MVP values `0.9076`, `0.4494`, `0.380`, `0.0971`
 - **THEN** zero matches (no fast-path table — every input must bisect)
@@ -585,7 +595,6 @@ The four offline metric implementations MUST implement the closed forms above (a
 - **THEN** it raises `TypeError` referencing the closed form `CG = ‖∇_{W^{K, V, b}} L_total‖₂` (the gradient of a learnable parameter is necessarily a Tensor; non-Tensor inputs are a caller bug)
 - **AND WHEN** `CG(grad)` is called with `grad` being a `torch.Tensor` of non-floating-point dtype (`int`, `bool`, etc.)
 - **THEN** it raises `TypeError` (the `CG` definition is the `ℓ₂` norm of a learnable-parameter gradient — non-floating-point tensors cannot be such a gradient)
-
 
 <a id="req-23"></a>
 

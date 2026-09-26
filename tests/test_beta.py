@@ -53,7 +53,7 @@ def test_beta_param_init_default() -> None:
 
 
 def test_sigma_prime_gamma_init_health_check() -> None:
-    """Spec req-7 L122: σ'(−3.5) ≈ 0.02845 (narrative 5 sig figs); 50-digit mpmath = 0.02845302387973555984.
+    """Spec req-7 L122: σ'(−3.5) ≈ 0.02845 (narrative 4 sig figs); 50-digit mpmath = 0.02845302387973555984.
 
     Cold-start region health-check anchor: σ'(γ_init≈−3.5) MUST stay ≈ 0.02845
     ("healthy gradient") per spec L122 narrative. The 50-digit mpmath closed-form
@@ -65,7 +65,7 @@ def test_sigma_prime_gamma_init_health_check() -> None:
       (a) `abs=1e-30` nail 50-digit mpmath literal (钉值零容差 for mpmath-exact
           constant-vs-closed-form). NOTE: torch.float32 only has ~7 decimals, so
           this test uses `mpmath` directly to retain full 50-digit precision.
-      (b) `abs=1e-5` nail narrative 5-sig-fig precision disclosure (works for both
+      (b) `abs=1e-5` nail narrative 4-sig-fig precision disclosure (works for both
           fp32/mpmath since this is a coarse tolerance).
     """
     mpmath.mp.dps = 50
@@ -76,10 +76,10 @@ def test_sigma_prime_gamma_init_health_check() -> None:
     assert sp_val_50digit == pytest.approx(0.02845302387973555984, abs=1e-30), (
         f"σ'(−3.5) (50-digit mpmath) = {sp_val_50digit}, expected 0.02845302387973555984"
     )
-    # (b) spec L122 narrative 5-sig-fig precision disclosure
+    # (b) spec L122 narrative 4-sig-fig precision disclosure
     assert sp_val_50digit == pytest.approx(0.02845, abs=1e-5), (
         f"σ'(−3.5) (50-digit mpmath) = {sp_val_50digit}, expected ≈ 0.02845 "
-        f"(spec L122 narrative, 5 sig figs)"
+        f"(spec L122 narrative, 4 sig figs)"
     )
 
 
