@@ -109,11 +109,11 @@ Do NOT skip step 1 — the spec is the single source of truth, not the code.
 ### Apply task 3.7 — `src/decompmoe/safeguards.py`
 
 - **Spec anchor**: `openspec/specs/wayfinder/spec.md`, ADDED Requirement "Resurrection Perturbation Per-Expert Contract"
-  - `resurrection_perturb_distribution(target_idx, *, eps_std=0.05)` returns shape `(d_c,)` or `(d_model·d_ffn,)` (single expert), NOT `(N_e,)`
+  - `resurrection_perturb_distribution(f_per_expert: Tensor, target_idx: int, eps_std: float = 0.05, *, dim: int | None = None) -> Tensor` returns shape `(d_c,)` or `(d_model·d_ffn,)` (single expert), NOT `(N_e,)` (code-review N9 fix: 4-arg form with `f_per_expert` first and keyword-only `dim`; signature mirrors `src/decompmoe/safeguards.py:105-133` at commit `263ac19`; passing `dim=None` raises `TypeError`)
   - `β_i ← 0.85·β_{j*}` and `β_{j*} ← 0.85·β_{j*}` mutation as part of the same event
-- **Action**: stop using `target_idx` as unused param; return single-expert-shape tensor; add β decay mutation
+- **Action**: stop using `target_idx` as unused param (it's now part of the positional sequence after `f_per_expert`); require explicit `dim` keyword at call site; return single-expert-shape tensor; add β decay mutation
 - **Verify**: output shape `(d_c,)` or `(d_model·d_ffn,)`; not `(N_e,)`. Mutation visible via state inspection.
-- **New test**: `tests/test_safeguards.py::test_resurrection_perturbation_shape_per_expert` + `test_resurrection_beta_decay`
+- **New test**: `tests/test_safeguards.py::test_resurrection_perturbation_shape_per_expert` + `test_resurrection_beta_decay` + `test_resurrection_perturb_default_requires_dim`
 
 ---
 
