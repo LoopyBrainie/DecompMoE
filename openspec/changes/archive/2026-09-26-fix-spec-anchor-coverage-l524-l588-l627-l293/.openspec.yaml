@@ -6,6 +6,8 @@
 # Precedent: archived change 2026-09-24-fix-wayfinder-spec-req-33-orphan-anchor-and-archive-historian
 # (Decision 1) used the same skip_specs: true rationale for orphan anchor cleanup.
 
+schema: spec-driven
+
 skip_specs: true
 
 # Capabilities affected by this change (per-capability lint rule scope)
