@@ -57,6 +57,31 @@ def test_phase3_freeze() -> None:
     assert schedule.phase_step_frozen_names(3) == {"c_i"}
 
 
+def test_phase_step_frozen_names_phase_0_and_4_empty_set() -> None:
+    """Spec (wayfinder Req 14 / openspec/specs/decompmoe-skeleton/spec.md
+    req-13 Five-Phase Schedule State Machine, L295): phase_step_frozen_names
+    returns `set()` for phases 0 and 4 (Phase 0 = SEEDING freezes everything
+    by K-Means definition; Phase 4 = PROJECTED_SGD has full AdamW unfreeze
+    with `c_i` gradient-channel Active).
+
+    This pins the empty-set contract verbatim. A refactor that accidentally
+    returns `{"c_i"}` for phase 0 (claiming "don't update c_i during
+    seeding") or for phase 4 (claiming "freeze c_i during projected SGD")
+    would silently violate the dual-channel contract — the explicit
+    assertion on `set()` (NOT `frozenset()`, NOT `None`) closes the gap.
+    """
+    actual_0 = schedule.phase_step_frozen_names(0)
+    actual_4 = schedule.phase_step_frozen_names(4)
+    assert actual_0 == set(), (
+        f"phase 0 frozen-name set MUST be empty per spec req-13 L295 "
+        f"(K-Means seeding freezes everything by definition); got {actual_0!r}"
+    )
+    assert actual_4 == set(), (
+        f"phase 4 frozen-name set MUST be empty per spec req-13 L295 "
+        f"(full AdamW unfreeze with c_i gradient-channel Active); got {actual_4!r}"
+    )
+
+
 def test_phase3_b_ramp() -> None:
     assert schedule.phase_beta_max(phase=3, step=26_000) == 4.0
     assert abs(schedule.phase_beta_max(phase=3, step=55_999) - 15.9996) < 1e-4

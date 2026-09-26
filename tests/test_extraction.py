@@ -210,13 +210,23 @@ def test_no_surrogate_in_codebase() -> None:
 
 
 def test_extract_C_signature() -> None:
-    """extract_C signature must accept K, V, W_K, W_V, b, H_kv, d_c, eps."""
+    """extract_C signature must accept K, V, W_K, W_V, b, H_kv, d_c, eps.
+
+    Also pins `eps` default value = 1e-6 per spec req-7 L100 (extraction
+    four-step pipeline precondition: `‖z‖₂ ≥ ε` for safe division). The
+    tolerance `abs=1e-12` matches the spec closed-form precision per
+    governance/spec.md req-gov-1 §2.
+    """
     sig = inspect.signature(extraction.extract_C)
     names = set(sig.parameters.keys())
     assert {"K", "V", "W_K", "W_V", "b"}.issubset(names)
     assert "eps" in names
     assert "H_kv" in names
     assert "d_c" in names
+    assert sig.parameters["eps"].default == pytest.approx(1e-6, abs=1e-12), (
+        f"extract_C(eps=...) default MUST be 1e-6 per spec req-7 L100; "
+        f"got {sig.parameters['eps'].default!r}"
+    )
 
 
 # ---------------------------------------------------------------------------
