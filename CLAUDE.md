@@ -30,7 +30,7 @@ When sources disagree, consult in this order:
 
 - **Spec-level 变更**：`/opsx:propose` → review 制品 → `/opsx:apply`（含 archive）
 - **`/opsx:archive` 前置条件**：lint gate 必须 `exit=0`（同时跑 `python scripts/lint_no_dead_defensive.py` 与 `python scripts/lint_no_source_field_drift.py`），避免 archived change 留下 lint 报红（参见 `db14222` 修复的 12f673d 漏洞）。`lint_no_source_field_drift.py` 按 capability 区分 Source 反链规则，仍为纯内容子串检查（无豁免注册表、无 CLI 开关、无环境变量）。
-- **Source 反链**（per capability，`scripts/lint_no_source_field_drift.py` 硬卡；治理条款 `wayfinder/spec.md` req-33）：
+- **Source 反链**（per capability，`scripts/lint_no_source_field_drift.py` 硬卡；治理条款 `governance/spec.md` `req-gov-1`）：
   - `wayfinder/` / `decompmoe-skeleton/` 的 Requirement：必须含 `` `wayfinder/tickets/<ID>.md` `` 字面反链（pure ticket 或 `(historical, <原值>; superseded by <change> Decision N)` 标注均可），允许附加 `` `change <name> design.md (Decision N)` ``
   - `governance/` 的 Requirement：必须含 `` `CLAUDE.md` `` 字面反链
   - 设计起源是 `CLAUDE.md` amendment 但 ticket lineage 不存在：MUST 迁到 `governance/`，不得在 `wayfinder/` 用 "(historical, ...)" 硬贴
