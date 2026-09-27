@@ -96,6 +96,61 @@ def test_flops_total_exact_134217728() -> None:
     assert flops_actual == 134_217_728, f"actual={flops_actual}"
 
 
+def test_flops_routing_closed_form_66048() -> None:
+    """Spec L420: `FLOPs_Routing^(l) = 4·d_c·H_kv·d_k + 2·N_e·d_c == 66_048` per layer.
+
+    Integer closed form → bare `==` per `governance/spec.md` req-gov-1 §1
+    (never `pytest.approx(..., abs=0)`, whose `rel=1e-12` default would scale
+    with magnitude and defeat the 钉值零容差 intent).
+
+    These spec literals previously had NO guarding test at all.
+    """
+    cfg = config.MVPConfig()
+    H_kv, d_k, d_c, N_e = 8, cfg.d_k, cfg.d_c, cfg.N_e
+    projection = 4 * d_c * H_kv * d_k  # 65_536
+    gating = 2 * N_e * d_c  # 512
+    flops_routing = projection + gating
+    assert projection == 65_536, f"actual={projection}"
+    assert gating == 512, f"actual={gating}"
+    assert flops_routing == 66_048, f"actual={flops_routing}"
+    # L = 4 layers → 264_192 FLOPs/token (integer closed form → bare ==).
+    assert cfg.L * flops_routing == 264_192, f"actual={cfg.L * flops_routing}"
+
+
+def test_flops_routing_ratio_within_allowance() -> None:
+    """Spec L420: routing ratio ≈ 0.001968 → ≈ 0.20%, within the 0.3% allowance.
+
+    Float closed form (involves division) → `pytest.approx(abs=...)` per
+    `governance/spec.md` req-gov-1 §2.
+    """
+    cfg = config.MVPConfig()
+    flops_routing = 4 * cfg.d_c * 8 * cfg.d_k + 2 * cfg.N_e * cfg.d_c
+    core = 33_554_432  # FLOPs_MoE,core^(l) per spec L420
+    ratio = flops_routing / core
+    assert ratio == pytest.approx(0.001968, abs=1e-6), f"actual={ratio}"
+    assert ratio == pytest.approx(0.0020, abs=1e-4), f"actual={ratio} (≈0.20%)"
+    assert ratio < 0.003, f"actual={ratio} exceeds the 0.3% allowance"
+
+
+def test_flops_routing_cross_req_net_delta_32() -> None:
+    """Spec L422: net `+32 FLOPs = (128+144)·2 − 2·N_e·d_c = 544 − 512` ≈ 0.05%.
+
+    Guards the cross-req consistency claim between Req 20's `FLOPs_Routing`
+    and Req 17's `extract_C` accounting (66_080 − 66_048 = 32).
+    """
+    cfg = config.MVPConfig()
+    projection = 4 * cfg.d_c * 8 * cfg.d_k
+    macs_bias_l2 = 128 + 144
+    extract_c_flops = projection + macs_bias_l2 * 2
+    flops_routing = projection + 2 * cfg.N_e * cfg.d_c
+    net_delta = extract_c_flops - flops_routing
+    assert extract_c_flops == 66_080, f"actual={extract_c_flops}"
+    assert net_delta == 32, f"actual={net_delta}"
+    assert net_delta / flops_routing == pytest.approx(0.0005, abs=1e-4), (
+        f"actual={net_delta / flops_routing} (≈0.05% of FLOPs_Routing)"
+    )
+
+
 def test_active_flops_parity() -> None:
     """flops_per_token(MOE_MVP) must equal flops_per_token(DENSE_4096) within the agreed accounting."""
     cfg = config.MVPConfig()

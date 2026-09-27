@@ -39,8 +39,10 @@ def test_partition_of_unity() -> None:
     logits = torch.randn(8, 16) * 4
     masked = gating.topk_mask_with_neg_inf(logits, k=2)
     p = gating.local_softmax(masked)
-    assert torch.allclose(p.sum(dim=-1), torch.ones(8), atol=1e-6)
-    assert (p >= 0).all()
+    assert torch.allclose(p.sum(dim=-1), torch.ones(8), atol=1e-6), (
+        f"actual={p.sum(dim=-1).tolist()} must all be 1.0 within atol=1e-6 (Req 8 Σp ≡ 1)"
+    )
+    assert (p >= 0).all(), f"actual={p.tolist()}"
     assert torch.isfinite(p).all()
 
 

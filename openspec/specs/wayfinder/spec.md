@@ -147,13 +147,13 @@ Per-expert scalar weights `w_i` MUST NOT appear in the logit; the mixing weight 
 
 #### Scenario: MVPConfig.beta_initial default derives from spec closed-form β_min + (β_max−β_min)·σ(γ_init), NOT self-referential literal
 - **WHEN** `MVPConfig().beta_initial` is asserted against a pytest.approx value
-- **THEN** the expected value MUST be derived from the spec closed form `β_min + (β_max − β_min) · Sigmoid(γ_init)` with `β_min = 0.1`, `β_max = 32`, `γ_init = −3.5` (i.e., `0.1 + 31.9·σ(−3.5) ≈ 1.035060`, narrative `≈ 1.035` per L122); the assertion MUST NOT degenerate to a self-referential comparison against a hard-coded literal that equals `MVPConfig.beta_initial` (which would always pass regardless of whether `inverse_temperature` actually evaluates the closed form)
+- **THEN** the expected value MUST be derived from the spec closed form `β_min + (β_max − β_min) · Sigmoid(γ_init)` with `β_min = 0.1`, `β_max = 32`, `γ_init = −3.5` (i.e., `0.1 + 31.9·σ(−3.5) ≈ 1.035060`, narrative `≈ 1.035` per L130); the assertion MUST NOT degenerate to a self-referential comparison against a hard-coded literal that equals `MVPConfig.beta_initial` (which would always pass regardless of whether `inverse_temperature` actually evaluates the closed form)
 - **AND** the tolerance MUST be `abs=1e-3` to cover both the narrative 4-sig-fig truncation (`1.035060 → 1.035` diff = `6e-5`) AND any closed-form computation noise from the `inverse_temperature` implementation
 
 #### Scenario: σ'(−3.5) is guarded by a 50-digit mpmath pytest assertion (durable across archive of `.audit/`)
 - **WHEN** `σ'(γ) = σ(γ) · (1 − σ(γ))` is evaluated at `γ = −3.5` in `tests/test_beta.py`
 - **THEN** there MUST exist a pytest assertion `σ'(−3.5) == pytest.approx(0.02845302387973555984, abs=1e-30)` that nails the 50-digit mpmath closed form (钉值零容差 for FP-exact literal-vs-closed-form comparison; 1e-30 ≤ 1e-15 spec 阈值 so test is a strict subset of the spec requirement)
-- **AND** a paired assertion `σ'(−3.5) == pytest.approx(0.02845, abs=1e-5)` that nails the L122 narrative 4-sig-fig precision disclosure
+- **AND** a paired assertion `σ'(-3.5) == pytest.approx(0.02845, abs=1e-5)` that nails the L130 narrative 4-sig-fig precision disclosure
 - **AND** this test MUST be retained after archive of `.audit/audit-verification/` (i.e., it lives in the durable `tests/` tree, not in the drop-on-archive audit tree)
 
 #### Scenario: Source field lists all three referenced tickets
@@ -237,7 +237,7 @@ The system MUST, for the 4070 8 GB MVP target, adopt `d_model = 1024`, `N_e = 16
 - `θ_Voronoi(64, 16) ≈ 58.47° (1.0205 rad)`, `versine_Voronoi(64, 16) ≈ 0.4771`.
 
 > **Display precision note**:
-> - `θ_Voronoi(16, 16) ≈ 67.24° (≈ 1.1735 rad)`: `67.24°` (4-decimal-degree = ~4-sig-fig for angle) and `≈ 1.1735 rad` (4-decimal-rad = ~5-sig-fig for rad) are dual prose forms referring to the same impl bisection output `1.1735482746999482 rad = 67.2393145636...°`. The two displays differ by `67.24° × π/180 − 1.1735 ≈ 5.94e-5 rad` due to independent prose rounding; both lie within the `< 1e-4 rad` test tolerance permitted by `openspec/specs/governance/spec.md` req-gov-1 §2 ("float closed-form claims MUST use `pytest.approx(value, abs=...)` with tolerance matching the closed-form computation's actual precision").
+> - `θ_Voronoi(16, 16) ≈ 67.24° (≈ 1.1735 rad)`: `67.24°` (4-decimal-degree = ~4-sig-fig for angle) and `≈ 1.1735 rad` (4-decimal-rad = ~5-sig-fig for rad) are dual prose forms referring to the same impl bisection output `1.1735482746999482 rad = 67.23936319516639°` (`math.degrees(1.1735482746999482)` computed exactly; the `≈` signals 4-decimal-degree prose rounding to `67.24°`). The two displays differ by `67.24° × π/180 − 1.1735 ≈ 5.94e-5 rad` due to independent prose rounding; both lie within the `< 1e-4 rad` test tolerance permitted by `openspec/specs/governance/spec.md` req-gov-1 §2 ("float closed-form claims MUST use `pytest.approx(value, abs=...)` with tolerance matching the closed-form computation's actual precision").
 > - `θ_Voronoi(64, 16) ≈ 58.47° (1.0205 rad)`: similar dual-prose pattern; impl output `1.0205068335735599 rad = 58.47073...°`; display diff `58.47° × π/180 − 1.0205 ≈ −5.99e-6 rad` (negative: `58.47° × π/180 = 1.0204940... rad < 1.0205 rad`), magnitude `|diff| ≈ 5.99e-6 rad` well within the `< 1e-4 rad` tolerance.
 >
 > The prose-form-vs-impl-output gap and the within-form dual-display gap together demonstrate that **prose angle precision ≠ impl-bit precision**: the `≈` symbol already signals spec-narrative precision disclosure, not strict equality.
@@ -575,7 +575,7 @@ After every driver-channel update, the centroid MUST satisfy `‖c_i^(t+1)‖₂
 
 ### Requirement: Beta Parameterization Space vs Operational Domain
 
-The system MUST maintain a clean separation between two domains: the **parameterization space** (`β^param(γ) = 0.1 + 31.9 · σ(γ)`, theoretical interval `[0.1, 32]`) and the **operational domain** (per-phase effective `β^eff`). `β_min = 0.1` exists in parameterization space to keep `σ'(γ)` non-degenerate in the cold-start region (e.g., `γ_init ≈ −3.5` gives `β_0 ≈ 1.035` with healthy gradient `σ'(−3.5) ≈ 0.02845`, verified at 50-digit mpmath precision `σ'(−3.5) = 0.02845302387973555984`; lowering the floor to `1.0` (i.e., switching to the counterfactual parameterization `β = 1.0 + 31.0 · σ(γ)`) would require `γ_init ≈ −6.785`, with `σ'(−6.785) ≈ 1.128e-3`, a 25× gradient starvation). The operational floor `1.0` is independent and exists to prevent routing resonance at runtime. Per-phase effective `β^eff`:
+The system MUST maintain a clean separation between two domains: the **parameterization space** (`β^param(γ) = 0.1 + 31.9 · σ(γ)`, theoretical interval `[0.1, 32]`) and the **operational domain** (per-phase effective `β^eff`). `β_min = 0.1` exists in parameterization space to keep `σ'(γ)` non-degenerate in the cold-start region (e.g., `γ_init ≈ −3.5` gives `β_0 ≈ 1.035` with healthy gradient `σ'(−3.5) ≈ 0.02845`, verified at 50-digit mpmath precision `σ'(−3.5) = 0.02845302387973555984`; lowering the floor to `1.0` (i.e., switching to the counterfactual parameterization `β = 1.0 + 31.0 · σ(γ)`) would require `γ_init ≈ −6.7836`, with `σ'(-6.7836) ≈ 1.130e-3`, a 25× gradient starvation). The operational floor `1.0` is independent and exists to prevent routing resonance at runtime. Per-phase effective `β^eff`:
 
 - Phase 1: `β^eff = 1.0` (fixed, regardless of `γ`).
 - Phase 2–3: `β^eff = Clamp(β^param(γ), 1.0, β_max(t))` where `β_max(t)` is the phase schedule (`1.0 → 4.0` Phase 2, `4.0 → 16.0` Phase 3).
@@ -702,13 +702,13 @@ The bound `‖∂logit/∂C‖₂ ≤ β_max = 32` in Req 7 MUST be attained (no
 
 ### Requirement: Forward Formula Numerical Verification (Routing Layer)
 
-The forward equation `x_out = x + Σ_{i ∈ I_k} p_i · Expert_i(x)` in Req 8 / Req 10 MUST hold bit-exactly under any `x`, any top-k selection `I_k`, any soft mixing `p_i`. The verification is **numerical**, not a source-grep test: given a stub `ExpertPool` whose `experts[i](x) = E_i` (fixed per expert), the gate's `x_out` MUST equal `x + Σ_{i ∈ I_k} p_i · E_i` within `1e-6`. (References Req 8.)
+The forward equation `x_out = x + Σ_{i ∈ I_k} p_i · Expert_i(x)` in Req 8 / Req 10 MUST hold bit-exactly under any `x`, any top-k selection `I_k`, any soft mixing `p_i`. The verification is **numerical**, not a source-grep test. **Scope note (honest disclosure)**: `src/decompmoe/` currently exports the routing primitives `topk_mask_with_neg_inf` and `local_softmax` but **no `x_out` producer** — the residual-add lives in a downstream `GeometricRouter.route()` that is not yet implemented (outside this skeleton capability's scope per `CLAUDE.md` §7 "推理引擎实现代码留给后续 effort"). The Scenario below therefore guards the **compositional identity on the exported primitives** (given fixed `x`, `I_k`, `p_i` and stub experts `E_i`, the composition `x + Σ_{i ∈ I_k} p_i · E_i` is the only `x_out` consistent with these primitives), which is falsifiable against the primitive implementations. When a `route()` producer is added, this Scenario MUST be extended to assert against it directly.
 
 **Source:** `wayfinder/tickets/A2-2.md` (historical, layer-wise head-aggregated routing topology that feeds the forward chain), `wayfinder/tickets/A4-2.md` (historical, top-k sparse mask + local softmax composition); change `fix-math-consistency-audit-2026-08` design.md (Decision 7 — closed-form numerical verification form `x_out = x + Σp_i·E_i` within `abs=1e-6` added by this change)
 
 #### Scenario: x_out is the closed-form residual add
-- **WHEN** the gate emits `x_out` for fixed `x`, `I_k`, `p_i`, and stub experts `E_i`
-- **THEN** `x_out == x + Σ_{i ∈ I_k} p_i · E_i` within `abs=1e-6`
+- **WHEN** the routing primitives `topk_mask_with_neg_inf` + `local_softmax` are composed with fixed `x`, `I_k`, `p_i`, and stub experts `E_i` to form `x + Σ_{i ∈ I_k} p_i · E_i` (the composition currently living in the test, since no `route()` producer is implemented — see the scope note in this Requirement's body)
+- **THEN** `x + Σ_{i ∈ I_k} p_i · E_i` matches an independent `torch.softmax`-derived re-computation within `abs=1e-6`, and `Σ_{i ∈ I_k} p_i ≡ 1` holds within `abs=1e-6` (Req 8)
 
 ---
 
@@ -831,9 +831,9 @@ The rules are content-based (not line-number based) so they survive spec edits w
 
 ### Requirement: Eight Geometric Quantification Metrics — Ticket A8-2 L70/L74 Supersede Annotation Closure
 
-The system SHALL maintain the existing spec Requirement **"Eight Geometric Quantification Metrics"** (`openspec/specs/wayfinder/spec.md` L394-466, anchored `<a id="req-20"></a>`) — specifically the `MCI` row at L413 — as the **钉死真相源** (canonical truth source) for the closed-form `uncentered second moment` definition that supersedes the historical centered-covariance and CV/convex-hull-radius readings. This change does NOT modify the spec Requirement; it documents that the spec's existing supersede annotation (via L413 Reason narrative + L416 Source field) is the canonical reference against which ticket-side and audit-side supersede annotations MUST be aligned.
+The system SHALL maintain the existing spec Requirement **"Eight Geometric Quantification Metrics"** (`openspec/specs/wayfinder/spec.md` L434-505, anchored `<a id="req-20"></a>`) — specifically the `MCI` row at L453 — as the **钉死真相源** (canonical truth source) for the closed-form `uncentered second moment` definition that supersedes the historical centered-covariance and CV/convex-hull-radius readings. This change does NOT modify the spec Requirement; it documents that the spec's existing supersede annotation (via L453 Reason narrative + L456 Source field) is the canonical reference against which ticket-side and audit-side supersede annotations MUST be aligned.
 
-**Spec L413 verbatim closed-form (钉死真相源, unchanged by this change)**:
+**Spec L453 verbatim closed-form (钉死真相源, unchanged by this change)**:
 
 > `MCI = 1 / (d_c · Σ_{j=1}^{d_c} λ̃_j²)`, with `λ_j` the eigenvalues of the **uncentered** second moment `M = (1 / \|T\|) · Σ_{t ∈ T} C_t C_tᵀ` over the routed-token signature set `T`, and `λ̃_j = λ_j / Σ_r λ_r` (normalized eigenvalue of `M`) | effective-dimensionality fraction; replaces CV (whose lower bound `1/d_c` on `S^{d_c−1}` made the original `< 0.05` health target unreachable — see `wayfinder/tickets/A8-2.md`). The centered-covariance reading has its `(1/d_c, 1]` upper endpoint unreachable at `\|T\| = d_c`; this Requirement uses the **uncentered** second moment so that both endpoints of the declared range are attainable. `MCI ∈ [1/d_c, 1]` (closed range); `MCI = 1.0` when `M` is proportional to identity (uniform token-distribution across the `d_c` basis), `MCI = 1/d_c` when `M` is rank-1
 

@@ -14,7 +14,7 @@
 
 具体验收维度（与 `tasks.md` 的 checklist 互为对照，但本 ticket 是 audit 视角）：
 
-1. **决策覆盖**：21 ticket 是否 1:1 映射到至少一个 Requirement？每个 ticket 的关键数字（β ∈ [0.1, 32]、FLOPs ≈ 65.5K/token、W_proj ≈ 64 KB、Phase 时长 1/5/20/30/44%、Resurrection 阈值 1/128 over 200 steps 等）是否都被保留？
+1. **决策覆盖**：21 ticket 是否 1:1 映射到至少一个 Requirement？每个 ticket 的关键数字（β ∈ [0.1, 32]、FLOPs ≈ 65.5K/token、W_proj ≈ 64 KB、Phase 时长 1/5/20/30/44%、Resurrection 阈值 1/128 over 200 steps（historical, threshold 1/128 at N_e=64; superseded by spec req-13 `f_threshold = 1/(2·N_e)` = 1/32 at N_e=16 via `fix-openspec-doc-bugs` design.md Decision 7）机等）是否都被保留？
 2. **形式合规**：`openspec validate --strict` 是否通过？每个 Requirement 是否有 `#### Scenario`（4 个 #，非 3 个）？`## Purpose` 段 ≥ 50 字符？
 3. **制品间一致性**：proposal 声明的 capability `wayfinder` 与 spec 主 spec 对齐；design.md 提到的"单 capability / ADDED-only / formalize-only design / tasks 不含代码"与 tasks.md 的 5 组 checkbox 类别对应；tasks.md 的具体数字与 spec.md 的 Requirement 文本一致。
 4. **可追溯性**：每个 Requirement 是否带 `**Source:**` 反链 ticket id？design.md 的 Risks 是否引用 spec.md 的 Requirement？
@@ -59,7 +59,7 @@
 - 0 bytes HBM delta ✓
 - Phase ratios 1/5/20/30/44% ✓（Five-Phase Time-Driven Schedule）
 - Phase boundaries 1 K / 6 K / 26 K / 56 K / 100 K ✓
-- Resurrection `< 1/128` for 200 steps, rate-limited 1000 steps ✓（Numerical Safeguards）
+- Resurrection `< 1/128` for 200 steps, rate-limited 1000 steps ✓（Numerical Safeguards）*(historical, threshold 1/128 at N_e=64; superseded by spec req-13 `f_threshold = 1/(2·N_e)` via `fix-openspec-doc-bugs` design.md Decision 7)*
 - β Saturation Guard 30.4 / 28.8 ✓
 - Loss Spike 2.5 × EMA ✓
 - Perturbation `N(0, 0.05² I)`, decay 0.85 ✓

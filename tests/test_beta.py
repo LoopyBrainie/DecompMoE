@@ -35,7 +35,7 @@ def test_beta_monotone() -> None:
 
 
 def test_beta_param_init_default() -> None:
-    """MVPConfig().beta_initial ≈ 1.035 — derived from spec req-7 L122 closed-form β_0 = 0.1 + 31.9·σ(γ_init=−3.5).
+    """MVPConfig().beta_initial ≈ 1.035 — derived from spec req-7 L130 closed-form β_0 = 0.1 + 31.9·σ(γ_init=−3.5).
 
     Per governance req-gov-1 第 2 条 + CLAUDE.md §6 第 8 条: pytest MUST derive the
     expected value from the spec closed form (NOT a self-referential literal that
@@ -53,10 +53,10 @@ def test_beta_param_init_default() -> None:
 
 
 def test_sigma_prime_gamma_init_health_check() -> None:
-    """Spec req-7 L122: σ'(−3.5) ≈ 0.02845 (narrative 4 sig figs); 50-digit mpmath = 0.02845302387973555984.
+    """Spec req-7 L130: σ'(−3.5) ≈ 0.02845 (narrative 4 sig figs); 50-digit mpmath = 0.02845302387973555984.
 
     Cold-start region health-check anchor: σ'(γ_init≈−3.5) MUST stay ≈ 0.02845
-    ("healthy gradient") per spec L122 narrative. The 50-digit mpmath closed-form
+    ("healthy gradient") per spec L130 narrative. The 50-digit mpmath closed-form
     σ'(−3.5) = σ(−3.5)·(1−σ(−3.5)) = 0.02845302387973555984 is the spec-level
     mathematical truth; this test is the persistent pytest guard (audit `.audit/`
     scripts are dropped on archive — pytest is the durable layer).
@@ -76,11 +76,35 @@ def test_sigma_prime_gamma_init_health_check() -> None:
     assert sp_val_50digit == pytest.approx(0.02845302387973555984, abs=1e-30), (
         f"σ'(−3.5) (50-digit mpmath) = {sp_val_50digit}, expected 0.02845302387973555984"
     )
-    # (b) spec L122 narrative 4-sig-fig precision disclosure
+    # (b) spec L130 narrative 4-sig-fig precision disclosure
     assert sp_val_50digit == pytest.approx(0.02845, abs=1e-5), (
         f"σ'(−3.5) (50-digit mpmath) = {sp_val_50digit}, expected ≈ 0.02845 "
-        f"(spec L122 narrative, 4 sig figs)"
+        f"(spec L130 narrative, 4 sig figs)"
     )
+
+
+def test_counterfactual_floor_1_gamma_starvation() -> None:
+    """Spec L578 counterfactual: lowering `β_min` from `0.1` to `1.0` forces
+    `γ_init ≈ −6.7836`, giving `σ' ≈ 1.130e-3` — a ~25× gradient starvation
+    versus the adopted `σ'(−3.5) ≈ 0.02845`.
+
+    This is the numeric justification for `β_min = 0.1` in parameterization
+    space. The spec literals previously had NO guarding test.
+
+    `γ_init` is the root of `1.0 + 31.0·σ(γ) = 1.0·(cold-start target)`; per
+    the spec the counterfactual floor forces σ'(γ_init) ≈ 1.13e-3.
+    """
+    sp = lambda g: 1.0 / (1.0 + mpmath.e ** (-g)) * (1.0 - 1.0 / (1.0 + mpmath.e ** (-g)))
+    gamma_cf = mpmath.mpf("-6.7836")
+    sp_cf = sp(gamma_cf)
+    # Spec L578 literal: σ'(−6.7836) ≈ 1.130e-3 (float closed form → abs=1e-6).
+    assert sp_cf == pytest.approx(1.130e-3, abs=1e-6), f"actual={float(sp_cf)}"
+    # ~25× starvation vs the adopted cold-start gradient.
+    sp_adopted = sp(mpmath.mpf("-3.5"))
+    ratio = sp_adopted / sp_cf
+    assert ratio == pytest.approx(25.0, rel=0.05), f"actual={float(ratio)}"
+    # The adopted floor is 0.1 (not 1.0) — the spec's actual prescription.
+    assert beta.BETA_MIN == 0.1, f"actual={beta.BETA_MIN}"
 
 
 # ---------------------------------------------------------------------------

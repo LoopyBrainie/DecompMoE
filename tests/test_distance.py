@@ -84,4 +84,6 @@ def test_logit_grad_safe() -> None:
     c = torch.nn.functional.normalize(torch.randn(d_c), dim=-1)
     out = distance.logit(C / C.norm(), c, beta=MAX_GRAD_PER_C)
     grad = torch.autograd.grad(out, C, create_graph=False)[0]
-    assert grad.norm().item() <= MAX_GRAD_PER_C + 1e-3
+    assert grad.norm().item() <= MAX_GRAD_PER_C + 1e-3, (
+        f"actual={grad.norm().item()} exceeds MAX_GRAD_PER_C={MAX_GRAD_PER_C} + 1e-3"
+    )

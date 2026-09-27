@@ -151,6 +151,11 @@ def test_gamma_reset_for_phase4_boundary_continuity() -> None:
     """
     g_reset = schedule.gamma_reset_for_phase4(16.0)
     assert g_reset == pytest.approx(math.log(15.0 / 16.0), abs=1e-4)
+    # Spec L628 literal pin: `gamma_reset_for_phase4(16.0) ≈ -0.06454 within abs=1e-4`.
+    # The assertion above re-derives the formula (math.log(15/16)) and would pass
+    # for any implementation of the same expression; this pins the spec's own
+    # 5-decimal closed-form value so a formula regression surfaces directly.
+    assert g_reset == pytest.approx(-0.06454, abs=1e-4), f"actual={g_reset}"
     assert beta.phase4_inverse_temperature(g_reset) == pytest.approx(16.0, abs=1e-6)
 
 
@@ -169,6 +174,14 @@ def test_beta_effective_phase_4_continuity() -> None:
     )
     # Limit-continuity witness (exclusive end ⇒ last in-phase step).
     assert schedule.phase_beta_max(3, 55_999) == pytest.approx(15.9996, abs=1e-4)
+    # Spec L679 literal bound pin: |β_max(Phase 3, 55_999) − β^eff(Phase 4, 56_000)| < 5e-4.
+    # Both endpoints are asserted above; this pins the *bound itself*, which was
+    # previously unguarded (the two values could each drift and the claim would
+    # silently become false).
+    delta = abs(
+        schedule.phase_beta_max(3, 55_999) - schedule.beta_effective(g_reset, 4, 56_000).item()
+    )
+    assert delta < 5e-4, f"actual={delta} (spec L679 requires |β_max(3,55_999) − β^eff(4,56_000)| < 5e-4)"
 
 
 # ---------------------------------------------------------------------------
