@@ -85,7 +85,7 @@ def test_sigma_prime_gamma_init_health_check() -> None:
 
 def test_counterfactual_floor_1_gamma_starvation() -> None:
     """Spec L578 counterfactual: lowering `β_min` from `0.1` to `1.0` forces
-    `γ_init ≈ −6.7836`, giving `σ' ≈ 1.130e-3` — a ~25× gradient starvation
+    `γ_init ≈ −6.7835`, giving `σ' ≈ 1.130e-3` — a ~25× gradient starvation
     versus the adopted `σ'(−3.5) ≈ 0.02845`.
 
     This is the numeric justification for `β_min = 0.1` in parameterization
@@ -95,9 +95,12 @@ def test_counterfactual_floor_1_gamma_starvation() -> None:
     the spec the counterfactual floor forces σ'(γ_init) ≈ 1.13e-3.
     """
     sp = lambda g: 1.0 / (1.0 + mpmath.e ** (-g)) * (1.0 - 1.0 / (1.0 + mpmath.e ** (-g)))
-    gamma_cf = mpmath.mpf("-6.7836")
+    gamma_cf = mpmath.mpf("-6.7835")
     sp_cf = sp(gamma_cf)
-    # Spec L578 literal: σ'(−6.7836) ≈ 1.130e-3 (float closed form → abs=1e-6).
+    # Spec req-24 body literal: σ'(−6.7835) ≈ 1.130e-3 (float closed form → abs=1e-6).
+    # `sp` is σ'(γ) = σ(γ)·(1 − σ(γ)) per wayfinder req-7, with σ = 1/(1+e^(−γ));
+    # 50-digit mpmath gives σ'(−6.7835) = 1.1297450077e-3. Referenced by
+    # Requirement id rather than line number — line numbers drift under edit.
     assert sp_cf == pytest.approx(1.130e-3, abs=1e-6), f"actual={float(sp_cf)}"
     # ~25× starvation vs the adopted cold-start gradient.
     sp_adopted = sp(mpmath.mpf("-3.5"))
@@ -105,6 +108,51 @@ def test_counterfactual_floor_1_gamma_starvation() -> None:
     assert ratio == pytest.approx(25.0, rel=0.05), f"actual={float(ratio)}"
     # The adopted floor is 0.1 (not 1.0) — the spec's actual prescription.
     assert beta.BETA_MIN == 0.1, f"actual={beta.BETA_MIN}"
+    )
+
+def test_counterfactual_gamma_init_5sig_literal() -> None:
+    """Spec req-24: the counterfactual `β_min = 1.0` floor forces `γ_init ≈ −6.7835`.
+
+    This guards the 5-significant-figure literal form of a claim that previously
+    read `-6.7836` — a half-up rounding of the exact value. The exact 50-digit
+    mpmath value is `-6.783545399795103364342`; back-substituting `-6.7836`
+    instead yields `β_0 = 1.0350582488933886469` rather than the spec's
+    `β_0 = 1.035060160968266571803`.
+
+    NOT a helper-tautology (cf. `governance/spec.md` req-gov-1, Scenario
+    "Closed-form per-head extraction MACs use bare `==`" clause 3): `β_0` is
+    derived here from the *adopted*-path declaration `γ_init ≈ −3.5` via
+    `β^param(γ) = 0.1 + 31.9·σ(γ)`, and only then inverted to the counterfactual
+    `γ_init` under `β = 1.0 + 31.0·σ(γ)`. The two sides come from two separate
+    spec declarations, so this is a cross-reconciliation rather than a
+    re-statement of the asserted expression.
+    """
+    mpmath.mp.dps = 50
+
+    # adopted path: γ_init ≈ −3.5 → β_0 = 0.1 + 31.9·σ(−3.5)
+    beta0 = mpmath.mpf("0.1") + mpmath.mpf("31.9") / (
+        1 + mpmath.exp(mpmath.mpf("3.5"))
+    )
+    # counterfactual path: solve 1.0 + 31.0·σ(γ) = β_0 for γ
+    p = (beta0 - 1) / mpmath.mpf("31.0")
+    gamma_full = mpmath.log(p / (1 - p))
+
+    # The 5-sig literal form — this is the assertion that catches the −6.7836
+    # defect class: round(-6.7835454, 4) == -6.7835, while -6.7836 would fail.
+    assert round(float(gamma_full), 4) == -6.7835, (
+        f"actual={mpmath.nstr(gamma_full, 20)}"
+    )
+    # Tolerance must cover the five-sig rounding error, stated per frame:
+    # in γ-space the 5-sig literal −6.7835 sits 4.5399795e-5 from the exact
+    # root (−6.783545399795103364342); the *same* discrepancy in β-space is
+    # |β(−6.7835) − β_0| = 1.5899599e-6, consistent with the γ-gap times the
+    # local slope |dβ/dγ| = 31·σ'(−6.7835) = 0.0350220952386. abs=1e-12 would
+    # be invalid for a 5-sig literal; abs=1e-4 gives 2.2× margin on the γ-space
+    # gap, which is the quantity this assertion is actually measured against.
+    assert gamma_full == pytest.approx(-6.7835, abs=1e-4), (
+        f"actual={mpmath.nstr(gamma_full, 20)}"
+    )
+
 
 
 # ---------------------------------------------------------------------------

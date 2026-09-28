@@ -238,6 +238,49 @@ def test_voronoi_measurement_layer() -> None:
     )
 
 
+def test_voronoi_impl_output_within_1e6_of_exact_root() -> None:
+    """Spec req-11: the impl bisection output stays within `1e-6 rad` of the
+    exact equation root at both MVP `(N_e, d_c)` pairs, and the gap is a genuine
+    non-zero quantity.
+
+    Measured bias: `8.4878023e-7 rad` at `(16, 16)` and `8.7898467e-9 rad` at
+    `(64, 16)`.
+
+    The guard is deliberately a TWO-SIDED BOUND, not an equality against those
+    measured values: the bias is a property of `sphere._betainc_regularized`'s
+    quadrature, so pinning it exactly would turn any future accuracy
+    *improvement* into a test failure. What the spec actually promises is the
+    magnitude bound, plus that the impl output is not the exact root by
+    coincidence (hence the strict `0 <` lower side).
+    """
+    import mpmath
+
+    mpmath.mp.dps = 50
+
+    def exact_root(n_e: int, d_c: int):
+        def f(th):
+            return (mpmath.mpf(0.5)
+                    * mpmath.betainc(mpmath.mpf(d_c - 1) / 2, mpmath.mpf(0.5),
+                                    0, mpmath.sin(th) ** 2, regularized=True)
+                    - mpmath.mpf(1) / n_e)
+
+        lo, hi = mpmath.mpf("0.3"), mpmath.mpf("1.55")
+        assert f(lo) < 0 < f(hi), f"bracket failed: f(lo)={f(lo)}, f(hi)={f(hi)}"
+        for _ in range(400):
+            mid = (lo + hi) / 2
+            if f(mid) > 0:
+                hi = mid
+            else:
+                lo = mid
+        return (lo + hi) / 2
+
+    for n_e in (16, 64):
+        theta_impl = mpmath.mpf(
+            sphere.canonical_voronoi_angle(num_experts=n_e, signature_dim=16)
+        )
+        bias = abs(theta_impl - exact_root(n_e, 16))
+        assert 0 < bias < mpmath.mpf("1e-6"), f"actual={float(bias)}"
+
 def test_versine_voronoi_closed_form() -> None:
     """Audit findings MAJ-M1 / MAJ-M2: versine_Voronoi closed-form values.
 
