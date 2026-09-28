@@ -55,15 +55,20 @@ def spherical_l2_normalize(z: Tensor, eps: float = 1e-6) -> Tensor:
 # ---------------------------------------------------------------------------
 
 
-def _betainc_regularized(x: float, a: float, b: float, n: int = 60) -> float:
+def _betainc_regularized(x: float, a: float, b: float) -> float:
     """Regularized incomplete beta function I_x(a, b) via Gauss–Legendre 8-point.
 
     Direct numerical integration of B(x; a, b) = ∫₀ˣ t^{a−1} (1−t)^{b−1} dt
     then normalized by B(a, b) = Γ(a)Γ(b)/Γ(a+b).
 
-    Gauss–Legendre 8-point on [0, x] is accurate to ~1e-12 for the
-    parameter ranges used by the Voronoi equation (a ∈ {7.5}, b = 0.5
-    at MVP, x ∈ (0, 1)). Pure stdlib (math.lgamma + math.exp).
+    A **single** 8-point Gauss–Legendre panel is applied on [0, x]; there is
+    no subdivision. Accuracy is therefore parameter-dependent and NOT uniform
+    across the declared domain: at the MVP point (`a = 7.5`, `b = 0.5`,
+    `x = sin²θ ≈ 0.8503`) the absolute error against exact quadrature is
+    `8.29e-07` (relative `6.63 ppm`). Callers MUST NOT assume a 1e-12-accurate
+    regularized beta over all `signature_dim >= 2`; see
+    `canonical_voronoi_angle` for the validated band. Pure stdlib
+    (math.lgamma + math.exp).
 
     Per fix-openspec-doc-bugs-apply design.md Decision 1 + Risk 1 mitigation:
     avoids scipy dependency by direct Gauss–Legendre quadrature.
@@ -128,6 +133,17 @@ def canonical_voronoi_angle(num_experts: int, signature_dim: int) -> float:
     Every input bisects — no hard-coded table (spec Scenario
     "no hard-coded table values"; the prior tabulated MVP fast-path
     values were wrong and have been removed).
+
+    Accuracy note: the impl-internal residual is always ~1e-15..1e-14
+    because it is measured against `_betainc_regularized` itself. The TRUE
+    closed-form residual is dominated by that helper's error and varies
+    strongly with `signature_dim` — measured at `N_e = 16`:
+    `d_c=2 → 3.35e-03`, `d_c=4 → 1.37e-05`, `d_c=6 → 2.21e-07`,
+    `d_c=8 → 7.39e-09`, `d_c=16 → 4.15e-07`, `d_c=32 → 4.29e-05`.
+    MVP is frozen at `d_c = 16` (`CLAUDE.md` §5); outside that the returned
+    float is still a genuine root of the impl-internal equation, but its
+    accuracy against the exact regularized incomplete beta is NOT bounded
+    by the spec's `< 1e-9` claim.
 
     Returns the angle in radians (multiply by 180/π for degrees).
     """
