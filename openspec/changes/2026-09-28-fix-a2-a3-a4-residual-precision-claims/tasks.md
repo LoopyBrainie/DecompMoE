@@ -110,6 +110,8 @@
 | delta ≡ 主 spec | req-11 / req-24 / req-gov-1 三块逐块 **IDENTICAL** |
 | delta 字节 | LF、无 BOM（`b"\r" not in raw`，全部制品 `ok`） |
 
+**自审抓到的一处 delta 污染（已修，单独后续 commit）**：首次提交时 governance delta 是**从工作树**重建的，而工作树的 `req-gov-1` 里带着 b1-b3 在途的 `test_complexity_budget` 括号句改写；同一 hunk 在**主 spec 侧被我的选择性暂存排除**了。于是「提交的 delta」≠「提交的主 spec」。`openspec archive` 是**逐块原样插入** delta，届时会把 b1-b3 的 spec 编辑**借本 change 的手**静默写进主 spec —— 而 §4.2 的 delta≡主 spec 校验当时是拿工作树跑的，抓不到。修法：delta 改为从 **HEAD 的主 spec blob** 重建，并新增一条**以提交对象（`git show HEAD:…`）而非工作树**为输入的 archive 前置校验（`delta ≡ HEAD 主 spec` + delta 字节 LF/BOM）。**教训：凡是把「工作树」当基准的校验，在选择性暂存之后都不再等价于「将被提交的状态」；archive 类校验必须锚定 commit。**
+
 **mutation sanity（本 change 两条新守护，均以独立脚本执行、不改动工作树，避免与并行 session 抢同一测试文件）**：
 
 - A3 `round(float(gamma_full), 4)`：baseline `-6.7835` 成立 ✓；换成 `-6.7836` **不成立** ✓（捕获原始 bug 类）；`abs=1e-12` **不成立** ✓、`abs=1e-6` **不成立** ✓（证明 5-sig 字面量确实需要 slack，且 `1e-6` 这个 Voronoi 家族惯用容差**不足以**覆盖 γ-间隙）；`abs=1e-4` 成立 ✓。
