@@ -43,6 +43,7 @@
 - [x] 5.7 `governance/spec.md` 与 `wayfinder/spec.md` 的 **本 change 零 diff**。注：gate 运行时工作树中二者**已被并发 session 改动**（governance +4/-5、wayfinder +17/-5，未提交），故 `git diff e5fec3a` 不再显示二者 identical。**该漂移不属本 change**，验证方式为：本 change 的 commit 只包含 `openspec/specs/decompmoe-skeleton/spec.md` 与本 change 目录（见 §5.9），并以 `git show --stat HEAD` 确认二者不在其中
 - [x] 5.8 `src/` `tests/` `scripts/` `CLAUDE.md` **本 change 零改动**（同上：工作树中 `CLAUDE.md` 与两个测试文件由并发 session 改动，不进本 commit）
 - [x] 5.9 单 commit on `dev`；HEAD 非 merge commit（`git log -1 --pretty=%P` 单 parent）
+- [x] 5.10 **archive 后复跑 anchor 覆盖**（36/36、23/23、4/4）。**必须**：本轮 `openspec archive` 在 delta 与 main spec 逐字节相等（本应是 no-op）的情况下，仍因 delta 文件是 CRLF 而删除了紧随其后的 `<a id="req-7"></a>`，使 skeleton 覆盖率掉到 22/23。已就地补回并把 delta 归一为 LF。该缺陷**不被** `lint_no_source_field_drift.py`（仍 `exit=0`）、`openspec validate --specs`（仍 3/3）、`pytest`（206 passed）中的任何一个捕获
 
 ## 6. Post-archive audit（**持久、可重复执行**）
 

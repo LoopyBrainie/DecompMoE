@@ -150,6 +150,14 @@ req-6 的 delta 是 full-block 替换，block 内含 164 个反引号、4 个 Sc
 - `mpmath.betainc(a, b, x)` 3 参形式**不是**正则化下不完全 beta；`betainc(a, b, x, regularized=True)` 在本点返回的是**上尾**（N_e=16 处给 `0.875`，而 `I_x` 应为 `0.125`）。真值必须用 `betainc(a, b, 0, x) / beta(a, b)`——这与 `_betainc_regularized` 的构造一致（`sphere.py` L81-117：积分 / `exp(log_beta)`）。**第一次验证脚本用错调用形式，得到的残差是 `2.25e-01` 量级而非 `4.15e-07`**，是「先核对函数定义再套验证」而非「先套验证再看数字」的典型反例。
 - 用 Python 文本模式整体重写 spec 时，`open(..., 'w')` 会把 `\n` 翻译成 `\r\n`（Windows）。本文件在 HEAD 本身即为全 CRLF，故**未**引入换行符污染；但**行数**从 623 降到 622 暴露了另一个问题：以剥离尾部空行的 block 覆盖 `lines[start:end]` 会**吃掉块尾的空行分隔**。修复方式不是 `git checkout`（被权限门禁拒绝），而是按 delta 逆推证明块边界后用定点替换补回，并以 `git diff --numstat` 应为 `1 1` 收口。
 
+**[CRLF 的 delta 文件会让 `openspec archive` 吃掉下一个 Requirement 的 anchor]**（archive 阶段实测，**本 delta 文件已就地归一为 LF**）。生成 delta 的脚本用 `Path.write_text(encoding="utf-8")`，在 Windows 上触发 `os.linesep` 翻译，产出**全 CRLF** 的 delta（尾字节 `... 29 0d 0a`）；而 `openspec/changes/archive/` 中既有的 delta 全部是 **LF**（`... 29 0a`）。后果：`openspec archive` 在按 block 尾部定位替换范围时判定错误，把**紧随 req-6 之后的 `<a id="req-7"></a>` 连同其空行一并删除** —— skeleton anchor 覆盖率从 23/23 掉到 **22/23**，违反 `CLAUDE.md` §6「anchor 不全」硬约束。
+
+补充两点使其更危险：
+1. 该破坏**不会被现有 gate 捕获**。`lint_no_source_field_drift.py` 在 anchor 缺失后**仍返回 `exit=0`**（它只查 Source 反链，不查 anchor 覆盖）；`openspec validate --specs` 同样 3/3 通过；`pytest` 不读 spec。只有按 `^<a id="req-[^"]*"></a>$` 逐 capability 计数的 anchor 覆盖检查能发现。
+2. delta 与 main spec 在 archive 前是**逐字节相等**的（sync 检查通过、`specsUpdated: true`、`modified: 1`），即**这次 spec 更新本应是 no-op**，却仍然改坏了文件。**「已同步」不等于「归档安全」**。
+
+**因此 archive 后必须复跑 anchor 覆盖三项**，不能只看 `openspec archive` 的 exit code 与 `specsUpdated` 字段。本仓库中任何 delta 文件的换行符必须为 **LF**；用脚本生成时用 `write_bytes(text.replace("\n", "\n").encode("utf-8"))` 或 `open(..., newline="\n")` 绕开 `os.linesep`。
+
 ---
 
 ## Migration Plan
