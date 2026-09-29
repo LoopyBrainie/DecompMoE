@@ -47,7 +47,7 @@ class MVPConfig:
     d_c: int = 16
     H_kv: int = 8
     d_k: int = 128
-    # Initial inverse-temperature β₀ ≈ 1.035 — per spec req-7 L122 closed-form
+    # Initial inverse-temperature β₀ ≈ 1.035 — per spec req-7 L130 closed-form
     # β_0 = 0.1 + 31.9·σ(γ₀) with γ₀ ≈ −3.5 (proxy for Phase 1 宽门控探索).
     # 50-digit mpmath (verify-7 axis-α): σ(γ_init=−3.5) = 0.029312230751356318865,
     # β_0 = 1.0350601609682665718. Stored here so downstream code can read the canonical
