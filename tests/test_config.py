@@ -97,7 +97,7 @@ def test_flops_total_exact_134217728() -> None:
 
 
 def test_flops_routing_closed_form_66048() -> None:
-    """Spec L420: `FLOPs_Routing^(l) = 4·d_c·H_kv·d_k + 2·N_e·d_c == 66_048` per layer.
+    """Spec L426: `FLOPs_Routing^(l) = 4·d_c·H_kv·d_k + 2·N_e·d_c == 66_048` per layer.
 
     Integer closed form → bare `==` per `governance/spec.md` req-gov-1 §1
     (never `pytest.approx(..., abs=0)`, whose `rel=1e-12` default would scale
@@ -106,7 +106,7 @@ def test_flops_routing_closed_form_66048() -> None:
     These spec literals previously had NO guarding test at all.
     """
     cfg = config.MVPConfig()
-    H_kv, d_k, d_c, N_e = 8, cfg.d_k, cfg.d_c, cfg.N_e
+    H_kv, d_k, d_c, N_e = cfg.H_kv, cfg.d_k, cfg.d_c, cfg.N_e
     projection = 4 * d_c * H_kv * d_k  # 65_536
     gating = 2 * N_e * d_c  # 512
     flops_routing = projection + gating
@@ -118,14 +118,14 @@ def test_flops_routing_closed_form_66048() -> None:
 
 
 def test_flops_routing_ratio_within_allowance() -> None:
-    """Spec L420: routing ratio ≈ 0.001968 → ≈ 0.20%, within the 0.3% allowance.
+    """Spec L426: routing ratio ≈ 0.001968 → ≈ 0.20%, within the 0.3% allowance.
 
     Float closed form (involves division) → `pytest.approx(abs=...)` per
     `governance/spec.md` req-gov-1 §2.
     """
     cfg = config.MVPConfig()
-    flops_routing = 4 * cfg.d_c * 8 * cfg.d_k + 2 * cfg.N_e * cfg.d_c
-    core = 33_554_432  # FLOPs_MoE,core^(l) per spec L420
+    flops_routing = 4 * cfg.d_c * cfg.H_kv * cfg.d_k + 2 * cfg.N_e * cfg.d_c
+    core = 33_554_432  # FLOPs_MoE,core^(l) per spec L426
     ratio = flops_routing / core
     assert ratio == pytest.approx(0.001968, abs=1e-6), f"actual={ratio}"
     assert ratio == pytest.approx(0.0020, abs=1e-4), f"actual={ratio} (≈0.20%)"
@@ -133,13 +133,16 @@ def test_flops_routing_ratio_within_allowance() -> None:
 
 
 def test_flops_routing_cross_req_net_delta_32() -> None:
-    """Spec L422: net `+32 FLOPs = (128+144)·2 − 2·N_e·d_c = 544 − 512` ≈ 0.05%.
+    """Spec L428: net `+32 FLOPs = (128+144)·2 − 2·N_e·d_c = 544 − 512` ≈ 0.05%.
 
-    Guards the cross-req consistency claim between Req 20's `FLOPs_Routing`
+    Guards the cross-req consistency claim between Req 19's `FLOPs_Routing`
     and Req 17's `extract_C` accounting (66_080 − 66_048 = 32).
     """
     cfg = config.MVPConfig()
-    projection = 4 * cfg.d_c * 8 * cfg.d_k
+    projection = 4 * cfg.d_c * cfg.H_kv * cfg.d_k
+    # 128 = bias H_kv·d_c; 144 = the two L2 steps (per-head H_kv·d_c = 128 plus
+    # final d_c = 16) per decompmoe-skeleton spec.md:138. Kept as spec literals,
+    # not derived, so a change to that decomposition turns this assertion red.
     macs_bias_l2 = 128 + 144
     extract_c_flops = projection + macs_bias_l2 * 2
     flops_routing = projection + 2 * cfg.N_e * cfg.d_c
