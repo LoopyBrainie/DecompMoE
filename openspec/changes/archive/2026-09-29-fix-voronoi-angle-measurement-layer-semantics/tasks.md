@@ -48,18 +48,47 @@
 
 ## E. Gate（spec 应用后）
 
-- [ ] E.1 三份 delta 已应用到主 spec
-- [ ] E.2 `python scripts/lint_no_dead_defensive.py` → `exit=0`
-- [ ] E.3 `python scripts/lint_no_source_field_drift.py` → `exit=0`
-- [ ] E.4 `openspec validate --specs` → 3 passed / 0 failed
-- [ ] E.5 **archive 前后 anchor 覆盖逐行计数**（skeleton 23 / wayfinder 36 / governance 4；正则须写 `req-(?:gov-)?\d+`）
+- [x] E.1 三份 delta 已应用到主 spec（`openspec archive` 报 `~ 3 modified`）
+- [x] E.2 `python scripts/lint_no_dead_defensive.py` → `exit=0`
+- [x] E.3 `python scripts/lint_no_source_field_drift.py` → `exit=0`
+- [x] E.4 `openspec validate --specs` → 3 passed / 0 failed
+- [x] E.5 **archive 前后 anchor 覆盖逐行计数** —— **抓到了 archive 吞 anchor**（见 F.3）
 
 ## F. Archive
 
-- [ ] F.1 archive 前三份主 spec 逐字节 SHA256 快照
-- [ ] F.2 `/opsx:archive`
-- [ ] F.3 archive 后 SHA256 复比 + anchor 覆盖复跑（损坏则 `git checkout -- <spec>`，前提是该 spec 相对 HEAD 无未提交改动）
-- [ ] F.4 change 目录 `Move-Item -LiteralPath` 入 `archive/`（`git mv` 在本机报 `Permission denied`）
+- [x] F.1 archive 前三份主 spec 逐字节 SHA256 快照（skeleton `018FFE733985FB03`/23、wayfinder `7B2ABF5F84917854`/36、governance `A14492093FC5A9B4`/4）
+- [x] F.2 `openspec archive <name> -y` → exit 0
+- [x] F.3 **archive 后 anchor 复跑：23/36/4 → 22/35/3，三份各丢 1 个。已全部恢复（23/36/4）并复验通过。**
+- [x] F.4 change 目录已由 `openspec archive` 移入 `archive/`（CLI 自身的 move 成功，无需 `git mv`）
+
+## G. Archive 吞 anchor 事故记录（本仓第三次）
+
+`openspec archive` 报 `exit=0` 与 `~ 3 modified`，而**以下四项全部通过**：
+
+- `lint_no_dead_defensive` → `exit=0`
+- `lint_no_source_field_drift` → `exit=0`
+- `openspec validate --specs` → 3 passed / 0 failed
+- `openspec validate <change> --strict` → valid
+
+**但 anchor 覆盖从 23/36/4 掉到 22/35/3。** 丢失的三行：
+
+| spec | 被吞的 anchor | 原位置 | 机制 |
+|---|---|---|---|
+| `decompmoe-skeleton` | `<a id="req-7"></a>` | HEAD L122 | MODIFIED 块（req-6）尾部边界吞掉**紧随其后的下一个 requirement 的 anchor** |
+| `wayfinder` | `<a id="req-12"></a>` | HEAD L284 | 同上（req-11 之后） |
+| `governance` | `<a id="req-gov-2"></a>` | HEAD L58 | 同上（req-gov-1 之后） |
+
+**每个被修改的 Requirement 恰好丢 1 个，且丢的永远是下一个的 anchor，不是被改的那个。** 与前两次（`2026-09-28-fix-a7-flops-attribution-and-stale-ref` 丢 `req-18`/`req-20`、`2026-09-28-fix-skeleton-l98-residual-frame-tagging`）形态完全一致。
+
+恢复方式：把三个 anchor 按各自真正所属的 Requirement 重新插到其 `### Requirement:` heading 之前，并补齐仓内规范的空行框架（`空行 / anchor / 空行 / heading`）。仅按 `^<a id="req-(?:gov-)?\d+"></a>$` 逐行计数是唯一能发现它的检查——**工具返回成功不等于产物正确**。
+
+**既有问题，本 change 未修**：`wayfinder/spec.md` 的 `<a id="req-27"></a>` 之前缺一个空行（其上一行直接是 `- **AND** …`）。经 `git show HEAD` 核验，改动前后完全一致，属既有状态且与本次 MODIFIED 无关，按 `CLAUDE.md` §3「不修与本次请求无关的既有问题」留待专项 change。校验脚本 `_tmp_check_anchors.py` 把它降级为 WARN。
+
+## H. 提交
+
+- [x] H.1 commit `33f7cc9`（12 files, +955 / −133）
+- [x] H.2 `tests/test_sphere.py` 与并行 session 共享：提交只含本 change 的 hunk，其未提交的 `test_versine_voronoi_closed_form` 编辑（change `2026-09-29-fix-b10-b11-b12-test-guard-fidelity` finding B11）留在工作树未提交
+- [x] H.3 提交后校验基准切换到 commit object（`git show <sha>:<path>`），非工作树
 
 ## 计划偏差记录
 
