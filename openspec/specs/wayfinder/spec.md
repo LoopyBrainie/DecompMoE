@@ -242,7 +242,7 @@ The system MUST, for the 4070 8 GB MVP target, adopt `d_model = 1024`, `N_e = 16
 >
 > The prose-form-vs-impl-output gap and the within-form dual-display gap together demonstrate that **prose angle precision ≠ impl-bit precision**: the `≈` symbol already signals spec-narrative precision disclosure, not strict equality. The angle-domain bias disclosed in the definitional-layer paragraph above is the *impl-frame vs exact-root* gap and is a distinct quantity from this prose-rounding gap; the two MUST NOT be conflated, and neither exceeds the display resolution of the tabulated forms.
 
-The canonical configuration-layer API `canonical_voronoi_angle(num_experts: int, signature_dim: int) -> float` MUST return this closed-form value (computed via bisection on the equation, NOT via a hard-coded table). The measurement-layer API `voronoi_angle(centroids: Tensor) -> float` MUST compute the realized Voronoi half-angle from an actual centroid tensor (offline use only, never in the training hot path). The specialist-collapse boundary `θ_{1/e}(β) = arccos(1 − 1/β)` MUST strictly satisfy `θ_Voronoi(N_e=16, d_c=16) > θ_{1/e}(β=16) = arccos(15/16) ≈ 20.36°`.
+The canonical configuration-layer API `canonical_voronoi_angle(num_experts: int, signature_dim: int) -> float` MUST return this closed-form value (computed via bisection on the equation, NOT via a hard-coded table). The measurement-layer API `voronoi_angle(centroids: Tensor) -> float` MUST return the mean per-cell equivalent-cap radius of the realised spherical Voronoi cells, `θ̂ = (1/N_e) · Σ_i G⁻¹(A_i)`, and is thereby COMMENSURABLE with `canonical_voronoi_angle(N_e, d_c) = G⁻¹(1/N_e)` (offline use only, never in the training hot path); the cap-area function `G`, its reflected `θ > π/2` branch, the Monte-Carlo estimator of the cell areas `A_i`, the one-sidedness of `D := canonical_voronoi_angle(N_e, d_c) − θ̂` together with the convexity precondition under which it is a theorem, and the load-bearing nature of the per-cell form are all specified in `openspec/specs/decompmoe-skeleton/spec.md` req-6; the statistical tolerance its test guards MUST use is specified in `openspec/specs/governance/spec.md` req-gov-1 obligation 7. The specialist-collapse boundary `θ_{1/e}(β) = arccos(1 − 1/β)` MUST strictly satisfy `θ_Voronoi(N_e=16, d_c=16) > θ_{1/e}(β=16) = arccos(15/16) ≈ 20.36°`.
 
 **Parameter-count accounting (four explicit assumptions, MVP scale)**:
 1. **Weight tying** — input embedding `W_emb ∈ R^{V × d_model}` is shared with `lm_head` (no extra lm_head parameter). Without tying, total grows from 452 M to ≈ 484 M.
@@ -252,7 +252,7 @@ The canonical configuration-layer API `canonical_voronoi_angle(num_experts: int,
 
 **Closed-form parameter totals**: `P_expert = 3 · d_model · d_ffn = 3 · 1024 · 2048 = 6_291_456` (SwiGLU 3-matrix); `P_total = P_emb + L · (4 · d_model² + N_e · P_expert + P_router/layer) = 32_768_000 + 4 · (4_194_304 + 100_663_296 + 32_896) = 32_768_000 + 4 · 104_890_496 = 32_768_000 + 419_561_984 = 452_329_984` exactly; `P_active = P_emb + L · (4 · d_model² + k · P_expert + P_router/layer) = 32_768_000 + 4 · (4_194_304 + 12_582_912 + 32_896) = 32_768_000 + 4 · 16_810_112 = 32_768_000 + 67_240_448 = 100_008_448` exactly.
 
-**Source:** `wayfinder/tickets/A5-3.md`, `wayfinder/tickets/A8-1.md`, change `fix-openspec-doc-bugs` design.md (Decision 4, 8), change `fix-math-consistency-audit-2026-08` design.md (Decision 1), change `2026-09-28-fix-a2-a3-a4-residual-precision-claims` design.md (Decision 2 — angle-domain bias disclosure aligned with `decompmoe-skeleton` req-6)
+**Source:** `wayfinder/tickets/A5-3.md`, `wayfinder/tickets/A8-1.md`, change `fix-openspec-doc-bugs` design.md (Decision 4, 8), change `fix-math-consistency-audit-2026-08` design.md (Decision 1), change `2026-09-28-fix-a2-a3-a4-residual-precision-claims` design.md (Decision 2 — angle-domain bias disclosure aligned with `decompmoe-skeleton` req-6), change `2026-09-29-fix-voronoi-angle-measurement-layer-semantics` design.md (Decision 1 — measurement-layer commensurability contract)
 
 #### Scenario: Active FLOPs parity
 - **WHEN** MoE active FLOPs per token are computed against a Dense baseline
@@ -281,6 +281,7 @@ The canonical configuration-layer API `canonical_voronoi_angle(num_experts: int,
 - **WHEN** `canonical_voronoi_angle(N_e, d_c)` is compared against the exact real root of `½ · I_{sin²θ}((d_c−1)/2, ½) = 1/N_e` solved at 50-digit mpmath precision, for `(N_e, d_c) ∈ {(16, 16), (64, 16)}`
 - **THEN** the angle-domain bias `|θ_impl − θ_exact|` is strictly positive AND strictly less than `1e-6 rad` (measured `8.4878023e-7 rad` for `(16, 16)` and `8.7898467e-9 rad` for `(64, 16)`)
 - **AND** the guard MUST be expressed as a two-sided bound rather than an equality against a pinned bias value, so that a future accuracy improvement in `_betainc_regularized` that shrinks the bias toward zero does not require revising this Requirement
+
 <a id="req-12"></a>
 
 ### Requirement: Loss Composition

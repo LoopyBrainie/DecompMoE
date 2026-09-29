@@ -18,15 +18,20 @@ This module materializes Req 5 (Steps 2 + 4) and Req 11 of
       input is solved by bisection on a hand-rolled regularized-incomplete-
       beta via direct Gauss quadrature (no scipy dependency); no hard-coded
       table.
-    - `voronoi_angle(centroids)` does NOT measure a Voronoi half-angle. It
-      computes `arccos(1 − mean_pairwise_chord)`, which (a) applies a wrong
-      inverse to the chord (the correct inversion is `arccos(1 − c²/2)`) and
-      (b) averages over all centroid pairs rather than the nearest neighbours
-      that define a Voronoi cell. See its own docstring for measurements and
-      for the required fix. Offline use only — NEVER in the training hot path.
+    - `voronoi_angle(centroids)` is the OFFLINE MEASUREMENT LAYER. It returns
+      the mean per-cell equivalent-cap radius of the realised spherical
+      Voronoi tessellation, `θ̂ = mean_i G^{-1}(A_i)`, where `A_i` is the area
+      fraction of cell `i` and `G` is the spherical cap-area function. This
+      makes it commensurable with `canonical_voronoi_angle`, which is
+      `G^{-1}(1/N_e)`. See its own docstring for the derivation, the
+      convexity precondition of the one-sided bound, and the measurement
+      error budget. Offline use only — NEVER in the training hot path.
 
-Both functions are pure: no autograd state, no global registries, no hidden
-parameters.
+`canonical_voronoi_angle` and `spherical_l2_normalize` are pure. `voronoi_angle`
+is deterministic (fixed seed) but is a Monte-Carlo estimator over
+`VORONOI_AREA_SAMPLES` probes, so it is NOT a pure function of its argument in
+the usual sense; the sample count and seed are explicit module constants, not
+hidden parameters. No autograd state, no global registries.
 """
 
 from __future__ import annotations
@@ -122,6 +127,69 @@ def _betainc_regularized(x: float, a: float, b: float) -> float:
 
 
 # ---------------------------------------------------------------------------
+# Spherical cap area and its inverse (shared by the closed form and the
+# measurement layer)
+# ---------------------------------------------------------------------------
+
+VORONOI_AREA_SAMPLES = 1_000_000
+"""Monte-Carlo probe count used by `voronoi_angle` to estimate cell areas.
+
+At the MVP point `(N_e=16, d_c=16)` this yields a standard error of the
+returned mean of ≈ `0.0071°` (per-cell SD `0.0284°` at `dG/dθ = 0.488421`,
+averaged over 16 cells), so `5σ ≈ 0.0355°`.
+"""
+
+VORONOI_AREA_SEED = 20260929
+"""Fixed probe seed, so `voronoi_angle` is deterministic and pinnable.
+
+Measured crosspolytope spread across seeds 0 / 1 / 20260929 / 42 at
+`VORONOI_AREA_SAMPLES = 1_000_000` is `6.6e-5° .. 8.6e-5°` away from
+`canonical_voronoi_angle(32, 16)`.
+"""
+
+
+def _cap_area(theta: float, signature_dim: int) -> float:
+    """Area fraction of the spherical cap of half-angle `theta` on
+    `S^{signature_dim - 1}`, for `theta` in `(0, pi)`.
+
+    The small-cap branch is `½ · I_{sin²θ}((d_c − 1)/2, ½)`; for
+    `theta > pi/2` it is the reflection `1 − ½ · I_{sin²θ}((d_c − 1)/2, ½)`.
+    The reflected branch is required for totality: `G(pi/2) = 0.5`, so a cell
+    holding more than half the sphere has no solution in the small-cap branch
+    alone.
+    """
+    half = 0.5 * _betainc_regularized(
+        math.sin(theta) ** 2, (signature_dim - 1) / 2.0, 0.5
+    )
+    if theta <= math.pi / 2.0:
+        return half
+    return 1.0 - half
+
+
+def _cap_radius(area: float, signature_dim: int) -> float:
+    """Inverse of `_cap_area` on `[0, 1]`, by bisection on `(0, pi)`.
+
+    `canonical_voronoi_angle(N_e, d_c)` is `1/N_e` inverted through this
+    function, which is what makes the measurement layer commensurable with
+    the closed form.
+    """
+    if not 0.0 <= area <= 1.0:
+        raise ValueError(f"cap area must lie in [0, 1]; got {area}")
+    if area == 0.0:
+        return 0.0
+    lo, hi = 0.0, math.pi
+    for _ in range(200):
+        mid = 0.5 * (lo + hi)
+        if _cap_area(mid, signature_dim) < area:
+            lo = mid
+        else:
+            hi = mid
+        if hi - lo < 1e-13:
+            break
+    return 0.5 * (lo + hi)
+
+
+# ---------------------------------------------------------------------------
 # Voronoi self-consistency (wayfinder Req 11)
 # ---------------------------------------------------------------------------
 
@@ -129,7 +197,7 @@ def _betainc_regularized(x: float, a: float, b: float) -> float:
 def canonical_voronoi_angle(num_experts: int, signature_dim: int) -> float:
     """Closed-form Voronoi half-angle on S^{signature_dim − 1}.
 
-    Solves ½ · I_{sin² θ}((d_c − 1)/2, 1/2) = 1 / N_e for θ ∈ (0, π/2)
+    Solves ½ · I_{sin² θ}((d_c − 1)/2, 1/2) = 1 / N_e for θ ∈ (0, π/2]
     via bisection on
 
         f(θ) = ½ · I_{sin² θ}((d_c − 1)/2, 1/2) − 1 / N_e.
@@ -149,78 +217,76 @@ def canonical_voronoi_angle(num_experts: int, signature_dim: int) -> float:
     accuracy against the exact regularized incomplete beta is NOT bounded
     by the spec's `< 1e-9` claim.
 
+    The body delegates to `_cap_radius(1 / N_e, d_c)`, which solves the same
+    root: `1/N_e ≤ 0.5` places it in the small-cap branch, where
+    `_cap_radius` reproduces this function's former `(0, π/2)` bisection to
+    `0.00e+00` at `(16, 16)`, `(32, 16)` and `(64, 16)`.
+
     Returns the angle in radians (multiply by 180/π for degrees).
     """
     if num_experts < 2:
         raise ValueError(f"num_experts must be ≥ 2; got {num_experts}")
     if signature_dim < 2:
         raise ValueError(f"signature_dim must be ≥ 2; got {signature_dim}")
-    target = 1.0 / num_experts
-    a = (signature_dim - 1) / 2.0
-    b = 0.5
-
-    def f(theta: float) -> float:
-        s2 = math.sin(theta) ** 2
-        return 0.5 * _betainc_regularized(s2, a, b) - target
-
-    lo, hi = 0.0, math.pi / 2.0
-    for _ in range(200):
-        mid = 0.5 * (lo + hi)
-        if f(mid) < 0:
-            lo = mid
-        else:
-            hi = mid
-        if hi - lo < 1e-13:
-            break
-    return 0.5 * (lo + hi)
+    return _cap_radius(1.0 / num_experts, signature_dim)
 
 
 def voronoi_angle(centroids: Tensor) -> float:
-    """Centroid-spread angle from a realized centroid tensor — NOT a Voronoi angle.
+    """Realised equal-area deviation measure — commensurable with the closed form.
 
-    Computes the mean pairwise spherical chord length
-    `c = mean_{i<j} √(2(1 − cᵢᵀcⱼ))` over ALL pairs, then returns
-    `arccos(1 − c)`. Offline use only.
+    Returns the MEAN PER-CELL EQUIVALENT-CAP RADIUS of the realised spherical
+    Voronoi tessellation on `S^{d_c − 1}`:
 
-    THIS FUNCTION HAS TWO DEFECTS. Neither is fixed here: both change its
-    output, and `CLAUDE.md` §6 forbids changing DecompMoE behaviour outside an
-    OpenSpec change that derives the replacement.
+        A_i = area fraction of cell i            (seeded Monte-Carlo)
+        θ̂   = (1/N_e) · Σ_i G⁻¹(A_i)             where G = `_cap_area`
 
-    1. Wrong inverse. A chord satisfies `chord = √(2 · versine)` where
-       `versine = 1 − cos θ`. The correct inverse is therefore
-       `θ = arccos(1 − c²/2)`, which reproduces the true angle exactly. This
-       function instead feeds the CHORD LENGTH into the slot that expects a
-       VERSINE, computing `arccos(1 − c)`. Measured inversion error
-       (averaging held exact by a regular simplex, so only the inversion is
-       at fault):
+    Because `canonical_voronoi_angle(N_e, d_c)` is exactly `G⁻¹(1/N_e)`, the
+    deviation `D := canonical − θ̂` is a one-sided, bounded equal-area
+    deviation that vanishes at the equal-area ideal. Offline use only.
 
-           true    10.0000°  ->  34.3416°   (+24.3416)
-           true    45.0000°  ->  76.4300°   (+31.4300)
-           true    60.0000°  ->  90.0000°   (+30.0000)
-           true   120.0000°  -> 137.0586°   (+17.0586)
-           true   150.0000°  -> 158.7253°   ( +8.7253)
+    ⚠️ THE PER-CELL FORM IS LOAD-BEARING. Do not "simplify" this to
+    `G⁻¹(mean_i A_i)`: spherical Voronoi cell areas always sum to 1, so
+    `mean_i A_i ≡ 1/N_e` for EVERY centroid set and that form returns
+    `canonical_voronoi_angle` unconditionally — a constant function that
+    detects nothing. `tests/test_sphere.py::test_voronoi_angle_not_degenerate_mean_area_form`
+    exists specifically to kill that regression.
 
-       i.e. the output is inflated by +8.7° to +31.4° over the whole range,
-       peaking near 45°.
+    One-sidedness (Jensen). `G` is convex in θ on its first convex branch, so
+    `G⁻¹` is concave on the matching area interval; if every `θ̂_i` lies in
+    that branch then
 
-    2. Wrong averaging. The mean runs over all `i < j` pairs, while a Voronoi
-       cell half-angle is set by the NEAREST neighbours. The two are not
-       commensurable, so this quantity does not converge to
-       `canonical_voronoi_angle` for any centroid set.
+        θ̂ = (1/N_e) Σ G⁻¹(A_i) ≤ G⁻¹((1/N_e) Σ A_i) = G⁻¹(1/N_e) = canonical
 
-    Combined effect, measured at the crosspolytope ideal (the 32 vertices
-    `±e_i` on S^15, an exactly equal-area partition): this function returns
-    115.665°, the correct-inversion value is 91.542°, and
-    `canonical_voronoi_angle(32, 16)` is 62.544°. The inversion accounts for
-    45.4% of the impl-to-canonical gap; the averaging accounts for the rest.
+    with equality iff `A_1 = ⋯ = A_{N_e}`. The precondition is NOT vacuous
+    and is NOT global: measured at `d_c = 16`, `G` is convex on `(0°, 81.9°)`,
+    concave on `(82.8°, 90.0°)`, convex on `(90.9°, 97.2°)` and concave on
+    `(98.1°, 179.1°)`. The MVP operating point `canonical(16, 16) = 67.24°`
+    sits inside the first convex branch, and measured MVP cell areas
+    (largest ≈ 0.077 vs `1/16 = 0.0625`) stay well inside it. Beyond that
+    branch the inequality still held in every measured configuration
+    (8 cases, cell radii out to `109.09°`) but that is OBSERVED BEHAVIOUR,
+    NOT A THEOREM — it is guarded by
+    `test_voronoi_angle_one_sided_gap`, not asserted as a closed form.
 
-    Callers must NOT treat `abs(this − canonical) < bound` as evidence of
-    equal-area coverage. The correct formalization of a realized Voronoi
-    half-angle is the nearest-neighbour inradius
-    `θ = mean_i min_{j≠i} angle(c_i, c_j) / 2`; for crosspolytope(32) that is
-    45.000°, still not equal to the canonical 62.544° — the gap there is the
-    spec/implementation mismatch registered as a hand-off in change
-    `2026-09-28-fix-b1-b3-b6-b8-b9-test-protocol-guard-fidelity`.
+    Corrected inversion, for the record. The superseded implementation fed
+    the mean pairwise CHORD `c = √(2·(1−cos θ))` into the slot that expects a
+    VERSINE `1−cos θ`, computing `arccos(1 − c)` instead of `arccos(1 − c²/2)`
+    — the chord magnitude was mistaken for the versine. That inflated the
+    output over the sampled grid (10°/45°/60°/120°/150°) by
+    `+24.3416° / +31.4300° / +30.0000° / +17.0586° / +8.7253°`; those are the
+    min/max of THAT SAMPLE, not a global bound. A 1.8e6-point scan gives the
+    true peak `+31.5868°` at `θ* = 2·arcsin(1/3) = 38.9420°` (derivation:
+    `e(θ) = arccos(1 − 2sin(θ/2)) − θ`, `e′ = 0 ⟺ 3s² − 4s + 1 = 0 ⟺ s = 1/3`),
+    and the error vanishes at BOTH ends (`e(180°) = 0`, `e(0.5°) = +7.07°`,
+    `e(179°) = +0.29°`). The superseded implementation also averaged over all
+    `i < j` pairs, which is not a Voronoi quantity at all: at the crosspolytope
+    it returned `115.6651°` where the canonical answer is `62.5445°`.
+
+    Measurement error. `VORONOI_AREA_SAMPLES = 1_000_000` probes give the
+    returned mean a standard error of ≈ `0.0071°` at MVP (`5σ ≈ 0.0355°`).
+    Do not read a gap smaller than that as a real deviation — use
+    `test_voronoi_angle_equal_area_witness_crosspolytope` for the
+    equal-area reference point, where the TRUE gap is `6.5e-5°`.
     """
     if centroids.dim() != 2:
         raise ValueError(
@@ -229,19 +295,25 @@ def voronoi_angle(centroids: Tensor) -> float:
     N_e = centroids.shape[0]
     if N_e < 2:
         raise ValueError(f"need at least 2 centroids; got N_e={N_e}")
-    sims = centroids @ centroids.T  # (N_e, N_e) on [-1, 1]
-    iu = torch.triu_indices(N_e, N_e, offset=1)
-    pair_sims = sims[iu[0], iu[1]]
-    pair_chord = torch.sqrt(2.0 * (1.0 - pair_sims).clamp_min(0.0))
-    mean_chord = pair_chord.mean().item()
-    arg = max(-1.0, min(1.0, 1.0 - mean_chord))
-    try:
-        return float(math.acos(arg))
-    except ValueError as exc:  # defensive: clamp already bounds arg to [-1, 1]
-        raise ValueError(f"acos domain violation: arg={arg}") from exc
+    d_c = centroids.shape[1]
+    if d_c < 2:
+        raise ValueError(f"signature_dim must be ≥ 2; got d_c={d_c}")
+
+    generator = torch.Generator().manual_seed(VORONOI_AREA_SEED)
+    probes = torch.nn.functional.normalize(
+        torch.randn(VORONOI_AREA_SAMPLES, d_c, generator=generator), dim=-1
+    )
+    owner = (probes @ centroids.T).argmax(dim=1)
+    areas = torch.bincount(owner, minlength=N_e).to(torch.float64) / (
+        VORONOI_AREA_SAMPLES
+    )
+    radii = [_cap_radius(float(a), d_c) for a in areas]
+    return sum(radii) / N_e
 
 
 __all__ = [
+    "VORONOI_AREA_SAMPLES",
+    "VORONOI_AREA_SEED",
     "spherical_l2_normalize",
     "canonical_voronoi_angle",
     "voronoi_angle",
