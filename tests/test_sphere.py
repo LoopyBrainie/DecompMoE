@@ -11,7 +11,7 @@ import pytest
 import torch
 
 from decompmoe import config
-
+from decompmoe import extraction
 from decompmoe import sphere
 
 # ---------------------------------------------------------------------------
@@ -171,38 +171,93 @@ def test_voronoi_self_consistency_against_1_e_boundary() -> None:
     )
 
 
-def test_ct_decode_footprint_64_bytes() -> None:
-    """Spec L363: Decode SRAM footprint of `C_t` is `16 floats = 64 bytes` per
-    layer per token at `d_c = 16`.
+def test_ct_decode_footprint_is_dtype_dependent() -> None:
+    """Spec L370 (req-16): Decode SRAM footprint of `C_t` is `16 floats = 64 bytes`
+    per layer per token at `d_c = 16`.
 
-    Integer closed form → bare `==` per `governance/spec.md` req-gov-1 §1.
-    This spec literal previously had NO guarding test. The value underpins the
-    `CLAUDE.md` §6 hard constraint "`C_t` MUST NOT be written into KV Cache"
-    (Decode runs entirely in SRAM/registers, 0 bytes HBM).
+    The spec states `16 floats` without naming an element type, so `64` bytes
+    holds only for 4-byte floats. `extract_C` is dtype-TRANSPARENT: the output
+    dtype follows the input dtype. This test therefore pins the property the
+    spec actually implies and that any implementation must preserve:
+
+      * footprint is `d_c * element_size()` of the tensor `extract_C` returns,
+        not a hard-coded `d_c * 4`;
+      * halving the input element type halves the footprint (32 bytes).
+
+    The earlier form of this test fed float32 and asserted `dtype ==
+    torch.float32`, which is true of every float32 torch pipeline and therefore
+    could not fail for the scenario it described. Asserting transparency across
+    dtypes does fail if `extract_C` ever starts casting.
+
+    An earlier revision of this change pinned `float32` into the spec as a
+    normative MUST. That pin was withdrawn: no spec statement establishes a
+    compute dtype for `C_t`, and it contradicted req-18's BF16 regime
+    (`W_proj ≈ 64 KB in BF16`). Deriving the element type is a hand-off.
     """
     cfg = config.MVPConfig()
-    floats = cfg.d_c
-    bytes_fp32 = floats * 4  # torch default float32
-    assert floats == 16, f"actual={floats}"
+    torch.manual_seed(0)
+    B, N = 1, 1
+
+    def _run(dtype: torch.dtype) -> torch.Tensor:
+        K = torch.randn(B, cfg.H_kv, N, cfg.d_k, dtype=dtype)
+        V = torch.randn(B, cfg.H_kv, N, cfg.d_k, dtype=dtype)
+        W_K = torch.randn(cfg.H_kv, cfg.d_k, cfg.d_c, dtype=dtype) * 0.1
+        W_V = torch.randn(cfg.H_kv, cfg.d_k, cfg.d_c, dtype=dtype) * 0.1
+        b = torch.randn(cfg.H_kv, cfg.d_c, dtype=dtype) * 0.01
+        return extraction.extract_C(
+            K, V, W_K, W_V, b, H_kv=cfg.H_kv, d_c=cfg.d_c
+        )
+
+    # float32 reference: the 64-byte figure in the spec.
+    C = _run(torch.float32)
+    assert C.shape[-1] == cfg.d_c, f"actual C.shape={tuple(C.shape)}"
+    bytes_fp32 = C.shape[-1] * C.element_size()
     assert bytes_fp32 == 64, f"actual={bytes_fp32}"
-    # Cross-check: d_c matches the signature dim used by the Voronoi closed form.
-    assert cfg.d_c == 16, f"actual={cfg.d_c}"
+    assert C.element_size() == pytest.approx(4.0, abs=1e-12), (
+        f"actual element_size={C.element_size()}"
+    )
+
+    # Dtype transparency: half-precision inputs stay half-precision, so the
+    # footprint halves. This is what makes the spec's unqualified "64 bytes"
+    # conditional, and it is a claim about the implementation, not a constant.
+    C16 = _run(torch.float16)
+    assert C16.dtype == torch.float16, (
+        f"actual={C16.dtype} — extract_C is no longer dtype-transparent; the "
+        f"Decode footprint would no longer follow the router compute dtype"
+    )
+    assert C16.shape[-1] * C16.element_size() == 32, (
+        f"actual={C16.shape[-1] * C16.element_size()}"
+    )
+    Cbf = _run(torch.bfloat16)
+    assert Cbf.dtype == torch.bfloat16, f"actual={Cbf.dtype}"
+    assert Cbf.shape[-1] * Cbf.element_size() == 32, (
+        f"actual={Cbf.shape[-1] * Cbf.element_size()}"
+    )
 
 
 def test_voronoi_measurement_layer() -> None:
-    """`voronoi_angle(centroids)` returns half-angle from realized centroids.
+    """`voronoi_angle(centroids)` returns a centroid-spread statistic in (0, π).
 
     Spec: wayfinder Req 11 + skeleton "Voronoi Self-Consistency Threshold"
-    measurement layer. The function MUST compute the realized half-angle
-    from an actual centroid tensor. For an approximately equal-area
-    centroid distribution (Fibonacci sphere), the measurement should be
-    close to the canonical value.
+    measurement layer, which describes the function as computing "the realized
+    half-angle from an actual centroid tensor".
+
+    The implementation is NOT commensurable with `canonical_voronoi_angle`:
+    it averages over all centroid pairs, whereas a Voronoi half-angle is set
+    by the nearest neighbours. Measured at the exactly-equal-area crosspolytope
+    ideal, the two differ by 84.9% (see `voronoi_angle` docstring in
+    sphere.py). This test therefore guards only that the function returns a
+    sane magnitude on a real centroid tensor; it does NOT certify that any
+    distribution is close to the equal-area ideal. Resolving that spec/implementation
+    mismatch is deferred to a dedicated change (see `design.md` Decision 4).
     """
     torch.manual_seed(0)
     N_e, d_c = 16, 16
-    # Generate Fibonacci-sphere points on S^{d_c − 1} — known to converge
-    # to equal-area distribution as N_e → ∞. Verifies that the
-    # measurement-layer returns sensible half-angles.
+    # Generate a Fibonacci-sphere point set on S^2 and embed it in R^{d_c}.
+    # NOTE: only the first 3 dimensions are populated, so this fixture has
+    # effective rank 3 of d_c — it is an S^2 embedded in R^16, NOT a
+    # distribution on S^{d_c - 1}. It therefore cannot exercise Voronoi
+    # geometry on the canonical sphere. See `design.md` Decision 4.
     golden_ratio = (1.0 + 5.0**0.5) / 2.0
     pts = []
     for i in range(N_e):
@@ -221,21 +276,62 @@ def test_voronoi_measurement_layer() -> None:
     theta = sphere.voronoi_angle(centroids)
     # Returned angle must be in (0, π).
     assert 0.0 < theta < math.pi, f"voronoi_angle = {theta} rad must be in (0, π)"
-    # Should be near the canonical value for N_e=16, d_c=16 (Fibonacci is
-    # approximately equal-area on S^2 but projects poorly into R^{16},
-    # so we use a loose tolerance).
+    # Deviation from the canonical angle. The π/2 bound below is NOT a theorem
+    # about Voronoi cells — see the `voronoi_angle` docstring in sphere.py: the
+    # statistic it returns averages over ALL pairs, while a Voronoi half-angle
+    # is set by the nearest neighbours, so no such bound exists. The bound here
+    # is a loose smoke check that the function returns a sane magnitude, and
+    # the delta it tolerates is large precisely because the two quantities are
+    # not commensurable (measured delta for this fixture: 8.15e-1 rad).
     canonical = sphere.canonical_voronoi_angle(num_experts=16, signature_dim=16)
-    # Measurement layer MUST track the canonical angle far more closely than the
-    # prior `abs < math.pi/2` (≈1.571 rad) admitted — that bound, combined with
-    # `0.0 < theta < math.pi` above, let almost any value pass (near-vacuous).
-    # The measurement/canonical delta is 8.15e-1 rad for the Fibonacci fixture
-    # (Fibonacci is near-equal-area on S^2 but projects poorly into R^16), so a
-    # physically meaningful bound is half the sphere: the realized Voronoi cell
-    # cannot exceed π/2 from the canonical half-angle on S^{d_c-1}.
     assert abs(theta - canonical) < math.pi / 2, (
         f"realized θ = {math.degrees(theta):.2f}° is more than π/2 from canonical "
         f"{math.degrees(canonical):.2f}°; actual_delta_rad={abs(theta - canonical):.3e}"
     )
+
+
+def test_voronoi_angle_known_answer_crosspolytope() -> None:
+    """Known-answer witness for `voronoi_angle` — pins the exact value it returns.
+
+    The `π/2` bound in `test_voronoi_measurement_layer` tolerates a 0.815 rad
+    deviation, so it cannot detect a change in this function's output at all.
+    This test pins the output instead.
+
+    Input: the 32 crosspolytope vertices `±e_i` on S^15. Its 32 spherical
+    facets are all congruent, so this is an **exactly equal-area** partition —
+    the mathematical ideal a Voronoi-based measure is supposed to recognise.
+    On it the three quantities separate cleanly:
+
+        this function                        115.6651°
+        with the correct inverse arccos(1−c²/2)   91.5415°
+        canonical_voronoi_angle(32, 16)            62.5445°
+
+    The middle row is not asserted by this function (it computes the first row);
+    it is the value a corrected inversion would produce, and the difference
+    quantifies the inversion defect documented in `sphere.voronoi_angle`.
+
+    Pinning 115.6651° makes any change to the formula — fixing the inversion,
+    switching to a nearest-neighbour inradius, or plain regression — turn this
+    red, so the eventual fix has to update this witness deliberately rather
+    than drift silently.
+    """
+    torch.manual_seed(0)
+    d_c = 16
+    crosspolytope = torch.cat([torch.eye(d_c), -torch.eye(d_c)], dim=0)
+    assert crosspolytope.shape == (32, d_c)
+
+    theta = sphere.voronoi_angle(crosspolytope)
+    assert math.degrees(theta) == pytest.approx(115.6651, abs=1e-4), (
+        f"actual={math.degrees(theta)} deg — voronoi_angle's output on the "
+        f"crosspolytope changed; if the formula was fixed on purpose, update "
+        f"this witness together with the sphere.py docstring"
+    )
+    # And it is NOT the canonical angle, by a wide margin — the reason this
+    # function must not be used as an equal-area coverage check.
+    canonical = sphere.canonical_voronoi_angle(32, d_c)
+    assert abs(theta - canonical) == pytest.approx(
+        math.radians(53.1206), abs=1e-3
+    ), f"actual_delta_deg={math.degrees(abs(theta - canonical))}"
 
 
 def test_voronoi_impl_output_within_1e6_of_exact_root() -> None:

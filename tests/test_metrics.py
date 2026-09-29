@@ -177,54 +177,50 @@ def test_mci_centered_covariance_upper_endpoint_unreachable() -> None:
     )
 
 
-def test_mci_cv_convex_hull_lower_bound_unreachable() -> None:
-    """Principle-form: spec L413 Reason claim 2 — CV (convex hull radius) lower bound
-    1/d_c on S^{d_c−1} makes original `< 0.05` health target unreachable.
+def test_mci_health_target_unreachable_below_floor() -> None:
+    """Principle-form: the spec's `1/d_c` floor is attained by `metrics.MCI`, and
+    the original `< 0.05` health target sits below it, so it is unreachable.
 
-    Mathematical claim (verbatim from spec L413 Reason): for any set of points on
-    S^{d_c−1}, the CV reading has lower bound `1/d_c` (universal geometric
-    constraint). Therefore any "health target" CV < 1/d_c is unreachable on S^{d_c−1}.
+    Spec L413 Reason claim 2 states the floor as a geometric constraint on the
+    CV reading. The quantity actually implemented and measurable here is
+    `metrics.MCI` (uncentered second moment), whose rank-1 floor is exactly
+    `1/d_c`. Anchoring the claim on `MCI`'s real output — rather than on a
+    self-computed `1.0/16` reciprocal, which can never fail — is what makes
+    this falsifiable: if `MCI`'s floor drifted, this turns red.
 
-    For d_c = 16: lower bound 1/d_c = 0.0625, so any health target CV < 0.0625
-    (including the original `< 0.05` target) is unreachable.
+    Two corrections made to the previous form of this test, both found in
+    review:
 
-    Verifier F2 — principle-form guard for spec L413 Reason claim 2.
+    * The unreachable-health-target consequence is a statement about the FLOOR,
+      not about a typical reading. It now asserts `health_target < mci_floor`
+      (`0.05 < 0.0625`). The earlier `health_target < mci_empirical` form
+      compared against a seed-dependent value on an isotropic sample, which
+      would still pass if `MCI` were floored at 0.06.
+    * The `MCI(rank-1) == 1/d_c` half is NOT re-asserted here: it is already
+      covered by `test_mci_rank1_token_distribution` and
+      `test_mci_uncentered_both_endpoints_attainable_principle`. A third copy
+      guards nothing new.
 
-    This test verifies the spec claim STRUCTURE: the lower bound 1/d_c strictly
-    exceeds the original `< 0.05` health target. The full geometric proof that
-    CV ≥ 1/d_c for any distribution on S^{d_c−1} is established by the spec
-    L413 Reason citation; here we verify the operational consequence:
-    the `< 0.05` health target is unreachable because 1/d_c > 0.05.
+    The spec's own `CV ≥ 1/d_c` claim remains UNGUARDED and is registered as a
+    hand-off. The previous "empirical CV" block did not guard it: it computed
+    the max chord distance from the empirical mean direction, which for an
+    isotropic sample is ≈4σ ≈ 1.0 and is essentially independent of `d_c` —
+    it has no mathematical connection to `1/d_c` and passed with 30.7x slack.
+    Asserting it verbatim only made a wrong number look verified.
     """
     d_c = 16
     lower_bound = 1.0 / d_c
     health_target = 0.05
-    # Spec verbatim claim structural integrity
-    assert lower_bound == pytest.approx(0.0625, abs=1e-6), (
-        f"CV lower bound 1/d_c must be 0.0625 for d_c=16, got {lower_bound:.6f}"
-    )
-    # Original < 0.05 health target is unreachable: 0.05 < 1/d_c = 0.0625
-    assert health_target < lower_bound, (
-        f"Health target CV < {health_target} is unreachable because CV ≥ 1/d_c = {lower_bound:.6f} "
-        f"on S^{{d_c-1}}; this proves why spec L413 Reason supersedes CV reading with uncentered second moment"
-    )
-    # Empirical sampling sanity check (spec L413 Reason universal geometric constraint)
-    # CV (convex hull radius) on S^{d_c-1} has universal lower bound 1/d_c.
-    # Sample N=10000 random points on S^{d_c-1}, compute the max squared chord
-    # distance from the empirical centroid (= CV^2 proxy), and confirm that the
-    # empirical CV strictly exceeds 1/d_c (with strong tolerance).
-    import math
-    torch.manual_seed(0)
-    N = 10000
-    T_sample = torch.nn.functional.normalize(torch.randn(N, d_c), dim=-1)
-    centroid = torch.nn.functional.normalize(T_sample.mean(dim=0), dim=-1)
-    sq_chord = 2.0 * (1.0 - T_sample @ centroid)
-    cv_estimated = math.sqrt(sq_chord.max().item())
-    # Empirical CV must be > 1/d_c (universal geometric lower bound, with empirical slack).
-    # Tolerance 1e-2 accounts for finite-sample convergence (N=10000 ~ O(1/sqrt(N)) slack).
-    assert cv_estimated > lower_bound - 1e-2, (
-        f"Empirical CV = {cv_estimated:.4f} < 1/d_c - 1e-2 = {lower_bound - 1e-2:.4f}; "
-        f"violates spec L413 Reason claim 2 universal geometric lower bound on S^{{d_c-1}}"
+
+    # The floor, read from the implementation rather than recomputed.
+    rank1 = torch.zeros(32, d_c)
+    rank1[:, 0] = 1.0
+    mci_floor = metrics.MCI(rank1).item()
+
+    assert health_target < mci_floor, (
+        f"actual health_target={health_target}, MCI rank-1 floor={mci_floor} — "
+        f"the < {health_target} health target would be REACHABLE, contradicting "
+        f"spec L413 Reason claim 2 (floor 1/d_c = {lower_bound})"
     )
 
 

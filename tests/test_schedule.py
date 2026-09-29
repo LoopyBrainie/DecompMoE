@@ -90,9 +90,19 @@ def test_phase3_b_ramp() -> None:
 
 
 def test_phase4_b_dynamic_box() -> None:
+    """Float closed-form → `pytest.approx(abs=...)` per `governance/spec.md`
+    req-gov-1 §2, because `phase_beta_box` returns floats.
+
+    Disclosing the cost: `1.0` and `32.0` are BOTH exactly representable in
+    IEEE-754 (`0x1.0000000000000p+0`, `0x1.0000000000000p+5`), so obligation 2's
+    "carries floating-point rounding" rationale does not literally bite. The
+    migration is compliance-driven and very slightly weaker than `==`
+    (effective tolerance `max(1e-12, 1e-12·32) = 3.2e-11` at 32.0); its purpose
+    is to stop one file carrying two rules for equally-typed constants.
+    """
     lo, hi = schedule.phase_beta_box(4)
-    assert lo == 1.0
-    assert hi == 32.0
+    assert lo == pytest.approx(1.0, abs=1e-12), f"actual lo={lo}"
+    assert hi == pytest.approx(32.0, abs=1e-12), f"actual hi={hi}"
 
 
 def test_adam_momentum_reset_on_phase4_entry() -> None:
@@ -103,6 +113,21 @@ def test_adam_momentum_reset_on_phase4_entry() -> None:
 
 
 def test_advisory_signals_read_only() -> None:
+    """`advisory_signals` returns its arguments verbatim (pass-through stub).
+
+    Left as bare `==` ON PURPOSE. `advisory_signals` is a keyword-only
+    pass-through: it returns `R_H`/`S_load`/`R_beta_sat`/`L_sep_WB` unchanged
+    (`src/decompmoe/schedule.py`), so this asserts an identity, not a
+    spec-anchored closed-form value. Migrating it to `pytest.approx` would
+    apply req-gov-1 §2 to a claim obligation 2 does not scope — the same
+    misclassification that made `test_gating.py:59` exempt in this change.
+
+    Consequence, recorded honestly: the spec numbers this nominally guards
+    are NOT guarded by this test. `wayfinder/spec.md` req-15 Layer 2 declares
+    `WB = 0.0476` and a `> 2.0` severe-clustering threshold; neither appears
+    anywhere in `src/` or `tests/`. req-15 Layer 2 is unimplemented and is
+    registered as a hand-off in this change's proposal.
+    """
     assert schedule.phase_id(5_000) == 1
     advisory = schedule.advisory_signals(
         R_H=0.99,
@@ -110,7 +135,7 @@ def test_advisory_signals_read_only() -> None:
         R_beta_sat=0.99,
         L_sep_WB=0.99,
     )
-    assert advisory["R_H"] == 0.99
+    assert advisory["R_H"] == 0.99, f"actual={advisory['R_H']}"
     assert schedule.phase_id(5_000) == 1
 
 
@@ -122,8 +147,16 @@ def test_advisory_signals_read_only() -> None:
 
 
 def test_phase_beta_box_phase2_exact() -> None:
-    """phase_beta_box(2) == (1.0, 4.0) exact — must NOT fall through to default."""
-    assert schedule.phase_beta_box(2) == (1.0, 4.0)
+    """phase_beta_box(2) == (1.0, 4.0) exact — must NOT fall through to default.
+
+    Float closed-form → `pytest.approx(abs=...)` per `governance/spec.md`
+    req-gov-1 §2. Disclosing the cost: `1.0` and `4.0` are both exactly
+    representable (`0x1.0p+0`, `0x1.0p+2`), so this is compliance-driven and
+    marginally weaker than `==`; it is done to keep one rule per file.
+    """
+    lo, hi = schedule.phase_beta_box(2)
+    assert lo == pytest.approx(1.0, abs=1e-12), f"actual lo={lo}"
+    assert hi == pytest.approx(4.0, abs=1e-12), f"actual hi={hi}"
 
 
 def test_phase_beta_max_is_time_varying() -> None:

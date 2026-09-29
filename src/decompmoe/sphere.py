@@ -18,8 +18,12 @@ This module materializes Req 5 (Steps 2 + 4) and Req 11 of
       input is solved by bisection on a hand-rolled regularized-incomplete-
       beta via direct Gauss quadrature (no scipy dependency); no hard-coded
       table.
-    - `voronoi_angle(centroids)` measures the realized half-angle from an
-      actual centroid tensor (offline use only — NEVER in training hot path).
+    - `voronoi_angle(centroids)` does NOT measure a Voronoi half-angle. It
+      computes `arccos(1 − mean_pairwise_chord)`, which (a) applies a wrong
+      inverse to the chord (the correct inversion is `arccos(1 − c²/2)`) and
+      (b) averages over all centroid pairs rather than the nearest neighbours
+      that define a Voronoi cell. See its own docstring for measurements and
+      for the required fix. Offline use only — NEVER in the training hot path.
 
 Both functions are pure: no autograd state, no global registries, no hidden
 parameters.
@@ -172,13 +176,51 @@ def canonical_voronoi_angle(num_experts: int, signature_dim: int) -> float:
 
 
 def voronoi_angle(centroids: Tensor) -> float:
-    """Measurement-layer Voronoi half-angle from a realized centroid tensor.
+    """Centroid-spread angle from a realized centroid tensor — NOT a Voronoi angle.
 
-    Computes the realized mean pairwise spherical chord length
-    √(2(1 − cᵢᵀcⱼ)) over i < j, then converts to half-angle via
-    θ = arccos(1 − r) . For N_e equal-area Voronoi cells on S^{d_c − 1},
-    this converges to `canonical_voronoi_angle` as the routing distribution
-    approaches the equal-area ideal. Offline use only.
+    Computes the mean pairwise spherical chord length
+    `c = mean_{i<j} √(2(1 − cᵢᵀcⱼ))` over ALL pairs, then returns
+    `arccos(1 − c)`. Offline use only.
+
+    THIS FUNCTION HAS TWO DEFECTS. Neither is fixed here: both change its
+    output, and `CLAUDE.md` §6 forbids changing DecompMoE behaviour outside an
+    OpenSpec change that derives the replacement.
+
+    1. Wrong inverse. A chord satisfies `chord = √(2 · versine)` where
+       `versine = 1 − cos θ`. The correct inverse is therefore
+       `θ = arccos(1 − c²/2)`, which reproduces the true angle exactly. This
+       function instead feeds the CHORD LENGTH into the slot that expects a
+       VERSINE, computing `arccos(1 − c)`. Measured inversion error
+       (averaging held exact by a regular simplex, so only the inversion is
+       at fault):
+
+           true    10.0000°  ->  34.3416°   (+24.3416)
+           true    45.0000°  ->  76.4300°   (+31.4300)
+           true    60.0000°  ->  90.0000°   (+30.0000)
+           true   120.0000°  -> 137.0586°   (+17.0586)
+           true   150.0000°  -> 158.7253°   ( +8.7253)
+
+       i.e. the output is inflated by +8.7° to +31.4° over the whole range,
+       peaking near 45°.
+
+    2. Wrong averaging. The mean runs over all `i < j` pairs, while a Voronoi
+       cell half-angle is set by the NEAREST neighbours. The two are not
+       commensurable, so this quantity does not converge to
+       `canonical_voronoi_angle` for any centroid set.
+
+    Combined effect, measured at the crosspolytope ideal (the 32 vertices
+    `±e_i` on S^15, an exactly equal-area partition): this function returns
+    115.665°, the correct-inversion value is 91.542°, and
+    `canonical_voronoi_angle(32, 16)` is 62.544°. The inversion accounts for
+    45.4% of the impl-to-canonical gap; the averaging accounts for the rest.
+
+    Callers must NOT treat `abs(this − canonical) < bound` as evidence of
+    equal-area coverage. The correct formalization of a realized Voronoi
+    half-angle is the nearest-neighbour inradius
+    `θ = mean_i min_{j≠i} angle(c_i, c_j) / 2`; for crosspolytope(32) that is
+    45.000°, still not equal to the canonical 62.544° — the gap there is the
+    spec/implementation mismatch registered as a hand-off in change
+    `2026-09-28-fix-b1-b3-b6-b8-b9-test-protocol-guard-fidelity`.
     """
     if centroids.dim() != 2:
         raise ValueError(

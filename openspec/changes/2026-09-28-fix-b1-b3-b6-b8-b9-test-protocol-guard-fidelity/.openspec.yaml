@@ -1,0 +1,7 @@
+schema: spec-driven
+created: 2026-09-28
+# This change makes no spec-level edit. The req-16 `float32` element-type pin
+# it originally carried was withdrawn after review: no spec statement anywhere
+# establishes a compute dtype for `C_t`, and the pin contradicted req-18's BF16
+# regime. See proposal.md "Withdrawn" and the hand-off list.
+skip_specs: true

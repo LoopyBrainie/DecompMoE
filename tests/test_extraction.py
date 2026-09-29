@@ -5,7 +5,9 @@ ST-04 / Req 5 (full pipeline) + Req 6 (no STE, fully differentiable).
 
 from __future__ import annotations
 
+import ast
 import inspect
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -14,6 +16,107 @@ import torch
 from decompmoe import extraction
 from decompmoe.config import MVPConfig
 from decompmoe.sphere import spherical_l2_normalize
+
+# ---------------------------------------------------------------------------
+# Implementation-side operator census (governance req-gov-1 Scenario
+# "Closed-form per-head extraction MACs use bare ==" clause (3)).
+#
+# Clause (3) forbids deriving the MAC count from a helper that re-states the
+# closed form (a tautology). It explicitly accepts `torch.profiler`, custom
+# hooks, or `inspect.getsource` / AST analysis. We use AST: the profiler route
+# is backend-dependent (CUDA kernel fusion can change observed MACs by 2x),
+# which would defeat the zero-tolerance intent of the integer closed form.
+#
+# WHAT THIS CENSUS DOES AND DOES NOT DO — read before trusting it.
+#
+# It counts the OPERATORS `extract_C` executes, read from the real source. It
+# does NOT compute the MAC magnitude: every magnitude factor in the spec's
+# closed form (H_kv, d_k, d_c) is supplied by the caller, so a MAC number
+# derived here would multiply a constant the test itself chose and would
+# therefore agree with the spec no matter what the implementation did. The
+# magnitude is the closed form's job — it is pinned as the spec literal
+# `33_040` in `test_complexity_budget`.
+#
+# The census earns its place by being *sensitive*: dropping the cross-head
+# mean, removing a projection, removing a normalization, or adding a fourth
+# operator all change the counts and turn the assertions red. It is a guard on
+# the implementation's SHAPE, not on its arithmetic.
+#
+# Known limitation: the walk is lexical over `extract_C`'s own body. Hoisting
+# the projections into a module-level helper is a semantics-preserving refactor
+# that this census will (correctly, but unhelpfully) report as "no projections".
+# It is a structural guard, not a refactor-tolerant one.
+# ---------------------------------------------------------------------------
+
+_PROJECTION_OPS = frozenset({"einsum", "matmul", "bmm"})
+_REDUCTION_OPS = frozenset({"mean"})
+_RESHAPE_OPS = frozenset({"view", "reshape"})
+_L2_OP = "spherical_l2_normalize"
+
+
+def _call_name(node: ast.AST) -> str:
+    """Dotted tail of a call target, e.g. `torch.einsum` -> `einsum`."""
+    if not isinstance(node, ast.Call):
+        return ""
+    func = node.func
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    if isinstance(func, ast.Name):
+        return func.id
+    return ""
+
+
+def _operands(node: ast.BinOp) -> list[ast.AST]:
+    out: list[ast.AST] = []
+    stack: list[ast.AST] = [node.left, node.right]
+    while stack:
+        cur = stack.pop()
+        if isinstance(cur, ast.BinOp):
+            stack.extend((cur.left, cur.right))
+        else:
+            out.append(cur)
+    return out
+
+
+def _is_parameter_reshape(node: ast.AST) -> bool:
+    """True for a `.view(...)` / `.reshape(...)` of a parameter (not data)."""
+    return _call_name(node) in _RESHAPE_OPS
+
+
+def _census_extract_C() -> dict[str, int]:
+    """Count the operators `extract_C` executes, read from its own source.
+
+    Returns operator counts only — no MAC magnitude. See the module-level note
+    for why the magnitude is deliberately not computed here.
+    """
+    source = textwrap.dedent(inspect.getsource(extraction.extract_C))
+    tree = ast.parse(source)
+    fn = next(
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.FunctionDef) and n.name == "extract_C"
+    )
+
+    census = {"projection": 0, "bias_add": 0, "l2_normalize": 0, "reduction": 0}
+
+    for node in ast.walk(fn):
+        # Operators anywhere in the body, including a tail `return`, so a
+        # rewritten function cannot silently drop one.
+        name = _call_name(node)
+        if name in _PROJECTION_OPS:
+            census["projection"] += 1
+        elif name in _REDUCTION_OPS:
+            census["reduction"] += 1
+        elif name == _L2_OP:
+            census["l2_normalize"] += 1
+
+        # A bias addition is a `+` that has a parameter reshape on either side.
+        is_add = isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add)
+        if is_add and any(_is_parameter_reshape(o) for o in _operands(node)):
+            census["bias_add"] += 1
+
+    return census
+
 
 
 def _fake_proj(
@@ -83,18 +186,40 @@ def test_complexity_budget() -> None:
     8·4112 + 8·16 + 16 = 33_040 per-token MACs exactly.
     Scaling: O(H_kv · d_k · d_c).
 
-    What this test does (NOT what the previous docstring claimed):
-      1. Closed-form MAC value at MVP: 33_040 exact (asserted by definition).
-      2. d_c-scaling: m2 == 2·m1 (every term in the closed form is linear
+    What this test does:
+      1. Closed-form MAC value at MVP: 33_040 exact (integer closed form),
+         pinned as a spec literal so a change to the spec's decomposition turns
+         this red.
+      2. IMPLEMENTATION-SIDE operator census: `extract_C`'s own source is parsed
+         with `ast` and the operators it executes are counted, so the 33_040
+         claim is backed by the implementation rather than by a test-local
+         helper that re-states the closed form (the tautology governance
+         req-gov-1 clause (3) forbids). The census is deliberately NOT a MAC
+         measurement — see the module-level note for why computing a magnitude
+         here would be self-certifying.
+      3. d_c-scaling: m2 == 2·m1 (every term in the closed form is linear
          in d_c, so doubling d_c doubles the total).
-      3. d_k-scaling: m4 - m3 == 4·2·(64−32)·8 (the d_k step contribution).
-      4. ACTUAL extract_C invocation: verifies the impl returns shape
-         (B, N, d_c) and unit-sphere output (step-4 normalization). This
-         catches impl-level regressions (extra ops, wrong einsum) that a
-         closed-form-only test would miss.
+      4. d_k-scaling: m4 - m3 == 4·2·(64−32)·8 (the d_k step contribution).
+      5. ACTUAL extract_C invocation: verifies the impl returns shape
+         (B, N, d_c) and unit-sphere output (step-4 normalization).
 
-    The test does NOT measure MAC count via profiler/hooks; that would be
-    backend-dependent (CUDA kernel fusion can change observed MACs by 2x).
+    Why AST and not `torch.profiler`: the profiler route is backend-dependent
+    (CUDA kernel fusion can change observed MACs by 2x), which would defeat the
+    zero-tolerance intent of an integer closed form. req-gov-1 clause (3) lists
+    `inspect.getsource` / AST analysis as an acceptable mechanism.
+
+    KNOWN SPEC GAP — the closed form omits the cross-head mean. The skeleton
+    "Per-token MAC closed form" enumerates only (i) per-head K/V/bias
+    projection, (ii) per-head L2, (iii) final L2. It does not list
+    `z_unit.mean(dim=1)`, which is real arithmetic: reducing H_kv values per
+    channel costs (H_kv−1) accumulates + 1 scale by 1/H_kv per channel, i.e.
+    H_kv·(d_c) MACs on the spec's own "1 MAC = 1 multiply + 1 accumulate"
+    convention. So the true pipeline cost is at least 33_040 + 128 = 33_168 and
+    the spec literal understates it by ~0.39%. The census still requires the
+    reduction to be present (`reduction == 1`), so the implementation cannot
+    silently drop it; the magnitude shortfall is a spec defect registered as a
+    hand-off in this change's proposal, not something this test should paper
+    over by inventing a term the spec does not state.
     """
     cfg = MVPConfig()
     cfg_hkv, cfg_dk, cfg_dc = cfg.H_kv, cfg.d_k, cfg.d_c
@@ -102,6 +227,22 @@ def test_complexity_budget() -> None:
     def macs(h_kv: int, d_k: int, d_c: int) -> int:
         return h_kv * (2 * d_k * d_c + d_c) + h_kv * d_c + d_c
 
+    # (1) Implementation-side operator census — the tautology-free half.
+    # Each mutation below turns exactly one of these red:
+    #   drop the cross-head mean      -> reduction 1 -> 0
+    #   drop a projection             -> projection 2 -> 1
+    #   drop a normalization          -> l2_normalize 2 -> 1
+    #   add a third projection        -> projection 2 -> 3
+    #   drop the bias add             -> bias_add 1 -> 0
+    census = _census_extract_C()
+    assert census == {
+        "projection": 2,
+        "bias_add": 1,
+        "l2_normalize": 2,
+        "reduction": 1,
+    }, f"actual={census} — extract_C's operator set no longer matches the " f"4-step pipeline the 33_040 closed form accounts for"
+
+    # (2) Closed-form MAC value at MVP: 33_040 exact.
     expected = macs(cfg_hkv, cfg_dk, cfg_dc)
     assert expected == 33_040, f"actual={expected}"
 

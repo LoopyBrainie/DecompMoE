@@ -687,8 +687,10 @@ def test_max_grad_constants_principle_form() -> None:
                                  = 0.25 · 2 · 31.0 = 15.5`
     - `_MAX_GRAD_BETA_PHASE4_INTERNAL = 31.0 · σ'(0)
                                      = 31.0 · 0.25 = 7.75`
-    - `MAX_GRAD_PER_C = 32.0` (integer closed-form: bare `==` per
-      `governance/spec.md req-gov-1`).
+    - `MAX_GRAD_PER_C = 32.0` (float closed-form: `pytest.approx` with
+      `abs=1e-12` per `governance/spec.md` req-gov-1 §2 — it is declared
+      `Final[float]` in `src/decompmoe/beta.py`, so obligation 1's bare-`==`
+      rule does NOT apply to it).
     """
     # Float closed-form: pytest.approx with abs=1e-12 (钉值零容差)
     assert beta_mod.MAX_GRAD_PER_GAMMA == pytest.approx(
@@ -709,12 +711,18 @@ def test_max_grad_constants_principle_form() -> None:
         f"_MAX_GRAD_BETA_PHASE4_INTERNAL = {beta_mod._MAX_GRAD_BETA_PHASE4_INTERNAL}, "
         f"expected 31·σ'(0) = 31·0.25 = {31.0 * 0.25}"
     )
-    # Integer closed-form: bare `==` per `governance/spec.md req-gov-1`
-    # ("integer claims MUST use bare `==` ... NOT pytest.approx in any form"
-    # — the effective-tolerance formula `max(abs, rel·|expected|)` scales with
-    # magnitude and defeats 钉值零容差).
-    assert beta_mod.MAX_GRAD_PER_C == 32.0, (
-        f"MAX_GRAD_PER_C = {beta_mod.MAX_GRAD_PER_C}, expected 32.0"
+    # Float closed-form: `pytest.approx` with `abs=1e-12` per
+    # `governance/spec.md` req-gov-1 §2. The constant is declared
+    # `Final[float]`, so obligation 1's bare-`==` rule does not apply to it.
+    # Disclosing the cost: `32.0` IS exactly representable in IEEE-754
+    # (`0x1.0000000000000p+5`), so obligation 2's "carries floating-point
+    # rounding" rationale does not literally bite here — the migration is
+    # compliance-driven, and `approx(32.0, abs=1e-12)` is very slightly WEAKER
+    # than `==` (effective tolerance max(1e-12, 1e-12·32) = 3.2e-11). The
+    # point of doing it is to stop this file from carrying two different rules
+    # for equally-typed constants, not to catch anything `==` would miss.
+    assert beta_mod.MAX_GRAD_PER_C == pytest.approx(32.0, abs=1e-12), (
+        f"actual={beta_mod.MAX_GRAD_PER_C}, expected 32.0"
     )
 
 
@@ -851,7 +859,14 @@ def test_nan_ladder_zero_returns_skip_per_default() -> None:
     no NaN). This test pins the default-behavior contract so a future
     change to the ladder edge case breaks loudly.
     """
-    assert safeguards.nan_ladder(0) == ("skip", 1.0, False)
+    assert safeguards.nan_ladder(0) == (
+        "skip",
+        pytest.approx(1.0, abs=1e-12),
+        False,
+    ), (
+        f"actual={safeguards.nan_ladder(0)} — expected the no-NaN default "
+        f"('skip', lr_scale=1.0, halt=False)"
+    )
 
 
 # ---------------------------------------------------------------------------

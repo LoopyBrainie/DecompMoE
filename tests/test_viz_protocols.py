@@ -4,6 +4,8 @@ ST-12 / Req 21.
 """
 from __future__ import annotations
 
+import pytest
+
 from decompmoe import viz
 
 
@@ -25,5 +27,17 @@ def test_viz_stack_pinned() -> None:
 
 
 def test_PCA_camera_angles_fixed() -> None:
-    """PCA3D.camera_angles must equal (25.0, 135.0)."""
-    assert viz.PCA3D.camera_angles == (25.0, 135.0)
+    """PCA3D.camera_angles must equal (25.0, 135.0).
+
+    Float closed-form → `pytest.approx(abs=...)` per `governance/spec.md`
+    req-gov-1 §2. Disclosing the cost: both constants are exactly representable
+    (`0x1.9000000000000p+4`, `0x1.0e00000000000p+7`), so obligation 2's
+    "carries floating-point rounding" rationale does not literally bite; the
+    migration is compliance-driven and marginally weaker than `==`.
+    """
+    assert viz.PCA3D.camera_angles[0] == pytest.approx(25.0, abs=1e-12), (
+        f"actual={viz.PCA3D.camera_angles[0]}"
+    )
+    assert viz.PCA3D.camera_angles[1] == pytest.approx(135.0, abs=1e-12), (
+        f"actual={viz.PCA3D.camera_angles[1]}"
+    )

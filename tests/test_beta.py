@@ -107,7 +107,12 @@ def test_counterfactual_floor_1_gamma_starvation() -> None:
     ratio = sp_adopted / sp_cf
     assert ratio == pytest.approx(25.0, rel=0.05), f"actual={float(ratio)}"
     # The adopted floor is 0.1 (not 1.0) — the spec's actual prescription.
-    assert beta.BETA_MIN == 0.1, f"actual={beta.BETA_MIN}"
+    # `BETA_MIN` is declared `Final[float]` and `0.1` is not binary-exact, so
+    # req-gov-1 §2 requires `pytest.approx`. NOTE: this is a formality, not a
+    # strengthening — bare `==` was the stricter check here; the migration
+    # removes the coexistence of two rules within one file.
+    assert beta.BETA_MIN == pytest.approx(0.1, abs=1e-12), (
+        f"actual={beta.BETA_MIN}"
     )
 
 def test_counterfactual_gamma_init_5sig_literal() -> None:
@@ -266,7 +271,9 @@ def test_constants_exported() -> None:
     assert hasattr(beta, "MAX_GRAD_PER_GAMMA")
     assert isinstance(beta.MAX_GRAD_PER_C, float)
     assert isinstance(beta.MAX_GRAD_PER_GAMMA, float)
-    assert beta.MAX_GRAD_PER_C == 32.0
+    assert beta.MAX_GRAD_PER_C == pytest.approx(32.0, abs=1e-12), (
+        f"actual MAX_GRAD_PER_C = {beta.MAX_GRAD_PER_C}, expected 32.0"
+    )
     assert beta.MAX_GRAD_PER_GAMMA == pytest.approx(0.25 * 2 * 31.9, abs=1e-12), (
         f"actual MAX_GRAD_PER_GAMMA = {beta.MAX_GRAD_PER_GAMMA}, "
         f"expected σ'(0)·2·(β_max−β_min) = 0.25·2·31.9 = {0.25 * 2 * 31.9}"
