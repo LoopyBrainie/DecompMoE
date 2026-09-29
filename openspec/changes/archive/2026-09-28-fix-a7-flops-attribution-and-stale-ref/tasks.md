@@ -82,3 +82,31 @@
 
 - [x] 5.1 顺带修正 `tests/test_config.py` 三处 docstring 的 stale spec 行号与一处错误 Requirement 编号：`Spec L420` → **`L426`**（×2，另 1 处在行内注释）、`Spec L422` → **`L428`**、`Req 20's FLOPs_Routing` → **`Req 19's FLOPs_Routing`**（`FLOPs_Routing` 属 Req 19 "Six Baseline Set On 4070 MVP" L411；Req 20 是 "Eight Geometric Quantification Metrics" L442）
       - **超出 task 3.1–3.4 字面范围，主动上报。** 理由：tasks 3.1–3.4 未提及 docstring，但本 change 的立项理由就是「订正 stale spec 行号反链」；若只改归属标注而留下 `Spec L420`，等于在同一个正在编辑的测试文件里制造同类 stale 反链，且 A7-2 刚把 spec 侧的反链从 L311 订正为 L381。这 4 处与 tasks 3.1 的 `cfg.H_kv` 参数化在同一测试内、同一语义范围，故一并处理。
+
+## 6. 归档时的主 spec 损坏与恢复（post-archive incident）
+
+- [x] 6.1 `openspec archive` 在本 change 上**损坏了主 spec**，已检测并完全恢复
+
+  **发生了什么**：归档前 delta 与主 spec 已逐字节相同（Req 17 13 行、Req 19 28 行），即归档对 spec 内容**应是 no-op**。但 `openspec archive` 报告 `~ 2 modified` 并实际写入，且写坏了文件 —— 删除两个 anchor：
+
+  | 被删 | 原行号 | 位置 |
+  |---|---|---|
+  | `<a id="req-18"></a>` | L394 | 紧跟 Req 17 block 之后 |
+  | `<a id="req-20"></a>` | L441 | 紧跟 Req 19 block 之后 |
+
+  净效果 `0 插 / 4 删`（两行 anchor + 各自后面的空行），anchor 覆盖从 **36/36 掉到 34/36**。
+
+  **机制观察**：被删的 anchor **不在** delta 声明的 block 内部，而在**紧随该 block 之后的那一行** —— 两个 MODIFIED block 各吞掉了它后继 anchor 行的空行分隔。这解释了为何「delta ≡ 主 spec」仍不能保证 no-op：block 边界判定吃的是**紧随其后的行**，与 delta 自身内容无关。
+
+  **为什么三个 gate 全部漏判**：`lint_no_dead_defensive` exit=0、`lint_no_source_field_drift` exit=0、`openspec validate --specs` **3 passed / 0 failed**。**只有**按 `^<a id="req-..."></a>$` 逐行计数的 anchor 覆盖检查能发现 —— 这已是本仓第二次因归档丢 anchor（上一次：`2026-09-28-fix-skeleton-l98-residual-frame-tagging`）。
+
+  **恢复**：`git checkout -- openspec/specs/wayfinder/spec.md`。恢复后逐项对账通过 ——
+  - SHA256 回到归档前基线 `7B2ABF5F84917854`
+  - anchor 覆盖 **36/36 · 23/23 · 4/4**，无重复 id
+  - inline ref 回到 L429 (`req-17`) 与 L847 (`req-20`)
+  - 全文 `Req 17 L\d+` 残留 0
+  - `uv run pytest -q` → **207 passed, 0 failed**；两 lint `exit=0`；`validate --specs` 3/3
+
+  **归档前采取的防护**（本次有效）：① 归档前把三份主 spec 逐字节快照到 `_staged/_pre_archive_specs/`；② 归档后立即比对 SHA256；③ 因用户选择「先同步再归档」，内联合成被证明是**零写入 no-op**（前后 SHA256 相同），从而使「归档时再写一次」这一损坏动作虽仍发生、但可被精确定位与回滚。
+
+  **结论与遗留**：`openspec archive` 的 exit code 与其 `~ N modified` 计数**都不能**作为「spec 未被破坏」的证据；归档后 anchor 覆盖复跑是**必要**步骤，不是可选加严。
