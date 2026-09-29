@@ -124,15 +124,24 @@ def resurrection_perturb_distribution(
     routing-frequency tensor — its **trailing axis** MUST equal `N_e`,
     with leading dims arbitrary (e.g. `(N_e,)`, `(T, N_e)`,
     `(B, N, N_e)`). The trailing-axis = `N_e` contract is enforced by
-    the **canonical call site `resurrect_expert`** (which holds both
-    `β_per_expert` and `f_per_expert` and verifies
-    `f_per_expert.shape[-1] == β_per_expert.shape[0]`); this primitive
-    performs only the cheap `ndim ≥ 1` sanity guard so a 0-D scalar
-    cannot reach the perturbation. The value itself is not consumed by
-    the perturbation (the perturbation is a fresh Gaussian sample
-    independent of the routing distribution); the parameter exists for
-    caller symmetry with `resurrect_expert`'s single-event contract
-    (spec Req 32).
+    the **canonical call site `resurrect_expert`**, which anchors the
+    check on the spec constant `cfg.N_e` and raises `ValueError` when
+    `f_per_expert.shape[-1] != cfg.N_e`; this primitive performs only
+    the cheap `ndim ≥ 1` sanity guard so a 0-D scalar cannot reach the
+    perturbation. The value itself is not consumed by the perturbation
+    (the perturbation is a fresh Gaussian sample independent of the
+    routing distribution); the parameter exists for caller symmetry
+    with `resurrect_expert`'s single-event contract (spec `wayfinder`
+    Req 32, anchor `<a id="req-32">`).
+
+    The layer-2 anchor is `cfg.N_e`, NOT the input's own
+    `β_per_expert.shape[0]`: the wrapper assigns
+    `f_per_expert = β_per_expert.detach()`, so a
+    `f_per_expert.shape[-1] == β_per_expert.shape[0]` self-check is
+    identically true for any 1-D tensor and would silently admit a
+    wrong-length `β`. That vacuous form was an earlier draft, replaced
+    by commit `0b2202e` with the `cfg.N_e` anchor; it is recorded here
+    only as superseded history, never as a live contract.
     """
     del target_idx  # contract signature only; perturbation is one vector
     # Layer-1 sanity guard: 0-D scalar/empty tensor cannot reach the
@@ -221,7 +230,9 @@ def resurrect_expert(
             f"resurrect_expert indices out of range: i={i}, j_star={j_star}, "
             f"β_per_expert.shape[0]={N}"
         )
-    # Layer-2 trailing-axis = N_e contract (spec Req 28 / Req 32 L644):
+    # Layer-2 trailing-axis = N_e contract (spec `wayfinder` Req 28 / Req 32,
+    # anchors `<a id="req-28">` / `<a id="req-32">`; `cfg.N_e` anchor
+    # introduced by commit `0b2202e`):
     # `β_per_expert ∈ R^{N_e}` — canonical 1-D, length exactly `cfg.N_e`.
     # The wrapper holds both `β_per_expert` and `f_per_expert`, so we can
     # pair them and verify the per-expert axis agrees against the SPEC
