@@ -109,13 +109,16 @@ def test_resurrection_trigger_window() -> None:
     Closed-form guard (CLAUDE.md §6 last bullet): the rate-limit window is
     `RESURRECTION_RATE_LIMIT_STEPS = 1000` (spec closed-form constant,
     declared at `src/decompmoe/safeguards.py:31`). The test exercises the
-    boundary explicitly via `current_step − last_resurrection_step`:
+    window via `current_step − last_resurrection_step`:
       - Δ = 2300 (> 1000): resurrection fires (res non-empty).
       - Δ = 300 (< 1000): rate-limited (res2 empty).
-    Pinning the boundary on the spec constant catches silent retunes of
-    `RESURRECTION_RATE_LIMIT_STEPS` (the previous setup hardcoded `Δ=300`
-    without anchoring on `1000`, so a retune to e.g. `200` would not break
-    the inequality assertion and would pass silently).
+    The `RATE_LIMIT == 1000` precondition below is what catches a silent
+    retune of `RESURRECTION_RATE_LIMIT_STEPS`. The two behavioural asserts
+    would flip as well, but the precondition names both the constant and the
+    spec literal, so its failure message points straight at the retune.
+    The exact `Δ = RATE_LIMIT` edge is pinned separately by
+    `test_should_resurrect_rate_limit_boundary`; this setup deliberately does
+    not try to cover it.
     """
     N_e = 16
     history = [[1 / 256] * N_e for _ in range(250)]
@@ -139,15 +142,54 @@ def test_resurrection_trigger_window() -> None:
         N_e=N_e,
         consec=200,
     )
-    # Explicit boundary assertions on the closed-form constant.
-    assert (current_step - (current_step - 2300)) >= RATE_LIMIT, (
-        "Δ=2300 must be ≥ RESURRECTION_RATE_LIMIT_STEPS=1000 (fires branch)"
-    )
-    assert (current_step - (current_step - 300)) < RATE_LIMIT, (
-        "Δ=300 must be < RESURRECTION_RATE_LIMIT_STEPS=1000 (rate-limited branch)"
-    )
     assert len(res) > 0, "first call must flag at least one expert"
     assert len(res2) == 0, "second call within window must be rate-limited to empty"
+
+
+def test_should_resurrect_rate_limit_boundary() -> None:
+    """`decompmoe-skeleton` req-12 Scenario「Resurrection rate-limited」: the
+    deferral edge is `Δ < R` with `R = RESURRECTION_RATE_LIMIT_STEPS`; `Δ = R`
+    itself is the FIRST step that is NOT rate-limited.
+
+    Derivation: the deferral predicate `D(Δ) = [Δ < R]` is monotone
+    non-increasing in `Δ` with a single jump point, so `{Δ : Δ < R}` is a
+    down-open ray and `{Δ : Δ ≥ R}` an up-closed ray. The half-open windows
+    `[t, t + R)` partition the step axis into disjoint R-long blocks, and two
+    events share a block iff `Δ < R` — which is exactly the guard at
+    `src/decompmoe/safeguards.py:93`.
+
+    The `≤` alternative is refuted by an R-aligned event stream
+    `0, 1000, 2000, 3000, …`: under `≤` each `Δ = 1000` is deferred and
+    DROPPED (the helper returns `set()`; it holds no retry queue), so only
+    `{0, 2000, 4000, …}` are emitted and the effective period becomes
+    `2R = 2000` steps, contradicting wayfinder req-13's "once per 1000 steps".
+    """
+    torch.manual_seed(0)
+    N_e = 16
+    history = [[1 / 256] * N_e for _ in range(250)]
+    R = safeguards.RESURRECTION_RATE_LIMIT_STEPS
+
+    res_below = safeguards.should_resurrect(
+        history, current_step=R, last_resurrection_step=1, N_e=N_e, consec=200,
+    )
+    assert res_below == set(), (
+        f"Δ=R-1 must be rate-limited to empty; R={R}, actual={res_below!r}"
+    )
+
+    res_at = safeguards.should_resurrect(
+        history, current_step=R, last_resurrection_step=0, N_e=N_e, consec=200,
+    )
+    assert len(res_at) > 0, (
+        f"Δ=R is the first NON-rate-limited step and MUST fire; R={R}, "
+        f"actual={res_at!r}"
+    )
+
+    res_above = safeguards.should_resurrect(
+        history, current_step=R + 1, last_resurrection_step=0, N_e=N_e, consec=200,
+    )
+    assert len(res_above) > 0, (
+        f"Δ=R+1 must fire; R={R}, actual={res_above!r}"
+    )
 
 
 def test_resurrection_threshold_mvp_value() -> None:

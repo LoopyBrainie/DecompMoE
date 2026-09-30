@@ -235,11 +235,27 @@ def test_ct_decode_footprint_is_dtype_dependent() -> None:
     )
 
 
-_VORONOI_MC_5SIGMA_DEG = 0.0355
+_VORONOI_MC_5SIGMA_DEG = 7.31e-5
 """`5σ` of the Monte-Carlo mean returned by `voronoi_angle` at
-`VORONOI_AREA_SAMPLES = 1_000_000`: per-cell SD `0.0284°` (from
-`dG/dθ = 0.488421` and the cell-area sampling SD) averaged over 16 cells
-gives a mean standard error of `0.0071°`, so `5σ ≈ 0.0355°`.
+`VORONOI_AREA_SAMPLES = 1_000_000`, at MVP (`d_c=16`, `N_e=16`).
+
+The derivation MUST respect the exact constraint `Σ_i A_i ≡ 1`: each probe
+is assigned to exactly one `argmax` owner, so `Σ_i n_i = M` identically and
+`Σ_i ε_i ≡ 0` for `ε_i := A_i − 1/N_e`. The first-order term of
+`θ̂ − G⁻¹(1/N_e)` therefore cancels EXACTLY, and the leading fluctuation is
+second order, `(1/(2N_e))·g''·Σ_i ε_i²` with `g'' = [G⁻¹]'' = −G''/G'³`:
+
+    G'(θ₀)   = 0.488436      (θ₀ = canonical(16, 16) = 1.1735482747 rad)
+    g''      = −24.6207
+    Var(Σ ε_i²) ≈ 2·N_e·(A(1−A)/M)²        ⇒ spread scales as 1/M, not 1/√M
+    SE       = |g''|·A(1−A)·√2 / (2·√N_e·M) = 1.461e-5 deg
+
+Cross-checked empirically: the SD over 8 probe seeds at fixed `M` measures
+`1.353e-5 deg` (spread `4.20e-5 deg`), i.e. the closed form and the sampler
+agree to ~8%.
+
+An earlier revision derived `5σ = 0.0355 deg` by treating the `N_e` cell
+areas as independent. That ignores `Σ A_i ≡ 1` and is `486×` too large.
 
 Derived per `openspec/specs/governance/spec.md` req-gov-1 obligation 7
 (statistical-tolerance form): a gap smaller than this MUST NOT be read as
@@ -287,25 +303,29 @@ def _great_circle_centroids(n: int, d_c: int) -> torch.Tensor:
     return ring
 
 
-def _cap_area_second_derivative(theta: float, d_c: int, h: float = 1e-5) -> float:
-    """Central-difference `G''` of the spherical cap-area function."""
+def _cap_area_d2_closed_form(theta: float, d_c: int) -> float:
+    """Analytic `G''(θ)` of the spherical cap-area function.
+
+    From `G(θ) = ½·I_{sin²θ}((d_c−1)/2, ½)`:
+
+        G'(θ)  = sin^(d_c−2)(θ) / B((d_c−1)/2, ½)
+        G''(θ) = (d_c−2)·sin^(d_c−3)(θ)·cos(θ) / B((d_c−1)/2, ½)
+
+    This is the ONLY trustworthy way to read the curvature. Do NOT replace it
+    with a finite difference of `sphere._cap_area`: that helper integrates
+    with a single 8-point Gauss–Legendre panel and no subdivision, and its
+    numerical second difference develops a spurious sign change near
+    `82°`–`88°` that has nothing to do with the shape of `G`.
+    """
+    a = (d_c - 1) / 2.0
     return (
-        sphere._cap_area(theta + h, d_c)
-        - 2.0 * sphere._cap_area(theta, d_c)
-        + sphere._cap_area(theta - h, d_c)
-    ) / (h * h)
-
-
-def _convexity_boundary(d_c: int) -> float:
-    """Largest `theta` in degrees for which `G` is convex (first zero of `G''`)."""
-    lo, hi = math.radians(70.0), math.radians(90.0)
-    for _ in range(60):
-        mid = 0.5 * (lo + hi)
-        if _cap_area_second_derivative(mid, d_c) > 0.0:
-            lo = mid
-        else:
-            hi = mid
-    return math.degrees(0.5 * (lo + hi))
+        (d_c - 2)
+        * math.sin(theta) ** (d_c - 3)
+        * math.cos(theta)
+        / math.gamma(a)
+        / math.gamma(0.5)
+        * math.gamma(a + 0.5)
+    )
 
 
 def test_voronoi_measurement_layer() -> None:
@@ -325,12 +345,15 @@ def test_voronoi_measurement_layer() -> None:
 
     The bound below is a COMMENSURABILITY bound, not a one-sidedness bound and
     not the estimator's noise floor. The true gap on this fixture is 0.0399°,
-    which is ~5.6x the estimator's 0.0071° standard error — a real deviation,
-    because this fixture's cells are genuinely not equal-area, just small in
-    absolute terms. A 5σ bound would therefore be the wrong threshold (it
-    rejects a real signal); the `1.0°` bound below instead states the property
-    this test exists to protect, that the two quantities now live in the same
-    neighbourhood. For direction-only checks see `test_voronoi_angle_one_sided_gap`.
+    which is ~2730x the estimator's `1.461e-5°` standard error — a real
+    deviation, because this fixture's cells are genuinely not equal-area,
+    just small in absolute terms. A 5σ bound would therefore be the wrong
+    threshold (it rejects a real signal); the `0.2°` bound below instead
+    states the property this test exists to protect, that the two quantities
+    now live in the same neighbourhood. `0.2°` is 5x the true gap and 1.2x
+    the estimator's `5σ = 7.31e-5°` x 2700, so it has ample headroom while
+    still rejecting the superseded statistic. For direction-only checks see
+    `test_voronoi_angle_one_sided_gap`.
     """
     torch.manual_seed(0)
     N_e, d_c = 16, 16
@@ -357,13 +380,15 @@ def test_voronoi_measurement_layer() -> None:
     theta = sphere.voronoi_angle(centroids)
     assert 0.0 < theta < math.pi, f"voronoi_angle = {theta} rad must be in (0, π)"
     canonical = sphere.canonical_voronoi_angle(num_experts=16, signature_dim=16)
-    # Commensurability: the realised measure sits within 1.0 deg of the
-    # equal-area ideal. The superseded all-pairs statistic was 0.8154 rad
-    # (46.72 deg) away here — 47x this bound.
-    bound = math.radians(1.0)
+    # Commensurability: the realised measure sits within 0.2 deg of the
+    # equal-area ideal (true gap 0.0399 deg, so 5x headroom). The superseded
+    # all-pairs statistic was 0.8154 rad (46.72 deg) away here — 234x this
+    # bound, and it slipped past the previous, 5x looser 1.0 deg threshold
+    # only because the looser bound was never actually applied to it.
+    bound = math.radians(0.2)
     assert abs(theta - canonical) < bound, (
         f"realized θ̂ = {math.degrees(theta):.4f}° is {math.degrees(abs(theta - canonical)):.4f}° "
-        f"from canonical {math.degrees(canonical):.4f}°, exceeding the 1.0° "
+        f"from canonical {math.degrees(canonical):.4f}°, exceeding the 0.2° "
         f"commensurability bound; actual_delta_rad={abs(theta - canonical):.3e}"
     )
 
@@ -431,9 +456,10 @@ def test_voronoi_angle_equal_area_witness_equal_area_configurations() -> None:
     equal-area, so this separates "the sites look spread out" from "the
     cells are equal-area" — the distinction a Voronoi measure must track.
 
-    Tolerance `abs=1e-3` degrees ≈ 28x the measured 5σ (0.0355 deg) and ≈
-    12x the measured cross-seed spread (8.6e-5 deg), per req-gov-1
-    obligation 7. Measured gaps: 6.5e-5 / 1.0e-4 / 0.0 deg respectively.
+    Tolerance `abs=1e-3` degrees is `13.7x` the derived `5σ = 7.31e-5 deg`
+    and `23.8x` the measured cross-seed spread (`4.20e-5 deg`, 8 seeds), per
+    req-gov-1 obligation 7. Measured gaps: 6.5e-5 / 1.0e-4 / 0.0 deg
+    respectively.
     """
     torch.manual_seed(0)
     d_c = 16
@@ -467,7 +493,7 @@ def test_voronoi_angle_not_degenerate_mean_area_form() -> None:
     Both fixtures below are wildly non-equal-area. Measured per-cell θ̂ vs
     the degenerate form: 40.3868° vs 67.2394° (26.85° apart) and 64.7660°
     vs 67.2394° (2.47° apart). The `1.0°` threshold is below the smaller
-    separation and far above the estimator's 5σ (0.0355°).
+    separation and ~1.4e4x the estimator's `5σ = 7.31e-5°`.
     """
     torch.manual_seed(0)
     d_c = 16
@@ -490,17 +516,19 @@ def test_voronoi_angle_not_degenerate_mean_area_form() -> None:
 def test_voronoi_angle_one_sided_gap() -> None:
     """`canonical − θ̂ ≥ 0`: the equal-area deviation is one-sided.
 
-    Under the convexity precondition of `voronoi_angle`'s docstring — every
-    cell radius below `θ_conv(d_c)`, measured `82.6036°` at `d_c = 16` —
-    `G` is convex in θ, `G⁻¹` is concave on the matching area interval, and
-    Jensen gives `θ̂ ≤ G⁻¹(mean A) = canonical` with equality iff the cells
-    are equal-area. Beyond the convex branch the inequality was observed to
-    hold in every measured case but is NOT a theorem, so it is guarded here
-    as a direction check rather than asserted as a closed form.
+    Under the precondition of `voronoi_angle`'s docstring — every cell smaller
+    than a hemisphere, `∀i: A_i < 0.5`, which holds because `G` is strictly
+    convex on all of `(0, π/2)` — `G⁻¹` is concave on the matching area
+    interval `(0, 0.5)`, and Jensen gives `θ̂ ≤ G⁻¹(mean A) = canonical` with
+    equality iff the cells are equal-area. Past a hemisphere the reflected
+    branch takes over and the inequality is observed behaviour, not a
+    theorem, so it is guarded here as a direction check.
 
-    Fixtures are chosen so the true gap is tens to hundreds of σ, which is
+    Fixtures are chosen so the true gap is tens of thousands of σ, which is
     what makes a strict `≥ 0` meaningful: a sign flip would be visible.
-    Measured gaps: 26.8525° (756σ), 11.3372° (319σ), 2.4734° (70σ).
+    Measured gaps: 26.8525°, 11.3372°, 2.4734° — i.e. `3.7e5σ`, `1.6e5σ`
+    and `3.4e4σ` of `5σ = 7.31e-5°`. (An earlier revision quoted 756σ / 319σ
+    / 70σ against a `5σ` of `0.0355°` that was `486×` too large.)
     """
     torch.manual_seed(0)
     d_c = 16
@@ -520,34 +548,112 @@ def test_voronoi_angle_one_sided_gap() -> None:
         )
 
 
-def test_voronoi_angle_convexity_boundary() -> None:
-    """`θ_conv(d_c)`, the precondition of the one-sided bound, is pinned.
+def test_voronoi_angle_precondition_is_area_below_half() -> None:
+    """The Jensen precondition of `voronoi_angle` is `∀i: A_i < 0.5`.
 
-    The Jensen argument in `voronoi_angle`'s docstring requires every cell
-    radius to lie in the first convex branch of `G`; the MVP operating point
-    `canonical(16, 16) = 67.2394°` sits inside it with margin. This test
-    measures the branch boundary so the docstring cannot drift into claiming
-    convexity on a region where `G` is concave — the superseded docstring
-    already made an unverified global claim once.
+    `G(θ) = ½·I_{sin²θ}((d_c−1)/2, ½)` is STRICTLY CONVEX on all of
+    `(0, π/2)`, so `G⁻¹` is concave on the whole matching area interval
+    `(0, 0.5)` and the one-sided bound needs no per-`d_c` angle threshold.
+    An earlier revision of this file asserted a `θ_conv(d_c)` convexity
+    boundary at `81.3148° / 82.6036° / 83.7313°`, measured by central-
+    differencing `sphere._cap_area`. Those numbers are an ARTEFACT of that
+    helper's single-panel 8-point Gauss–Legendre quadrature, not a property
+    of `G`; the assertions below are the regression guard against the claim
+    returning.
     """
-    for d_c, expected_deg in ((8, 81.3148), (16, 82.6036), (32, 83.7313)):
-        boundary = _convexity_boundary(d_c)
-        assert boundary == pytest.approx(expected_deg, abs=1e-3), (
-            f"actual={boundary} deg for d_c={d_c} — the convexity boundary of "
-            f"G moved; the Jensen precondition stated in sphere.py must be "
-            f"realigned to this measurement"
+    # (1) G'' > 0 across the WHOLE open interval, at every pinned d_c.
+    for d_c in (8, 16, 32):
+        for deg in (0.5, 30.0, 60.0, 81.3148, 82.6036, 83.7313, 88.0, 89.5):
+            g2 = _cap_area_d2_closed_form(math.radians(deg), d_c)
+            assert g2 > 0.0, (
+                f"actual_G''={g2} at {deg} deg, d_c={d_c}; G is strictly "
+                f"convex on (0, pi/2) so this must be positive"
+            )
+
+    # (2) The retired per-d_c boundaries are NOT sign changes: the true G''
+    # stays positive a full degree above each of them.
+    for d_c, retired in ((8, 81.3148), (16, 82.6036), (32, 83.7313)):
+        for deg in (retired + 1.0, retired + 5.0):
+            g2 = _cap_area_d2_closed_form(math.radians(deg), d_c)
+            assert g2 > 0.0, (
+                f"actual_G''={g2} at {deg} deg, d_c={d_c}; the retired "
+                f"theta_conv={retired} was a quadrature artefact, not a "
+                f"convexity boundary"
+            )
+
+    # (3) The stated precondition actually holds for the equal-area witnesses.
+    # Margin is 0.5/A = N_e/2, so the tightest case here is N_e=8 at 4.0x.
+    d_c = 16
+    for N_e in (8, 16, 32):
+        canonical = sphere.canonical_voronoi_angle(N_e, d_c)
+        A = sphere._cap_area(canonical, d_c)
+        assert A == pytest.approx(1.0 / N_e, abs=1e-12), (
+            f"actual_A={A} for N_e={N_e}; by definition canonical is the "
+            f"cap whose area fraction is 1/N_e"
         )
-        # Convex strictly below the boundary, concave strictly above it.
-        below = math.radians(boundary) - math.radians(1.0)
-        above = math.radians(boundary) + math.radians(1.0)
-        assert _cap_area_second_derivative(below, d_c) > 0.0, (
-            f"actual_second_derivative={_cap_area_second_derivative(below, d_c)} "
-            f"at {math.degrees(below)} deg, d_c={d_c}; expected convex"
+        assert A < 0.5, (
+            f"actual_A={A} for N_e={N_e}; the Jensen precondition is A < 0.5"
         )
-        assert _cap_area_second_derivative(above, d_c) < 0.0, (
-            f"actual_second_derivative={_cap_area_second_derivative(above, d_c)} "
-            f"at {math.degrees(above)} deg, d_c={d_c}; expected concave"
+        assert 0.5 / A == pytest.approx(N_e / 2.0, rel=1e-9), (
+            f"actual_margin={0.5 / A} for N_e={N_e}; the margin to the "
+            f"hemisphere ceiling is exactly N_e/2 at the equal-area ideal"
         )
+
+
+def test_voronoi_angle_rejects_non_unit_centroids() -> None:
+    """`centroids` MUST be unit-norm; otherwise the tessellation is silent-wrong.
+
+    The owner of a probe is `argmax_i (p̂ · c_i)`. That selects the nearest
+    site BY ANGLE only when every `‖c_i‖₂ = 1`; otherwise the inner product
+    is scaled by `‖c_i‖₂`, so a far-but-long site can outrank a near-but-short
+    one and the realised tessellation silently differs from the caller's
+    intent. Rejecting beats absorbing.
+    """
+    d_c = 16
+    good = _great_circle_centroids(8, d_c)
+
+    scaled = good * 2.0
+    with pytest.raises(ValueError, match="unit-norm"):
+        sphere.voronoi_angle(scaled)
+
+    mixed = good.clone()
+    mixed[3] = mixed[3] * 1.5
+    with pytest.raises(ValueError, match="unit-norm"):
+        sphere.voronoi_angle(mixed)
+
+    with pytest.raises(ValueError, match="row 3"):
+        sphere.voronoi_angle(mixed)
+
+    # The message must name the offending row so the caller can find it.
+    with pytest.raises(ValueError) as exc:
+        sphere.voronoi_angle(mixed)
+    assert "row 3" in str(exc.value), f"actual_message={str(exc.value)}"
+
+
+def test_voronoi_angle_honours_centroid_dtype() -> None:
+    """`float64` centroids MUST work — a `float32`-only matmul is a regression.
+
+    The superseded implementation paired `centroids @ centroids.T`, so both
+    sides shared a dtype and a `float64` tensor worked. Rewriting the owner
+    as `probes @ centroids.T` broke that, because the probe block is generated
+    at the default `float32`: `RuntimeError: expected m1 and m2 to have the
+    same dtype`. The probes are now cast to `centroids.dtype`, and the two
+    dtypes MUST agree numerically.
+    """
+    d_c = 16
+    centroids32 = _great_circle_centroids(8, d_c)
+    centroids64 = centroids32.to(torch.float64)
+    assert centroids64.dtype == torch.float64
+
+    theta32 = sphere.voronoi_angle(centroids32)
+    theta64 = sphere.voronoi_angle(centroids64)
+    assert math.degrees(theta64) == pytest.approx(
+        math.degrees(theta32), abs=1e-6
+    ), (
+        f"actual_float64={math.degrees(theta64)} deg vs "
+        f"actual_float32={math.degrees(theta32)} deg; the dtype cast must not "
+        f"change the result beyond float32 resolution"
+    )
 
 
 def test_voronoi_angle_reflected_cap_branch_n_e_2() -> None:
@@ -560,8 +666,12 @@ def test_voronoi_angle_reflected_cap_branch_n_e_2() -> None:
     than half depending on the probe draw, so at least one cell exceeds 0.5.
 
     Two sites 20° apart are symmetric, so the two cells are near-equal and
-    the mean lands on `canonical(2, 16) = 90.0°` exactly. The point of the
-    test is that the branch executes and returns a finite in-range angle.
+    the mean lands on `canonical(2, 16) = 90.0°` exactly. That symmetry is
+    precisely why the returned value CANNOT discriminate the branch — the
+    degenerate `G⁻¹(mean_i A_i)` form returns the same `90.0°` here — so the
+    branch guard below spies on `_cap_radius` and asserts that an area above
+    the `G(π/2) = 0.5` ceiling was actually inverted, and that the radius it
+    produced exceeded `π/2`.
     """
     d_c = 16
     b = torch.zeros(d_c)
@@ -585,16 +695,32 @@ def test_voronoi_angle_reflected_cap_branch_n_e_2() -> None:
         f"reach 1.0 at theta = pi"
     )
 
-    theta = sphere.voronoi_angle(centroids)
-    canonical = sphere.canonical_voronoi_angle(2, d_c)
+    # Spy on the public call path: record every (area, radius) pair inverted.
+    seen: list[tuple[float, float]] = []
+    real = sphere._cap_radius
+
+    def _recording(area: float, dc: int) -> float:
+        r = real(area, dc)
+        seen.append((area, r))
+        return r
+
+    sphere._cap_radius = _recording
+    try:
+        theta = sphere.voronoi_angle(centroids)
+    finally:
+        sphere._cap_radius = real
+
+    over = [(a, r) for a, r in seen if a > 0.5]
+    assert over, (
+        f"seen_areas={[a for a, _ in seen]} — no cell exceeded 0.5, so the "
+        f"reflected branch was never exercised through voronoi_angle"
+    )
+    for a, r in over:
+        assert r > math.pi / 2, (
+            f"actual_radius={r} rad for area={a} (>0.5); the reflected branch "
+            f"must invert past pi/2, the small-cap branch saturates at 0.5"
+        )
     assert 0.0 < theta < math.pi, f"actual={theta} rad must be in (0, π)"
-    assert math.degrees(theta) == pytest.approx(90.0, abs=1e-2), (
-        f"actual={math.degrees(theta)} deg — canonical(2, 16) is 90.0 deg by "
-        f"definition (G(pi/2) = 0.5 = 1/2) and the two cells are symmetric"
-    )
-    assert abs(theta - canonical) < math.radians(1e-2), (
-        f"actual_delta_deg={math.degrees(abs(theta - canonical))}"
-    )
 
 
 def test_voronoi_impl_output_within_1e6_of_exact_root() -> None:
@@ -666,11 +792,29 @@ def test_versine_voronoi_closed_form() -> None:
     # on the closed-form definition itself).
     v_16_16 = 1.0 - math.cos(sphere.canonical_voronoi_angle(num_experts=16, signature_dim=16))
     v_64_16 = 1.0 - math.cos(sphere.canonical_voronoi_angle(num_experts=64, signature_dim=16))
-    # Step 2b: spec L236-L237 4dp `versine` literal pins. versine is a derived
-    # quantity, so it is pinned at the spec's stated 4dp precision (abs=1e-4).
-    assert v_16_16 == pytest.approx(0.6131, abs=1e-4), f"actual={v_16_16}"
-    assert v_64_16 == pytest.approx(0.4771, abs=1e-4), f"actual={v_64_16}"
-    # Step 3: versine MUST NOT be chord distance (per spec L233 distinction).
+    # Step 2b: wayfinder/spec.md L236-L237 4dp `versine` literal pins. A
+    # 4-decimal spec display value is guarded by EXACT `round(v, 4) == literal`,
+    # per `decompmoe-skeleton` req-6 (same rule as `round(θ, 4) == 1.1735`),
+    # NOT by a widened `pytest.approx` tolerance.
+    assert round(v_16_16, 4) == 0.6131, f"actual={v_16_16}"
+    assert round(v_64_16, 4) == 0.4771, f"actual={v_64_16}"
+    # Step 2c: the deviation the `round()` decision rests on. `governance`
+    # req-gov-1's bisection-Voronoi Scenario states both deviations, so per
+    # CLAUDE.md §6 they are pinned numerically here rather than only described
+    # in prose. Quoted to 6 significant figures with a matching `abs=1e-10`
+    # (the 6th significant figure of a ~1e-5 quantity sits at the 1e-10 place).
+    # The load-bearing spec claim is the strict bound below, not the digits.
+    dev_16_16 = abs(v_16_16 - 0.6131)
+    dev_64_16 = abs(v_64_16 - 0.4771)
+    assert dev_16_16 == pytest.approx(1.78409e-5, abs=1e-10), f"actual={dev_16_16!r}"
+    assert dev_64_16 == pytest.approx(3.40071e-5, abs=1e-10), f"actual={dev_64_16!r}"
+    assert dev_16_16 < 5e-5 and dev_64_16 < 5e-5, (
+        f"both deviations MUST be strictly below the 4dp half-unit 5e-5, "
+        f"which is what makes round(v, 4) a decision on the display form; "
+        f"actual=({dev_16_16:.6e}, {dev_64_16:.6e})"
+    )
+    # Step 3: versine MUST NOT be chord distance (per wayfinder/spec.md L235
+    # definitional layer, which forbids conflating versine with D_chord).
     # versine ∈ [0, 1]; chord ∈ [0, 2]. Sanity check at MVP scale.
     assert 0 < v_16_16 < 1, f"versine_Voronoi(16,16) = {v_16_16:.4f} must be in (0, 1)"
     assert 0 < v_64_16 < 1, f"versine_Voronoi(64,16) = {v_64_16:.4f} must be in (0, 1)"

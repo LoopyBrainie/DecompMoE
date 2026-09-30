@@ -134,17 +134,30 @@ def _betainc_regularized(x: float, a: float, b: float) -> float:
 VORONOI_AREA_SAMPLES = 1_000_000
 """Monte-Carlo probe count used by `voronoi_angle` to estimate cell areas.
 
-At the MVP point `(N_e=16, d_c=16)` this yields a standard error of the
-returned mean of ≈ `0.0071°` (per-cell SD `0.0284°` at `dG/dθ = 0.488421`,
-averaged over 16 cells), so `5σ ≈ 0.0355°`.
+At the MVP point `(N_e=16, d_c=16)` this gives a standard error of the
+returned mean of `1.461e-5°`, so `5σ ≈ 7.31e-5°`.
+
+The derivation respects the exact constraint `Σ_i A_i ≡ 1` (one `argmax`
+owner per probe ⇒ `Σ_i n_i = M`), so the first-order term of
+`θ̂ − G⁻¹(1/N_e)` cancels identically and the leading fluctuation is second
+order — the spread scales as `1/M`, not `1/√M`. Treating the `N_e` cell
+areas as independent instead yields `0.0071°` / `5σ = 0.0355°`, which is
+`486×` too large; that superseded figure MUST NOT be reintroduced.
 """
 
 VORONOI_AREA_SEED = 20260929
 """Fixed probe seed, so `voronoi_angle` is deterministic and pinnable.
 
-Measured crosspolytope spread across seeds 0 / 1 / 20260929 / 42 at
-`VORONOI_AREA_SAMPLES = 1_000_000` is `6.6e-5° .. 8.6e-5°` away from
-`canonical_voronoi_angle(32, 16)`.
+Measured crosspolytope(32) spread across seeds 0 / 1 / 7 / 42 / 123 / 999 /
+20260929 / 31337 at `VORONOI_AREA_SAMPLES = 1_000_000` is `3.68e-5°`, with a
+per-seed SD of `1.53e-5°` — the predicted `σ = 1.461e-5°` to within `5%`.
+
+Every one of those seeds lands `6.1e-5° .. 9.8e-5°` BELOW
+`canonical_voronoi_angle(32, 16)`, all the same sign. That is not sampler
+noise: it is the canonical side's own error, since
+`canonical_voronoi_angle` is a bisection root of `_betainc_regularized` and
+its true closed-form residual is documented in
+`openspec/specs/decompmoe-skeleton/spec.md` req-6.
 """
 
 
@@ -251,22 +264,34 @@ def voronoi_angle(centroids: Tensor) -> float:
     detects nothing. `tests/test_sphere.py::test_voronoi_angle_not_degenerate_mean_area_form`
     exists specifically to kill that regression.
 
-    One-sidedness (Jensen). `G` is convex in θ on its first convex branch, so
-    `G⁻¹` is concave on the matching area interval; if every `θ̂_i` lies in
-    that branch then
+    One-sidedness (Jensen). `G` is STRICTLY CONVEX on the whole of
+    `(0, π/2)`, with no convexity boundary to worry about. Differentiating
+    the defining closed form gives
+
+        G'(t)  = sin^(d_c−2)(t) / B((d_c−1)/2, ½)
+        G''(t) = (d_c−2)·sin^(d_c−3)(t)·cos(t) / B((d_c−1)/2, ½)
+
+    and for `d_c ≥ 3` every factor is strictly positive on `(0, π/2)`, so
+    `G'' > 0` there and `G⁻¹` is concave on the matching area interval
+    `(0, 0.5)`. The precondition therefore reduces to every cell being
+    smaller than a hemisphere — `∀i: A_i < 0.5`. Then
 
         θ̂ = (1/N_e) Σ G⁻¹(A_i) ≤ G⁻¹((1/N_e) Σ A_i) = G⁻¹(1/N_e) = canonical
 
-    with equality iff `A_1 = ⋯ = A_{N_e}`. The precondition is NOT vacuous
-    and is NOT global: measured at `d_c = 16`, `G` is convex on `(0°, 81.9°)`,
-    concave on `(82.8°, 90.0°)`, convex on `(90.9°, 97.2°)` and concave on
-    `(98.1°, 179.1°)`. The MVP operating point `canonical(16, 16) = 67.24°`
-    sits inside the first convex branch, and measured MVP cell areas
-    (largest ≈ 0.077 vs `1/16 = 0.0625`) stay well inside it. Beyond that
-    branch the inequality still held in every measured configuration
-    (8 cases, cell radii out to `109.09°`) but that is OBSERVED BEHAVIOUR,
-    NOT A THEOREM — it is guarded by
+    with equality iff `A_1 = ⋯ = A_{N_e}`. At MVP `canonical(16, 16) =
+    67.24°` and the measured cell areas (largest ≈ 0.077 vs `1/16 = 0.0625`)
+    leave an `A_i < 0.5` margin of ~`6.5×`. `G⁻¹`'s concavity does NOT extend
+    past a hemisphere: for `A_i > 0.5` the reflected branch takes over and
+    the inequality is OBSERVED BEHAVIOUR, NOT A THEOREM — it is guarded by
     `test_voronoi_angle_one_sided_gap`, not asserted as a closed form.
+
+    ⚠️ Do NOT measure this curvature by finite-differencing `_cap_area`.
+    That helper integrates with a single 8-point Gauss–Legendre panel and no
+    subdivision, and its numerical second difference develops a spurious sign
+    change near `82°`–`88°` that is a QUADRATURE ARTEFACT, not a property of
+    `G` (the true `G''` there is `+0.21`…`+2.46`, strictly positive). The
+    guard is `test_voronoi_angle_precondition_is_area_below_half`, which uses
+    the closed form above.
 
     Corrected inversion, for the record. The superseded implementation fed
     the mean pairwise CHORD `c = √(2·(1−cos θ))` into the slot that expects a
@@ -275,18 +300,44 @@ def voronoi_angle(centroids: Tensor) -> float:
     output over the sampled grid (10°/45°/60°/120°/150°) by
     `+24.3416° / +31.4300° / +30.0000° / +17.0586° / +8.7253°`; those are the
     min/max of THAT SAMPLE, not a global bound. A 1.8e6-point scan gives the
-    true peak `+31.5868°` at `θ* = 2·arcsin(1/3) = 38.9420°` (derivation:
+    true peak `+31.5863380965°` at `θ* = 2·arcsin(1/3) = 38.9424412690°` (derivation:
     `e(θ) = arccos(1 − 2sin(θ/2)) − θ`, `e′ = 0 ⟺ 3s² − 4s + 1 = 0 ⟺ s = 1/3`),
     and the error vanishes at BOTH ends (`e(180°) = 0`, `e(0.5°) = +7.07°`,
     `e(179°) = +0.29°`). The superseded implementation also averaged over all
     `i < j` pairs, which is not a Voronoi quantity at all: at the crosspolytope
     it returned `115.6651°` where the canonical answer is `62.5445°`.
 
-    Measurement error. `VORONOI_AREA_SAMPLES = 1_000_000` probes give the
-    returned mean a standard error of ≈ `0.0071°` at MVP (`5σ ≈ 0.0355°`).
-    Do not read a gap smaller than that as a real deviation — use
-    `test_voronoi_angle_equal_area_witness_crosspolytope` for the
-    equal-area reference point, where the TRUE gap is `6.5e-5°`.
+    Measurement error. The exact constraint `Σ_i A_i ≡ 1` — every probe is
+    assigned to exactly one `argmax` owner, so `Σ_i n_i = M` identically —
+    makes the FIRST-ORDER term of `θ̂ − G⁻¹(1/N_e)` vanish exactly
+    (`Σ_i ε_i ≡ 0` with `ε_i := A_i − 1/N_e`). The leading fluctuation is
+    therefore the second-order one, `(1/(2N_e))·g''·Σ_i ε_i²` with
+    `g'' = [G⁻¹]'' = −G''/G'³`, and `Var(Σ_i ε_i²) ≈ 2·N_e·(A(1−A)/M)²`:
+    the spread scales as `1/M`, not `1/√M`. At MVP
+    (`d_c=16`, `N_e=16`, `M=1_000_000`) `G'(θ₀) = 0.488436`,
+    `g'' = −24.6207`, giving a standard error of `1.461e-5°` and
+    `5σ ≈ 7.31e-5°` — corroborated by a measured cross-seed SD of `1.353e-5°`
+    (8 seeds). An earlier revision of this docstring derived `0.0071°` by
+    treating the `N_e` cell areas as independent; that is `486×` too large
+    and is superseded. `abs=1e-3` (`13.7×` this `5σ`) is therefore a safe
+    witness tolerance, not a tight one. Use
+    `test_voronoi_angle_equal_area_witness_crosspolytope` for the equal-area
+    reference point, where the TRUE gap is `6.5e-5°`.
+
+    Degenerate input. A cell that captures no probe has `A_i = 0` and
+    contributes `G⁻¹(0) = 0` to the mean, biasing `θ̂` DOWN. This is
+    mathematically correct (a zero-area cell has zero equivalent-cap radius)
+    and is REQUIRED: the one-sidedness witnesses deliberately pass exact
+    duplicate sites, which leaves every shadowed copy with zero area. It
+    signals a degenerate tessellation, not a sampler failure.
+
+    `centroids` MUST be unit-norm (`‖c_i‖₂ = 1`). The owner is the `argmax` of
+    `p̂ · c_i`, which selects the nearest site BY ANGLE only when every
+    `‖c_i‖₂ = 1`; otherwise the inner product is scaled by `‖c_i‖₂` and the
+    realised tessellation silently differs from the caller's intent. A
+    deviation beyond `1e-6` is rejected rather than absorbed. dtype is
+    honoured: the probes are cast to `centroids.dtype`, so a `float64`
+    tensor works exactly as a `float32` one does.
     """
     if centroids.dim() != 2:
         raise ValueError(
@@ -298,11 +349,20 @@ def voronoi_angle(centroids: Tensor) -> float:
     d_c = centroids.shape[1]
     if d_c < 2:
         raise ValueError(f"signature_dim must be ≥ 2; got d_c={d_c}")
+    norms = centroids.norm(dim=-1)
+    if not torch.allclose(norms, torch.ones_like(norms), atol=1e-6, rtol=0.0):
+        worst = int(torch.argmax((norms - 1.0).abs()))
+        raise ValueError(
+            f"centroids must be unit-norm on S^{{{d_c} - 1}}; row {worst} has "
+            f"norm {float(norms[worst])!r} (tolerance 1e-6). The argmax owner "
+            f"is the nearest site by ANGLE only when every norm is 1; "
+            f"normalize with torch.nn.functional.normalize(centroids, dim=-1)"
+        )
 
     generator = torch.Generator().manual_seed(VORONOI_AREA_SEED)
     probes = torch.nn.functional.normalize(
         torch.randn(VORONOI_AREA_SAMPLES, d_c, generator=generator), dim=-1
-    )
+    ).to(centroids.dtype)
     owner = (probes @ centroids.T).argmax(dim=1)
     areas = torch.bincount(owner, minlength=N_e).to(torch.float64) / (
         VORONOI_AREA_SAMPLES
