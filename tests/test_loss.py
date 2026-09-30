@@ -31,10 +31,10 @@ def test_load_balance_alpha_fixed() -> None:
     c = torch.nn.functional.normalize(torch.randn(N_e, 16), dim=-1)
     parts = loss_mod.L_total(task_logits, targets, f, p, c, phase=1, step=1_000)
     assert parts.L_lb_raw.item() == pytest.approx(1.0, abs=1e-6), (
-        f"L_lb_raw(uniform) = {parts.L_lb_raw.item()}, expected 1.0"
+        f"actual={parts.L_lb_raw.item()}; L_lb_raw(uniform) expected 1.0"
     )
     assert parts.L_lb.item() == pytest.approx(0.01, abs=1e-8), (
-        f"L_lb = α · 1.0 must equal 0.01; got {parts.L_lb.item()}"
+        f"actual={parts.L_lb.item()}; L_lb = α · 1.0 must equal 0.01"
     )
 
 
@@ -72,7 +72,7 @@ def test_lb_gradient_flows_through_P_i() -> None:
     parts = loss_mod.L_total(task_logits, targets, f_uniform, p_uniform, c, phase=1, step=1_000)
     # Closed-form guard on the forward value (spec Req 11: α=0.01 pinned).
     assert parts.L_lb.item() == pytest.approx(0.01, abs=1e-6), (
-        f"L_lb(uniform) = {parts.L_lb.item()}, expected α · 1.0 = 0.01 per "
+        f"actual={parts.L_lb.item()}; expected α · 1.0 = 0.01 per "
         f"spec closed form α · N_e · Σ (1/N_e) · (1/N_e)"
     )
     grad_p = torch.autograd.grad(parts.L_lb, p_uniform, retain_graph=True)[0]
@@ -154,7 +154,7 @@ def test_lambda_zero_phase_1_2() -> None:
             task_logits, targets, f, p, c, phase=phase, step=phase * 5_000
         )
         assert parts.L_sep.item() == pytest.approx(0.0, abs=1e-12), (
-            f"phase {phase} should have λ=0 ⇒ L_sep=0; got {parts.L_sep}"
+            f"actual={parts.L_sep.item()}; phase {phase} should have λ=0 ⇒ L_sep=0"
         )
 
 
@@ -174,9 +174,15 @@ def test_lambda_cosine_ramp_phase_3() -> None:
     lam_start = loss_mod._lambda_at(3, 26_000)
     lam_mid = loss_mod._lambda_at(3, 41_000)
     lam_end = loss_mod._lambda_at(3, 55_999)
-    assert lam_start == pytest.approx(0.0, abs=1e-12)
-    assert lam_mid == pytest.approx(5e-4, abs=1e-6), f"λ(41_000)={lam_mid}"
-    assert lam_end == pytest.approx(0.001, abs=1e-6), f"λ(55_999)={lam_end}"
+    assert lam_start == pytest.approx(0.0, abs=1e-12), (
+        f"actual={lam_start}; λ(26_000) should be 0 at the phase-3 ramp start"
+    )
+    assert lam_mid == pytest.approx(5e-4, abs=1e-6), (
+        f"actual={lam_mid}; λ(41_000) expected 5e-4"
+    )
+    assert lam_end == pytest.approx(0.001, abs=1e-6), (
+        f"actual={lam_end}; λ(55_999) expected 0.001"
+    )
 
 
 def test_lambda_fixed_phase_4() -> None:
@@ -205,7 +211,7 @@ def test_sep_formula_orthonormal_degenerate() -> None:
     c = torch.eye(N_e, d_c)
     L_sep = loss_mod.compute_L_sep(c)
     assert L_sep.item() == pytest.approx(0.0, abs=1e-12), (
-        f"L_sep(orthonormal basis) = {L_sep.item()}, expected 0"
+        f"actual={L_sep.item()}; L_sep(orthonormal basis) expected 0"
     )
 
 
@@ -226,7 +232,7 @@ def test_sep_formula_non_degenerate() -> None:
     actual = loss_mod.compute_L_sep(c)
     assert actual.item() > 0, "L_sep must be > 0 for non-orthogonal centroids"
     assert actual.item() == pytest.approx(float(expected), abs=1e-9), (
-        f"L_sep mismatch: got {actual.item()}, expected {float(expected)}"
+        f"actual={actual.item()}; L_sep expected {float(expected)}"
     )
 
     # Sanity: pair-wise reformulation is mathematically equivalent but
@@ -238,7 +244,7 @@ def test_sep_formula_non_degenerate() -> None:
             pair_sum += float(G[i, j]) ** 2
     expected_pairs = (2.0 / (N_e * (N_e - 1))) * pair_sum
     assert actual.item() == pytest.approx(expected_pairs, abs=1e-6), (
-        f"L_sep pair-wise form mismatch: got {actual.item()}, expected {expected_pairs}"
+        f"actual={actual.item()}; L_sep pair-wise form expected {expected_pairs}"
     )
 
 
