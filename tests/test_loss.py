@@ -163,14 +163,9 @@ def test_lambda_cosine_ramp_phase_3() -> None:
 
     Spec: skeleton "Loss Composition With Staged Lambda", Scenario
     "Lambda cosine ramp endpoints in phase 3": λ(26_000) == 0.0,
-    λ(41_000) ≈ 5e-4, λ(55_999) ≈ 0.001 (via L_sep = λ·L_sep_raw with a
-    known L_sep_raw).
+    λ(41_000) ≈ 5e-4, λ(55_999) ≈ 0.001. λ(t) is verified directly against
+    the cosine closed form, so no L_sep_raw reference scaling is needed.
     """
-    c = torch.nn.functional.normalize(torch.randn(16, 16), dim=-1)
-    # Compute L_sep_raw once for reference scaling.
-    ref = loss_mod.compute_L_sep(c).item()
-    assert ref > 0, "need nonzero L_sep_raw for ramp verification"
-    del ref  # λ(t) verified directly against the cosine closed form
     lam_start = loss_mod._lambda_at(3, 26_000)
     lam_mid = loss_mod._lambda_at(3, 41_000)
     lam_end = loss_mod._lambda_at(3, 55_999)
@@ -196,8 +191,103 @@ def test_lambda_fixed_phase_4() -> None:
     c = torch.nn.functional.normalize(torch.randn(N_e, 16), dim=-1)
     parts1 = loss_mod.L_total(task_logits, targets, f, p, c, phase=4, step=56_000)
     parts2 = loss_mod.L_total(task_logits, targets, f, p, c, phase=4, step=100_000)
-    assert torch.allclose(parts1.L_sep, 0.001 * parts1.L_sep_raw, atol=1e-6)
-    assert torch.allclose(parts2.L_sep, 0.001 * parts2.L_sep_raw, atol=1e-6)
+    assert torch.allclose(parts1.L_sep, 0.001 * parts1.L_sep_raw, atol=1e-6), (
+        f"actual={parts1.L_sep.item()} vs 0.001 * L_sep_raw="
+        f"{parts1.L_sep_raw.item()} at step 56_000"
+    )
+    assert torch.allclose(parts2.L_sep, 0.001 * parts2.L_sep_raw, atol=1e-6), (
+        f"actual={parts2.L_sep.item()} vs 0.001 * L_sep_raw="
+        f"{parts2.L_sep_raw.item()} at step 100_000"
+    )
+
+
+def test_sep_raw_wired_into_l_total() -> None:
+    """`L_total` MUST actually compose `L_sep = λ(t)·compute_L_sep(c)`.
+
+    Spec req-12: `L_sep = (‖CᵀC‖_F² − N_e) / (N_e·(N_e−1))` and
+    `L_total = L_CE + α·L_lb + λ(t)·L_sep`.
+
+    Wiring guard: the closed forms above are only reachable by calling
+    `compute_L_sep` directly, and `test_lambda_fixed_phase_4` compares
+    `L_sep` against `L_sep_raw` *from the same `LossParts`* — so both stay
+    self-consistent even if the call site were rewired to a stub (e.g.
+    `L_sep_raw = torch.zeros(())`) or if `L_total` dropped the separation
+    term. Here `L_sep_raw` is re-derived **independently from `c`** so a
+    zero-stub fails, and the final assertion pins the 3-term composition.
+    """
+    torch.manual_seed(7)
+    B, N, V = 2, 4, 100
+    N_e, d_c = 8, 4
+    task_logits = torch.randn(B, N, V)
+    targets = torch.randint(0, V, (B, N))
+    f = torch.softmax(torch.randn(B, N, N_e), dim=-1)
+    p = torch.softmax(torch.randn(B, N, N_e), dim=-1)
+    c = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
+
+    parts = loss_mod.L_total(task_logits, targets, f, p, c, phase=4, step=56_000)
+
+    # Independent re-derivation of the spec closed form (NOT compute_L_sep).
+    G = c @ c.T
+    expected_sep_raw = float(((G * G).sum() - N_e) / (N_e * (N_e - 1)))
+    assert expected_sep_raw > 0.0, (
+        f"test setup is degenerate: expected_sep_raw={expected_sep_raw} must be > 0"
+    )
+    assert parts.L_sep_raw.item() == pytest.approx(expected_sep_raw, abs=1e-9), (
+        f"actual={parts.L_sep_raw.item()}; L_total must expose the spec "
+        f"L_sep closed form {expected_sep_raw} re-derived from c"
+    )
+
+    lam = loss_mod._lambda_at(4, 56_000)
+    assert parts.L_sep.item() == pytest.approx(lam * expected_sep_raw, abs=1e-9), (
+        f"actual={parts.L_sep.item()}; expected λ={lam} * L_sep_raw="
+        f"{expected_sep_raw}"
+    )
+
+    expected_total = parts.L_CE.item() + parts.L_lb.item() + parts.L_sep.item()
+    assert parts.L_total.item() == pytest.approx(expected_total, abs=1e-6), (
+        f"actual={parts.L_total.item()}; L_total must equal "
+        f"L_CE({parts.L_CE.item()}) + L_lb({parts.L_lb.item()}) + "
+        f"L_sep({parts.L_sep.item()})"
+    )
+
+
+def test_lb_N_e_comes_from_cfg_not_tensor_width() -> None:
+    """The spec's `N_e` multiplier MUST come from `cfg.N_e` when supplied.
+
+    Spec req-12 closed form: `L_lb = N_e · Σ_i f_i.detach() · P_i`, where
+    `N_e` is the model-wide constant. The call site therefore has to read the
+    authoritative configured value rather than inferring `N_e` from the
+    routing tensor's last dimension.
+
+    The two are deliberately made inconsistent here (tensor width 8 vs
+    `cfg.N_e = 4`) because that is the *only* way to tell the two sources
+    apart; under a correct call they coincide by the `N_e` invariant, and a
+    test using matching widths would pass under either implementation.
+    """
+    torch.manual_seed(11)
+    B, N, V = 2, 4, 100
+    width = 8
+    task_logits = torch.randn(B, N, V)
+    targets = torch.randint(0, V, (B, N))
+    f = torch.softmax(torch.randn(B, N, width), dim=-1)
+    p = torch.softmax(torch.randn(B, N, width), dim=-1)
+    c = torch.nn.functional.normalize(torch.randn(width, 4), dim=-1)
+
+    from decompmoe.config import MVPConfig
+
+    cfg = MVPConfig(N_e=4)
+    parts = loss_mod.L_total(
+        task_logits, targets, f, p, c, phase=1, step=1_000, cfg=cfg
+    )
+
+    expected = float(
+        (f.detach().mean(dim=(0, 1)) * p.mean(dim=(0, 1))).sum() * cfg.N_e
+    )
+    assert parts.L_lb_raw.item() == pytest.approx(expected, abs=1e-6), (
+        f"actual={parts.L_lb_raw.item()}; expected cfg.N_e={cfg.N_e} scaling "
+        f"→ {expected} (tensor width would give "
+        f"{expected / cfg.N_e * width})"
+    )
 
 
 def test_sep_formula_orthonormal_degenerate() -> None:

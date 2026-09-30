@@ -93,9 +93,11 @@ def L_total(
         c_centroids:    (N_e, d_c) — per-expert centroids.
         phase:          int (0..4) — current schedule phase.
         step:           int — global training step.
-        cfg:            optional MVPConfig (reserved for future spec
-                        requirements; current L_lb / L_sep closed forms
-                        are N_e-derived and do not need cfg).
+        cfg:            optional MVPConfig. Supplies the spec-mandated
+                        `N_e` in the `L_lb` closed form
+                        (`L_lb = N_e · Σ_i f_i.detach() · P_i`); when
+                        omitted, `N_e` falls back to the routing-tensor
+                        width `f_per_expert.shape[-1]`.
 
     Returns:
         LossParts dataclass with each component.
@@ -112,7 +114,11 @@ def L_total(
     # L_CE convention.
     f_det = f_per_expert.detach()
     P_mean = p_per_expert.mean(dim=(0, 1))  # (N_e,)
-    L_lb_raw = (f_det.mean(dim=(0, 1)) * P_mean).sum() * f_per_expert.shape[-1]
+    # `N_e` in the spec closed form is the model-wide constant, so it is read
+    # from cfg whenever the caller supplies one; the routing-tensor width is
+    # only the cfg-free fallback (they coincide under the `N_e` invariant).
+    N_e = cfg.N_e if cfg is not None else f_per_expert.shape[-1]
+    L_lb_raw = (f_det.mean(dim=(0, 1)) * P_mean).sum() * N_e
     L_lb = ALPHA * L_lb_raw
 
     L_sep_raw = compute_L_sep(c_centroids)
