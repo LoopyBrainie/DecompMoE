@@ -53,33 +53,40 @@ def test_beta_param_init_default() -> None:
 
 
 def test_sigma_prime_gamma_init_health_check() -> None:
-    """Spec req-7 L130: σ'(−3.5) ≈ 0.02845 (narrative 4 sig figs); 50-digit mpmath = 0.02845302387973555984.
+    """Spec req-7 L130: σ'(−3.5) ≈ 0.02845 (narrative 4 sig figs).
 
     Cold-start region health-check anchor: σ'(γ_init≈−3.5) MUST stay ≈ 0.02845
-    ("healthy gradient") per spec L130 narrative. The 50-digit mpmath closed-form
-    σ'(−3.5) = σ(−3.5)·(1−σ(−3.5)) = 0.02845302387973555984 is the spec-level
-    mathematical truth; this test is the persistent pytest guard (audit `.audit/`
-    scripts are dropped on archive — pytest is the durable layer).
+    ("healthy gradient") per spec req-7 L130 narrative. The mpmath closed form
+    σ'(−3.5) = σ(−3.5)·(1−σ(−3.5)) = 0.0284530238797355598396878271273… is the
+    spec-level mathematical truth; this test is the persistent pytest guard
+    (`.audit/` scripts are dropped on archive — pytest is the durable layer).
 
-    Two assertions:
-      (a) `abs=1e-30` nail 50-digit mpmath literal (钉值零容差 for mpmath-exact
-          constant-vs-closed-form). NOTE: torch.float32 only has ~7 decimals, so
-          this test uses `mpmath` directly to retain full 50-digit precision.
-      (b) `abs=1e-5` nail narrative 4-sig-fig precision disclosure (works for both
-          fp32/mpmath since this is a coarse tolerance).
+    Two assertions, deliberately in different numeric frames:
+      (a) `abs=1e-30` against a 31-decimal-place transcription of the closed
+          form, compared in `mpmath.mpf` precision. The depth is load-bearing: a
+          20-dp transcription differs from the closed form by `3.12e-22`, which
+          is `3.12e8 ×` the mandated tolerance and would make the requirement
+          unsatisfiable. Neither operand may be cast through `float()` —
+          float64 resolution at this magnitude is `≈6.3e-18`, eleven orders of
+          magnitude coarser than `1e-30`, so a float64 comparison reports green
+          while guarding nothing.
+      (b) `round(σ'(−3.5), 5) == 0.02845` pins the narrative 4-sig-fig disclosure
+          at its own display precision. A 4-sig-fig literal MUST NOT be pinned by
+          a tolerance wider than its `5e-6` half-unit.
     """
     mpmath.mp.dps = 50
     s_mp = mpmath.mpf(1) / (1 + mpmath.exp(mpmath.mpf("3.5")))
     sp_mp = s_mp * (1 - s_mp)
-    sp_val_50digit = float(sp_mp)
-    # (a) 50-digit mpmath closed-form anchor — spec-level mathematical truth
-    assert sp_val_50digit == pytest.approx(0.02845302387973555984, abs=1e-30), (
-        f"σ'(−3.5) (50-digit mpmath) = {sp_val_50digit}, expected 0.02845302387973555984"
+    # (a) mpmath closed-form anchor — spec-level mathematical truth, mpf precision.
+    sp_literal = mpmath.mpf("0.0284530238797355598396878271273")
+    assert sp_mp == pytest.approx(sp_literal, abs=mpmath.mpf("1e-30")), (
+        f"actual={mpmath.nstr(sp_mp, 35)}; σ'(−3.5) vs 31-dp transcription "
+        f"{sp_literal} at abs=1e-30"
     )
-    # (b) spec L130 narrative 4-sig-fig precision disclosure
-    assert sp_val_50digit == pytest.approx(0.02845, abs=1e-5), (
-        f"σ'(−3.5) (50-digit mpmath) = {sp_val_50digit}, expected ≈ 0.02845 "
-        f"(spec L130 narrative, 4 sig figs)"
+    # (b) spec req-7 L130 narrative 4-sig-fig disclosure, pinned at its own precision.
+    assert round(sp_mp, 5) == 0.02845, (
+        f"actual={mpmath.nstr(sp_mp, 12)}; round(σ'(−3.5), 5) must equal 0.02845 "
+        f"(spec req-7 L130 narrative, 4 sig figs)"
     )
 
 

@@ -59,7 +59,7 @@ def test_phase3_freeze() -> None:
 
 def test_phase_step_frozen_names_phase_0_and_4_empty_set() -> None:
     """Spec (wayfinder Req 14 / openspec/specs/decompmoe-skeleton/spec.md
-    req-13 Five-Phase Schedule State Machine, anchor L303, body L307):
+    req-13 "Five-Phase Schedule State Machine"):
     phase_step_frozen_names returns `set()` for phases 0 and 4. Phase 0 =
     SEEDING has no gradient channel at all (wayfinder/spec.md L83, req-6:
     "Spherical K-Means seeding (no gradient, no EMA)"; phase table
@@ -79,11 +79,13 @@ def test_phase_step_frozen_names_phase_0_and_4_empty_set() -> None:
     actual_0 = schedule.phase_step_frozen_names(0)
     actual_4 = schedule.phase_step_frozen_names(4)
     assert actual_0 == set(), (
-        f"phase 0 frozen-name set MUST be empty per spec req-13 L307 "
+        f'phase 0 frozen-name set MUST be empty per skeleton req-13 '
+        f'"Five-Phase Schedule State Machine" '
         f"(Phase 0 SEEDING has no gradient channel; vacuously empty); got {actual_0!r}"
     )
     assert actual_4 == set(), (
-        f"phase 4 frozen-name set MUST be empty per spec req-13 L307 "
+        f'phase 4 frozen-name set MUST be empty per skeleton req-13 '
+        f'"Five-Phase Schedule State Machine" '
         f"(full AdamW unfreeze with c_i gradient-channel Active); got {actual_4!r}"
     )
 
@@ -190,12 +192,22 @@ def test_gamma_reset_for_phase4_boundary_continuity() -> None:
     """
     g_reset = schedule.gamma_reset_for_phase4(16.0)
     assert g_reset == pytest.approx(math.log(15.0 / 16.0), abs=1e-4)
-    # Spec L628 literal pin: `gamma_reset_for_phase4(16.0) ≈ -0.06454 within abs=1e-4`.
-    # The assertion above re-derives the formula (math.log(15/16)) and would pass
-    # for any implementation of the same expression; this pins the spec's own
-    # 5-decimal closed-form value so a formula regression surfaces directly.
-    assert g_reset == pytest.approx(-0.06454, abs=1e-4), f"actual={g_reset}"
-    assert beta.phase4_inverse_temperature(g_reset) == pytest.approx(16.0, abs=1e-6)
+    # Spec req-26 ("Operational Domain γ' Reset Closed-Form Worked Example")
+    # literal pin: `gamma_reset_for_phase4(16.0) ≈ -0.06454`, stated at 5-decimal
+    # display precision. The assertion above re-derives the formula
+    # (math.log(15/16)) and would pass for any implementation of the same
+    # expression; this pins the spec's own 5-decimal value so a formula
+    # regression surfaces directly.
+    # Pinned by exact rounding at its own display precision, NOT by a widened
+    # tolerance: the half-unit of a 5-decimal literal is 5e-6, and the previous
+    # abs=1e-4 was 20x that — it accepted a reset wrong by 9e-5 outright.
+    assert round(g_reset, 5) == -0.06454, (
+        f"actual={g_reset}; round(gamma_reset_for_phase4(16.0), 5) must equal -0.06454"
+    )
+    beta_eff = beta.phase4_inverse_temperature(g_reset)
+    assert beta_eff == pytest.approx(16.0, abs=1e-6), (
+        f"actual={float(beta_eff)}; β^eff at phase-4 entry must equal 16.0"
+    )
 
 
 def test_beta_effective_phase_4_continuity() -> None:
@@ -212,24 +224,36 @@ def test_beta_effective_phase_4_continuity() -> None:
         16.0, abs=1e-6
     )
     # Limit-continuity witness (exclusive end ⇒ last in-phase step).
-    assert schedule.phase_beta_max(3, 55_999) == pytest.approx(15.9996, abs=1e-4)
-    # Spec L679 literal bound pin: |β_max(Phase 3, 55_999) − β^eff(Phase 4, 56_000)| < 5e-4.
+    # Pinned by exact rounding at its own 4-decimal display precision: the
+    # half-unit of a 4-dp literal is 5e-5, and the previous abs=1e-4 was
+    # 2x that — the same over-wide form governance req-gov-1 already rejected
+    # for the Voronoi `versine` literals.
+    beta_max_last = schedule.phase_beta_max(3, 55_999)
+    assert round(beta_max_last, 4) == 15.9996, (
+        f"actual={beta_max_last}; round(phase_beta_max(3, 55_999), 4) must equal 15.9996"
+    )
+    # Spec req-29 "β^eff Phase 3 → 4 Continuity Closed-Form" literal bound pin:
+    # |β_max(Phase 3, 55_999) − β^eff(Phase 4, 56_000)| < 5e-4.
     # Both endpoints are asserted above; this pins the *bound itself*, which was
     # previously unguarded (the two values could each drift and the claim would
     # silently become false).
     delta = abs(
         schedule.phase_beta_max(3, 55_999) - schedule.beta_effective(g_reset, 4, 56_000).item()
     )
-    assert delta < 5e-4, f"actual={delta} (spec L679 requires |β_max(3,55_999) − β^eff(4,56_000)| < 5e-4)"
+    assert delta < 5e-4, (
+        f"actual={delta} (spec req-29 requires "
+        f"|β_max(3,55_999) − β^eff(4,56_000)| < 5e-4)"
+    )
 
 
 # ---------------------------------------------------------------------------
-# Bug #1 + #2 — spec Req 24 per-phase formula enforcement (wayfinder L491-507)
+# Bug #1 + #2 — spec req-24 "Beta Parameterization Space vs Operational Domain"
+# per-phase formula enforcement
 # ---------------------------------------------------------------------------
 
 
 def test_beta_effective_phase_1_fixed_one() -> None:
-    """Phase 1 β^eff == 1.0 for ANY γ (spec line 495)."""
+    """Phase 1 β^eff == 1.0 for ANY γ (wayfinder req-24 per-phase formula)."""
     import torch as _t
 
     _t.manual_seed(0)
