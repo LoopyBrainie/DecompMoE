@@ -143,3 +143,17 @@
 **未处理原因**：用户明确要求「在不干扰其他 session 工作结果的前提下操作」。该失败归 peer 自行处置。
 
 本 change 自身覆盖范围复测：`tests/test_safeguards.py` + `tests/test_sphere.py` + `tests/test_schedule.py` = **73 passed**。
+
+### 9.5 阻塞已解除（事后复核，2026-09-30）
+
+§9.4 记录的 `tests/test_config.py::test_total_param_estimate` 失败**已不存在**。归因的调试残留 `src/decompmoe/config.py:59` 的 `32001  # PROBE` 已复原为 `32000`；该 PROBE 从未被提交（`config.py` 不在任何 commit 的改动清单中），系 peer 在工作树中自行撤销，故 §9.4 的归因与「未处理原因」在归档当时成立，事后已消解。
+
+复测（`e50cc02` 状态下，工作树 `src/` 干净）：
+
+- `python -m pytest -q` → **215 passed**（对比 §9.4 记录的 `212 passed / 1 failed`）
+- `python scripts/lint_no_dead_defensive.py` → exit=0
+- `python scripts/lint_no_source_field_drift.py` → exit=0
+- `openspec validate --specs` → exit=0（3 passed）
+- spec anchor 覆盖：wayfinder 36/36 · decompmoe-skeleton 23/23 · governance 4/4（唯一 anchor 数与 `### Requirement` 数逐 capability 相等）
+
+§9.4 作为归档当时的实测记录**保留不改写**，本节仅解除其「未处理」状态。本 change 自身的 spec 与 test 改动自归档起未再变动。
