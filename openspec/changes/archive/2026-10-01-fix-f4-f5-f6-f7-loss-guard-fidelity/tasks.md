@@ -44,5 +44,8 @@
 ## 6. 归档
 
 - [x] 6.1 `openspec archive <name> -y --skip-specs`（本 change 无 spec delta）
-- [ ] 6.2 三份主 spec 的 anchor 覆盖计数例行复算
-- [ ] 6.3 工作树 == commit object 核对
+- [x] 6.2 三份主 spec 的 anchor 覆盖计数例行复算 —— wayfinder 36/36、skeleton 23/23、governance 4/4，0 重复 0 孤儿
+- [x] 6.3 工作树 == commit object 核对
+
+> 归档顺序说明：本 change 先于 `fix-f1-f2-f3-f8` 归档会让后者 delta 的基座漂移，
+> 故实际执行顺序为 **先 A 后 B**（B 无 spec delta，不受 A 的 archive 影响）。
