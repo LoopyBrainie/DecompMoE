@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-30
+# Carries spec deltas (decompmoe-skeleton req-6, wayfinder req-11,
+# governance req-gov-1), so skip_specs is deliberately absent.
