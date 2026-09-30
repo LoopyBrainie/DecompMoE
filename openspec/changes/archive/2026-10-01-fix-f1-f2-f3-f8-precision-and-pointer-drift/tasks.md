@@ -75,3 +75,19 @@
 > 附注：早先一次 anchor 审计报 `dup=['req-17','req-20']`，经查是**假阳性** —— 正则未做行锚定，
 > 命中了正文里两处**既有的交叉引用**（HEAD 与修复后同为 38 次命中 / 36 个行锚定 anchor）。
 > 计数分母钉死后才判定 spec 干净。
+
+## 归档后自查补修：F1 漏改同型第二处
+
+对已提交状态做**全量**精度声明扫描（而非只核对 delta 声明覆盖的 Requirement）时发现：
+`openspec/specs/wayfinder/spec.md` L586（**req-24**）仍写着
+`verified at 50-digit mpmath precision σ'(−3.5) = 0.02845302387973555984`
+—— 与 F1 修掉的 req-7 L130 是**逐字相同的缺陷**，只是坐在另一个 Requirement 里。
+
+成因：F1 的 delta 只覆盖 req-7，而 req-24 的 Requirement 正文**复述了同一条声明**。
+「只修 delta 里列出的块」正是 B13 的成因模式，故改为对三份主 spec 做全量扫描
+（正则匹配 `<N>-digit|50-digit mpmath|mpmath precision` 同行内所有 ≥8 位小数字面量，
+比对声明位数与字面量位数）。
+
+结果：wayfinder L130 / L146 / L586 全部为 31-dp 转写；skeleton 与 governance 无同类。
+31 dp 是该 Requirement THEN 明文要求的转写深度（「accurate to at least 31 decimal places」），
+非精度声明不符，故扫描器的 `N-digit vs dp` 提示在此为预期噪声。
