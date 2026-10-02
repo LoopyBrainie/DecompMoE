@@ -1,0 +1,12 @@
+## 5. A-5 OpenSpec 制品格式、门禁与归档流程（18 条）
+
+优先判定：`AC-19` `AC-20` `AC-80`（**其重判依据待 5.1 现场复现**，见下）。
+条目：`AC-19 AC-20 AC-21 AC-22 AC-23 AC-24 AC-25 AC-31 AC-36 AC-49 AC-57 AC-58 AC-80 AC-81 AC-92 AC-100 AC-101 AC-102`。
+
+> **D7 降级**：`design.md` 原把「archive 每份 spec 吞掉恰好 1 个 anchor、丢的是被改 Requirement 之后的那一个」写成既定事实，与本任务 5.1「必须独立复现而非转抄本轮记录」直接矛盾。现降级为**待验假设**：AC-19 / AC-20 / AC-80 在 5.1 复现完成前**一律不得判 `RESOLVED_BY_UPSTREAM`**。
+
+- [ ] 5.1 现场复现归档事故，作为 AC-19 / AC-20 / AC-80 的重判依据。在 TEMP 副本里对一份最小 spec delta 跑 `openspec archive`，记录：是否吞 anchor、吞几个、丢的是不是「被改 Requirement 之后的那一个」、现有 lint 门禁是否对该事故有感。**已有观测是「每份恰好 1 个，且是被改块之后的那一个；两个 lint gate 均 exit 0」，但那是待验假设，必须在独立条件下复现而非转抄。** 验证：复现脚本的输出落盘 `evidence/archive_incident.json`，并与 AC-19 原描述逐句对照，标出原描述未涵盖的可核事实。
+- [ ] 5.2 逐条三段依赖性判定，18 条完成。本桶以 `invalidation_kind: provenance`（溯源失效）为主——指向制品完成度、门禁覆盖、目录跟踪状态的条目，其失效来自**流程事件**而非数值。验证：每条 `provenance` 类都指名它依赖哪个流程事件。
+- [ ] 5.3 重判 verdict。其中「工作树有 **2 个** archive 目录从未提交」（`2026-10-01-audit-errata-a1-numeric-guard-list` 与 `2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard`——后者即本 change 要重判其成果的 Change 2）与「2 个 change 目录的 `proposal.md`/`tasks.md` 在工作树被删而 HEAD 仍追踪」这两条**当前仍成立**，须用 `git status --porcelain` 实测确认而非引用旧记录。~~4 个~~ **→ 已更正为 2 个**。验证：实测命令与输出落盘 `evidence/worktree_state.json`。
+- [ ] 5.4 **自指的缺陷**：本 change 的 `evidence/**`（7 个 JSON + 21 个工具）与 Change 2 归档**当前同样 untracked**——正是 AC-23 / AC-100 的主题。按 D11，本桶在判定这两条时必须把「本 change 自身处于同一状态」写进 `verdict_evidence`，不能只判别人。验证：`evidence/tools/` 与 `evidence/*.json` 的 tracked 状态被实测并落盘。
+- [ ] 5.5 A-5 组一致性检查。验证：同 1.5（18 条）；且 5.1 的复现结论被至少 3 条引用。

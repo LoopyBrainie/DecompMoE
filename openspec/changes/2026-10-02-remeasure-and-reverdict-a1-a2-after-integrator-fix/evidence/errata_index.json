@@ -1,0 +1,519 @@
+{
+  "source": ".audit\\wayfinder-opsx-code-review\\lists\\opsx-changes.md",
+  "head": "8ba7d6f",
+  "pin": "6593a06",
+  "layer_structure": {
+    "h3_headings_total": 135,
+    "ac_ud_findings": 108,
+    "section_headings": 27,
+    "note": "`###` 标题总数 != 发现数。108 是 AC-/UD- 发现，其余 27 个是章节标题（盲区 / 附录 / 勘误 / Dedup 等），后几层不进入 108 分母。"
+  },
+  "unregistered_findings": {
+    "count": 9,
+    "origin": "盲区 1（classified.json 中无实体）",
+    "id_namespace": "X-<upstream id>",
+    "entries": [
+      {
+        "ac_id": "X-D1-02",
+        "upstream_id": "D1-02",
+        "bucket": "A-1",
+        "bucket_rationale": "求积器失效无有效守卫：单面板 GL 零细分，b=1/2 奇点",
+        "in_source_as_heading": false,
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1426",
+        "statement": "`_betainc_regularized` 用单个 8 点 Gauss–Legendre 面板、零细分；b=1/2 的平方根奇点使误差随 x=sin²θ→1 爆炸，MVP 工作点 67.24° 已越过 CF 对称性阈值 x*=0.85，89° 处相对误差 1.1e-1。报告 §4 环 1 判其为整条 Voronoi 数值主线的根因，§10 Batch A 列为首条。",
+        "nearest_existing_item": "AC-09（C-006）同 locus `src/decompmoe/sphere.py:67`，但只谈守卫强度与 2/13 覆盖",
+        "pin_coordinate": null,
+        "pin_coordinate_note": "盲区 1 表格不提供 file:line；D1 推导第 3 步必须从零建立坐标，不得借用任何勘误给出的行号"
+      },
+      {
+        "ac_id": "X-D1-07",
+        "upstream_id": "D1-07",
+        "bucket": "A-2",
+        "bucket_rationale": "治理把 impl-internal frame（8 点 GL + 逐位二分输出）钉成规范",
+        "in_source_as_heading": false,
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1427",
+        "statement": "governance req-gov-1 §4 把 impl-internal frame（单个 8 点 GL 面板、无细分 + 逐位二分输出 1.1735482746999482 / 1.0205068335735599）钉成规范；积分器一旦正确，该 frame 与配套免责文本同时作废。",
+        "nearest_existing_item": "无（AC-62 / C-019 是同一 Requirement 的 obligation 4 零对账，不同问题）",
+        "pin_coordinate": null,
+        "pin_coordinate_note": "盲区 1 表格不提供 file:line；D1 推导第 3 步必须从零建立坐标，不得借用任何勘误给出的行号"
+      },
+      {
+        "ac_id": "X-D2-02",
+        "upstream_id": "D2-02 + gap4",
+        "bucket": "A-1",
+        "bucket_rationale": "MC 容差 sigma 建立在可证伪的独立性假设上，无有效守卫",
+        "in_source_as_heading": false,
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1428",
+        "statement": "`voronoi_angle` 的 MC 容差 σ 建立在「各 cell 面积独立」这一可证伪的假设上；实际 cell 计数服从多项分布且 ΣA_i≡1，一阶 delta-method 方差相消。5σ=0.0355° 比实测 SE 大 10×（随机 16 站点）到 228×（crosspolytope）。",
+        "nearest_existing_item": "AC-40（C-020）只谈采样数 / 种子常量零断言",
+        "pin_coordinate": null,
+        "pin_coordinate_note": "盲区 1 表格不提供 file:line；D1 推导第 3 步必须从零建立坐标，不得借用任何勘误给出的行号"
+      },
+      {
+        "ac_id": "X-D2-05",
+        "upstream_id": "D2-05",
+        "bucket": "A-2",
+        "bucket_rationale": "spec 声称的三个实测 gap 有两个错、第三个原理上不可能",
+        "in_source_as_heading": false,
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1429",
+        "statement": "skeleton req-6 与 governance req-gov-1 Scenario 声称的三个实测 gap「6.5e-5 deg / 1.0e-4 deg / 0.0 deg」有两个错，第三个对采样估计量在原理上不可能；真值约 6.456e-5 / 2.481e-5 / 2.261e-5 deg。",
+        "nearest_existing_item": "无",
+        "pin_coordinate": null,
+        "pin_coordinate_note": "盲区 1 表格不提供 file:line；D1 推导第 3 步必须从零建立坐标，不得借用任何勘误给出的行号"
+      },
+      {
+        "ac_id": "X-D3-01",
+        "upstream_id": "D3-01",
+        "bucket": "A-3",
+        "bucket_rationale": "公开 API 超出 spec 声称的 totality / 逆映射声明",
+        "in_source_as_heading": false,
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1430",
+        "statement": "`canonical_voronoi_angle` 的反射分支被宣称为 totality 所必需且 `_cap_radius` 被 docstring 描述为 [0,1] 上的逆；实测 N_e=3 / d_c=16 下公开 API 返回 84.4738°，真值 83.4100°，误差为估计量 5σ 的 30 倍，[0.40,0.60] 的 2001 点采样中 1575 点不满足往返闭合。",
+        "nearest_existing_item": "AC-16（只谈免责声明挂错侧）、AC-18（只谈测试不敏感），未覆盖公开 API 可达的超差输出本身",
+        "pin_coordinate": null,
+        "pin_coordinate_note": "盲区 1 表格不提供 file:line；D1 推导第 3 步必须从零建立坐标，不得借用任何勘误给出的行号"
+      },
+      {
+        "ac_id": "X-main36",
+        "upstream_id": "main36",
+        "bucket": "A-4",
+        "bucket_rationale": "Requirement 整条由行号断言构成且指错 Requirement",
+        "in_source_as_heading": false,
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1431",
+        "statement": "wayfinder Req 23 整条 Requirement 由行号断言构成，实指 skeleton req-22 而非 req-23；报告 §3.1 判 STILL_REAL / 校准 MEDIUM，§10 Batch D-1 明确列入。",
+        "nearest_existing_item": "无。`rv:main36:math` 只作为 AC-29（V-03 的 12 个弃权键之一）出现",
+        "pin_coordinate": null,
+        "pin_coordinate_note": "盲区 1 表格不提供 file:line；D1 推导第 3 步必须从零建立坐标，不得借用任何勘误给出的行号"
+      },
+      {
+        "ac_id": "X-main38",
+        "upstream_id": "main38",
+        "bucket": "A-3",
+        "bucket_rationale": "spec 内部两条 Requirement 互相矛盾（无条件断言 vs 次单位范数区）",
+        "in_source_as_heading": false,
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1432",
+        "statement": "skeleton Req 7 的 `‖C_t‖₂ = 1 for every token (within 1e-5)` 是无条件断言，与 Req 19 自己明文规定的 `0 < ‖z‖₂ < ε` 次单位范数区直接矛盾，且无测试走该分支。",
+        "nearest_existing_item": "AC-46（C-060，同族但是 exact vs approx 表述的另一个问题）",
+        "pin_coordinate": null,
+        "pin_coordinate_note": "盲区 1 表格不提供 file:line；D1 推导第 3 步必须从零建立坐标，不得借用任何勘误给出的行号"
+      },
+      {
+        "ac_id": "X-main73",
+        "upstream_id": "main73",
+        "bucket": "A-4",
+        "bucket_rationale": "跨 spec 交叉引用全部写成行号且 Requirement 号错",
+        "in_source_as_heading": false,
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1433",
+        "statement": "wayfinder req-23 对 skeleton 的交叉引用全部写成行号且 Requirement 号错（req-23 实为 req-22）。",
+        "nearest_existing_item": "A-4 的 AC-70 / AC-71 / AC-90 是不同 Requirement 的行号漂移",
+        "pin_coordinate": null,
+        "pin_coordinate_note": "盲区 1 表格不提供 file:line；D1 推导第 3 步必须从零建立坐标，不得借用任何勘误给出的行号"
+      },
+      {
+        "ac_id": "X-main78",
+        "upstream_id": "main78",
+        "bucket": "A-4",
+        "bucket_rationale": "治理条款的行号指针指向错误的 Requirement 块",
+        "in_source_as_heading": false,
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1434",
+        "statement": "governance req-gov-3 称 cycle-5 ticket 的 θ_Voronoi 52°→67.24° supersede 由「spec req-1 L184-L185」承载，但 wayfinder req-1 是 Naming And Alias Convention（L8-L18），L184 是空行、L185 落在 req-9 块内。",
+        "nearest_existing_item": "无",
+        "pin_coordinate": null,
+        "pin_coordinate_note": "盲区 1 表格不提供 file:line；D1 推导第 3 步必须从零建立坐标，不得借用任何勘误给出的行号"
+      }
+    ]
+  },
+  "errata": {
+    "policy": "D8：勘误只可作为定位线索，不得作为 verdict 来源，也不得出现在 verdict_evidence 中。本索引是「线索可查」的物证，也是「未引用」的对照。",
+    "anchoring_rev_stated_in_source": [
+      "188b9fb",
+      "6593a06"
+    ],
+    "anchoring_rev_note": "勘误正文自称锚定 ['188b9fb', '6593a06']；当前 HEAD = 8ba7d6f，两者相差 5 个改过 openspec/specs 的 commit，故勘误坐标与数值均已过期",
+    "spec_changing_commits_pin_to_head": [
+      "f6461d7 fix(a2-errata): correct the A-2 spec defects, then repair the math that correction broke",
+      "188b9fb fix(f1-followup): close the second copy of the 50-digit mpmath mislabel",
+      "4f3e752 chore(opsx): archive F1-F8 fixes; repair anchors swallowed by archive",
+      "315065e chore(opsx): archive B13/B14/B15 changes; restore B15 reverted by e50cc02",
+      "e50cc02 chore(inflight): checkpoint parallel session's in-flight work"
+    ],
+    "a1_effective": [
+      {
+        "id": "E1",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1491",
+        "items": "AC-03",
+        "claimed": "位置 `tests/test_beta.py:184`",
+        "measured": "该行实为 `test_logit_range` 体内行 `logits = beta_val * (inner - 1.0)`。清单所称的 `test_logit_no_w_i` 在 **`tests/test_distance.py:53`**（pin = HEAD，该文件零漂移）"
+      },
+      {
+        "id": "E3",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1492",
+        "items": "AC-01",
+        "claimed": "位置 `src/decompmoe/distance.py:24`",
+        "measured": "`:24` 落在 `def squared_chord` 附近；真正 `return beta * (inner - 1.0)` 在 **`:33`**。该文件 pin→HEAD 零漂移，故这 9 行偏差是清单错、不是漂移"
+      },
+      {
+        "id": "E5",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1493",
+        "items": "AC-61",
+        "claimed": "wayfinder req-33 逐字点名 **5** 个 `phase_beta_max` 精确值",
+        "measured": "该 Scenario（`wayfinder/spec.md:665`，THEN 行 `:666`）逐字只点名 **4** 个：`(2,6_000)→1.0`、`(2,16_000)→2.5`、`(3,26_000)→4.0`、`(3,41_000)→10.0`。第 5 个 `3.99985`（`test_sphere.py:184`）来自**相邻** Scenario，不在点名范围内"
+      },
+      {
+        "id": "E6",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1494",
+        "items": "AC-77",
+        "claimed": "`β_p3 = 1.0` 在 Phase 3 **可达**（据「Phase-1 全 5000 步固定 β = 1.0」）",
+        "measured": "`phase_beta_box(3)` 返回 **`(4.0, 16.0)`**；其 docstring 明写 `(1.0, 32.0)` fallback 适用于「Phase 1 `β^eff = 1.0` fixed」——即 Phase-1 的 1.0 语义上不是 P3 退出值。`gamma_reset_for_phase4` 的全部调用点只传 `16.0` ⇒ **不可达**。**但 `β_p3` 域声明缺失本身仍成立，严重性应下调"
+      },
+      {
+        "id": "E7",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1495",
+        "items": "AC-10 / AC-33",
+        "claimed": "UR 在 `tests/` **零调用、零断言",
+        "measured": "`metrics.UR(` 作为调用在 pin 与 HEAD 均 **0 次**（核心主张成立）；但裸 token `UR` 有 **4 处**：`test_metrics.py:65`（集合成员断言）、`:71`、`test_safeguards.py:458`（docstring）、`:466`（`torch.randn(100, cfg.N_e)  # per metrics.UR stacked history`，**模仿输入形状却不调用**）。准确表述为「无**数值**守卫」"
+      },
+      {
+        "id": "E8",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1496",
+        "items": "AC-10 / AC-33",
+        "claimed": "其余 7 个指标调用计数「1–23 次」",
+        "measured": "三个口径都成立，不可混用**：①**AST 调用点** = `L_sep` 1 / `R_H` 2 / `S_load` 5 / `SP` 5 / `D_chord` 2 / `MCI` 6 / `CG` 17，区间 **1–17**；②**文本匹配行数**（`git grep -c`，**会命中 docstring 里的示例调用**）区间 2–16；③清单给的是 instrumented **运行期**计数（计参数化展开）= 1–23。**以 ①为准"
+      },
+      {
+        "id": "E9",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1497",
+        "items": "AC-40",
+        "claimed": "`1_000_000` 与 `20260929` 在 `tests/` **零命中",
+        "measured": "`20260929` 确为 **0 命中**；`1_000_000` 有 **1 处**——`test_sphere.py:240`，位于 docstring 引用 `VORONOI_AREA_SAMPLES = 1_000_000`。另 `test_safeguards.py:94` 的 `0.10000001` 是子串误配。**断言体内命中数仍为 0**，故实质主张成立。**常量名是 `VORONOI_AREA_SAMPLES`**，清单写 `SAMPLES`"
+      },
+      {
+        "id": "E10",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1498",
+        "items": "AC-18",
+        "claimed": "`_cap_area` 在 `θ=π/2` 处「左极限与右极限相差 `5.239884e-2` / `7.870852e-2` / `1.158112e-1`」",
+        "measured": "三个数是**单侧**跳变 `"
+      },
+      {
+        "id": "E11",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1499",
+        "items": "AC-91",
+        "claimed": "req-24 的三个 γ/β 中间量「无任何测试钉住」",
+        "measured": "γ-space 间隙**有两条真断言**：`test_beta.py:154` `round(float(gamma_full), 4) == -6.7835`、`:164` `gamma_full == pytest.approx(-6.7835, abs=1e-4)`（后者带 `f\"actual=\"`）。β-space 残差 `1.5899599e-6`（`:160`）与斜率 `0.0350220952386`（`:161`）确**均只在注释里"
+      },
+      {
+        "id": "E12",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1500",
+        "items": "AC-48",
+        "claimed": "单向界被一个**不存在的阈值** `theta_conv` 门控",
+        "measured": "`e50cc02` 已把该门控**整体删除**，Jensen 前置条件改为无阈值的 `∀i: A_i < 0.5`，由 `test_voronoi_angle_precondition_is_area_below_half`(`test_sphere.py:551`) 守。HEAD 的 `theta_conv` 仅剩 1 处命中（`test_sphere.py:580` 的 f-string 报错文案，说明其「已退役」）。**该具体指控不成立**；但「单向性只有方向约束、无幅度」仍成立"
+      },
+      {
+        "id": "E13",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1502",
+        "items": "AC-08 / AC-09",
+        "claimed": "清单认为 6dp 字面量 `1.173548` / `1.165848` 已被有效守护",
+        "measured": "该字面量必须与「求积器是否已修」联读才有意义，但其本身是标准 red→green 判别式。** `governance` obligation 3 的 `abs=1e-6` **恰好 ≥ 新旧字面量之差**（两者相差 **恰为 `1.000e-06`**），故现字面量对修前 impl 与修后真值**都 PASS**（`2.747e-07` / `5.741e-07`）；但新字面量 `1.173547` 对修前 impl `1.1735482746999482` 为 **`1.275e-06` FAIL**、对修后真值 `1.1735474259197174` 为 `4.259e-07` PASS ⇒ **修前红、修后绿**。N_e=17 同构（`1.297e-06` FAIL / `6.216e-07` PASS）。⇒ **Change 2 只改字面量即产生可观察测试，无需动容差**；且 6dp 字面量对真值的固有截断误差上界为 `5e-07`，**任何 `< 1e-6` 的容差都会在真值上失败**，故 obligation 3 的 `abs=1e-6` 对 6dp 字面量是**必需**而非宽松，维持不变"
+      }
+    ],
+    "a1_withdrawn": [
+      {
+        "id": "E2",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1543",
+        "observation": "E2",
+        "value": "AC-08 位置 `src/decompmoe/sphere.py:197`"
+      },
+      {
+        "id": "E4",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1544",
+        "observation": "E4",
+        "value": "AC-83 位置 `openspec/specs/wayfinder/spec.md:251`(pin)"
+      }
+    ],
+    "a2_effective": [
+      {
+        "id": "E1",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1590",
+        "items": "AC-04",
+        "claimed": "`skeleton:98` 声明 `G` 在 `d_c=16` 于 `(82.8°, 90.0°)` 凹，`STILL_REAL`",
+        "measured": "pin `skeleton:98` 逐字含该句及 `82.8`/`98.1`/`179.1`；HEAD 三个数字**零命中"
+      },
+      {
+        "id": "E2",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1591",
+        "items": "AC-05",
+        "claimed": "`tests/test_sphere.py:523` 钉 `81.3148/82.6036/83.7313` 为凸性边界",
+        "measured": "pin `:523` 确为 `def test_voronoi_angle_convexity_boundary()`（**行号准确**）；HEAD 该函数已删，改为 `:551` `test_voronoi_angle_precondition_is_area_below_half`，三个数成为「retired artefact」反向护栏"
+      },
+      {
+        "id": "E3",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1592",
+        "items": "AC-15",
+        "claimed": "`sphere.py:260` 的凹凸性分区图错误",
+        "measured": "pin 实为 **261-262**（清单行号偏 2）；HEAD `:267-277` 已是正确版，`:288-294` 另加反有限差分警告"
+      },
+      {
+        "id": "E4",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1593",
+        "items": "AC-64",
+        "claimed": "`sphere.py:276` 峰值 `+31.5868°` / `θ* = 38.9420°`",
+        "measured": "pin 实为 **278**（偏 2）；HEAD `:303` 已改为 `+31.5863380965°` / `38.9424412690°`。独立复算 `θ* = 2·arcsin(1/3) = 38.942441268981383°`"
+      },
+      {
+        "id": "E5",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1594",
+        "items": "AC-84",
+        "claimed": "该条件在 spec 中只是「MAY 级散文」，非 MUST 条款",
+        "measured": "HEAD `wayfinder:246` 实为 **MUST 级**：`MUST strictly satisfy θ_Voronoi(N_e=16, d_c=16) > θ_{1/e}(β=16) = arccos(15/16) ≈ 20.36°`"
+      },
+      {
+        "id": "E6",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1595",
+        "items": "AC-52",
+        "claimed": "位置 `wayfinder:382`；总额 `33_040 MACs = 66_080 FLOPs`；`~0.83%`",
+        "measured": "382 是**空行**，内容在 **383**（pin = HEAD，零漂移）。第 (3) 步 cross-head mean `H_kv·d_c = 128 MACs` 从未计入。复算真值 **`33_168 MACs = 66_336 FLOPs`**、**`~1.22%`**（`+1.220703%` vs proj）。`FLOPs_Routing = 66_048`，净差由 `32` 变 **`288 FLOPs**（`0.436%` of routing）。**驳回项复核成立**：`66_336 / 33_554_432 = 0.1977% ≤ 0.3%`，allowance 不反转"
+      },
+      {
+        "id": "E7",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1596",
+        "items": "AC-46",
+        "claimed": "位置 `skeleton:455`；`59%` 的随机批次不满足 exact",
+        "measured": "455 非目标行，pin **456** / HEAD **459**（+3）。实体成立（float64 约半数行不满足，实测最坏 **`6.661338e-16`**）。但 **`59%` 不可复现**：实测 float64 `49.4%–51.4%`、float32 `54.6%–57.3%`（4 维 × 2 dtype × 100 批 × 256 行），59% 超出观测上界"
+      },
+      {
+        "id": "E8",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1597",
+        "items": "AC-42",
+        "claimed": "`_betainc_regularized` 在 `x→1` 时相对误差 **76%",
+        "measured": "位置 `sphere.py:73` **pin = HEAD，零漂移**（A-2 中唯一精确锚点）。MVP 点 `8.2915e-07` / `6.633 ppm` 正确；但 `x→1⁻` 实测 abs 升至 `1.5736e-01 @ θ=89.999°`，**相对误差 15.74%**，非 76%（差 5×；其引的 `7.61e-2` 绝对值本身对）"
+      },
+      {
+        "id": "E9",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1598",
+        "items": "AC-53",
+        "claimed": "位置 `wayfinder:251`",
+        "measured": "HEAD **252**。复算：按清单排除 `W^O` 得 `452_329_984 − 4_194_304 = 448_135_680`，差 **`0.927266%`"
+      },
+      {
+        "id": "E10",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1599",
+        "items": "AC-82",
+        "claimed": "位置 `wayfinder:248`；prose `≈ 484 M`",
+        "measured": "HEAD **249**。复算 `485_097_984`（`485.097984 M`，偏差 `0.2263%`）。**但该值不以字面量出现在 spec 中**，反事实值是读者自行加总的派生值 ⇒ 清单「同段钉死的精确闭式」措辞**略强于事实"
+      },
+      {
+        "id": "E11",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1600",
+        "items": "AC-85",
+        "claimed": "位置 `wayfinder:435`；「Qwen/GMoE **不可能**有相同 FLOPs」",
+        "measured": "位置**零漂移**（`:435` WHEN / `:436` THEN）。措辞越界坐实；但「不可能」在本仓内**不可证**（Mixtral 项理论上可重参数化），该半句应标为**推断"
+      },
+      {
+        "id": "E12",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1601",
+        "items": "AC-86",
+        "claimed": "位置 `wayfinder:398`；`≈ 64 KB` 与 `≈ 4 KB`",
+        "measured": "398 是**空行**，内容在 **399**（pin = HEAD）。复算 `W_proj = 32_896` 参数 → BF16 `65_792 B = 64.25 KiB`；字面张量集合 `{z, ẑ, z̄, C}` 各 `256 B`（`4·d_c·4`），即便按 3 个 per-head + 1 个 post-mean 拼接也只 **`1_600 B`**，**只有 `H_kv·d_k·4 B = 4_096 B = 4.00 KiB` 恰为 4 KB"
+      },
+      {
+        "id": "E13",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1602",
+        "items": "AC-87",
+        "claimed": "Requirement 标 `wayfinder req-20`",
+        "measured": "L414 属 **req-19**（anchor L411，「Six Baseline Set On 4070 MVP」）；**req-20 是 L442「Eight Geometric Quantification Metrics」**，与 6 个 baseline 无关。同一清单 AC-85 对同一区域标对了 ⇒ 清单内部自相矛盾"
+      },
+      {
+        "id": "E14",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1603",
+        "items": "AC-28",
+        "claimed": "`skeleton:98` 的 `d_c=2` 未提及",
+        "measured": "错误分区图已由 `e50cc02` 修；但 `d_c=2` 退化**仍未声明**：`git grep -ni 'affine\\"
+      },
+      {
+        "id": "E15",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1604",
+        "items": "AC-16",
+        "claimed": "`sphere.py:197` 的 accuracy caveat 只声明了 `< 1e-6` 一侧",
+        "measured": "pin **197 = HEAD 210**（与 A-1 change 的 E2 勘误**同坐标**）。**pin 态全段扫 `accuracy\\"
+      },
+      {
+        "id": "E16",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1605",
+        "items": "N1（清单外新发现）",
+        "claimed": "—",
+        "measured": "`wayfinder:383` 把 bias **单列** `H_kv·d_c = 128 MACs`，`skeleton:151` 却**折进**第 (i) 项 `H_kv·(2·d_k·d_c + d_c) = 32_896`。总额同（33_040）**归因口径不同**，违反同源 Source 镜像的逐字性要求；req-17↔req-19 交叉注记只对齐总额、未对齐归因"
+      },
+      {
+        "id": "E17",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1606",
+        "items": "N2（清单外新发现）",
+        "claimed": "—",
+        "measured": "`skeleton:34` 自称「(Matches master `wayfinder` Req 11 verbatim)」，但 master `wayfinder:252` 为「(`MVPConfig` does not currently expose them as learnable parameters at MVP scale)」，镜像为「(not exposed as learnable parameters in `MVPConfig` at MVP scale)」——**非逐字"
+      },
+      {
+        "id": "E18",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1607",
+        "items": "N3（清单外新发现）",
+        "claimed": "—",
+        "measured": "`d_c=2` 时 `G(θ) = θ/π`，50 位 mpmath 下采样偏差 **0.000e+00**（解析恒等），`G(π/2) = 0.5`；`sphere.py:242` 只挡 `signature_dim < 2` ⇒ **`d_c=2` 可达**。`G(θ)=1/N_e` ⇒ `θ = π/N_e`，故 `N_e=2` 时 `θ=π/2`。严格凸退化为等式、Jensen 变恒等式 ⇒ 单向性界**失去推导前提"
+      },
+      {
+        "id": "E19",
+        "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1608",
+        "items": "N4（清单外新发现）",
+        "claimed": "—",
+        "measured": "`sphere.py:288-294` 用「the true `G''` there is `+0.21`…`+2.46`」的**区间散文**冒充闭式。复算真值 82° → **`+2.6073072`**、88° → **`+0.7365965`**，与 AC-64 属同类瑕疵"
+      }
+    ],
+    "a2_e20": {
+      "errata_count": 1,
+      "expressed_as_observation_rows": [
+        {
+          "id": null,
+          "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1614",
+          "observation": "观测",
+          "value": "值"
+        },
+        {
+          "id": null,
+          "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1616",
+          "observation": "`_cap_area(θ, 2)` 对 `θ/π` 的相对偏差",
+          "value": "`3.64%`–`6.41%`**（`θ ∈ (0°, 90°)`，最差在 89.9°）"
+        },
+        {
+          "id": null,
+          "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1617",
+          "observation": "`canonical_voronoi_angle(N_e, 2)` 对 `π/N_e` 的相对偏差",
+          "value": "最差 **`5.39%`**（`N_e = 32`）；`N_e = 4/8/16` 分别为 `4.78%`/`5.24%`/`5.36%`"
+        },
+        {
+          "id": null,
+          "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1618",
+          "observation": "`N_e = 2` 看似准确（`6.71e-9`）",
+          "value": "假象**：二分落在 `x >= 1.0` 早退平台 `π/2` 上，即 E15/F9 披露的那处不连续，而非求积准确"
+        },
+        {
+          "id": null,
+          "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1619",
+          "observation": "根因",
+          "value": "`d_c = 2 ⇒ a = (d_c−1)/2 = ½`，GL 面板被积函数 `u^(a−1) = u^(−1/2)` 在**左端点平方根奇异**；`d_c ≥ 3 ⇒ a ≥ 1`，被积函数在 `u = 0` 光滑"
+        }
+      ],
+      "counting_note": "E20 是 1 条勘误，用 5 行观测表表达。按行数计会把勘误总数从 20 虚增到 24。"
+    },
+    "a2_total_errata": 20
+  },
+  "blindspots": [
+    {
+      "title": "盲区 1：9 条 §3 finding 在 classified.json 里完全没有实体（最严重）",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1420"
+    },
+    {
+      "title": "盲区 2：AC-29 的结论边界",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1440"
+    },
+    {
+      "title": "盲区 3：AC-06 是 HEAD 时点结论",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1447"
+    },
+    {
+      "title": "盲区 4：4 条 §11 声明留在本清单",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1453"
+    },
+    {
+      "title": "盲区 5：本文件未做的事",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1458"
+    },
+    {
+      "title": "盲区 6：本文件的权威边界",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1468"
+    }
+  ],
+  "other_sections": [
+    {
+      "title": "基线状态字段怎么读",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:30"
+    },
+    {
+      "title": "与清单 B 的边界",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:47"
+    },
+    {
+      "title": "交叉核查角标的读法",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:61"
+    },
+    {
+      "title": "关于「不含修复方案」",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:74"
+    },
+    {
+      "title": "1. 分桶冲突（上游报告自身 / 上游规则不一致）",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1360"
+    },
+    {
+      "title": "2. 方案污染处置（`check-contamination.json`）",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1370"
+    },
+    {
+      "title": "3. 分桶存疑（`check-completeness.json` §11 misplacement）",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1381"
+    },
+    {
+      "title": "4. 溯源缺口（报告 §3 finding id 未进入 `origin_ids`）",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1395"
+    },
+    {
+      "title": "5. 内容准确性标记（`check-completeness.json` content_accuracy_flags，落在本桶者）",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1409"
+    },
+    {
+      "title": "前提：坐标口径",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1481"
+    },
+    {
+      "title": "生效勘误（11 条）",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1487"
+    },
+    {
+      "title": "E10 的根因（清单未给出）",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1504"
+    },
+    {
+      "title": "复现命令（全部只读，锚定 commit object）",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1510"
+    },
+    {
+      "title": "已撤回（2 条，不是错误）",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1539"
+    },
+    {
+      "title": "与未归档 change 的重叠（施工前必须裁决）",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1550"
+    },
+    {
+      "title": "两条维护规则",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1564"
+    },
+    {
+      "title": "根命题复核",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1582"
+    },
+    {
+      "title": "E1–E19 勘误对照表",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1586"
+    },
+    {
+      "title": "E20 追加勘误（实施期新增，清单外）—— `d_c = 2` 是单面板 GL-8 求积唯一的「小 `x` 侧」失效点",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1610"
+    },
+    {
+      "title": "清单自身的 7 类错误（汇总）",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1625"
+    },
+    {
+      "title": "Dedup 登记",
+      "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1635"
+    }
+  ],
+  "self_check_problems": []
+}

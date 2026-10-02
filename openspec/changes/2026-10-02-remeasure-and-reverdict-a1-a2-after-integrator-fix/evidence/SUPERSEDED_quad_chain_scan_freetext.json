@@ -1,0 +1,1211 @@
+{
+  "quadrature_callers": [
+    "_betainc_regularized",
+    "_cap_area",
+    "canonical_voronoi_angle"
+  ],
+  "constants": {
+    "1.1735474259197175": "oracle theta_voronoi(N_e=16,d_c=16)",
+    "1.1735474259196821": "impl theta_voronoi(16,16) post-fix",
+    "1.1735482746999482": "PRE-FIX impl theta_voronoi(16,16)",
+    "1.1658476215516009": "oracle theta_voronoi(N_e=17,d_c=16)",
+    "1.1658482974306132": "PRE-FIX impl theta_voronoi(17,16)",
+    "1.0205068247837132": "oracle theta_voronoi(N_e=64,d_c=16)",
+    "1.0205068335735599": "PRE-FIX impl theta_voronoi(64,16)",
+    "1.0916065844205111": "oracle theta_voronoi(N_e=32,d_c=16)",
+    "1.4578378442370083": "oracle theta_voronoi(N_e=3,d_c=16)",
+    "1.4578378442369877": "impl theta_voronoi(3,16)",
+    "1.173547": "6dp literal N_e=16",
+    "1.165847": "6dp literal N_e=17",
+    "1.020506": "6dp literal N_e=64",
+    "1.5707963162581635": "cva(2,16) pi/2 plateau",
+    "67.24": "theta_Voronoi(16,16) in degrees",
+    "1.1735": "theta_Voronoi(16,16) rad, 4dp",
+    "20.36": "theta_1/e in degrees"
+  },
+  "control_non_quad": [
+    "452",
+    "100",
+    "1024",
+    "2048",
+    "4096",
+    "1.035",
+    "0.1",
+    "32"
+  ],
+  "findings": [
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-01",
+      "title": "— distance.logit 零守卫：变异体死于 autograd 崩溃而非数学断言",
+      "line": 106,
+      "cited": [
+        "001",
+        "010",
+        "212"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-02",
+      "title": "— 变异守护覆盖率：8 个数学不变量仅 12.5%–37.5% 被数学断言约束",
+      "line": 117,
+      "cited": [
+        "001",
+        "002",
+        "003",
+        "005",
+        "009",
+        "212"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-03",
+      "title": "— logit 闭式与值域无原理级守卫，恒返回 0 变异体全绿",
+      "line": 128,
+      "cited": [
+        "010",
+        "184",
+        "213"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-07",
+      "title": "— 球面归一化零数值守卫：分母加 detach 全绿",
+      "line": 139,
+      "cited": [
+        "003",
+        "1.4142135623730949",
+        "134",
+        "147",
+        "212"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": true
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-08",
+      "title": "— canonical_voronoi_angle 偶然守卫：纯名字 grep",
+      "line": 150,
+      "cited": [
+        "005",
+        "120",
+        "197",
+        "212"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": true
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-09",
+      "title": "— 不完全 Beta 积分真守卫但只覆盖 2/13 点且阻碍正确化",
+      "line": 161,
+      "cited": [
+        "006",
+        "062",
+        "1.1813",
+        "1.1818",
+        "1.3579",
+        "13578"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": true
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-10",
+      "title": "— UR 闭式 W=100 窗口在 tests/ 下零调用零断言",
+      "line": 172,
+      "cited": [
+        "002",
+        "011",
+        "026",
+        "100",
+        "213"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-11",
+      "title": "— extract_C 可微性只做功能检查，gradcheck 零调用",
+      "line": 184,
+      "cited": [
+        "012",
+        "134",
+        "213",
+        "283"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-12",
+      "title": "— 禁硬编码表 Scenario 只 grep 标识符名不 grep 数值",
+      "line": 195,
+      "cited": [
+        "0.0971",
+        "0.4494",
+        "0.9076",
+        "013",
+        "120",
+        "212",
+        "213",
+        "380"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": true
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-13",
+      "title": "— MVPConfig 字段集契约零断言，加 beta_max 字段全绿",
+      "line": 206,
+      "cited": [
+        "014",
+        "213",
+        "502"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-18",
+      "title": "— 反射分支测试声称守护该分支却通过",
+      "line": 217,
+      "cited": [
+        "063",
+        "1.158112",
+        "5.239884",
+        "553",
+        "7.870852"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": true
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-33",
+      "title": "— req-20/req-22 的 UR 闭式 src 有实现而 tests 零调用",
+      "line": 229,
+      "cited": [
+        "100",
+        "212"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-37",
+      "title": "— _dead_expert_threshold 部分真守卫：参数化维度无守护",
+      "line": 241,
+      "cited": [
+        "0.013889",
+        "0.015625",
+        "0.03125",
+        "0.055556",
+        "0.0625",
+        "004",
+        "128"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-38",
+      "title": "— local_softmax 真守卫但单线且归属错位",
+      "line": 252,
+      "cited": [
+        "008"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-39",
+      "title": "— STE 禁令 grep 作用域只覆盖 extraction.py 一个文件",
+      "line": 263,
+      "cited": [
+        "016",
+        "213",
+        "327"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-40",
+      "title": "— MC 测量层的采样数与种子常量值零断言，只引用符号名",
+      "line": 274,
+      "cited": [
+        "020",
+        "20260929"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-47",
+      "title": "— equal_area_witness 测试用被测实现自身作为参考做校准",
+      "line": 285,
+      "cited": [
+        "006",
+        "064",
+        "419"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": true
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-48",
+      "title": "— test_voronoi_angle_one_sided_gap 把单向性降格为方向检查",
+      "line": 296,
+      "cited": [
+        "065",
+        "490"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": true
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-60",
+      "title": "— 球面归一化的 eps 默认值无守卫，同名原语却已钉住",
+      "line": 308,
+      "cited": [
+        "015",
+        "213",
+        "703"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": true
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-61",
+      "title": "— 一批浮点闭式断言缺 actual= 内嵌值，含 5 个精确值",
+      "line": 319,
+      "cited": [
+        "007",
+        "017",
+        "176"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-62",
+      "title": "— req-gov-1 obligation 4 的 5 个 ppm / 残差数值全仓零对账",
+      "line": 330,
+      "cited": [
+        "0.0086",
+        "019"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-77",
+      "title": "— gamma_reset_for_phase4 定义域 (1,32) 无守卫",
+      "line": 341,
+      "cited": [
+        "054",
+        "139",
+        "5000"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-83",
+      "title": "— req-11 参数量闭式的三个中间整数项无字面量守护",
+      "line": 352,
+      "cited": [
+        "251"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-1",
+      "ac_id": "AC-91",
+      "title": "— req-24 Scenario 的 γ/β 空间间隙中间量无测试守护",
+      "line": 363,
+      "cited": [
+        "0.0350220952386",
+        "1.5899599",
+        "609"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-2",
+      "ac_id": "AC-04",
+      "title": "— req-6 的凹性错误数值无测试钉住，紧邻测试反而把同类伪零点硬钉为真值",
+      "line": 380,
+      "cited": [
+        "031",
+        "061",
+        "179",
+        "82.6036"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-2",
+      "ac_id": "AC-05",
+      "title": "— test_voronoi_angle_convexity_boundary 钉死求积伪影",
+      "line": 392,
+      "cited": [
+        "006",
+        "031",
+        "032",
+        "061",
+        "2.4568",
+        "523",
+        "81.3148",
+        "82.6036",
+        "83.7313",
+        "9.9920"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": true
+    },
+    {
+      "bucket": "A-2",
+      "ac_id": "AC-15",
+      "title": "— sphere.py 凹凸性分区图错误，被中心差分测试钉死",
+      "line": 404,
+      "cited": [
+        "032",
+        "180",
+        "185",
+        "260"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": true
+    },
+    {
+      "bucket": "A-2",
+      "ac_id": "AC-16",
+      "title": "— canonical_voronoi_angle 的精度免责声明挂在错误的界上",
+      "line": 416,
+      "cited": [
+        "043",
+        "197"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": true
+    },
+    {
+      "bucket": "A-2",
+      "ac_id": "AC-28",
+      "title": "— 被推翻的先例：主控 COMMON 事实 #4 的口径需精确化",
+      "line": 428,
+      "cited": [],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-2",
+      "ac_id": "AC-42",
+      "title": "— 不完全 Beta 积分 docstring 未披露 x→1 的误差跃变",
+      "line": 440,
+      "cited": [
+        "032",
+        "034"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": true
+    },
+    {
+      "bucket": "A-2",
+      "ac_id": "AC-46",
+      "title": "— spec 声称球面归一化输出 exact 等于 1，59% 不满足",
+      "line": 451,
+      "cited": [
+        "060",
+        "455"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": true
+    },
+    {
+      "bucket": "A-2",
+      "ac_id": "AC-52",
+      "title": "— req-17 闭式漏算第 (3) 步 128 MACs",
+      "line": 462,
+      "cited": [
+        "128",
+        "2026",
+        "382"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-2",
+      "ac_id": "AC-53",
+      "title": "— req-11 的 W^O 排除清单与同段 4·d_model² 闭式互斥",
+      "line": 473,
+      "cited": [
+        "251"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-2",
+      "ac_id": "AC-64",
+      "title": "— voronoi_angle docstring 峰值位置与幅度均算错",
+      "line": 484,
+      "cited": [
+        "033",
+        "276",
+        "31.5863",
+        "31.586338",
+        "31.5868",
+        "38.9420",
+        "38.9424",
+        "38.942441"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": true
+    },
+    {
+      "bucket": "A-2",
+      "ac_id": "AC-82",
+      "title": "— req-11 权重 tying 反事实的 prose 数值与同段闭式不符",
+      "line": 495,
+      "cited": [
+        "248",
+        "484",
+        "485"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-2",
+      "ac_id": "AC-84",
+      "title": "— θ_Voronoi > θ_{1/e} 成立条件只是散文非条款",
+      "line": 506,
+      "cited": [
+        "1.6310",
+        "100000",
+        "233",
+        "5000",
+        "9207"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-2",
+      "ac_id": "AC-85",
+      "title": "— req-19 把 1:1 FLOPs 断言从两个条目过度外推到每个 MoE 条目",
+      "line": 517,
+      "cited": [
+        "4096",
+        "435"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-2",
+      "ac_id": "AC-86",
+      "title": "— req-19 两个 residency 数值无 pin 且算不出 4 KB",
+      "line": 528,
+      "cited": [
+        "398"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-2",
+      "ac_id": "AC-87",
+      "title": "— req-20 六个 baseline 有 5 个零表示且无 deferral",
+      "line": 539,
+      "cited": [
+        "414"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-3",
+      "ac_id": "AC-14",
+      "title": "— 测试只跑 Phase 1–4，暴露不了 Phase 0 范数矛盾",
+      "line": 556,
+      "cited": [
+        "027"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-3",
+      "ac_id": "AC-17",
+      "title": "— CentroidDriver.step 的 mask=None 分支广播同一均值",
+      "line": 567,
+      "cited": [
+        "049",
+        "067",
+        "1.000000",
+        "1.7528",
+        "100",
+        "1000",
+        "127",
+        "5999"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-3",
+      "ac_id": "AC-32",
+      "title": "— req-2 的 MUST 级标识符 territory_collapse 悬空",
+      "line": 578,
+      "cited": [
+        "2026"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-3",
+      "ac_id": "AC-35",
+      "title": "— req-23 Phase 0 范数 MUST 与 req-18 冲突",
+      "line": 589,
+      "cited": [
+        "575"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-3",
+      "ac_id": "AC-41",
+      "title": "— UR 的 W=100 窗口与 R_H/S_load 滑窗语义未实现",
+      "line": 600,
+      "cited": [
+        "0.0625",
+        "0.1875",
+        "026",
+        "100",
+        "125",
+        "200",
+        "454"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-3",
+      "ac_id": "AC-43",
+      "title": "— resurrect_expert 返回裸 ε 而非克隆后扰动，破坏球面归一不变量",
+      "line": 612,
+      "cited": [
+        "0.981697",
+        "050",
+        "10.7957",
+        "166",
+        "5.0787"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-3",
+      "ac_id": "AC-44",
+      "title": "— loss.py 硬编码 100K 边界与 total_steps API 静默错位",
+      "line": 623,
+      "cited": [
+        "053"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-3",
+      "ac_id": "AC-45",
+      "title": "— req-2 映射表中 territory_collapse 在 src 零出现",
+      "line": 634,
+      "cited": [
+        "058"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-3",
+      "ac_id": "AC-56",
+      "title": "— req-15/16 Layer 2 的 WB 与阈值零实现",
+      "line": 645,
+      "cited": [
+        "0.0476",
+        "112",
+        "186",
+        "2026"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-3",
+      "ac_id": "AC-73",
+      "title": "— clip_global_grad_norm_ 的 else 分支不可达且会抛错",
+      "line": 656,
+      "cited": [
+        "046"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-3",
+      "ac_id": "AC-74",
+      "title": "— _betainc_regularized 求积循环内两处守卫数学上不可达",
+      "line": 667,
+      "cited": [
+        "034",
+        "047",
+        "117"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": true
+    },
+    {
+      "bucket": "A-3",
+      "ac_id": "AC-75",
+      "title": "— extract_C 的投影参数名与 skeleton req-7 声明签名漂移",
+      "line": 678,
+      "cited": [
+        "048"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-3",
+      "ac_id": "AC-76",
+      "title": "— resurrect_expert docstring 的实参描述与实现不符",
+      "line": 689,
+      "cited": [
+        "051",
+        "208"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-3",
+      "ac_id": "AC-78",
+      "title": "— __all__ 只列 3 个 dunder 名字，spec 要求列出全部公开符号",
+      "line": 700,
+      "cited": [
+        "056"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-3",
+      "ac_id": "AC-79",
+      "title": "— voronoi_angle 的 probe 强制建在 CPU 且多出 ValueError",
+      "line": 711,
+      "cited": [
+        "059",
+        "2026",
+        "288"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": true
+    },
+    {
+      "bucket": "A-4",
+      "ac_id": "AC-34",
+      "title": "— req-36 整段以行号指针钉真相源而多数已漂移",
+      "line": 728,
+      "cited": [
+        "2026",
+        "847"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-4",
+      "ac_id": "AC-54",
+      "title": "— 三处「Req 10」反链指向已被改写的 Requirement",
+      "line": 739,
+      "cited": [
+        "183"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-4",
+      "ac_id": "AC-59",
+      "title": "— skeleton L242 引 wayfinder L249 实为 L315",
+      "line": 750,
+      "cited": [
+        "242"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-4",
+      "ac_id": "AC-63",
+      "title": "— arctan(pi/sqrt(d_c)) 不变式的守护交接指向空处",
+      "line": 761,
+      "cited": [
+        "023",
+        "146",
+        "367"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-4",
+      "ac_id": "AC-65",
+      "title": "— config.py 把 spec 权威行标为 L245，实为 API 句",
+      "line": 772,
+      "cited": [
+        "035"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-4",
+      "ac_id": "AC-66",
+      "title": "— schedule.py 把三条 β^eff 公式的 spec 行号指错",
+      "line": 783,
+      "cited": [
+        "036",
+        "147",
+        "495",
+        "496",
+        "497",
+        "507",
+        "589"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-4",
+      "ac_id": "AC-67",
+      "title": "— test_safeguards.py 10 处 per L249 全部指错",
+      "line": 794,
+      "cited": [
+        "037",
+        "772"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-4",
+      "ac_id": "AC-68",
+      "title": "— metrics.py 把 CG 指标的 spec 行号标错",
+      "line": 805,
+      "cited": [
+        "038",
+        "166"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-4",
+      "ac_id": "AC-69",
+      "title": "— test_extraction.py 把 eps 默认值规范行号标错",
+      "line": 816,
+      "cited": [
+        "039",
+        "356"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-4",
+      "ac_id": "AC-70",
+      "title": "— req-12 引用的 safeguards.py 行号漂移 52 行",
+      "line": 827,
+      "cited": [
+        "040",
+        "211",
+        "222",
+        "240"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-4",
+      "ac_id": "AC-71",
+      "title": "— req-20 引用 beta.py:50 的行号与逐字引文皆错",
+      "line": 838,
+      "cited": [
+        "041",
+        "458"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-4",
+      "ac_id": "AC-72",
+      "title": "— voronoi_angle docstring 把读者指向一个不存在的测试名",
+      "line": 849,
+      "cited": [
+        "045",
+        "234"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": true
+    },
+    {
+      "bucket": "A-4",
+      "ac_id": "AC-88",
+      "title": "— wayfinder spec 内部行号交叉引用系统性失效（聚合记录）",
+      "line": 860,
+      "cited": [
+        "505",
+        "847"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-4",
+      "ac_id": "AC-89",
+      "title": "— req-34 的 live example 指针指向参数计数假设",
+      "line": 871,
+      "cited": [
+        "2026",
+        "831"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-4",
+      "ac_id": "AC-90",
+      "title": "— req-2 引 req-11 L211 落在 req-10 块内",
+      "line": 882,
+      "cited": [],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-5",
+      "ac_id": "AC-19",
+      "title": "— archive 工具静默吞掉后继 Requirement 的 anchor",
+      "line": 899,
+      "cited": [
+        "2026"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-5",
+      "ac_id": "AC-20",
+      "title": "— CLAUDE.md §3 门禁清单对 anchor 事故全部返回 exit 0",
+      "line": 910,
+      "cited": [
+        "100"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-5",
+      "ac_id": "AC-21",
+      "title": "— 仓库无 CI 配置，scripts/ 即全部门禁面",
+      "line": 921,
+      "cited": [],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-5",
+      "ac_id": "AC-22",
+      "title": "— range 内两个 100% 完成的 change 是非法 OpenSpec 制品",
+      "line": 932,
+      "cited": [
+        "100",
+        "2026"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-5",
+      "ac_id": "AC-23",
+      "title": "— b10-b11-b12 change 全部完成但目录未跟踪、delta 未 sync",
+      "line": 943,
+      "cited": [
+        "003",
+        "2026"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-5",
+      "ac_id": "AC-24",
+      "title": "— Source 反链 lint 的必需要子串只硬编码到目录前缀",
+      "line": 955,
+      "cited": [
+        "025",
+        "104"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-5",
+      "ac_id": "AC-25",
+      "title": "— 门禁运行期间工作树被并发写入，快照不可复现",
+      "line": 966,
+      "cited": [
+        "000"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-5",
+      "ac_id": "AC-31",
+      "title": "— UNVERIFIABLE 与 severity 的自指缺陷：治理规则的零守卫",
+      "line": 977,
+      "cited": [],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-5",
+      "ac_id": "AC-36",
+      "title": "— fix-review-findings change 的悬空 delta 声明",
+      "line": 988,
+      "cited": [],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-5",
+      "ac_id": "AC-49",
+      "title": "— §3 门禁清单不含 openspec validate <change> --strict",
+      "line": 999,
+      "cited": [
+        "100"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-5",
+      "ac_id": "AC-57",
+      "title": "— change 的 task 勾选声称已完成但对应编辑从未落库",
+      "line": 1010,
+      "cited": [],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-5",
+      "ac_id": "AC-58",
+      "title": "— a036a15 只落了 B14 的 src 半边，spec 半边滞留",
+      "line": 1021,
+      "cited": [
+        "496"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-5",
+      "ac_id": "AC-80",
+      "title": "— 仓库无任何 anchor 覆盖检查的门禁脚本",
+      "line": 1033,
+      "cited": [
+        "100"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-5",
+      "ac_id": "AC-81",
+      "title": "— Source 行匹配的行首锚定可被缩进或引用前缀绕过",
+      "line": 1044,
+      "cited": [
+        "026"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-5",
+      "ac_id": "AC-92",
+      "title": "— wayfinder 两个 anchor 被正文内联重复声明",
+      "line": 1055,
+      "cited": [
+        "100",
+        "429"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-5",
+      "ac_id": "AC-100",
+      "title": "— fix-review-findings change 目录名无日期前缀",
+      "line": 1066,
+      "cited": [
+        "100",
+        "2026"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-5",
+      "ac_id": "AC-101",
+      "title": "— followup change 的 task 勾选框账目漂移",
+      "line": 1077,
+      "cited": [
+        "101",
+        "2026"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-5",
+      "ac_id": "AC-102",
+      "title": "— b13-b16 change 24/24 完成且已落库但仍未 archive",
+      "line": 1088,
+      "cited": [
+        "102",
+        "2026"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-7",
+      "ac_id": "AC-55",
+      "title": "— req-36 逐字引用 ticket A8-2 与 ticket 实际不符",
+      "line": 1194,
+      "cited": [
+        "879"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-7",
+      "ac_id": "AC-93",
+      "title": "— map.md 两条 A5-3 narrative 仍写旧 θ_Voronoi 值",
+      "line": 1205,
+      "cited": [],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-7",
+      "ac_id": "AC-94",
+      "title": "— map.md 的 4 阶段生命周期措辞漏改且仍带已删除的 δ_g",
+      "line": 1216,
+      "cited": [
+        "2026"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-7",
+      "ac_id": "AC-95",
+      "title": "— map.md 的三处计数全部落后于仓库实况",
+      "line": 1227,
+      "cited": [
+        "100"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-7",
+      "ac_id": "AC-96",
+      "title": "— ticket A3-2 的 δ_g 门控被替换且无 Decision",
+      "line": 1238,
+      "cited": [],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-7",
+      "ac_id": "AC-97",
+      "title": "— ticket A6a-2 供体克隆语义无落点且无 Decision",
+      "line": 1249,
+      "cited": [],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-7",
+      "ac_id": "AC-98",
+      "title": "— ticket A6a-2 的专家权重克隆步在 openspec 内零落点",
+      "line": 1260,
+      "cited": [],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    },
+    {
+      "bucket": "A-7",
+      "ac_id": "AC-99",
+      "title": "— ticket A5-3 的 β_0 ≈ 1.0 标注只做了一半",
+      "line": 1271,
+      "cited": [
+        "1.035060"
+      ],
+      "quad_chain_hits": {},
+      "mentions_betainc": false
+    }
+  ]
+}

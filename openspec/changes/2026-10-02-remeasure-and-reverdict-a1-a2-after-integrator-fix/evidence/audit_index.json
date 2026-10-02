@@ -1,0 +1,621 @@
+{
+  "source": ".audit\\wayfinder-opsx-code-review\\lists\\opsx-changes.md",
+  "scoped_buckets": [
+    "A-1",
+    "A-2",
+    "A-3",
+    "A-4",
+    "A-5",
+    "A-7"
+  ],
+  "excluded_buckets": [
+    "A-6",
+    "A-8"
+  ],
+  "scoped_total": 95,
+  "excluded_total": 13,
+  "total_item_headings": 108,
+  "buckets": [
+    {
+      "label": "A-1",
+      "declared": 24,
+      "parsed": 24,
+      "items": [
+        {
+          "ac_id": "AC-01",
+          "title": "— distance.logit 零守卫：变异体死于 autograd 崩溃而非数学断言",
+          "line": 106
+        },
+        {
+          "ac_id": "AC-02",
+          "title": "— 变异守护覆盖率：8 个数学不变量仅 12.5%–37.5% 被数学断言约束",
+          "line": 117
+        },
+        {
+          "ac_id": "AC-03",
+          "title": "— logit 闭式与值域无原理级守卫，恒返回 0 变异体全绿",
+          "line": 128
+        },
+        {
+          "ac_id": "AC-07",
+          "title": "— 球面归一化零数值守卫：分母加 detach 全绿",
+          "line": 139
+        },
+        {
+          "ac_id": "AC-08",
+          "title": "— canonical_voronoi_angle 偶然守卫：纯名字 grep",
+          "line": 150
+        },
+        {
+          "ac_id": "AC-09",
+          "title": "— 不完全 Beta 积分真守卫但只覆盖 2/13 点且阻碍正确化",
+          "line": 161
+        },
+        {
+          "ac_id": "AC-10",
+          "title": "— UR 闭式 W=100 窗口在 tests/ 下零调用零断言",
+          "line": 172
+        },
+        {
+          "ac_id": "AC-11",
+          "title": "— extract_C 可微性只做功能检查，gradcheck 零调用",
+          "line": 184
+        },
+        {
+          "ac_id": "AC-12",
+          "title": "— 禁硬编码表 Scenario 只 grep 标识符名不 grep 数值",
+          "line": 195
+        },
+        {
+          "ac_id": "AC-13",
+          "title": "— MVPConfig 字段集契约零断言，加 beta_max 字段全绿",
+          "line": 206
+        },
+        {
+          "ac_id": "AC-18",
+          "title": "— 反射分支测试声称守护该分支却通过",
+          "line": 217
+        },
+        {
+          "ac_id": "AC-33",
+          "title": "— req-20/req-22 的 UR 闭式 src 有实现而 tests 零调用",
+          "line": 229
+        },
+        {
+          "ac_id": "AC-37",
+          "title": "— _dead_expert_threshold 部分真守卫：参数化维度无守护",
+          "line": 241
+        },
+        {
+          "ac_id": "AC-38",
+          "title": "— local_softmax 真守卫但单线且归属错位",
+          "line": 252
+        },
+        {
+          "ac_id": "AC-39",
+          "title": "— STE 禁令 grep 作用域只覆盖 extraction.py 一个文件",
+          "line": 263
+        },
+        {
+          "ac_id": "AC-40",
+          "title": "— MC 测量层的采样数与种子常量值零断言，只引用符号名",
+          "line": 274
+        },
+        {
+          "ac_id": "AC-47",
+          "title": "— equal_area_witness 测试用被测实现自身作为参考做校准",
+          "line": 285
+        },
+        {
+          "ac_id": "AC-48",
+          "title": "— test_voronoi_angle_one_sided_gap 把单向性降格为方向检查",
+          "line": 296
+        },
+        {
+          "ac_id": "AC-60",
+          "title": "— 球面归一化的 eps 默认值无守卫，同名原语却已钉住",
+          "line": 308
+        },
+        {
+          "ac_id": "AC-61",
+          "title": "— 一批浮点闭式断言缺 actual= 内嵌值，含 5 个精确值",
+          "line": 319
+        },
+        {
+          "ac_id": "AC-62",
+          "title": "— req-gov-1 obligation 4 的 5 个 ppm / 残差数值全仓零对账",
+          "line": 330
+        },
+        {
+          "ac_id": "AC-77",
+          "title": "— gamma_reset_for_phase4 定义域 (1,32) 无守卫",
+          "line": 341
+        },
+        {
+          "ac_id": "AC-83",
+          "title": "— req-11 参数量闭式的三个中间整数项无字面量守护",
+          "line": 352
+        },
+        {
+          "ac_id": "AC-91",
+          "title": "— req-24 Scenario 的 γ/β 空间间隙中间量无测试守护",
+          "line": 363
+        }
+      ]
+    },
+    {
+      "label": "A-2",
+      "declared": 15,
+      "parsed": 15,
+      "items": [
+        {
+          "ac_id": "AC-04",
+          "title": "— req-6 的凹性错误数值无测试钉住，紧邻测试反而把同类伪零点硬钉为真值",
+          "line": 380
+        },
+        {
+          "ac_id": "AC-05",
+          "title": "— test_voronoi_angle_convexity_boundary 钉死求积伪影",
+          "line": 392
+        },
+        {
+          "ac_id": "AC-15",
+          "title": "— sphere.py 凹凸性分区图错误，被中心差分测试钉死",
+          "line": 404
+        },
+        {
+          "ac_id": "AC-16",
+          "title": "— canonical_voronoi_angle 的精度免责声明挂在错误的界上",
+          "line": 416
+        },
+        {
+          "ac_id": "AC-28",
+          "title": "— 被推翻的先例：主控 COMMON 事实 #4 的口径需精确化",
+          "line": 428
+        },
+        {
+          "ac_id": "AC-42",
+          "title": "— 不完全 Beta 积分 docstring 未披露 x→1 的误差跃变",
+          "line": 440
+        },
+        {
+          "ac_id": "AC-46",
+          "title": "— spec 声称球面归一化输出 exact 等于 1，59% 不满足",
+          "line": 451
+        },
+        {
+          "ac_id": "AC-52",
+          "title": "— req-17 闭式漏算第 (3) 步 128 MACs",
+          "line": 462
+        },
+        {
+          "ac_id": "AC-53",
+          "title": "— req-11 的 W^O 排除清单与同段 4·d_model² 闭式互斥",
+          "line": 473
+        },
+        {
+          "ac_id": "AC-64",
+          "title": "— voronoi_angle docstring 峰值位置与幅度均算错",
+          "line": 484
+        },
+        {
+          "ac_id": "AC-82",
+          "title": "— req-11 权重 tying 反事实的 prose 数值与同段闭式不符",
+          "line": 495
+        },
+        {
+          "ac_id": "AC-84",
+          "title": "— θ_Voronoi > θ_{1/e} 成立条件只是散文非条款",
+          "line": 506
+        },
+        {
+          "ac_id": "AC-85",
+          "title": "— req-19 把 1:1 FLOPs 断言从两个条目过度外推到每个 MoE 条目",
+          "line": 517
+        },
+        {
+          "ac_id": "AC-86",
+          "title": "— req-19 两个 residency 数值无 pin 且算不出 4 KB",
+          "line": 528
+        },
+        {
+          "ac_id": "AC-87",
+          "title": "— req-20 六个 baseline 有 5 个零表示且无 deferral",
+          "line": 539
+        }
+      ]
+    },
+    {
+      "label": "A-3",
+      "declared": 15,
+      "parsed": 15,
+      "items": [
+        {
+          "ac_id": "AC-14",
+          "title": "— 测试只跑 Phase 1–4，暴露不了 Phase 0 范数矛盾",
+          "line": 556
+        },
+        {
+          "ac_id": "AC-17",
+          "title": "— CentroidDriver.step 的 mask=None 分支广播同一均值",
+          "line": 567
+        },
+        {
+          "ac_id": "AC-32",
+          "title": "— req-2 的 MUST 级标识符 territory_collapse 悬空",
+          "line": 578
+        },
+        {
+          "ac_id": "AC-35",
+          "title": "— req-23 Phase 0 范数 MUST 与 req-18 冲突",
+          "line": 589
+        },
+        {
+          "ac_id": "AC-41",
+          "title": "— UR 的 W=100 窗口与 R_H/S_load 滑窗语义未实现",
+          "line": 600
+        },
+        {
+          "ac_id": "AC-43",
+          "title": "— resurrect_expert 返回裸 ε 而非克隆后扰动，破坏球面归一不变量",
+          "line": 612
+        },
+        {
+          "ac_id": "AC-44",
+          "title": "— loss.py 硬编码 100K 边界与 total_steps API 静默错位",
+          "line": 623
+        },
+        {
+          "ac_id": "AC-45",
+          "title": "— req-2 映射表中 territory_collapse 在 src 零出现",
+          "line": 634
+        },
+        {
+          "ac_id": "AC-56",
+          "title": "— req-15/16 Layer 2 的 WB 与阈值零实现",
+          "line": 645
+        },
+        {
+          "ac_id": "AC-73",
+          "title": "— clip_global_grad_norm_ 的 else 分支不可达且会抛错",
+          "line": 656
+        },
+        {
+          "ac_id": "AC-74",
+          "title": "— _betainc_regularized 求积循环内两处守卫数学上不可达",
+          "line": 667
+        },
+        {
+          "ac_id": "AC-75",
+          "title": "— extract_C 的投影参数名与 skeleton req-7 声明签名漂移",
+          "line": 678
+        },
+        {
+          "ac_id": "AC-76",
+          "title": "— resurrect_expert docstring 的实参描述与实现不符",
+          "line": 689
+        },
+        {
+          "ac_id": "AC-78",
+          "title": "— __all__ 只列 3 个 dunder 名字，spec 要求列出全部公开符号",
+          "line": 700
+        },
+        {
+          "ac_id": "AC-79",
+          "title": "— voronoi_angle 的 probe 强制建在 CPU 且多出 ValueError",
+          "line": 711
+        }
+      ]
+    },
+    {
+      "label": "A-4",
+      "declared": 15,
+      "parsed": 15,
+      "items": [
+        {
+          "ac_id": "AC-34",
+          "title": "— req-36 整段以行号指针钉真相源而多数已漂移",
+          "line": 728
+        },
+        {
+          "ac_id": "AC-54",
+          "title": "— 三处「Req 10」反链指向已被改写的 Requirement",
+          "line": 739
+        },
+        {
+          "ac_id": "AC-59",
+          "title": "— skeleton L242 引 wayfinder L249 实为 L315",
+          "line": 750
+        },
+        {
+          "ac_id": "AC-63",
+          "title": "— arctan(pi/sqrt(d_c)) 不变式的守护交接指向空处",
+          "line": 761
+        },
+        {
+          "ac_id": "AC-65",
+          "title": "— config.py 把 spec 权威行标为 L245，实为 API 句",
+          "line": 772
+        },
+        {
+          "ac_id": "AC-66",
+          "title": "— schedule.py 把三条 β^eff 公式的 spec 行号指错",
+          "line": 783
+        },
+        {
+          "ac_id": "AC-67",
+          "title": "— test_safeguards.py 10 处 per L249 全部指错",
+          "line": 794
+        },
+        {
+          "ac_id": "AC-68",
+          "title": "— metrics.py 把 CG 指标的 spec 行号标错",
+          "line": 805
+        },
+        {
+          "ac_id": "AC-69",
+          "title": "— test_extraction.py 把 eps 默认值规范行号标错",
+          "line": 816
+        },
+        {
+          "ac_id": "AC-70",
+          "title": "— req-12 引用的 safeguards.py 行号漂移 52 行",
+          "line": 827
+        },
+        {
+          "ac_id": "AC-71",
+          "title": "— req-20 引用 beta.py:50 的行号与逐字引文皆错",
+          "line": 838
+        },
+        {
+          "ac_id": "AC-72",
+          "title": "— voronoi_angle docstring 把读者指向一个不存在的测试名",
+          "line": 849
+        },
+        {
+          "ac_id": "AC-88",
+          "title": "— wayfinder spec 内部行号交叉引用系统性失效（聚合记录）",
+          "line": 860
+        },
+        {
+          "ac_id": "AC-89",
+          "title": "— req-34 的 live example 指针指向参数计数假设",
+          "line": 871
+        },
+        {
+          "ac_id": "AC-90",
+          "title": "— req-2 引 req-11 L211 落在 req-10 块内",
+          "line": 882
+        }
+      ]
+    },
+    {
+      "label": "A-5",
+      "declared": 18,
+      "parsed": 18,
+      "items": [
+        {
+          "ac_id": "AC-19",
+          "title": "— archive 工具静默吞掉后继 Requirement 的 anchor",
+          "line": 899
+        },
+        {
+          "ac_id": "AC-20",
+          "title": "— CLAUDE.md §3 门禁清单对 anchor 事故全部返回 exit 0",
+          "line": 910
+        },
+        {
+          "ac_id": "AC-21",
+          "title": "— 仓库无 CI 配置，scripts/ 即全部门禁面",
+          "line": 921
+        },
+        {
+          "ac_id": "AC-22",
+          "title": "— range 内两个 100% 完成的 change 是非法 OpenSpec 制品",
+          "line": 932
+        },
+        {
+          "ac_id": "AC-23",
+          "title": "— b10-b11-b12 change 全部完成但目录未跟踪、delta 未 sync",
+          "line": 943
+        },
+        {
+          "ac_id": "AC-24",
+          "title": "— Source 反链 lint 的必需要子串只硬编码到目录前缀",
+          "line": 955
+        },
+        {
+          "ac_id": "AC-25",
+          "title": "— 门禁运行期间工作树被并发写入，快照不可复现",
+          "line": 966
+        },
+        {
+          "ac_id": "AC-31",
+          "title": "— UNVERIFIABLE 与 severity 的自指缺陷：治理规则的零守卫",
+          "line": 977
+        },
+        {
+          "ac_id": "AC-36",
+          "title": "— fix-review-findings change 的悬空 delta 声明",
+          "line": 988
+        },
+        {
+          "ac_id": "AC-49",
+          "title": "— §3 门禁清单不含 openspec validate <change> --strict",
+          "line": 999
+        },
+        {
+          "ac_id": "AC-57",
+          "title": "— change 的 task 勾选声称已完成但对应编辑从未落库",
+          "line": 1010
+        },
+        {
+          "ac_id": "AC-58",
+          "title": "— a036a15 只落了 B14 的 src 半边，spec 半边滞留",
+          "line": 1021
+        },
+        {
+          "ac_id": "AC-80",
+          "title": "— 仓库无任何 anchor 覆盖检查的门禁脚本",
+          "line": 1033
+        },
+        {
+          "ac_id": "AC-81",
+          "title": "— Source 行匹配的行首锚定可被缩进或引用前缀绕过",
+          "line": 1044
+        },
+        {
+          "ac_id": "AC-92",
+          "title": "— wayfinder 两个 anchor 被正文内联重复声明",
+          "line": 1055
+        },
+        {
+          "ac_id": "AC-100",
+          "title": "— fix-review-findings change 目录名无日期前缀",
+          "line": 1066
+        },
+        {
+          "ac_id": "AC-101",
+          "title": "— followup change 的 task 勾选框账目漂移",
+          "line": 1077
+        },
+        {
+          "ac_id": "AC-102",
+          "title": "— b13-b16 change 24/24 完成且已落库但仍未 archive",
+          "line": 1088
+        }
+      ]
+    },
+    {
+      "label": "A-6",
+      "declared": 7,
+      "parsed": 7,
+      "items": [
+        {
+          "ac_id": "AC-06",
+          "title": "— 裁决时点漂移：e50cc02 已切断环4→环6，环1/环2 未修",
+          "line": 1105
+        },
+        {
+          "ac_id": "AC-26",
+          "title": "— main45：镜像分歧后合并为 STILL_REAL 的先例",
+          "line": 1117
+        },
+        {
+          "ac_id": "AC-27",
+          "title": "— MOVED 的漂移源单一：33f7cc9 造成 +1/+13/+8",
+          "line": 1128
+        },
+        {
+          "ac_id": "AC-29",
+          "title": "— 诚实的边界：D3 未能证明 Jensen 单向界本身",
+          "line": 1140
+        },
+        {
+          "ac_id": "AC-30",
+          "title": "— gap0：结论成立但 finding 自身证据不可复用",
+          "line": 1152
+        },
+        {
+          "ac_id": "AC-50",
+          "title": "— main42 的「结论反转」被驳回，定级由 MAJOR 降为 MEDIUM",
+          "line": 1164
+        },
+        {
+          "ac_id": "AC-51",
+          "title": "— main21/main22 的 violates 归因被三镜一致驳回",
+          "line": 1176
+        }
+      ]
+    },
+    {
+      "label": "A-7",
+      "declared": 8,
+      "parsed": 8,
+      "items": [
+        {
+          "ac_id": "AC-55",
+          "title": "— req-36 逐字引用 ticket A8-2 与 ticket 实际不符",
+          "line": 1194
+        },
+        {
+          "ac_id": "AC-93",
+          "title": "— map.md 两条 A5-3 narrative 仍写旧 θ_Voronoi 值",
+          "line": 1205
+        },
+        {
+          "ac_id": "AC-94",
+          "title": "— map.md 的 4 阶段生命周期措辞漏改且仍带已删除的 δ_g",
+          "line": 1216
+        },
+        {
+          "ac_id": "AC-95",
+          "title": "— map.md 的三处计数全部落后于仓库实况",
+          "line": 1227
+        },
+        {
+          "ac_id": "AC-96",
+          "title": "— ticket A3-2 的 δ_g 门控被替换且无 Decision",
+          "line": 1238
+        },
+        {
+          "ac_id": "AC-97",
+          "title": "— ticket A6a-2 供体克隆语义无落点且无 Decision",
+          "line": 1249
+        },
+        {
+          "ac_id": "AC-98",
+          "title": "— ticket A6a-2 的专家权重克隆步在 openspec 内零落点",
+          "line": 1260
+        },
+        {
+          "ac_id": "AC-99",
+          "title": "— ticket A5-3 的 β_0 ≈ 1.0 标注只做了一半",
+          "line": 1271
+        }
+      ]
+    },
+    {
+      "label": "A-8",
+      "declared": 6,
+      "parsed": 6,
+      "items": [
+        {
+          "ac_id": "UD-01",
+          "title": "— main 与 dev 无共同祖先，dev → main --no-ff 当前不可执行",
+          "line": 1288
+        },
+        {
+          "ac_id": "UD-02",
+          "title": "— release 分支与任何 tag 都不存在",
+          "line": 1299
+        },
+        {
+          "ac_id": "UD-03",
+          "title": "— run d53 的 pin agent hand-back 触发了不可逆本地销毁告警",
+          "line": 1310
+        },
+        {
+          "ac_id": "UD-04",
+          "title": "— CLAUDE.md 对 ticket 同时声明非约束与必须维护",
+          "line": 1321
+        },
+        {
+          "ac_id": "UD-05",
+          "title": "— beta_effective 对 γ 不可微，训练性论证依赖该通路",
+          "line": 1332
+        },
+        {
+          "ac_id": "UD-06",
+          "title": "— 312 行审计台账从未回流主干且与主干分叉",
+          "line": 1343
+        }
+      ]
+    }
+  ],
+  "self_checks": {
+    "S1_orphan_headings": [],
+    "S2_count_mismatch": [],
+    "S3_duplicate_ids": []
+  }
+}

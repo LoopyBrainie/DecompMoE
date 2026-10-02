@@ -1,0 +1,12 @@
+## 4. A-4 交叉引用与行号指针失效（15 + 3 = 18 条）
+
+条目：`AC-34 AC-54 AC-59 AC-63 AC-65 AC-66 AC-67 AC-68 AC-69 AC-70 AC-71 AC-72 AC-88 AC-89 AC-90`。
+本桶追加的无实体条目（D9）：`X-main36`（wayfinder Req 23 整条由行号断言构成且实指 skeleton req-22）、`X-main73`（wayfinder req-23 跨 spec 交叉引用全写成行号且 Requirement 号错）、`X-main78`（治理条款的行号指针指向错误的 Requirement 块）。
+
+> **归因更正**：原文把行号位移单一归因于「Change 2 重写三份 spec 的大块正文」。实测 pin→HEAD 之间有 **5 个** commit 改过 `openspec/specs/`（`e50cc02` / `315065e` / `4f3e752` / `188b9fb` / `f6461d7`），Change 2 只是最后一个。且漂移不限于指向 spec 的指针——清单「盲区 5」列出的 `touched-since-pin` 共 10 条，其中 **7 条在本 change 范围内且分属 A-1 / A-2 / A-3**：`AC-04` / `AC-05` / `AC-28` / `AC-40` / `AC-60` / `AC-64` / `AC-79`。
+
+- [ ] 4.1 判定本桶的失效机制。按 design.md R5，本桶多为 `invalidation_kind: coordinate`（坐标位移）而非 `numeric`。逐条确认其指向的目标文件是否属于 pin→HEAD 期间被改动的那 5 个 commit 触及的文件，并据此定 `invalidation_kind`。验证：每条 `coordinate` 类都给出「指针声明的行号 → 该行在当前 HEAD 的实际内容 → 正确行号」。
+- [ ] 4.2 重算行号指针。**范围不再限于指向 `openspec/specs/**` 的指针**——指向 `src/**` 的指针需先确认目标文件在期间是否被改动（`sphere.py` 已改，其余未改），未改的只做坐标复核不做重判。验证：抽查 3 条按台账给出的新行号能定位到正确文本；并对上述 7 条跨桶漂移项各给出一行结论（它们由 1.x / 2.x / 3.x 判定，本任务只做指针侧记录）。
+- [ ] 4.3 重判 verdict。`coordinate` 类的 verdict 表达的是「指针是否已失效」，与数值类不同，不得混用同一套判据。验证：0.4 检查器对本桶报 0 缺项；18 条 `invalidation_kind` 全部非空。
+- [ ] 4.4 **D9 专项**：`X-main36` / `X-main73` / `X-main78` 的指针目标须从零定位（清单只给了「最近的本桶条目」，没给行号）。验证：T6 规则对三条报 0 命中，或显式 `PENDING` + 写明缺口。
+- [ ] 4.5 A-4 组一致性检查。验证：同 1.5（18 条）。

@@ -1,0 +1,162 @@
+{
+  "frozen_oracle": "openspec\\changes\\archive\\2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard\\evidence\\oracle.py",
+  "task_text_said": "change 2026-01's evidence/oracle.py",
+  "task_text_note": "tasks.md 0.2 names change `2026-10-01`; the oracle actually lives in the 2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard archive. Recorded, not silently substituted.",
+  "dps": 60,
+  "routes": [
+    "mp.quad over t^(a-1)(1-t)^(b-1)/B(a,b)",
+    "mpmath 4-argument betainc(a,b,0,x,regularized=True)"
+  ],
+  "spread_tolerance": "1e-49",
+  "three_arg_trap_guard": "the 3-argument betainc returns the COMPLEMENT and is Change 0's original oracle bug; it is kept here as a negative control and must stay separated from the two live routes",
+  "appended_probe_points": [
+    {
+      "point": "(3,16)..(64,16) canonical half-angles",
+      "cited_by": [
+        "AC-08",
+        "AC-09",
+        "AC-16",
+        "AC-64",
+        "AC-84"
+      ]
+    },
+    {
+      "point": "incomplete-Beta deltas +1.1813e-6 / +1.1818e-6 / +1.3579e-2",
+      "cited_by": [
+        "AC-09"
+      ]
+    },
+    {
+      "point": "cap-area below the pi/2 plateau",
+      "cited_by": [
+        "AC-05",
+        "AC-15",
+        "AC-42"
+      ]
+    }
+  ],
+  "probe_points": [
+    {
+      "N_e": 3,
+      "d_c": 16,
+      "route_quad": "1.4578378442370083062",
+      "route_betainc": "1.4578378442370083062",
+      "spread": "0.0",
+      "routes_agree": true,
+      "residual_G_minus_1_over_N": "8.95e-61",
+      "six_dp_literal": "1.457837",
+      "three_arg_trap": "3.14159265359",
+      "trap_gap": "1.68",
+      "trap_is_separated": true
+    },
+    {
+      "N_e": 16,
+      "d_c": 16,
+      "route_quad": "1.17354742591971747",
+      "route_betainc": "1.17354742591971747",
+      "spread": "0.0",
+      "routes_agree": true,
+      "residual_G_minus_1_over_N": "7.29e-62",
+      "six_dp_literal": "1.173547",
+      "three_arg_trap": "1.63387739154",
+      "trap_gap": "0.46",
+      "trap_is_separated": true
+    },
+    {
+      "N_e": 17,
+      "d_c": 16,
+      "route_quad": "1.1658476215516009014",
+      "route_betainc": "1.1658476215516009014",
+      "spread": "0.0",
+      "routes_agree": true,
+      "residual_G_minus_1_over_N": "7.29e-62",
+      "six_dp_literal": "1.165847",
+      "three_arg_trap": "1.63010318415",
+      "trap_gap": "0.464",
+      "trap_is_separated": true
+    },
+    {
+      "N_e": 32,
+      "d_c": 16,
+      "route_quad": "1.0916065844205110815",
+      "route_betainc": "1.0916065844205110815",
+      "spread": "0.0",
+      "routes_agree": true,
+      "residual_G_minus_1_over_N": "2.43e-62",
+      "six_dp_literal": "1.091606",
+      "three_arg_trap": "1.60211788429",
+      "trap_gap": "0.511",
+      "trap_is_separated": true
+    },
+    {
+      "N_e": 64,
+      "d_c": 16,
+      "route_quad": "1.020506824783713212",
+      "route_betainc": "1.020506824783713212",
+      "spread": "0.0",
+      "routes_agree": true,
+      "residual_G_minus_1_over_N": "2.8e-62",
+      "six_dp_literal": "1.020506",
+      "three_arg_trap": "1.58643023864",
+      "trap_gap": "0.566",
+      "trap_is_separated": true
+    }
+  ],
+  "impl_vs_oracle": [
+    {
+      "N_e": 3,
+      "d_c": 16,
+      "impl": "1.4578378442369877",
+      "oracle": "1.4578378442370083062",
+      "deviation": "-2.06e-14",
+      "abs_deviation": "2.06e-14",
+      "within_1e_12": true
+    },
+    {
+      "N_e": 16,
+      "d_c": 16,
+      "impl": "1.173547425919682",
+      "oracle": "1.17354742591971747",
+      "deviation": "-3.55e-14",
+      "abs_deviation": "3.55e-14",
+      "within_1e_12": true
+    },
+    {
+      "N_e": 17,
+      "d_c": 16,
+      "impl": "1.1658476215515672",
+      "oracle": "1.1658476215516009014",
+      "deviation": "-3.37e-14",
+      "abs_deviation": "3.37e-14",
+      "within_1e_12": true
+    },
+    {
+      "N_e": 32,
+      "d_c": 16,
+      "impl": "1.091606584420534",
+      "oracle": "1.0916065844205110815",
+      "deviation": "2.29e-14",
+      "abs_deviation": "2.29e-14",
+      "within_1e_12": true
+    },
+    {
+      "N_e": 64,
+      "d_c": 16,
+      "impl": "1.0205068247837297",
+      "oracle": "1.020506824783713212",
+      "deviation": "1.65e-14",
+      "abs_deviation": "1.65e-14",
+      "within_1e_12": true
+    }
+  ],
+  "matcher_control": {
+    "known_present_AC09_scientific_notation_found": true,
+    "known_present_AC09_mentions_sphere": true,
+    "known_present_AC74_mentions_sphere": true,
+    "known_absent_AC44_mentions_sphere": false,
+    "pass": true
+  },
+  "frozen_oracle_rerun_exit_code": 0,
+  "frozen_oracle_rerun_verdict_pass": true,
+  "verdict": "PASS"
+}

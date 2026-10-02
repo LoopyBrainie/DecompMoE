@@ -1,0 +1,4 @@
+- [x] 0.2 冻结 oracle。沿用 change `2026-01` 的 `evidence/oracle.py`（dps=60，两条独立路线），复核其在 5 个 `(N_e, d_c)` 上 `spread == 0.00e+00`；把本 change 需重测的探针点追加进去并落盘 `evidence/oracle_recheck.json`。~~验证：退出码 0 且末行 verdict 为 PASS；先拿一条「已知存在」与一条「已知不存在」的样本验一遍匹配器再跑全量。~~ **→ 冻结 oracle 实际位于 `2026-10-02-fix-canonical-literal-…` 归档（task 原写的 `2026-01` 不存在），已在 json 中显式记录而非静默替换。5 个探针点两路线 `spread` 全为 `0`；3 参 `betainc` 陷阱作为反向对照保持分离（gap 0.46–1.68），确保「两路线互验」不是空转。impl↔oracle 偏差 1.65e-14 ~ 3.55e-14，全部 < 1e-12。matcher control 通过：AC-09 的科学计数法 `1.1813e-6`/`1.1818e-6`/`1.3579e-2` 命中、AC-74 命中、AC-44 不命中。冻结 oracle 原样重跑 `exit 0` + `ORACLE VERDICT: PASS`。退出码 0。**
+
+  > **本任务自身修正的两个自造缺陷**（均曾产生自信的错误结论）：① 签名靠猜 —— `canonical_voronoi_angle(n_e=, d_c=)` 报 TypeError，实为 `num_experts`/`signature_dim`，已改为 `inspect.signature` 取值；② 数值正则带否定前瞻 `(?![\w])`，**静默丢弃全部科学计数法**，使 AC-09 这条明写求积探针的 finding 计成未命中、求积相关数虚报为 17/95。修正后为 26/95、字面量 83→117。教训：零/低计数先做独立文本 grep 确认，且**不要用手写常量表当匹配基准**——应由运行真实代码导出。
+

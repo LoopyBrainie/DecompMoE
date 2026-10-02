@@ -1,0 +1,630 @@
+{
+  "pin": "6593a06",
+  "head": "8ba7d6f70d2318ed3b39ea280477765f0ba578d1",
+  "head_subject": "docs(a2-round2): record that f6461d7 is a two-author commit",
+  "supersedes_note": "The first baseline.json asserted 'the integrator fix is NOT committed; HEAD (188b9fb) still carries the PRE-fix _betainc_regularized'. Measured false on three counts: (1) HEAD is f6461d7, not 188b9fb; (2) sphere.py at HEAD carries the full quadrature fix; (3) the three specs are in HEAD, not worktree-carried. Only gating.py is uncommitted.",
+  "pin_to_head_commits": [
+    "8ba7d6f docs(a2-round2): record that f6461d7 is a two-author commit",
+    "f6461d7 fix(a2-errata): correct the A-2 spec defects, then repair the math that correction broke",
+    "188b9fb fix(f1-followup): close the second copy of the 50-digit mpmath mislabel",
+    "4f3e752 chore(opsx): archive F1-F8 fixes; repair anchors swallowed by archive",
+    "969b17c fix(f4,f5,f6,f7): pin loss closed-form wiring; make guards actually fail",
+    "5a7e48d fix(f1,f2,f3,f8): restore numeric-guard fidelity + kill residual line-drift",
+    "315065e chore(opsx): archive B13/B14/B15 changes; restore B15 reverted by e50cc02",
+    "2dc340d docs(archive): record 9.5 resolution of the 9.4 BLOCKED item",
+    "c0ec330 chore(opsx): archive b10-b11-b12 and voronoi-angle review findings",
+    "e50cc02 chore(inflight): checkpoint parallel session's in-flight work",
+    "e8771b9 docs(change): record second-round archive blocker for fix-config-docstring-beta-line-drift"
+  ],
+  "pin_blobs": {
+    "openspec/specs/wayfinder/spec.md": {
+      "sha256": "a0bb8a2736b17fab57dae7cb2b11748125e81015adfb6186b3857f528ca65006",
+      "bytes": 107192,
+      "content_sha256_lf_normalised": "a0bb8a2736b17fab57dae7cb2b11748125e81015adfb6186b3857f528ca65006"
+    },
+    "openspec/specs/decompmoe-skeleton/spec.md": {
+      "sha256": "857dcb495437235ff4f44a57cbf8dcf53f5d748c0e8667632160c5743fac1529",
+      "bytes": 70206,
+      "content_sha256_lf_normalised": "857dcb495437235ff4f44a57cbf8dcf53f5d748c0e8667632160c5743fac1529"
+    },
+    "openspec/specs/governance/spec.md": {
+      "sha256": "cbe8c5676613a2f35acb1bafe7c7073530f13c7a08ccbbc5680a230885433175",
+      "bytes": 38900,
+      "content_sha256_lf_normalised": "cbe8c5676613a2f35acb1bafe7c7073530f13c7a08ccbbc5680a230885433175"
+    },
+    "src/decompmoe/sphere.py": {
+      "sha256": "fd80e4bc01721fe5e00a4b2566b15a060853a298e75ac3d56e3660b95248de0c",
+      "bytes": 14026,
+      "content_sha256_lf_normalised": "fd80e4bc01721fe5e00a4b2566b15a060853a298e75ac3d56e3660b95248de0c"
+    },
+    "src/decompmoe/gating.py": {
+      "sha256": "33e738f8b6c7794d572d8eac949092cf67921ee91c1eddaea9b594c868251492",
+      "bytes": 2254,
+      "content_sha256_lf_normalised": "33e738f8b6c7794d572d8eac949092cf67921ee91c1eddaea9b594c868251492"
+    },
+    "src/decompmoe/loss.py": {
+      "sha256": "507ad7642314b9e9e5b098436fdf2b8eb3fee77d73728b25bcb7503952743211",
+      "bytes": 4332,
+      "content_sha256_lf_normalised": "507ad7642314b9e9e5b098436fdf2b8eb3fee77d73728b25bcb7503952743211"
+    },
+    "src/decompmoe/schedule.py": {
+      "sha256": "846069a3b26674b0a8e4bda497ee43bca9f66f4cf865d331dc1ef0e0d0568e25",
+      "bytes": 7591,
+      "content_sha256_lf_normalised": "846069a3b26674b0a8e4bda497ee43bca9f66f4cf865d331dc1ef0e0d0568e25"
+    },
+    "src/decompmoe/metrics.py": {
+      "sha256": "360a1f425bc0e6d466516b2cabe1c4036a25c3170d3e331afbcd2bb4018fe879",
+      "bytes": 8059,
+      "content_sha256_lf_normalised": "360a1f425bc0e6d466516b2cabe1c4036a25c3170d3e331afbcd2bb4018fe879"
+    },
+    "src/decompmoe/config.py": {
+      "sha256": "a61164ec43647f4f5a7d7aac041d44f2f588309f0529f3a113d9b51387c9ca45",
+      "bytes": 5995,
+      "content_sha256_lf_normalised": "a61164ec43647f4f5a7d7aac041d44f2f588309f0529f3a113d9b51387c9ca45"
+    },
+    "src/decompmoe/extraction.py": {
+      "sha256": "ec371c997b17724422f6eb0128671a34bc76451dbcebf9e2432a422976cd7fc1",
+      "bytes": 8950,
+      "content_sha256_lf_normalised": "ec371c997b17724422f6eb0128671a34bc76451dbcebf9e2432a422976cd7fc1"
+    },
+    "src/decompmoe/safeguards.py": {
+      "sha256": "09827414f71b40c5799bfd610c7d2c7e7291fc9aad4926153e96924b6021fd41",
+      "bytes": 12227,
+      "content_sha256_lf_normalised": "09827414f71b40c5799bfd610c7d2c7e7291fc9aad4926153e96924b6021fd41"
+    },
+    "src/decompmoe/distance.py": {
+      "sha256": "2722ec418cc09d37f7b98e14575886ac0bf0624975776e8373189cabfe9fdd9d",
+      "bytes": 1150,
+      "content_sha256_lf_normalised": "2722ec418cc09d37f7b98e14575886ac0bf0624975776e8373189cabfe9fdd9d"
+    },
+    "src/decompmoe/beta.py": {
+      "sha256": "18f9073405c6ced22778e3eb263374f8a8d2b5517e5b1f0a9f2eec77ccef8a2b",
+      "bytes": 4524,
+      "content_sha256_lf_normalised": "18f9073405c6ced22778e3eb263374f8a8d2b5517e5b1f0a9f2eec77ccef8a2b"
+    },
+    "src/decompmoe/__init__.py": {
+      "sha256": "9bcbd10a0a777e225e739fdb848d1c53d768a727b529d99731339d27db2dc48b",
+      "bytes": 986,
+      "content_sha256_lf_normalised": "9bcbd10a0a777e225e739fdb848d1c53d768a727b529d99731339d27db2dc48b"
+    },
+    "src/decompmoe/contracts.py": {
+      "sha256": "c7f084ceadab1cafceec73d6c7796f901c88be47489e176d582f6cf6160f5163",
+      "bytes": 3932,
+      "content_sha256_lf_normalised": "c7f084ceadab1cafceec73d6c7796f901c88be47489e176d582f6cf6160f5163"
+    },
+    "tests/test_safeguards.py": {
+      "sha256": "2e6aaaf8b8ccec30c100c92c1a0a56b90b397ca858155b3b3e690856146319eb",
+      "bytes": 59223,
+      "content_sha256_lf_normalised": "2e6aaaf8b8ccec30c100c92c1a0a56b90b397ca858155b3b3e690856146319eb"
+    },
+    "tests/test_extraction_phase.py": {
+      "sha256": "524eee3442ac8793e35be5e1f545416e349639d7b963ed74edde97e7ad610766",
+      "bytes": 4339,
+      "content_sha256_lf_normalised": "524eee3442ac8793e35be5e1f545416e349639d7b963ed74edde97e7ad610766"
+    },
+    "tests/test_schedule.py": {
+      "sha256": "8e1ac024e604011dd64388578cf73cd1bfa1c03743cc9b53915d4b75400957f4",
+      "bytes": 12072,
+      "content_sha256_lf_normalised": "8e1ac024e604011dd64388578cf73cd1bfa1c03743cc9b53915d4b75400957f4"
+    },
+    "tests/test_contracts.py": {
+      "sha256": "234c1c3f527443894d5fd0fc564be9e6245af4aa7ec9d41534fe05d508d1be34",
+      "bytes": 4500,
+      "content_sha256_lf_normalised": "234c1c3f527443894d5fd0fc564be9e6245af4aa7ec9d41534fe05d508d1be34"
+    },
+    "tests/test_sphere.py": {
+      "sha256": "bed8a8d8d7e4097d2011955a29b526b2baf4b9de4d7cd16e522f986733ef4eb9",
+      "bytes": 35263,
+      "content_sha256_lf_normalised": "bed8a8d8d7e4097d2011955a29b526b2baf4b9de4d7cd16e522f986733ef4eb9"
+    },
+    "tests/test_gating.py": {
+      "sha256": "2fc790534bc1d28007bb00d1069cff3e70808a16651e07dc0b02e1f418a64ca7",
+      "bytes": 4635,
+      "content_sha256_lf_normalised": "2fc790534bc1d28007bb00d1069cff3e70808a16651e07dc0b02e1f418a64ca7"
+    },
+    "tests/test_loss.py": {
+      "sha256": "6106803ec7717c773f9c21739697a0464201b78f0fe5489156cd9e6a0a11ba6b",
+      "bytes": 11654,
+      "content_sha256_lf_normalised": "6106803ec7717c773f9c21739697a0464201b78f0fe5489156cd9e6a0a11ba6b"
+    },
+    "tests/test_config.py": {
+      "sha256": "e806bdf95afb5e92c239448b0db9bc90e6fe84e343d1220b04ba562fb70b3d18",
+      "bytes": 10037,
+      "content_sha256_lf_normalised": "e806bdf95afb5e92c239448b0db9bc90e6fe84e343d1220b04ba562fb70b3d18"
+    },
+    "tests/test_extraction.py": {
+      "sha256": "93d46661153664e0ea35492a1713da262d4a0f99ea71da706e81bce5cc94625d",
+      "bytes": 30950,
+      "content_sha256_lf_normalised": "93d46661153664e0ea35492a1713da262d4a0f99ea71da706e81bce5cc94625d"
+    },
+    "tests/test_metrics.py": {
+      "sha256": "a296d9a7fb8f385d1e922fb815ee183e496e2a74506de74352c20f02298ab3df",
+      "bytes": 24045,
+      "content_sha256_lf_normalised": "a296d9a7fb8f385d1e922fb815ee183e496e2a74506de74352c20f02298ab3df"
+    },
+    "tests/test_beta.py": {
+      "sha256": "da1d4516e0b4836171ccc2eec748ebd51bbde3169e042dfe5b6d3a9c076afc63",
+      "bytes": 17187,
+      "content_sha256_lf_normalised": "da1d4516e0b4836171ccc2eec748ebd51bbde3169e042dfe5b6d3a9c076afc63"
+    }
+  },
+  "pin_blobs_missing": [],
+  "head_vs_worktree": {
+    "openspec/specs/wayfinder/spec.md": {
+      "verdict": "CRLF_ONLY",
+      "head_bytes": 114905,
+      "worktree_bytes": 115800,
+      "head_sha256": "fd43b805201e7d17699ce8226901b302847f1c7e26218a783e80470231570c99",
+      "worktree_sha256": "9aff7c35ca74bab8828ee90a9b0ce1fb8e639458b2c0a77a9b8ac66c9b91f119",
+      "head_content_sha256_lf": "fd43b805201e7d17699ce8226901b302847f1c7e26218a783e80470231570c99",
+      "worktree_content_sha256_lf": "fd43b805201e7d17699ce8226901b302847f1c7e26218a783e80470231570c99",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 895,
+      "git_blob_sha_head": "91c938277ebf1dfe0bccb8e5bc0827a415dc7154",
+      "git_blob_sha_worktree": "91c938277ebf1dfe0bccb8e5bc0827a415dc7154",
+      "git_diff_quiet_clean": true
+    },
+    "openspec/specs/decompmoe-skeleton/spec.md": {
+      "verdict": "CRLF_ONLY",
+      "head_bytes": 80809,
+      "worktree_bytes": 81454,
+      "head_sha256": "0dbe8018074c402690115d8500c3ee9995cc00a2f4c973ac3ce2bf2d5a07972e",
+      "worktree_sha256": "9290e97b27d6a9e07c3557f14b959b3f482480be5be0b0fd64c8619d9baedb44",
+      "head_content_sha256_lf": "0dbe8018074c402690115d8500c3ee9995cc00a2f4c973ac3ce2bf2d5a07972e",
+      "worktree_content_sha256_lf": "0dbe8018074c402690115d8500c3ee9995cc00a2f4c973ac3ce2bf2d5a07972e",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 645,
+      "git_blob_sha_head": "805960ebf253338df61ac64241933af34d3895b1",
+      "git_blob_sha_worktree": "805960ebf253338df61ac64241933af34d3895b1",
+      "git_diff_quiet_clean": true
+    },
+    "openspec/specs/governance/spec.md": {
+      "verdict": "CRLF_ONLY",
+      "head_bytes": 43875,
+      "worktree_bytes": 44047,
+      "head_sha256": "92aaa180967397fac7aa5fd58657c8481cad3d748bb82333e05bd669cc23fe46",
+      "worktree_sha256": "b418136b11c318149316e8dd8886897d02aba78f234ea61e369f233e66a537e0",
+      "head_content_sha256_lf": "92aaa180967397fac7aa5fd58657c8481cad3d748bb82333e05bd669cc23fe46",
+      "worktree_content_sha256_lf": "92aaa180967397fac7aa5fd58657c8481cad3d748bb82333e05bd669cc23fe46",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 172,
+      "git_blob_sha_head": "3153b563639349bf0ffdfaf974e3137d8582f2a1",
+      "git_blob_sha_worktree": "3153b563639349bf0ffdfaf974e3137d8582f2a1",
+      "git_diff_quiet_clean": true
+    },
+    "src/decompmoe/sphere.py": {
+      "verdict": "IDENTICAL",
+      "head_bytes": 26127,
+      "worktree_bytes": 26127,
+      "head_sha256": "325f4661395a45d6d2e87172fe7e580d53d5a7a7e252ceaa9a34150c76ceb2ea",
+      "worktree_sha256": "325f4661395a45d6d2e87172fe7e580d53d5a7a7e252ceaa9a34150c76ceb2ea",
+      "head_content_sha256_lf": "325f4661395a45d6d2e87172fe7e580d53d5a7a7e252ceaa9a34150c76ceb2ea",
+      "worktree_content_sha256_lf": "325f4661395a45d6d2e87172fe7e580d53d5a7a7e252ceaa9a34150c76ceb2ea",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 0,
+      "git_blob_sha_head": "41852049add735d78a37e9f49b2a29df028b7ea3",
+      "git_blob_sha_worktree": "41852049add735d78a37e9f49b2a29df028b7ea3",
+      "git_diff_quiet_clean": true
+    },
+    "src/decompmoe/gating.py": {
+      "verdict": "CONTENT_DIFF",
+      "head_bytes": 2255,
+      "worktree_bytes": 2675,
+      "head_sha256": "fe3a29abc066a22e86311a744d95386c6ba0edf4699a3d98fb84f3dee7dadb38",
+      "worktree_sha256": "8a832abf8299591fecfb09c2287b0c41b87549b7c6f827061b6d416df821c83e",
+      "head_content_sha256_lf": "fe3a29abc066a22e86311a744d95386c6ba0edf4699a3d98fb84f3dee7dadb38",
+      "worktree_content_sha256_lf": "cb3282c2a6dafeb6e4bda0c0708943532f650e58104cd6614dd54b281b9f1c90",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 66,
+      "git_blob_sha_head": "11b757c054adc7562844e7026ac58772f312459b",
+      "git_blob_sha_worktree": "2955738024f1d6fb26654e6700e102f9730c39c8",
+      "git_diff_quiet_clean": false
+    },
+    "src/decompmoe/loss.py": {
+      "verdict": "CRLF_ONLY",
+      "head_bytes": 4734,
+      "worktree_bytes": 4872,
+      "head_sha256": "24d02c9b9152135bb9537a073996e21499332c26fb78d293b7091fdcada77ed0",
+      "worktree_sha256": "2be0ff32f51e164b6c8b46bca1150b17061622f3a3a6788e24e6a37786107381",
+      "head_content_sha256_lf": "24d02c9b9152135bb9537a073996e21499332c26fb78d293b7091fdcada77ed0",
+      "worktree_content_sha256_lf": "24d02c9b9152135bb9537a073996e21499332c26fb78d293b7091fdcada77ed0",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 138,
+      "git_blob_sha_head": "9309d654453721e4856969220421e6d96ad9dd6a",
+      "git_blob_sha_worktree": "9309d654453721e4856969220421e6d96ad9dd6a",
+      "git_diff_quiet_clean": true
+    },
+    "src/decompmoe/schedule.py": {
+      "verdict": "IDENTICAL",
+      "head_bytes": 7591,
+      "worktree_bytes": 7591,
+      "head_sha256": "846069a3b26674b0a8e4bda497ee43bca9f66f4cf865d331dc1ef0e0d0568e25",
+      "worktree_sha256": "846069a3b26674b0a8e4bda497ee43bca9f66f4cf865d331dc1ef0e0d0568e25",
+      "head_content_sha256_lf": "846069a3b26674b0a8e4bda497ee43bca9f66f4cf865d331dc1ef0e0d0568e25",
+      "worktree_content_sha256_lf": "846069a3b26674b0a8e4bda497ee43bca9f66f4cf865d331dc1ef0e0d0568e25",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 0,
+      "git_blob_sha_head": "7a915c55444fed0dfe3690c5575941adc94ada6b",
+      "git_blob_sha_worktree": "7a915c55444fed0dfe3690c5575941adc94ada6b",
+      "git_diff_quiet_clean": true
+    },
+    "src/decompmoe/metrics.py": {
+      "verdict": "IDENTICAL",
+      "head_bytes": 8059,
+      "worktree_bytes": 8059,
+      "head_sha256": "360a1f425bc0e6d466516b2cabe1c4036a25c3170d3e331afbcd2bb4018fe879",
+      "worktree_sha256": "360a1f425bc0e6d466516b2cabe1c4036a25c3170d3e331afbcd2bb4018fe879",
+      "head_content_sha256_lf": "360a1f425bc0e6d466516b2cabe1c4036a25c3170d3e331afbcd2bb4018fe879",
+      "worktree_content_sha256_lf": "360a1f425bc0e6d466516b2cabe1c4036a25c3170d3e331afbcd2bb4018fe879",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 0,
+      "git_blob_sha_head": "b670c19392a74412ac8854647325f887d0109454",
+      "git_blob_sha_worktree": "b670c19392a74412ac8854647325f887d0109454",
+      "git_diff_quiet_clean": true
+    },
+    "src/decompmoe/config.py": {
+      "verdict": "IDENTICAL",
+      "head_bytes": 5995,
+      "worktree_bytes": 5995,
+      "head_sha256": "a61164ec43647f4f5a7d7aac041d44f2f588309f0529f3a113d9b51387c9ca45",
+      "worktree_sha256": "a61164ec43647f4f5a7d7aac041d44f2f588309f0529f3a113d9b51387c9ca45",
+      "head_content_sha256_lf": "a61164ec43647f4f5a7d7aac041d44f2f588309f0529f3a113d9b51387c9ca45",
+      "worktree_content_sha256_lf": "a61164ec43647f4f5a7d7aac041d44f2f588309f0529f3a113d9b51387c9ca45",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 0,
+      "git_blob_sha_head": "2516d083977452511817d982e11405e31e7d08e4",
+      "git_blob_sha_worktree": "2516d083977452511817d982e11405e31e7d08e4",
+      "git_diff_quiet_clean": true
+    },
+    "src/decompmoe/extraction.py": {
+      "verdict": "IDENTICAL",
+      "head_bytes": 8950,
+      "worktree_bytes": 8950,
+      "head_sha256": "ec371c997b17724422f6eb0128671a34bc76451dbcebf9e2432a422976cd7fc1",
+      "worktree_sha256": "ec371c997b17724422f6eb0128671a34bc76451dbcebf9e2432a422976cd7fc1",
+      "head_content_sha256_lf": "ec371c997b17724422f6eb0128671a34bc76451dbcebf9e2432a422976cd7fc1",
+      "worktree_content_sha256_lf": "ec371c997b17724422f6eb0128671a34bc76451dbcebf9e2432a422976cd7fc1",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 0,
+      "git_blob_sha_head": "830c663a49fb7e3dfd66fdc0208daea56a5936e2",
+      "git_blob_sha_worktree": "830c663a49fb7e3dfd66fdc0208daea56a5936e2",
+      "git_diff_quiet_clean": true
+    },
+    "src/decompmoe/safeguards.py": {
+      "verdict": "CRLF_ONLY",
+      "head_bytes": 12227,
+      "worktree_bytes": 12527,
+      "head_sha256": "09827414f71b40c5799bfd610c7d2c7e7291fc9aad4926153e96924b6021fd41",
+      "worktree_sha256": "36c6c2e4c13d85b37836b6639cecf3ec5bff29422bbb65af8d2e1925e1389cf9",
+      "head_content_sha256_lf": "09827414f71b40c5799bfd610c7d2c7e7291fc9aad4926153e96924b6021fd41",
+      "worktree_content_sha256_lf": "09827414f71b40c5799bfd610c7d2c7e7291fc9aad4926153e96924b6021fd41",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 300,
+      "git_blob_sha_head": "85c920c4977256ccdf66f1443412b31d019b3773",
+      "git_blob_sha_worktree": "85c920c4977256ccdf66f1443412b31d019b3773",
+      "git_diff_quiet_clean": true
+    },
+    "src/decompmoe/distance.py": {
+      "verdict": "CRLF_ONLY",
+      "head_bytes": 1150,
+      "worktree_bytes": 1185,
+      "head_sha256": "2722ec418cc09d37f7b98e14575886ac0bf0624975776e8373189cabfe9fdd9d",
+      "worktree_sha256": "b064677fbf68ccd5be5698d251e22bd11a74407b8942860d0ca6f5d0841b5716",
+      "head_content_sha256_lf": "2722ec418cc09d37f7b98e14575886ac0bf0624975776e8373189cabfe9fdd9d",
+      "worktree_content_sha256_lf": "2722ec418cc09d37f7b98e14575886ac0bf0624975776e8373189cabfe9fdd9d",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 35,
+      "git_blob_sha_head": "e823b2855bddab60676c03c25620fb515d384023",
+      "git_blob_sha_worktree": "e823b2855bddab60676c03c25620fb515d384023",
+      "git_diff_quiet_clean": true
+    },
+    "src/decompmoe/beta.py": {
+      "verdict": "IDENTICAL",
+      "head_bytes": 4524,
+      "worktree_bytes": 4524,
+      "head_sha256": "18f9073405c6ced22778e3eb263374f8a8d2b5517e5b1f0a9f2eec77ccef8a2b",
+      "worktree_sha256": "18f9073405c6ced22778e3eb263374f8a8d2b5517e5b1f0a9f2eec77ccef8a2b",
+      "head_content_sha256_lf": "18f9073405c6ced22778e3eb263374f8a8d2b5517e5b1f0a9f2eec77ccef8a2b",
+      "worktree_content_sha256_lf": "18f9073405c6ced22778e3eb263374f8a8d2b5517e5b1f0a9f2eec77ccef8a2b",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 0,
+      "git_blob_sha_head": "720792e7751915ae7c1b3a03ec1bb40454db5f72",
+      "git_blob_sha_worktree": "720792e7751915ae7c1b3a03ec1bb40454db5f72",
+      "git_diff_quiet_clean": true
+    },
+    "src/decompmoe/__init__.py": {
+      "verdict": "CRLF_ONLY",
+      "head_bytes": 986,
+      "worktree_bytes": 1012,
+      "head_sha256": "9bcbd10a0a777e225e739fdb848d1c53d768a727b529d99731339d27db2dc48b",
+      "worktree_sha256": "30539acab49196fa22d3739270c9bda3010e65231e7a431ffc8fc2082193785e",
+      "head_content_sha256_lf": "9bcbd10a0a777e225e739fdb848d1c53d768a727b529d99731339d27db2dc48b",
+      "worktree_content_sha256_lf": "9bcbd10a0a777e225e739fdb848d1c53d768a727b529d99731339d27db2dc48b",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 26,
+      "git_blob_sha_head": "47640191847d87441c70ee5c94a73be8e070a1fa",
+      "git_blob_sha_worktree": "47640191847d87441c70ee5c94a73be8e070a1fa",
+      "git_diff_quiet_clean": true
+    },
+    "src/decompmoe/contracts.py": {
+      "verdict": "CRLF_ONLY",
+      "head_bytes": 3932,
+      "worktree_bytes": 4043,
+      "head_sha256": "c7f084ceadab1cafceec73d6c7796f901c88be47489e176d582f6cf6160f5163",
+      "worktree_sha256": "f891833724ca0afd4df4d64472d049b6de63c9ad8fc178dc7c64ecdfb64705a5",
+      "head_content_sha256_lf": "c7f084ceadab1cafceec73d6c7796f901c88be47489e176d582f6cf6160f5163",
+      "worktree_content_sha256_lf": "c7f084ceadab1cafceec73d6c7796f901c88be47489e176d582f6cf6160f5163",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 111,
+      "git_blob_sha_head": "a779c37ded211348a90ec0b8b9badc1ede999764",
+      "git_blob_sha_worktree": "a779c37ded211348a90ec0b8b9badc1ede999764",
+      "git_diff_quiet_clean": true
+    },
+    "tests/test_safeguards.py": {
+      "verdict": "IDENTICAL",
+      "head_bytes": 60978,
+      "worktree_bytes": 60978,
+      "head_sha256": "546bff5237625967ce6872747164b42ec46f31c383f380daeadc704d117c754f",
+      "worktree_sha256": "546bff5237625967ce6872747164b42ec46f31c383f380daeadc704d117c754f",
+      "head_content_sha256_lf": "546bff5237625967ce6872747164b42ec46f31c383f380daeadc704d117c754f",
+      "worktree_content_sha256_lf": "546bff5237625967ce6872747164b42ec46f31c383f380daeadc704d117c754f",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 0,
+      "git_blob_sha_head": "a8236f340b8f2d0709fb488c032cc12373b2001f",
+      "git_blob_sha_worktree": "a8236f340b8f2d0709fb488c032cc12373b2001f",
+      "git_diff_quiet_clean": true
+    },
+    "tests/test_extraction_phase.py": {
+      "verdict": "CRLF_ONLY",
+      "head_bytes": 4339,
+      "worktree_bytes": 4442,
+      "head_sha256": "524eee3442ac8793e35be5e1f545416e349639d7b963ed74edde97e7ad610766",
+      "worktree_sha256": "ece08a022bbcac05a6acfb0eb8fa2cdff6b817577005b0109508eb1244f6cc9d",
+      "head_content_sha256_lf": "524eee3442ac8793e35be5e1f545416e349639d7b963ed74edde97e7ad610766",
+      "worktree_content_sha256_lf": "524eee3442ac8793e35be5e1f545416e349639d7b963ed74edde97e7ad610766",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 103,
+      "git_blob_sha_head": "f08c756912c1a372a738eb062a427477cf5c20a7",
+      "git_blob_sha_worktree": "f08c756912c1a372a738eb062a427477cf5c20a7",
+      "git_diff_quiet_clean": true
+    },
+    "tests/test_schedule.py": {
+      "verdict": "IDENTICAL",
+      "head_bytes": 13550,
+      "worktree_bytes": 13550,
+      "head_sha256": "981420e3053f742c3e6f31880ceb02e5f9cd77d90388b4f25bf50c51f620bbef",
+      "worktree_sha256": "981420e3053f742c3e6f31880ceb02e5f9cd77d90388b4f25bf50c51f620bbef",
+      "head_content_sha256_lf": "981420e3053f742c3e6f31880ceb02e5f9cd77d90388b4f25bf50c51f620bbef",
+      "worktree_content_sha256_lf": "981420e3053f742c3e6f31880ceb02e5f9cd77d90388b4f25bf50c51f620bbef",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 0,
+      "git_blob_sha_head": "45c5cfda8b875298b08450c16c9921b4728a1b80",
+      "git_blob_sha_worktree": "45c5cfda8b875298b08450c16c9921b4728a1b80",
+      "git_diff_quiet_clean": true
+    },
+    "tests/test_contracts.py": {
+      "verdict": "CRLF_ONLY",
+      "head_bytes": 4500,
+      "worktree_bytes": 4608,
+      "head_sha256": "234c1c3f527443894d5fd0fc564be9e6245af4aa7ec9d41534fe05d508d1be34",
+      "worktree_sha256": "e860c5283932c72fbb9834d5a29a555ce1bf1b6f3d90d0578a35ea8949816ac3",
+      "head_content_sha256_lf": "234c1c3f527443894d5fd0fc564be9e6245af4aa7ec9d41534fe05d508d1be34",
+      "worktree_content_sha256_lf": "234c1c3f527443894d5fd0fc564be9e6245af4aa7ec9d41534fe05d508d1be34",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 108,
+      "git_blob_sha_head": "c46176856a289e95966e1719f1143480d98b673d",
+      "git_blob_sha_worktree": "c46176856a289e95966e1719f1143480d98b673d",
+      "git_diff_quiet_clean": true
+    },
+    "tests/test_sphere.py": {
+      "verdict": "IDENTICAL",
+      "head_bytes": 65986,
+      "worktree_bytes": 65986,
+      "head_sha256": "4211154abb1547e567810ee64eb3e42b9bf7e811e5d6b812da47554f420bd40d",
+      "worktree_sha256": "4211154abb1547e567810ee64eb3e42b9bf7e811e5d6b812da47554f420bd40d",
+      "head_content_sha256_lf": "4211154abb1547e567810ee64eb3e42b9bf7e811e5d6b812da47554f420bd40d",
+      "worktree_content_sha256_lf": "4211154abb1547e567810ee64eb3e42b9bf7e811e5d6b812da47554f420bd40d",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 0,
+      "git_blob_sha_head": "b21a4e33522b4a364b33ae38d83b72fee26675fb",
+      "git_blob_sha_worktree": "b21a4e33522b4a364b33ae38d83b72fee26675fb",
+      "git_diff_quiet_clean": true
+    },
+    "tests/test_gating.py": {
+      "verdict": "IDENTICAL",
+      "head_bytes": 4635,
+      "worktree_bytes": 4635,
+      "head_sha256": "2fc790534bc1d28007bb00d1069cff3e70808a16651e07dc0b02e1f418a64ca7",
+      "worktree_sha256": "2fc790534bc1d28007bb00d1069cff3e70808a16651e07dc0b02e1f418a64ca7",
+      "head_content_sha256_lf": "2fc790534bc1d28007bb00d1069cff3e70808a16651e07dc0b02e1f418a64ca7",
+      "worktree_content_sha256_lf": "2fc790534bc1d28007bb00d1069cff3e70808a16651e07dc0b02e1f418a64ca7",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 0,
+      "git_blob_sha_head": "7efcf97c62cbf7a6184d21bbca86578bb041f537",
+      "git_blob_sha_worktree": "7efcf97c62cbf7a6184d21bbca86578bb041f537",
+      "git_diff_quiet_clean": true
+    },
+    "tests/test_loss.py": {
+      "verdict": "IDENTICAL",
+      "head_bytes": 15481,
+      "worktree_bytes": 15481,
+      "head_sha256": "cff37f56bdc15e9415b161473043afe276447e1be7270224da5e3809dc38aae8",
+      "worktree_sha256": "cff37f56bdc15e9415b161473043afe276447e1be7270224da5e3809dc38aae8",
+      "head_content_sha256_lf": "cff37f56bdc15e9415b161473043afe276447e1be7270224da5e3809dc38aae8",
+      "worktree_content_sha256_lf": "cff37f56bdc15e9415b161473043afe276447e1be7270224da5e3809dc38aae8",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 0,
+      "git_blob_sha_head": "e12ac751fa938668a92d86cd8c3577be03319132",
+      "git_blob_sha_worktree": "e12ac751fa938668a92d86cd8c3577be03319132",
+      "git_diff_quiet_clean": true
+    },
+    "tests/test_config.py": {
+      "verdict": "IDENTICAL",
+      "head_bytes": 16479,
+      "worktree_bytes": 16479,
+      "head_sha256": "047253c592e435ae1fe8ced175cc6be9ffb437d14e93e6482272c168dc333da8",
+      "worktree_sha256": "047253c592e435ae1fe8ced175cc6be9ffb437d14e93e6482272c168dc333da8",
+      "head_content_sha256_lf": "047253c592e435ae1fe8ced175cc6be9ffb437d14e93e6482272c168dc333da8",
+      "worktree_content_sha256_lf": "047253c592e435ae1fe8ced175cc6be9ffb437d14e93e6482272c168dc333da8",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 0,
+      "git_blob_sha_head": "e1c2cccbee3618fe9b3daa802c7f7154e5fde4f2",
+      "git_blob_sha_worktree": "e1c2cccbee3618fe9b3daa802c7f7154e5fde4f2",
+      "git_diff_quiet_clean": true
+    },
+    "tests/test_extraction.py": {
+      "verdict": "IDENTICAL",
+      "head_bytes": 33158,
+      "worktree_bytes": 33158,
+      "head_sha256": "38686e5b71e96b5808cf8c383c0354d7b05810e456e653e29d99d7e27f9ab562",
+      "worktree_sha256": "38686e5b71e96b5808cf8c383c0354d7b05810e456e653e29d99d7e27f9ab562",
+      "head_content_sha256_lf": "38686e5b71e96b5808cf8c383c0354d7b05810e456e653e29d99d7e27f9ab562",
+      "worktree_content_sha256_lf": "38686e5b71e96b5808cf8c383c0354d7b05810e456e653e29d99d7e27f9ab562",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 0,
+      "git_blob_sha_head": "3100ba4f2b0a1a1522e1f1898cc9ff30b23c199c",
+      "git_blob_sha_worktree": "3100ba4f2b0a1a1522e1f1898cc9ff30b23c199c",
+      "git_diff_quiet_clean": true
+    },
+    "tests/test_metrics.py": {
+      "verdict": "IDENTICAL",
+      "head_bytes": 29101,
+      "worktree_bytes": 29101,
+      "head_sha256": "d400ee1b50189c30d8a8c4a23db944e7e05ccbd81345060ac3988ccdb5ac419c",
+      "worktree_sha256": "d400ee1b50189c30d8a8c4a23db944e7e05ccbd81345060ac3988ccdb5ac419c",
+      "head_content_sha256_lf": "d400ee1b50189c30d8a8c4a23db944e7e05ccbd81345060ac3988ccdb5ac419c",
+      "worktree_content_sha256_lf": "d400ee1b50189c30d8a8c4a23db944e7e05ccbd81345060ac3988ccdb5ac419c",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 0,
+      "git_blob_sha_head": "2bccc3db8a49d42a9003593d2d5af7d9a52b67ac",
+      "git_blob_sha_worktree": "2bccc3db8a49d42a9003593d2d5af7d9a52b67ac",
+      "git_diff_quiet_clean": true
+    },
+    "tests/test_beta.py": {
+      "verdict": "IDENTICAL",
+      "head_bytes": 17683,
+      "worktree_bytes": 17683,
+      "head_sha256": "5c891b88282e25f7e2392599239a31957b9013bd62442d74b6ccbc738af459a0",
+      "worktree_sha256": "5c891b88282e25f7e2392599239a31957b9013bd62442d74b6ccbc738af459a0",
+      "head_content_sha256_lf": "5c891b88282e25f7e2392599239a31957b9013bd62442d74b6ccbc738af459a0",
+      "worktree_content_sha256_lf": "5c891b88282e25f7e2392599239a31957b9013bd62442d74b6ccbc738af459a0",
+      "head_crlf_count": 0,
+      "worktree_crlf_count": 0,
+      "git_blob_sha_head": "2c08775403ce7a361e4ae368ba36d3b9047a2e67",
+      "git_blob_sha_worktree": "2c08775403ce7a361e4ae368ba36d3b9047a2e67",
+      "git_diff_quiet_clean": true
+    }
+  },
+  "verdict_legend": {
+    "IDENTICAL": "raw bytes equal",
+    "CRLF_ONLY": "bytes differ ONLY by line endings; content identical after LF normalisation",
+    "CONTENT_DIFF": "real content difference"
+  },
+  "line_ending_caveat": "The worktree stores CRLF where HEAD blobs store LF. Raw sha256 therefore reports 10 false positives: ['openspec/specs/wayfinder/spec.md', 'openspec/specs/decompmoe-skeleton/spec.md', 'openspec/specs/governance/spec.md', 'src/decompmoe/loss.py', 'src/decompmoe/safeguards.py', 'src/decompmoe/distance.py', 'src/decompmoe/__init__.py', 'src/decompmoe/contracts.py', 'tests/test_extraction_phase.py', 'tests/test_contracts.py']. Only a CONTENT-level verdict may be cited in the ledger. git hash-object and git diff normalise line endings; raw hashing does not.",
+  "byte_only_diff_files": [
+    "openspec/specs/wayfinder/spec.md",
+    "openspec/specs/decompmoe-skeleton/spec.md",
+    "openspec/specs/governance/spec.md",
+    "src/decompmoe/loss.py",
+    "src/decompmoe/safeguards.py",
+    "src/decompmoe/distance.py",
+    "src/decompmoe/__init__.py",
+    "src/decompmoe/contracts.py",
+    "tests/test_extraction_phase.py",
+    "tests/test_contracts.py"
+  ],
+  "content_diff_files": [
+    "src/decompmoe/gating.py"
+  ],
+  "spec_anchor_contract": {
+    "wayfinder": {
+      "requirements": 36,
+      "standalone_anchors": 36,
+      "expected": 36,
+      "duplicate_anchor_ids": {},
+      "ok": true
+    },
+    "decompmoe-skeleton": {
+      "requirements": 23,
+      "standalone_anchors": 23,
+      "expected": 23,
+      "duplicate_anchor_ids": {},
+      "ok": true
+    },
+    "governance": {
+      "requirements": 4,
+      "standalone_anchors": 4,
+      "expected": 4,
+      "duplicate_anchor_ids": {},
+      "ok": true
+    }
+  },
+  "spec_anchor_contract_ok": true,
+  "worktree_state": {
+    "deleted_but_tracked_at_head": [
+      "openspec/changes/2026-09-26-followup-spec-wording-bugs-after-precision-disclosure/proposal.md",
+      "openspec/changes/2026-09-26-followup-spec-wording-bugs-after-precision-disclosure/tasks.md",
+      "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/proposal.md",
+      "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/tasks.md"
+    ],
+    "modified_but_uncommitted": [
+      "src/decompmoe/gating.py",
+      "wayfinder/tickets/WF-1.md"
+    ],
+    "untracked": [
+      ".claude/workflows/",
+      ".zed/",
+      "_bk_safeguards.bak",
+      "_numdrift_1.py",
+      "_numdrift_2.py",
+      "_numdrift_3.py",
+      "_numdrift_4.py",
+      "_numdrift_5.py",
+      "_numdrift_dbg.py",
+      "_numdrift_dbg2.py",
+      "_numdrift_dbg3.py",
+      "_r2_reconcile.txt",
+      "_revcheck_impl.py",
+      "_revcheck_math.py",
+      "_revcheck_refl.py",
+      "_revcheck_sweep.py",
+      "_tmp_cf_verify4.py",
+      "_tmp_cf_verify5.py",
+      "_tmp_cf_verify6.py",
+      "_tmp_cf_verify7.py",
+      "_tmp_cf_verify8.py",
+      "_tmp_check_anchors.py",
+      "_tmp_commit_msg.txt",
+      "_tmp_crossspec_anchors.py",
+      "_tmp_crossspec_math.py",
+      "_tmp_crossspec_refs.py",
+      "_tmp_crossspec_voronoi.py",
+      "_tmp_crossspec_voronoi2.py",
+      "_tmp_form01_mpcheck.py",
+      "_tmp_make_deltas.py",
+      "_tmp_mine_only.patch",
+      "_tmp_restore_anchors.py",
+      "_tmp_spotcheck.py",
+      "_tmp_stage_mine.py",
+      "_tmp_tg_verify.py",
+      "_tmp_tg_verify2.py",
+      "_tmp_tg_verify3.py",
+      "_tmp_verify_index.py",
+      "_tmp_verify_voronoi.py",
+      "_tmp_verify_voronoi2.py",
+      "_tmp_verify_voronoi3.py",
+      "_verify_distance_orig.py",
+      "_w02_betacross.py",
+      "_w02_recheck.py",
+      "openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/",
+      "openspec/changes/archive/2026-10-01-audit-errata-a1-numeric-guard-list/",
+      "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/"
+    ]
+  },
+  "asymmetry": {
+    "statement": "The quadrature fix IS committed. sphere.py and tests/test_sphere.py at HEAD f6461d7 are byte-identical to the working tree and carry the full fix (_QUAD_RTOL=1e-12, _QUAD_MAX_PANELS=4096, the t=sin^2(phi) substitution, and the hi = pi/2 - asin(sqrt(1-x)) cancellation fix). A third party re-measuring at HEAD reproduces THIS ledger, not the audit's pre-fix numbers. The three specs are also in HEAD, with the 36/23/4 anchor contract intact.",
+    "genuinely_worktree_carried": "Only: src/decompmoe/gating.py (the F6 dead-defence removal) and wayfinder/tickets/WF-1.md (2 lines). Both are uncommitted. Neither feeds the quadrature measurement chain, so a re-measurement at HEAD is unaffected by them.",
+    "not_in_git": "The Change 2 archive directory and this Change 3 directory are both UNTRACKED. Change 2's finished work is on disk but not committed.",
+    "danger_if_handled_wrong": "git add -A would silently delete four tracked files that the working tree no longer has: the proposal.md/tasks.md of 2026-09-26-followup-spec-wording-bugs-after-precision-disclosure and of fix-review-findings-voronoi-precision-and-lineage."
+  }
+}
