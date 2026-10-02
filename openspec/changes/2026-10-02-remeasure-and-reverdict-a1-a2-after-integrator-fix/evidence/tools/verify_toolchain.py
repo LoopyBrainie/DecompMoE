@@ -12,8 +12,10 @@ So keyword scanning is the wrong instrument: the words a tool uses to report a
 real finding are the same words used to report a failure. Each tool below
 declares its own success marker, and a tool is judged on that plus its exit code.
 """
+import re
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -23,18 +25,25 @@ TOOLS = ROOT / "openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-
 
 # (script, substring that must appear, substring that must NOT appear)
 CONTRACT = {
-    "build_baseline.py":          ("anchor contract 36/23/4   : True", "DISAGREE"),
+    "build_baseline.py":          ("anchor coverage           : True", "DISAGREE"),
     "build_audit_index.py":       ("S2 parsed count == declared count          : OK", "MISMATCH"),
     "parse_findings.py":          ("known-ABSENT  AC-44 mentions_sphere = False  OK", "CONTROL FAILED  "),
     "oracle_recheck.py":          ("ORACLE RECHECK       : PASS", "ORACLE RECHECK       : FAIL"),
-    "build_ledger.py":            ("all status PENDING: True", "ABORT"),
+    # M2: this key appeared TWICE. Python keeps the last one, so the first
+    # clause was silently discarded and the tool count printed from
+    # len(CONTRACT) hid the loss. One key now, and duplicates are a hard error
+    # below rather than a silent overwrite.
+    "build_ledger.py":            ("all status PENDING : True", "ABORT"),
     "check_ledger.py":            ("CHECKER SELF-TEST: PASS", "CHECKER SELF-TEST: FAIL"),
     "verify_anchor_three_ways.py": ("sphere.py -> IDENTICAL  OK", "CONTROL FAILED "),
-    "crlf_discriminator.py":      ("gating.py", "REAL CONTENT DIFF for every path"),
+    # M1: was ("gating.py", "REAL CONTENT DIFF for every path"). The tool emits
+    # a bare verdict token per row and never that sentence, so the clause could
+    # not fire. crlf_discriminator.py now reports its real failure modes
+    # (empty blob / missing file / missing archive copy) as SELF-CHECK: FAIL.
+    "crlf_discriminator.py":      ("gating.py", "SELF-CHECK: FAIL"),
     "spec_shape_probe.py":        ("governance", "Traceback"),
     "probe_self_diagnosis.py":    ("D3", "Traceback"),
     "build_errata_index.py":      ("self-check: OK", "self-check: ["),
-    "build_ledger.py":            ("all status PENDING : True", "ABORT"),
 }
 
 # patch_tasks_line.py has no meaningful no-argument run -- it needs a file, a
@@ -76,6 +85,19 @@ if not _ok:
 
 print(f"{'tool':<32} {'exit':>4}  {'must-appear':<8} {'must-absent':<11} verdict")
 print("-" * 100)
+# M2: a duplicate CONTRACT key is a silent clause loss, so it is now a gate on
+# itself. Reading the source rather than the dict is the point -- once the dict
+# is built, the evidence is gone.
+_src = Path(__file__).read_text(encoding="utf-8")
+_declared = re.findall(r'^\s*"([\w]+\.py)":', _src, re.M)
+_dupes = {k: v for k, v in Counter(_declared).items() if v > 1}
+if _dupes:
+    print(f"CONTRACT SELF-CHECK: FAIL  duplicate keys {_dupes} -- clauses are being "
+          f"silently discarded")
+    sys.exit(1)
+print(f"CONTRACT SELF-CHECK: OK  {len(_declared)} declared clauses, "
+      f"{len(CONTRACT)} unique keys, no duplicates")
+
 bad = []
 for name, (must, mustnot) in CONTRACT.items():
     p = TOOLS / name

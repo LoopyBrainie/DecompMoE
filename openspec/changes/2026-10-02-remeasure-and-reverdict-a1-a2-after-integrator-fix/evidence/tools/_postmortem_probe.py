@@ -1,78 +1,110 @@
-"""事故后取证：只读。核实 ledger.json 真实状态 + 根目录残留脚本清单。
+"""事故后取证 v2：只读。
 
-不写任何仓库文件。输出 UTF-8。
+修正 v1 的两个缺陷：
+  1. ROOT 深度错（parents[4] = openspec，不是仓库根）→ 改 parents[5]
+  2. 条目容器取错（抓到 excluded_items n=13）→ 显式取 data["entries"]
 """
 import json
+import os
 import sys
 from collections import Counter
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-ROOT = Path(__file__).resolve().parents[4]
-EV = Path(__file__).resolve().parents[1]
+HERE = Path(__file__).resolve()
+TOOLS = HERE.parent
+EV = TOOLS.parent
+CHG = EV.parent
+ROOT = CHG.parents[2]          # .../openspec/changes/<name> -> repo root
+# 自检：父链必须一路收敛到含 .git 与 src/ 的真实仓库根
 LEDGER = EV / "ledger.json"
 
-print("=" * 70)
-print("A. ledger.json 实际状态")
-print("=" * 70)
+print("=" * 72)
+print("路径自检")
+print("=" * 72)
+print(f"ROOT   = {ROOT}")
+print(f"EV     = {EV}")
+print(f"CHG    = {CHG.name}")
+assert (ROOT / "src" / "decompmoe").is_dir(), f"ROOT 定位错误: {ROOT}"
+assert EV in LEDGER.parents
+
+print()
+print("=" * 72)
+print("A. ledger.json 实际状态（显式 entries 容器）")
+print("=" * 72)
 raw = LEDGER.read_bytes()
-print(f"bytes            = {len(raw)}")
-print(f"all_pending flag = {json.loads(raw).get('all_pending')}")
-
 data = json.loads(raw)
-print(f"top-level keys   = {sorted(data.keys())}")
+print(f"bytes            = {len(raw)}")
+print(f"all_pending flag = {data.get('all_pending')}")
+print(f"total            = {data.get('total')}")
+print(f"total_in_source  = {data.get('total_in_source')}")
+print(f"counts           = {data.get('counts')}")
 
-# 找条目容器
-entries = None
-for k, v in data.items():
-    if isinstance(v, list) and v and isinstance(v[0], dict):
-        entries = v
-        print(f"entries container= {k!r}  n={len(v)}")
-        break
-if entries is None:
-    print("!! 未找到条目容器")
-    raise SystemExit(1)
+entries = data["entries"]
+print(f"\nentries n        = {len(entries)}")
+print(f"entry 字段       = {sorted(entries[0].keys())}")
 
-pending = [e for e in entries if e.get("verdict_new") in (None, "", "PENDING")]
-done = [e for e in entries if e not in pending]
+vd = Counter(e.get("verdict_new") for e in entries)
+print(f"\nverdict_new 分布 = {dict(vd)}")
+
+PENDING_STATES = {None, "", "PENDING"}
+pending = [e for e in entries if e.get("verdict_new") in PENDING_STATES]
+filled = [e for e in entries if e.get("verdict_new") not in PENDING_STATES]
 print(f"\nPENDING           = {len(pending)}")
-print(f"已裁决(非PENDING)  = {len(done)}")
-print(f"verdict_new 分布  = {dict(Counter(e.get('verdict_new') for e in entries))}")
+print(f"已裁决            = {len(filled)}")
 
-if done:
-    print("\n已裁决条目 id:")
-    for e in done:
-        print(f"  {e.get('id'):<12} {str(e.get('verdict_new')):<22} "
-              f"invalidation_kind={e.get('invalidation_kind')!r} "
-              f"n_code_refs={len(e.get('code_refs') or [])}")
+if filled:
+    print("\n已裁决条目:")
+    for e in filled:
+        print(f"  {e.get('ac_id'):<12} {str(e.get('verdict_new')):<24} "
+              f"kind={e.get('invalidation_kind')!r} status={e.get('status')!r}")
+        cr = e.get("code_refs")
+        print(f"      code_refs({len(cr) if cr else 0}) = {cr}")
         rem = e.get("remeasurement")
         if isinstance(rem, dict):
-            print(f"                 remeasurement keys={sorted(rem.keys())}")
+            for k, v in rem.items():
+                print(f"      remeasure.{k} = {str(v)[:150]}")
+        ve = e.get("verdict_evidence")
+        print(f"      verdict_evidence = {str(ve)[:200]}")
+        dep = e.get("dependency")
+        print(f"      dependency = {str(dep)[:200]}")
 
-print("\n" + "=" * 70)
-print("B. 根目录残留脚本（审阅者可能留下的）")
-print("=" * 70)
-for p in sorted(ROOT.glob("_*.py")) + sorted(ROOT.glob("_*.bak")) + sorted(ROOT.glob("_*.txt")):
+print()
+print("=" * 72)
+print("B. 仓库根目录残留脚本（git status 报 untracked 的那些）")
+print("=" * 72)
+pat = ("_*.py", "_*.bak", "_*.txt")
+found = []
+for p in pat:
+    found += list(ROOT.glob(p))
+for p in sorted(set(found)):
     st = p.stat()
-    print(f"  {p.name:<28} {st.st_size:>8} B  mtime={st.st_mtime_ns}")
+    print(f"  {p.name:<26} {st.st_size:>8} B")
+if not found:
+    print("  (无)")
 
-print("\n" + "=" * 70)
-print("C. evidence/ 目录清单")
-print("=" * 70)
-for p in sorted(EV.rglob("*")):
+print()
+print("=" * 72)
+print("C. 仓库根目录其它 untracked（git ls-files --others）")
+print("=" * 72)
+import subprocess
+r = subprocess.run(["git", "-C", str(ROOT), "ls-files", "--others",
+                    "--exclude-standard"],
+                   capture_output=True, text=True, encoding="utf-8", errors="replace")
+others = [ln for ln in r.stdout.splitlines() if ln.strip()]
+print(f"untracked 总数 = {len(others)}")
+for ln in others:
+    print(f"  {ln}")
+
+print()
+print("=" * 72)
+print("D. baseline.json 是否被重跑（mtime 对照）")
+print("=" * 72)
+import datetime as _dt
+for name in ("ledger.json", "baseline.json", "oracle_recheck.json",
+             "errata_index.json", "audit_findings.json", "audit_index.json"):
+    p = EV / name
     if p.is_file():
-        print(f"  {p.relative_to(EV).as_posix():<48} {p.stat().st_size:>8} B")
-
-print("\n" + "=" * 70)
-print("D. TEMP 沙箱残留（审阅者自称的恢复素材）")
-print("=" * 70)
-import os
-for base in (os.environ.get("TEMP"), r"C:\Windows\Temp"):
-    if not base:
-        continue
-    d = Path(base) / "dmrev"
-    if d.is_dir():
-        for p in sorted(d.rglob("*")):
-            if p.is_file():
-                print(f"  {p}  {p.stat().st_size} B")
+        ts = _dt.datetime.fromtimestamp(p.stat().st_mtime)
+        print(f"  {name:<24} {p.stat().st_size:>8} B  mtime={ts:%Y-%m-%d %H:%M:%S}")

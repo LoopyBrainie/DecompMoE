@@ -36,21 +36,46 @@ def blob(rev, path):
 
 print(f"{'path':<42} {'blob CRLF':>9} {'wt CRLF':>8} {'blob LF':>8} {'wt LF':>7}  {'raw==':<6} {'normLF==':<9} verdict")
 print("-" * 108)
+# M1 (review finding): verify_toolchain's must-absent sentinel used to be the
+# sentence "REAL CONTENT DIFF for every path", which this tool emits in no
+# branch -- it prints a bare verdict token per row. A clause that can never
+# fire is not a check. The failure modes this tool ACTUALLY has are an empty
+# blob (git cat-file failed, which would masquerade as a content diff) and a
+# missing archive copy, so those are what SELF-CHECK now reports.
+degraded = []
+counts = {"IDENTICAL": 0, "CRLF-ONLY": 0, "REAL CONTENT DIFF": 0}
 for p in SUSPECTS:
     b = blob(HEAD, p)
-    w = (ROOT / p).read_bytes()
+    wpath = ROOT / p
+    if not b:
+        degraded.append(f"empty blob for {p} (git cat-file {HEAD}:{p} returned nothing)")
+    if not wpath.is_file():
+        degraded.append(f"worktree file missing: {p}")
+        continue
+    w = wpath.read_bytes()
     b_crlf, b_lf = b.count(b"\r\n"), b.count(b"\n")
     w_crlf, w_lf = w.count(b"\r\n"), w.count(b"\n")
     raw_same = b == w
     norm_same = b.replace(b"\r\n", b"\n") == w.replace(b"\r\n", b"\n")
     if raw_same:
         verdict = "IDENTICAL"
+        counts["IDENTICAL"] += 1
     elif norm_same:
         verdict = "CRLF-ONLY (content same)"
+        counts["CRLF-ONLY"] += 1
     else:
         verdict = "REAL CONTENT DIFF"
+        counts["REAL CONTENT DIFF"] += 1
     print(f"{p:<42} {b_crlf:>9} {w_crlf:>8} {b_lf:>8} {w_lf:>7}  "
           f"{str(raw_same):<6} {str(norm_same):<9} {verdict}")
+
+print()
+print(f"SELF-CHECK: {'FAIL' if degraded else 'OK'}  "
+      f"(rows read {len(SUSPECTS) - len([d for d in degraded if 'worktree' in d])}/{len(SUSPECTS)}  "
+      f"IDENTICAL={counts['IDENTICAL']} CRLF-ONLY={counts['CRLF-ONLY']} "
+      f"REAL-CONTENT-DIFF={counts['REAL CONTENT DIFF']})")
+for d in degraded:
+    print(f"  degraded: {d}")
 
 print()
 print("=> Which spec content is in HEAD? Compare HEAD spec against the Change-2 archive copy.")
@@ -60,7 +85,10 @@ for cap in ("wayfinder", "decompmoe-skeleton", "governance"):
     h = (ROOT / f"openspec/specs/{cap}/spec.md").read_bytes().replace(b"\r\n", b"\n")
     if not a.is_file():
         print(f"  {cap:<20} archive copy not found at {a}")
+        degraded.append(f"archive copy not found for {cap}")
         continue
     ab = a.read_bytes().replace(b"\r\n", b"\n")
     print(f"  {cap:<20} HEAD-vs-worktree-norm == archive-copy : {h == ab}   "
           f"(archive sha256 {hashlib.sha256(ab).hexdigest()[:12]})")
+
+sys.exit(1 if degraded else 0)

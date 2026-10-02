@@ -74,9 +74,16 @@ X_BUCKET = {                      # D9: proposed bucket per item
 }
 
 unregistered = []
+unmapped = []
 for i in range(bs1, be1):
     ln = lines[i]
     if not ln.startswith("|"):
+        continue
+    # A markdown table's separator row is structure, not data. `|---|---|`
+    # parses to a first cell of `---`, which the id regex happily accepts
+    # because `-` is in its class. Excluding it by shape keeps the unmapped-row
+    # failure (M8) meaningful instead of firing on the table's own furniture.
+    if re.fullmatch(r"\|[\s:\-|]+\|", ln):
         continue
     cells = [c.strip().strip("*") for c in ln.strip("|").split("|")]
     if len(cells) < 2:
@@ -86,7 +93,13 @@ for i in range(bs1, be1):
     if not m:
         continue
     key = m.group(1)
+    # M8: a blind-spot row whose id is not in X_BUCKET used to `continue`
+    # silently. The self-check below hardcodes the expected count, so a tenth
+    # row was swallowed and the self-check still printed OK -- a row that exists
+    # in the source but not in the ledger is exactly the scope error this file
+    # exists to prevent. Unmapped rows are now a hard failure, reported.
     if key not in X_BUCKET:
+        unmapped.append(ident)
         continue
     bucket, why = X_BUCKET[key]
     unregistered.append({
@@ -157,6 +170,10 @@ spec_commits = subprocess.run(
 # --------------------------------------------------------------- 5. self-check
 ids = [u["ac_id"] for u in unregistered]
 problems = []
+if unmapped:
+    problems.append(f"blind-spot 1 rows with no X_BUCKET mapping (M8 -- these were "
+                    f"silently dropped, leaving the row in the source and out of the "
+                    f"ledger): {unmapped}")
 if len(unregistered) != 9:
     problems.append(f"expected 9 unregistered findings, extracted {len(unregistered)}: {ids}")
 if len(set(ids)) != len(ids):

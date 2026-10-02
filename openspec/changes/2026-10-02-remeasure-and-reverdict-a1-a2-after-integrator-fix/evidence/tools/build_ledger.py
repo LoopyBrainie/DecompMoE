@@ -7,21 +7,47 @@ Schema is fixed by tasks.md 0.3 and must not drift:
    remeasurement: {old, new, method},
    verdict_old, verdict_new, verdict_evidence, status}
 
-The verification is a set-diff against the source file, NOT a count. A count
+The set-diff against the source is a real check, and it is NOT a count: a count
 cannot distinguish "the right 95" from "95 of something else", and this repo has
 already produced a count that lied (135 `###` headings vs 108 findings).
 
-That set-diff is done along a SECOND, INDEPENDENT extraction path. The index
-built for task 0.3's input walks bucket headers then items; this one walks items
-and derives the bucket from the nearest preceding `## A-n` header. If both agree,
-a shared parsing bug is much less likely -- reusing the same extraction to check
-itself would prove nothing.
+M10 (review finding, confirmed): the docstring used to call a second extraction
+path INDEPENDENT. It is not. It reads evidence/audit_index.json, which
+build_audit_index.py produced with the SAME two regexes
+(`^##\\s+(A-\\d)\\b` and `^###\\s+((?:AC|UD)-\\d+)`) over the same file. An
+empty symmetric difference between them proves the two traversals agree on
+ORDER; it cannot see a shared parsing bug, because a shared regex fails the
+same way twice. The claim has been demoted to what it actually establishes.
+
+The genuinely independent check on the same property is in check_ledger.py's
+`scope` channel, which re-parses the .md directly, at gate time, against the
+committed ledger -- and which has a standing self-test (T8) that fabricates all
+95 ids and requires the checker to reject them.
 
 Per D3, the audit's 裁决 / 基线 fields are transcribed into clearly-marked
 non-authoritative slots and are never the basis for a new verdict.
+
+H1 (review finding, confirmed): this script used to write `ledger.json`
+UNCONDITIONALLY at module scope, and it is listed in verify_toolchain.py's
+CONTRACT -- so running the 7.4 gate rebuilt the skeleton and destroyed every
+adjudicated verdict. It is also the only tool that could do the source-vs-ledger
+set difference, i.e. the one place that could catch a fabricated ac_id. A tool
+that both detects scope drift and erases the artefact it checks is a trap.
+
+Fix: build in memory, diff the id set against the on-disk ledger, and DO NOT
+WRITE unless `--rebuild` is passed. The diff alone is the useful output; the
+write is the dangerous part. `--rebuild` is the deliberate escape hatch for the
+legitimate full-rebuild case (0.3 re-run after a scope change) and says so on
+stdout. `--force` lets a rebuild proceed even when the diff is dirty, but still
+requires `--rebuild`; it exists so a scope change can be landed deliberately
+rather than by editing the tool.
+
+The set difference is also mirrored into check_ledger.py, which runs on the
+committed ledger and therefore has no write path at all.
 """
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -29,6 +55,11 @@ sys.stdout.reconfigure(encoding="utf-8")
 ROOT = next(p for p in Path(__file__).resolve().parents if all((p / m).exists() for m in (".git", ".audit", "pyproject.toml")))   # repo root; this file lives in evidence/tools/
 EV = ROOT / "openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence"
 LIST = ROOT / ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md"
+LEDGER = EV / "ledger.json"
+REL = "openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/ledger.json"
+
+REBUILD = "--rebuild" in sys.argv[1:]
+FORCE = "--force" in sys.argv[1:]
 
 SCOPED = ["A-1", "A-2", "A-3", "A-4", "A-5", "A-7"]
 EXCLUDED = ["A-6", "A-8"]
@@ -58,9 +89,13 @@ idx_pairs = {(it["ac_id"], b["label"])
 ext_pairs = {(e[0], e[1]) for e in extracted}
 setdiff = idx_pairs ^ ext_pairs
 
-print(f"independent extraction : {len(extracted)} items total, {len(scoped)} scoped, {len(excluded)} excluded")
+print(f"second traversal (shares build_audit_index's regexes, NOT independent): "
+      f"{len(extracted)} items total, {len(scoped)} scoped, {len(excluded)} excluded")
 print(f"index (earlier run)    : {len(idx_pairs)} pairs")
 print(f"symmetric difference   : {len(setdiff)}  {'OK' if not setdiff else sorted(setdiff)}")
+print("  ^ agreement on TRAVERSAL ORDER only. A shared regex bug fails both sides")
+print("    identically, so this cannot see it. The independent scope check is")
+print("    check_ledger.py's `scope` channel (re-parses the .md, with self-test T8).")
 print()
 
 assert not setdiff, f"extraction paths disagree: {setdiff}"
@@ -184,6 +219,42 @@ if overlap:
 if bid or bex:
     problems.append(f"ledger/scope mismatch  missing={sorted(bid)} extra={sorted(bex)}")
 
+# ---- H1: diff the freshly built id set against the ledger that is ON DISK ----
+# The reference is stated explicitly because "which ledger" is the anchoring
+# question (review HIGH-2: evidence anchored to the worktree is not evidence).
+on_disk_ids, ref_kind = None, "none"
+if LEDGER.is_file():
+    on_disk_ids = [e["ac_id"] for e in
+                   json.loads(LEDGER.read_text(encoding="utf-8"))["entries"]]
+    ref_kind = "worktree"
+else:
+    blob = subprocess.run(["git", "show", f"HEAD:{REL}"], cwd=ROOT,
+                          capture_output=True, text=True, encoding="utf-8",
+                          errors="replace")
+    if blob.returncode == 0:
+        on_disk_ids = [e["ac_id"] for e in
+                       json.loads(blob.stdout)["entries"]]
+        ref_kind = "HEAD blob"
+
+built_ids = {e["ac_id"] for e in ledger}
+disk_ids = set(on_disk_ids) if on_disk_ids is not None else None
+if disk_ids is None:
+    diff_missing, diff_unexpected, diff_state = [], [], "no-reference"
+else:
+    # skeleton ids that the existing ledger does not have  -> rebuilding would
+    #              ADD a row nobody adjudicated
+    diff_missing = sorted(built_ids - disk_ids)
+    # ledger ids the skeleton no longer produces -> rebuilding would DROP a row
+    diff_unexpected = sorted(disk_ids - built_ids)
+    diff_state = "clean" if not (diff_missing or diff_unexpected) else "dirty"
+
+# Losing an already-adjudicated verdict is the irreversible direction, so it is
+# reported as a hard problem regardless of --force.
+if diff_unexpected:
+    problems.append(f"rebuild would DROP adjudicated rows: {diff_unexpected}")
+if diff_missing and ref_kind != "none":
+    print(f"note: skeleton adds rows not in the {ref_kind} ledger: {diff_missing}")
+
 by_bucket = {}
 for e in ledger:
     by_bucket[e["bucket"]] = by_bucket.get(e["bucket"], 0) + 1
@@ -203,7 +274,12 @@ doc = {
     "total_unregistered": len(x_ids),
     "all_pending": all(e["status"] == "PENDING" for e in ledger),
     "verification": {
-        "independent_extraction_total": len(extracted),
+        "second_traversal_total": len(extracted),
+        "second_traversal_is_independent": False,
+        "second_traversal_caveat": (
+            "Shares build_audit_index.py's two regexes over the same source file. "
+            "A zero symmetric difference establishes order-agreement only, not "
+            "correctness. Independent scope verification lives in check_ledger.py."),
         "scoped_in_source": len(src_ids),
         "unregistered_outside_source": len(x_ids),
         "excluded": len(excluded),
@@ -213,6 +289,12 @@ doc = {
         "namespace_overlap": sorted(overlap),
         "ac_ids_unique": len(led_ids) == len(set(led_ids)),
         "all_status_pending": all(e["status"] == "PENDING" for e in ledger),
+        "rebuild_diff_vs_existing": {
+            "reference": ref_kind,
+            "state": diff_state,
+            "skeleton_would_add": diff_missing,
+            "rebuild_would_drop": diff_unexpected,
+        },
         "two_criteria": {
             "criterion_a": ("95 条源内 ac_id 与源文件 `### AC-`/`### UD-` 标题集合逐字相等"
                             "——该断言保持严格，未放宽为子集包含"),
@@ -223,8 +305,31 @@ doc = {
     },
     "entries": ledger,
 }
-(EV / "ledger.json").write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n",
-                                encoding="utf-8")
+
+# ---- H1: the write is the dangerous part, so it is opt-in --------------------
+wrote = False
+if REBUILD:
+    if diff_state == "dirty" and not FORCE:
+        print("ABORT: --rebuild refused because the id diff is dirty.")
+        print(f"  reference           : {ref_kind}")
+        print(f"  rebuild would drop  : {diff_unexpected}")
+        print(f"  skeleton would add  : {diff_missing}")
+        print("  Re-run with --rebuild --force only if dropping those rows is intended.")
+    elif diff_state == "no-reference":
+        LEDGER.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n",
+                          encoding="utf-8")
+        wrote = True
+        print("wrote evidence/ledger.json (no prior ledger existed; nothing destroyed)")
+    else:
+        LEDGER.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n",
+                          encoding="utf-8")
+        wrote = True
+        adj = sum(1 for e in (on_disk_ids or []) if e)
+        print(f"wrote evidence/ledger.json -- DESTROYED {adj} existing rows; "
+              f"every verdict is back to PENDING.")
+        print("  (this is what the old unconditional write did on every gate run)")
+else:
+    print("verify-only: ledger.json NOT written. Pass --rebuild to replace it.")
 
 print(f"per-bucket counts : {by_bucket}  total={sum(by_bucket.values())}")
 print(f"  in source        : {len(src_ids)}   (A-1..A-5 + A-7)")
@@ -234,7 +339,9 @@ print(f"  95 + 9 + 13      = {len(src_ids) + len(x_ids) + len(excluded)} 条经�
 print(f"missing_from_ledger: {sorted(bid)}   extra_in_ledger: {sorted(bex)}")
 print(f"namespace overlap  : {sorted(overlap)}")
 print(f"all status PENDING : {doc['all_pending']}")
-print(f"wrote evidence/ledger.json ({(EV / 'ledger.json').stat().st_size} B)")
+print(f"rebuild diff        : reference={ref_kind} state={diff_state} "
+      f"add={diff_missing} drop={diff_unexpected}")
+print(f"wrote ledger.json   : {wrote}")
 print()
 print("X- entries (blind spot 1 -> D9 bucket):")
 for e in X:

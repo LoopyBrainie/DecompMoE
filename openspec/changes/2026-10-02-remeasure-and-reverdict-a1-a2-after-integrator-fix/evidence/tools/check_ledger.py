@@ -32,12 +32,50 @@ EXPECT_TOTAL = 104
 EXPECT_IN_SOURCE = 95
 EXPECT_UNREGISTERED = 9
 
+# D3's five values, exactly. `NOT_REAL` used to sit in this set while appearing
+# nowhere in D3 -- a value the checker would accept that the design never
+# sanctioned. Conversely `MOVED` (the audit's own word for a coordinate shift)
+# is deliberately absent: D3 rejects it, so an A-4 row carried over from the
+# audit's own wording must be re-decided on this change's terms.
 VERDICTS = {"STILL_REAL", "PARTIALLY_REAL", "DOWNGRADED", "REMEASURED_SAME",
-            "RESOLVED_BY_UPSTREAM", "NOT_REAL"}
+            "RESOLVED_BY_UPSTREAM"}
 KINDS = {"numeric", "coordinate", "provenance", "none"}
 STATUSES = {"PENDING", "DONE"}
 DERIV_STEPS = ("1_quantity", "2_chain", "3_line")
 CODEREF = re.compile(r"(src|tests|openspec|wayfinder|scripts|\.audit)/[\w./-]+(:\d+)?")
+
+# ---- H2: the in-source id set must come from the audit source, not from a count
+# `denominator` used to compare only counts (104 / 95 / 9). A count cannot tell
+# "the right 95" from "95 of something else": swapping every in-source ac_id for
+# a fabricated AC-9xx kept all three counts and still reported a clean ledger.
+# The set difference now lives here, not only in build_ledger.py, because
+# build_ledger.py writes the artefact it would be checking.
+SCOPED = {"A-1", "A-2", "A-3", "A-4", "A-5", "A-7"}
+SRC_LIST = ROOT / ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md"
+BUCKET_RE = re.compile(r"^##\s+(A-\d)\b")
+HEADING_RE = re.compile(r"^###\s+((?:AC|UD)-\d+)")
+
+
+def source_id_sets():
+    """(the 95 in-source ids, every id the source uses) read straight from the
+    audit list. Returns (None, None) when the source is not present -- `.audit`
+    is gitignored, so a clean clone legitimately has none. Callers must treat
+    that as UNVERIFIABLE, never as a pass."""
+    if not SRC_LIST.is_file():
+        return None, None
+    cur, in_scope, every = None, set(), set()
+    for ln in SRC_LIST.read_text(encoding="utf-8").splitlines():
+        b = BUCKET_RE.match(ln)
+        if b:
+            cur = b.group(1)
+            continue
+        m = HEADING_RE.match(ln)
+        if m and cur:
+            every.add(m.group(1))
+            if cur in SCOPED:
+                in_scope.add(m.group(1))
+    return in_scope, every
+
 
 # ---- D8: errata are pointers, never evidence
 # Tokens that exist only because the errata recorded them: the pre-fix literals
@@ -46,7 +84,10 @@ CODEREF = re.compile(r"(src|tests|openspec|wayfinder|scripts|\.audit)/[\w./-]+(:
 # because then the number was re-derived rather than copied.
 ERRATA_TOKENS = ("1.1735482746999482", "1.0205068335735599", "1.1658482974306132",
                  "81.3148", "82.6036", "83.7313")
-ERRATA_ID = re.compile(r"(?<![A-Za-z0-9])E(?:1[0-9]|[1-9])(?![0-9])")
+# H4: was `E(?:1[0-9]|[1-9])`, which matches E1..E19 and silently misses E20 --
+# even though tasks 2.3 names E1..E20 explicitly and errata_index registers an
+# E20. One erratum could therefore be cited as a verdict with no anchor.
+ERRATA_ID = re.compile(r"(?<![A-Za-z0-9])E\d{1,2}(?![0-9])")
 INDEPENDENT_ANCHOR = re.compile(r"git\s+show|git\s+grep|@HEAD|@6593a06|pytest|实测|复算|"
                                 r"mp\.quad|betainc|approximation|resid")
 
@@ -72,19 +113,42 @@ def _x_issues(e):
 
 
 def _errata_evidence_issues(e):
-    """D8: a verdict that leans on an errata token without its own anchor."""
+    """D8: a verdict that leans on an errata token without its own anchor.
+
+    H3: this used to read `verdict_evidence` only. But tasks 1.2 REQUIRES
+    `remeasurement.old` to be quoted verbatim from the audit body -- which is
+    precisely where the pre-fix literals live. So the field the process compels
+    us to fill by transcription was the one field D8 never looked at. Both
+    fields are scanned now, and the message names which one tripped.
+    """
     p = []
     a = e.get("ac_id", "<no ac_id>")
-    ev = e.get("verdict_evidence")
-    if not isinstance(ev, str) or not ev:
-        return p
-    hits = [t for t in ERRATA_TOKENS if t in ev]
-    if hits and not INDEPENDENT_ANCHOR.search(ev):
-        p.append(f"{a}: D8 -- verdict_evidence cites errata-only token(s) {hits} with no "
-                 f"independent anchor (git show / recomputation); looks like transcription")
-    if ERRATA_ID.search(ev) and not INDEPENDENT_ANCHOR.search(ev):
-        p.append(f"{a}: D8 -- verdict_evidence references an errata id "
-                 f"({ERRATA_ID.search(ev).group(0)}) with no independent anchor")
+    rm = e.get("remeasurement") if isinstance(e.get("remeasurement"), dict) else {}
+    # Anchor scoping is per-field, not pooled across the entry. Pooling was
+    # tried and it silently gutted the rule: a well-anchored `method` would
+    # launder an unanchored claim in `verdict_evidence`.
+    #   verdict_evidence  -> must carry its own anchor; it IS the argument.
+    #   remeasurement.old -> may be anchored by its sibling `method`, because
+    #     tasks 1.2 compels `old` to be a verbatim audit quote and the
+    #     recomputation is by construction recorded in `method`.
+    fields = [
+        ("verdict_evidence", e.get("verdict_evidence"), e.get("verdict_evidence")),
+        ("remeasurement.old", rm.get("old"),
+         " ".join(str(x) for x in (rm.get("method"), rm.get("new")) if x)),
+    ]
+
+    for fname, val, anchor_src in fields:
+        if not isinstance(val, str) or not val:
+            continue
+        anchor_src = anchor_src if isinstance(anchor_src, str) else ""
+        hits = [t for t in ERRATA_TOKENS if t in val]
+        if hits and not INDEPENDENT_ANCHOR.search(anchor_src):
+            p.append(f"{a}: D8 -- {fname} cites errata-only token(s) {hits} with no "
+                     f"independent anchor (git show / recomputation); looks like transcription")
+        m = ERRATA_ID.search(val)
+        if m and not INDEPENDENT_ANCHOR.search(anchor_src):
+            p.append(f"{a}: D8 -- {fname} references an errata id "
+                     f"({m.group(0)}) with no independent anchor")
     return p
 
 
@@ -207,7 +271,32 @@ def check(entries):
                    and not denom["duplicate_ids"]
                    and not denom["namespace_overlap"]
                    and not denom["unregistered_not_registered"])
-    return {"problems": problems, "outstanding": outstanding, "denominator": denom}
+
+    # ---- H2: scope, as its own channel -----------------------------------
+    # A count is not a set. This is the check that makes tasks 7.2(a) and 7.2(b)
+    # executable against the committed ledger, with no write path involved.
+    # UNVERIFIABLE is a third state on purpose: `.audit` is gitignored, so a
+    # clean clone has no source to diff against, and silently returning True
+    # there would recreate the exact hole this closes.
+    src_in_scope, src_every = source_id_sets()
+    if src_in_scope is None:
+        scope = {"reference": "UNAVAILABLE (.audit is gitignored)",
+                 "expected_in_source": None, "ok": None,
+                 "missing_from_ledger": [], "unexpected_in_ledger": [],
+                 "x_ids_present_in_source": []}
+    else:
+        missing = sorted(src_in_scope - set(in_src))
+        unexpected = sorted(set(in_src) - src_in_scope)
+        # 7.2(b): an X- row is a blind-spot table row, never a `###` heading.
+        x_in_source = sorted(set(out_src) & src_every)
+        scope = {"reference": str(SRC_LIST.relative_to(ROOT)),
+                 "expected_in_source": len(src_in_scope),
+                 "ok": not missing and not unexpected and not x_in_source,
+                 "missing_from_ledger": missing,
+                 "unexpected_in_ledger": unexpected,
+                 "x_ids_present_in_source": x_in_source}
+    return {"problems": problems, "outstanding": outstanding,
+            "denominator": denom, "scope": scope}
 
 
 
@@ -387,9 +476,116 @@ print(f"  dropping one entry breaks it : {not short['ok']}   "
       f"duplicating one breaks it: {not added['ok']}   "
       f"{'OK' if t7_ok else 'CONTROL FAILED -- the partition is not actually enforced'}")
 
-ALL_OK = all((t1_ok, t2_ok, t3_ok, t4_ok, t5_ok, t6_ok, t7_ok))
+print()
+print("=" * 96)
+print("T8  H2 -- a ledger of FABRICATED ac_ids must be caught, not certified")
+print("=" * 96)
+# This is the review's decisive experiment, promoted to a standing control.
+# It used to pass: swapping every in-source id for a fake one left all three
+# counts untouched, so `denominator` reported ok=True on an invented ledger.
+# The mutation is the whole in-source namespace, not one row, because a
+# single-row swap is also caught and would prove less.
+_src, _every = source_id_sets()
+fabricated = []
+for i, e in enumerate(real, 1):
+    x = copy.deepcopy(e)
+    if str(x.get("ac_id", "")).startswith("X-"):
+        fabricated.append(x)
+    else:
+        x["ac_id"] = f"AC-9{i:02d}"
+        fabricated.append(x)
+rfab = check(fabricated)
+_counts_intact = (rfab["denominator"]["total"] == EXPECT_TOTAL
+                  and rfab["denominator"]["in_source"] == EXPECT_IN_SOURCE
+                  and rfab["denominator"]["unregistered"] == EXPECT_UNREGISTERED)
+_scope_sees_it = rfab["scope"]["ok"] is False
+t8_ok = _scope_sees_it and _counts_intact
+print(f"  {len([e for e in fabricated if not str(e['ac_id']).startswith('X-')])} in-source ids "
+      f"replaced by fabricated AC-9xx")
+print(f"  counts still read 104/95+9 (the hole this test exists for) : {_counts_intact}")
+print(f"  scope channel verdict on the fabricated ledger            : {rfab['scope']['ok']}")
+print(f"  first unexpected ids : {rfab['scope']['unexpected_in_ledger'][:6]}")
+if _src is None:
+    print("  CONTEXT: .audit absent -> scope is UNVERIFIABLE here, so T8 cannot pass. "
+          "That is the third state working as designed, not a failure of the check.")
+    t8_ok = None
+print(f"  {'OK -- fabricated ids are rejected' if t8_ok else 'CONTROL FAILED' if t8_ok is False else 'N/A'}")
+
+print()
+print("=" * 96)
+print("T9  H4 -- E20 must be inside the D8 errata-id matcher (it was E1..E19 only)")
+print("=" * 96)
+_covered = {e: bool(ERRATA_ID.search(e)) for e in ("E1", "E9", "E10", "E19", "E20", "E21")}
+t9_ok = all(_covered[k] for k in ("E1", "E9", "E10", "E19", "E20"))
+E20_TRANSCRIBED = {**GOOD, "ac_id": "AC-E20",
+                   "verdict_evidence": "per E20 the d_c=2 deviation is 7.017798e-15",
+                   # GOOD carries method="oracle@HEAD", which is itself a valid
+                   # anchor for remeasurement.old -- but not for verdict_evidence.
+                   # Leaving it would have tested nothing, so neutralise it.
+                   "remeasurement": {"old": "n/a", "new": "n/a", "method": "n/a"}}
+t9b = check_entry(E20_TRANSCRIBED)
+t9_ok = t9_ok and any("D8" in s and "E20" in s for s in t9b)
+print(f"  matcher coverage : {_covered}")
+print(f"  E20-only citation -> {'CAUGHT' if any('D8' in s for s in t9b) else 'MISSED'}")
+for s in t9b:
+    print(f"        {s}")
+print(f"  {'OK' if t9_ok else 'CONTROL FAILED -- E20 can be cited with no anchor'}")
+
+print()
+print("=" * 96)
+print("T10  H3 -- remeasurement.old is the field tasks 1.2 compels us to transcribe, "
+      "so D8 must scan it")
+print("=" * 96)
+OLD_TRANSCRIBED = {**GOOD, "ac_id": "AC-OLD",
+                   "verdict_evidence": "see 1.1735482746999482",
+                   "remeasurement": {"old": "1.1735482746999482",
+                                     "new": "n/a", "method": "n/a"}}
+ANCHORED = {**GOOD, "ac_id": "AC-OLD-OK",
+            "verdict_evidence": "recounted below",
+            "remeasurement": {"old": "1.1735482746999482",
+                              "new": "1.173547425919682",
+                              "method": "复算: mp.quad at 50 dps reproduces 1.173547425919682"}}
+t10a, t10b = check_entry(OLD_TRANSCRIBED), check_entry(ANCHORED)
+t10_ok = any("remeasurement.old" in s for s in t10a) and not t10b
+print(f"  transcription in .old, no anchor -> "
+      f"{'CAUGHT' if any('remeasurement.old' in s for s in t10a) else 'MISSED'}")
+for s in t10a:
+    print(f"        {s}")
+print(f"  .old quoted but recomputed in .method -> "
+      f"{'false alarm' if t10b else 'OK (not flagged)'}")
+print(f"  {'OK' if t10_ok else 'CONTROL FAILED -- the transcription field is unscanned'}")
+
+ALL_OK = all((t1_ok, t2_ok, t3_ok, t4_ok, t5_ok, t6_ok, t7_ok, t9_ok, t10_ok)) \
+    and t8_ok is not False
 print("=" * 96)
 print(f"CHECKER SELF-TEST: {'PASS' if ALL_OK else 'FAIL'}  (T1={t1_ok} T2={t2_ok} T3={t3_ok} "
-      f"T4={t4_ok} T5={t5_ok} T6={t6_ok} T7={t7_ok})")
+      f"T4={t4_ok} T5={t5_ok} T6={t6_ok} T7={t7_ok} T8={t8_ok} T9={t9_ok} T10={t10_ok})")
 print("=" * 96)
-sys.exit(0 if ALL_OK else 1)
+
+# ---- the real ledger, through the same four channels ------------------------
+rr = check(real)
+sc = rr["scope"]
+print()
+print("=" * 96)
+print("REAL LEDGER")
+print("=" * 96)
+print(f"  problems    {len(rr['problems'])}")
+for k, v in rr["problems"].items():
+    for s in v:
+        print(f"        {s}")
+print(f"  outstanding {len(rr['outstanding'])} entries still PENDING")
+print(f"  denominator ok={rr['denominator']['ok']}  "
+      f"({rr['denominator']['total']} = {rr['denominator']['in_source']} + "
+      f"{rr['denominator']['unregistered']})")
+print(f"  scope       reference={sc['reference']}  ok={sc['ok']}")
+print(f"        expected in-source {sc['expected_in_source']}   "
+      f"missing {len(sc['missing_from_ledger'])}   "
+      f"unexpected {len(sc['unexpected_in_ledger'])}   "
+      f"X- in source {len(sc['x_ids_present_in_source'])}")
+if sc["unexpected_in_ledger"]:
+    print(f"        UNEXPECTED (invented ids): {sc['unexpected_in_ledger'][:20]}")
+if sc["missing_from_ledger"]:
+    print(f"        MISSING: {sc['missing_from_ledger'][:20]}")
+# An unverifiable scope must not be laundered into a pass by the exit code.
+sys.exit(0 if (ALL_OK and not rr["problems"] and rr["denominator"]["ok"]
+               and sc["ok"] is not False) else 1)

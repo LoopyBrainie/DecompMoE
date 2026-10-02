@@ -61,7 +61,14 @@ TRACKED = [
 ]
 
 # Anchor contract recomputed at Change 2 completion (36 / 23 / 4, 100% coverage).
-EXPECT_ANCHORS = {"wayfinder": 36, "decompmoe-skeleton": 23, "governance": 4}
+# Recorded at the commit named in `EXPECT_ANCHORS_AS_OF`. The absolute numbers
+# move whenever a Requirement is legitimately added; only coverage is an
+# invariant. wayfinder went 36 -> 37 at 1afac58 ("narrow Req 23 to Phase 1-4;
+# make territory_collapse and req-15 Layer 2 explicit deferrals"), which added
+# one Requirement with its anchor. That is a correct change, so the gate is red
+# for bookkeeping reasons only -- `coverage_ok` is the structural verdict.
+EXPECT_ANCHORS = {"wayfinder": 37, "decompmoe-skeleton": 23, "governance": 4}
+EXPECT_ANCHORS_AS_OF = "1afac58 (wayfinder 37), pre-1afac58 for the other two"
 
 
 def git(*a, text=False):
@@ -148,21 +155,50 @@ for line in porcelain:
 
 # ------------------------------------------- anchor contract, recomputed live
 # Structure is: <a id="req-N"></a> / blank / ### Requirement: ... / body.
+#
+# M (review findings, confirmed): this used to be `len(reqs) == expect and
+# len(standalone) == expect and not dups`, i.e. an ABSOLUTE count pinned to a
+# constant, plus prose asserting the contract was "intact". Two things then go
+# wrong at once: a parallel session legitimately adding a Requirement turns the
+# gate red with no structural defect anywhere, and the CRLF/anchor snapshots in
+# the design docs drift without anyone noticing which commit they described.
+#
+# The structural invariant is COVERAGE, and it moves with the spec:
+#     every Requirement has exactly one standalone anchor, no anchor twice.
+# The absolute count is still checked, but against a value recorded together with
+# the commit it was read at, and a mismatch is reported as drift rather than
+# silently absorbed.
+#
+# `quoted` counts anchor tags that appear INSIDE prose. This repo deliberately
+# cross-references Requirements by anchor instead of by line number (change
+# 2026-09-28-fix-a7-flops-attribution-and-stale-ref, Decision 2), so those tags
+# are part of the text, not part of the structure. Counting them is how you get
+# two phantom "duplicate" anchors -- req-17 and req-20 -- that do not exist.
 anchors = {}
 anchor_contract_ok = True
+anchor_drift = []
 for cap, expect in EXPECT_ANCHORS.items():
     txt = norm(blob(HEAD, f"openspec/specs/{cap}/spec.md"))
     reqs = re.findall(r"^### Requirement:", txt, re.M)
     standalone = re.findall(r"^<a id=\"(req-[0-9A-Za-z\-]+)\"></a>\s*$", txt, re.M)
+    quoted = len(re.findall(r"<a id=\"req-[0-9A-Za-z\-]+\"></a>", txt)) - len(standalone)
     dups = {k: standalone.count(k) for k in set(standalone) if standalone.count(k) > 1}
-    ok = (len(reqs) == expect and len(standalone) == expect and not dups)
+    # structural: coverage and uniqueness
+    ok = (len(reqs) == len(standalone)) and not dups
+    # absolute: recorded expectation, drift is reported not hidden
+    drift = len(reqs) != expect
+    if drift:
+        anchor_drift.append(f"{cap}: {len(reqs)} requirements, recorded expectation {expect}")
     anchor_contract_ok &= ok
     anchors[cap] = {
         "requirements": len(reqs),
         "standalone_anchors": len(standalone),
-        "expected": expect,
+        "anchors_quoted_in_prose": quoted,
+        "recorded_expectation": expect,
+        "absolute_drift": drift,
         "duplicate_anchor_ids": dups,
-        "ok": ok,
+        "coverage_ok": ok,
+        "ok": ok and not drift,
     }
 
 # ------------------------------------------------------------------- assemble
@@ -173,9 +209,15 @@ doc = {
     "supersedes_note": (
         "The first baseline.json asserted 'the integrator fix is NOT committed; HEAD (188b9fb) "
         "still carries the PRE-fix _betainc_regularized'. Measured false on three counts: "
-        "(1) HEAD is f6461d7, not 188b9fb; (2) sphere.py at HEAD carries the full quadrature fix; "
-        "(3) the three specs are in HEAD, not worktree-carried. Only gating.py is uncommitted."
+        "(1) HEAD was f6461d7, not 188b9fb, at the time of that measurement; "
+        "(2) sphere.py at HEAD carries the full quadrature fix; "
+        "(3) the three specs are in HEAD, not worktree-carried. Only gating.py was uncommitted. "
+        "This field is a record of a past measurement and does NOT assert anything about the "
+        "current HEAD -- read `head` / `head_subject` for that. The prose used to name f6461d7 "
+        "as if it were still HEAD, which it stopped being once a parallel session committed "
+        "on top of it; a snapshot is not a fact about the present."
     ),
+    "anchor_expectation_as_of": EXPECT_ANCHORS_AS_OF,
     "pin_to_head_commits": [
         f"{c[:7]} {s}".strip()
         for c, s in (
@@ -207,21 +249,32 @@ doc = {
     },
     "asymmetry": {
         "statement": (
-            "The quadrature fix IS committed. sphere.py and tests/test_sphere.py at HEAD "
-            "f6461d7 are byte-identical to the working tree and carry the full fix "
+            "The quadrature fix IS committed. sphere.py and tests/test_sphere.py were "
+            "byte-identical to the working tree at f6461d7 and carried the full fix "
             "(_QUAD_RTOL=1e-12, _QUAD_MAX_PANELS=4096, the t=sin^2(phi) substitution, and the "
-            "hi = pi/2 - asin(sqrt(1-x)) cancellation fix). A third party re-measuring at HEAD "
-            "reproduces THIS ledger, not the audit's pre-fix numbers. The three specs are also "
-            "in HEAD, with the 36/23/4 anchor contract intact."
+            "hi = pi/2 - asin(sqrt(1-x)) cancellation fix). A third party re-measuring at the "
+            "current HEAD reproduces THIS ledger, not the audit's pre-fix numbers. The three "
+            "specs are in HEAD and anchor coverage is complete at every capability "
+            "(see spec_anchor_contract.*.coverage_ok; the absolute counts move as "
+            "Requirements are added, coverage does not)."
+        ),
+        "snapshot_caveat": (
+            "Every number in this file describes the worktree and HEAD AT THE TIME OF THIS RUN. "
+            "The CRLF false-positive count in particular is not a property of the repo: it was "
+            "measured as 6, then 10, then 9 across successive runs as a parallel session "
+            "committed and the line-ending population shifted. Cite it with the `head` field, "
+            "never as a standing fact."
         ),
         "genuinely_worktree_carried": (
-            "Only: src/decompmoe/gating.py (the F6 dead-defence removal) and "
-            "wayfinder/tickets/WF-1.md (2 lines). Both are uncommitted. Neither feeds the "
-            "quadrature measurement chain, so a re-measurement at HEAD is unaffected by them."
+            "At the last run: src/decompmoe/gating.py (the F6 dead-defence removal) and "
+            "wayfinder/tickets/WF-1.md. Neither feeds the quadrature measurement chain, so a "
+            "re-measurement at HEAD is unaffected by them."
         ),
         "not_in_git": (
-            "The Change 2 archive directory and this Change 3 directory are both UNTRACKED. "
-            "Change 2's finished work is on disk but not committed."
+            "Corrected: as of commit b05c727 the Change 2 archive and this change's evidence/ "
+            "tools are IN version control. D11 had required that and it was outstanding until "
+            "then; this field used to claim both directories were untracked, which was true "
+            "when first written and stopped being true without anyone updating it."
         ),
         "danger_if_handled_wrong": (
             "git add -A would silently delete four tracked files that the working tree no longer "
@@ -239,6 +292,21 @@ print(f"  pin blobs recorded        : {len(pin_blobs)}  missing: {len(missing_pi
 print(f"  IDENTICAL                 : {sum(1 for f in files.values() if f['verdict'] == 'IDENTICAL')}/{len(files)}")
 print(f"  CRLF_ONLY (false positive): {len(byte_only_diff)}")
 print(f"  CONTENT_DIFF (real)       : {len(content_diff)} -> {content_diff}")
-print(f"  anchor contract 36/23/4   : {anchor_contract_ok}  {anchors}")
+cov_ok = all(a["coverage_ok"] for a in anchors.values())
+drift = [f"{c} {a['requirements']} vs recorded {a['recorded_expectation']}"
+         for c, a in anchors.items() if a["absolute_drift"]]
+print(f"  anchor coverage           : {cov_ok}  "
+      f"({'/'.join(str(a['requirements']) for a in anchors.values())} requirements, "
+      f"each with exactly one standalone anchor, no duplicates)")
+for c, a in anchors.items():
+    print(f"    {c:<20} reqs={a['requirements']:>3} standalone={a['standalone_anchors']:>3} "
+          f"quoted_in_prose={a['anchors_quoted_in_prose']:>2} "
+          f"recorded={a['recorded_expectation']:>3} coverage_ok={a['coverage_ok']} "
+          f"drift={a['absolute_drift']}")
+if drift:
+    print(f"  absolute drift vs the recorded expectation: {drift}")
+    print(f"    (recorded as of: {EXPECT_ANCHORS_AS_OF} -- a new Requirement moves this; "
+          f"it is not a coverage defect)")
+print(f"  anchor contract {cov_ok and not drift}  (coverage={cov_ok}, absolute={not drift})")
 print(f"  deleted-but-tracked       : {len(staged_deleted)}")
 print(f"  modified-uncommitted      : {modified}")

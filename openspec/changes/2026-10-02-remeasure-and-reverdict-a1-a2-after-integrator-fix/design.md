@@ -70,6 +70,11 @@
 | `DOWNGRADED` | 缺陷仍存在但性质/严重性变了 | 新旧严重性与新证据 |
 | `REMEASURED_SAME` | 依赖成立、数值变了、verdict 不变 | 新旧数值对照 |
 
+**本 change 认可的 verdict 全集恰为五个**：`STILL_REAL` / `PARTIALLY_REAL` / `RESOLVED_BY_UPSTREAM` / `DOWNGRADED` / `REMEASURED_SAME`。`evidence/tools/check_ledger.py` 的 `VERDICTS` 集合与本表逐项相等，两侧是同一个契约：
+
+- **`MOVED` 不可用**。它是原审计对「坐标位移」的用词，本 change 的 D1 要求坐标类条目**重建**坐标而非承认位移，故须由本 change 用五值之一重新裁决；直接沿用 `MOVED` 会让检查器判 `not in [...]`。
+- **`NOT_REAL` 不可用**。它曾出现在 `VERDICTS` 里而 D3 从未定义（审阅 finding，已修）——一个「检查器接受但设计从未批准」的值，正是决策链与执行层脱钩的形态。语义上「测出来不是真的」应按测得结果落 `RESOLVED_BY_UPSTREAM` / `DOWNGRADED`，并附因果链。
+
 **为什么**：不新增 `RESOLVED_BY_UPSTREAM` 就会被迫把已消失的缺陷塞进 `PARTIALLY_REAL`，产出一条假的「部分仍成立」。
 
 **纪律**：原清单的 `裁决` / `基线` 字段**一律不转抄**——本仓已实证这些字段本身会漂移（某桶 15 条里 4 条基线标错、5 条 `STILL_REAL` 已失效、1 条 Requirement 归错）。新裁决必须由本 change 用 `git show` / 实测得出。清单的**勘误节**（11 + 20 条）与本条同源，纪律相同但由 D8 单独成条，因为它还额外禁止「无锚点引用」。
@@ -81,9 +86,11 @@
 
 **为什么**：若只记 HEAD，第三方按台账重测会拿到修前实现，得到与台账相反的结果——这是最隐蔽的一种失效。
 
-> **[2026-10-02 更正 · 0.1 实测推翻原假设]** 本决策原写「由于修复未提交，必须额外记录『基准由工作树承载』」。**该前提为假**：`sphere.py` 与 `tests/test_sphere.py` 在 HEAD 已含完整求积器修复（`_QUAD_RTOL=1e-12`、`_QUAD_MAX_PANELS=4096`、`t=sin²φ` 代换、`hi = π/2 − asin(√(1−x))` 抵消修复），且与工作树逐字节相同；3 份 spec 亦已在 HEAD，36/23/4 anchor 契约完整。真正的坐标事实见上文 **Context 三条坐标**（工作树承载项只有 `gating.py` / `WF-1.md`，都不在求积测量链上），此处不重复叙述。
+> **[2026-10-02 更正 · 0.1 实测推翻原假设]** 本决策原写「由于修复未提交，必须额外记录『基准由工作树承载』」。**该前提为假**：`sphere.py` 与 `tests/test_sphere.py` 在 HEAD 已含完整求积器修复（`_QUAD_RTOL=1e-12`、`_QUAD_MAX_PANELS=4096`、`t=sin²φ` 代换、`hi = π/2 − asin(√(1−x))` 抵消修复），且与工作树逐字节相同；3 份 spec 亦已在 HEAD，anchor **覆盖完整**（每条 Requirement 恰有一个独立 anchor、无重复）。绝对计数会随合法新增 Requirement 变动（wayfinder 在 `1afac58` 由 36 → 37），故契约检查的是覆盖而非常量。真正的坐标事实见上文 **Context 三条坐标**（工作树承载项只有 `gating.py` / `WF-1.md`，都不在求积测量链上），此处不重复叙述。
 >
-> 更正同时暴露一条**新的**基准纪律：工作树以 CRLF 存储而 HEAD blob 为 LF，朴素 sha256 比对会产出 **6 个假阳性**（3 份 spec + `loss.py` + `safeguards.py` + `distance.py`）。`git hash-object` 与 `git diff` 会归一行尾，裸哈希不会。**台账只准引用内容级判定**；`evidence/baseline.json` 现按 `IDENTICAL` / `CRLF_ONLY` / `CONTENT_DIFF` 三值落盘，并在生成脚本内置「M2/M3 必须与内容级判定一致」的断言。
+> 更正同时暴露一条**新的**基准纪律：工作树以 CRLF 存储而 HEAD blob 为 LF，朴素 sha256 比对会产出**若干**假阳性（`baseline.json` 的 `line_ending_caveat` 逐次列出当时的完整名单与 `head` 字段）。`git hash-object` 与 `git diff` 会归一行尾，裸哈希不会。**台账只准引用内容级判定**；`evidence/baseline.json` 现按 `IDENTICAL` / `CRLF_ONLY` / `CONTENT_DIFF` 三值落盘，并在生成脚本内置「M2/M3 必须与内容级判定一致」的断言。
+>
+> **[2026-10-02 二次更正 · 快照不是事实]** 原文把假阳性数量写死为「**6 个**（3 份 spec + `loss.py` + `safeguards.py` + `distance.py`）」，并据此在 R3 与 tasks 0.1 / 3.1 重复引用。实测该数字**不是一个仓库属性而是一次工作树快照**：随并行 session 提交先后测得 **6 → 10 → 9**。写死它有三个后果：(a) 后来者按「6」核对会得到「不符」而不知这是快照；(b) 「6」会被当成「CRLF 影响的文件数上限」这一**假平台限制**；(c) 它与同类的 anchor 计数病（写死 36/23/4）同源。**不变量是规则不是数字**：只准引用内容级判定。数量须与 `baseline.json` 的 `head` 字段一同引用。
 
 ### D5 — oracle 冻结并两路线互验
 
@@ -123,7 +130,9 @@
 2. `verdict_evidence` 不得引用勘误的独特 token（修前字面量 `1.1735482746999482` / `1.0205068335735599` / `81.3148` 等）或勘误编号（`E1`…`E20`）**而无独立锚点**（`git show` / `git grep` / `@<rev>` / 复算 / 实测）。由 `check_ledger.py` 的 T5 强制。
 3. 勘误正文自陈「**未重算任何数学**」（盲区 5），所有真值与误差量级原样取自上游、未复核——这加强而非削弱 D1。
 
-> **反向注记（防止后来者抄走）**：A-2 勘误 E13 断言「6dp 字面量固有截断上界 `5e-7`，**任何 `< 1e-6` 的容差都会在真值上失败**」。该论断**已被证伪**：`pytest.approx(x, abs=T)` 的实际判据是 `max(T, rel·|x|)` 且 `rel` 默认 `1e-6` 不被 `abs` 关闭，故 `abs=1e-6` 的有效容差是 `1.1735e-6`，而截断误差 `4.259e-07 < 1.1735e-6` ⇒ **不会失败**。本 change 不引用 E13（见规则 1），此处登记是为了让这条已失效的论断有一个显式的死亡记录，而不是留作「可用的结论」。
+> **反向注记（防止后来者抄走）**：A-2 勘误 E13 断言「6dp 字面量固有截断上界 `5e-7`，**任何 `< 1e-6` 的容差都会在真值上失败**」。该论断**已被证伪两次**：(a) 6dp **截断**误差恒 `< 1e-6`，`5e-7` 是四舍五入半单位而非截断界（反例 `trunc6(9.99999999) = 9.999999`，误差 `9.9e-7 > 5e-7`）；(b) 本仓 pytest **9.1.1** 的 `ApproxScalar.tolerance` 在 `rel is None and abs is not None` 时**直接返回 `abs`**，不进入 `max(rel·|expected|, abs)` 分支——`rel` 的默认值是 `None` 而非 `1e-6`，`DEFAULT_RELATIVE_TOLERANCE` 只在短路之后的分支里被引用。故 `abs=1e-6` 的实际容差**恰为 `1e-6`**，而截断误差 `4.259e-07 < 1e-6` ⇒ **不会失败**；实测把容差收紧到 `4.3e-7` 仍通过，E13「`1e-6` 是 6dp 显示格式允许的最小值」亦随之落空。裁决依据见 `evidence/tools/_pytest_approx_semantics.py`（读 pytest 源码 + 行为构造双证）。本 change 不引用 E13（见规则 1），此处登记是为了让这条已失效的论断有一个显式的死亡记录，而不是留作「可用的结论」。
+>
+> **注意同一错误论断的现存副本**（本 change 只判定不修复，登记待另开 change）：`openspec/specs/governance/spec.md` L13（义务 1，称 `abs=0` 时「`rel` 留在 pytest 默认 `1e-12`」→ 退化为 `1e-12·|expected|`）、L17（义务 3，称 `abs=1e-6` 的实际判据是 `max(1e-6, 1e-6·|expected|) = 1.17e-6`）、L22（同一 `max(...)` 判据）、以及 `tests/test_sphere.py:98-99` 的 docstring 副本。这四处须按本注记更正。**其判别力结论不受影响**：`1.275e-6` / `1.297e-6` 在 `abs=1e-6` 与 `max` 两种读法下都判 FAIL，`8.34e-7` 在两种读法下都判 PASS。
 
 ### D9 — 9 条无实体 finding 的 id、桶归属与坐标
 
@@ -165,7 +174,7 @@
 
 - **[R1] 104 条的判定质量可能不均]** → 按桶分批交付，每桶交付前先跑一遍「三段推导是否齐全」的结构检查；缺项的条目留空并显式标记 `PENDING`，不得先勾后补。
 - **[R2] 依赖性判定本身可能有争议]** → 判定必须定位到具体哪一行，争议可被定位到推导的某一步而非整体推翻。
-- **[R3] 基准漂移使第三方无法重建台账]** → 台账同时记录 HEAD commit 与工作树 hash，且按 `IDENTICAL` / `CRLF_ONLY` / `CONTENT_DIFF` 三值给出**内容级**判定（D4）。**该风险已变形**：求积器修复已提交在 HEAD，工作树承载项（`gating.py` / `WF-1.md`）不在测量链上；但本轮实测中 HEAD 被并行 session 推进了 1 个 commit（`f6461d7` → `8ba7d6f`），证明「记录生成时的 HEAD」这一纪律不可省。CRLF 造成的 6 个假阳性也证明「只比字节」的锚定方式本身不可靠。
+- **[R3] 基准漂移使第三方无法重建台账]** → 台账同时记录 HEAD commit 与工作树 hash，且按 `IDENTICAL` / `CRLF_ONLY` / `CONTENT_DIFF` 三值给出**内容级**判定（D4）。**该风险已变形**：求积器修复已提交在 HEAD，工作树承载项（`gating.py` / `WF-1.md`）不在测量链上；但本轮实测中 HEAD 被并行 session 推进了 1 个 commit（`f6461d7` → `8ba7d6f`），证明「记录生成时的 HEAD」这一纪律不可省。CRLF 造成的字节级假阳性（数量随工作树变动，实测 6 → 10 → 9，见 D4 二次更正）也证明「只比字节」的锚定方式本身不可靠。
 - **[R4] 把「缺陷消失」误判为「原 finding 本就错」]** → `RESOLVED_BY_UPSTREAM` 必须给出因果链；无因果链者一律降级为 `REMEASURED_SAME` 或保留原 verdict，不得判消失。
 - **[R5] 依赖性判定把 A-4 的行号指针与 A-1/A-2 的数值问题混为一谈]** → A-4 的失效机制是**坐标位移**而非**数值失效**，台账须分列 `invalidation_kind: numeric | coordinate | provenance`，三类的重测动作不同。
 - **[R6] 「不引用勘误」被架空成「不写 E 编号」]** → 真正的风险是把勘误的**结论**换个说法抄进去。D8 因此不只查 `E\d+` 编号，还查勘误独有的数值 token，并要求证据串自带独立锚点（T5）。

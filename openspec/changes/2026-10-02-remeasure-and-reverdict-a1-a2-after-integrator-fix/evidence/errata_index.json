@@ -1,6 +1,6 @@
 {
   "source": ".audit\\wayfinder-opsx-code-review\\lists\\opsx-changes.md",
-  "head": "8ba7d6f",
+  "head": "b05c727",
   "pin": "6593a06",
   "layer_structure": {
     "h3_headings_total": 135,
@@ -129,8 +129,11 @@
       "188b9fb",
       "6593a06"
     ],
-    "anchoring_rev_note": "勘误正文自称锚定 ['188b9fb', '6593a06']；当前 HEAD = 8ba7d6f，两者相差 5 个改过 openspec/specs 的 commit，故勘误坐标与数值均已过期",
+    "anchoring_rev_note": "勘误正文自称锚定 ['188b9fb', '6593a06']；当前 HEAD = b05c727，两者相差 8 个改过 openspec/specs 的 commit，故勘误坐标与数值均已过期",
     "spec_changing_commits_pin_to_head": [
+      "a97e3a7 fix(a3): clone-then-perturb resurrection, require per-expert mask, window UR",
+      "557a54e fix(skeleton): make Phase 0 and mask obligations normative; pin the __all__ de-dup rule",
+      "1afac58 fix(wayfinder): narrow Req 23 to Phase 1-4; make territory_collapse and req-15 Layer 2 explicit deferrals",
       "f6461d7 fix(a2-errata): correct the A-2 spec defects, then repair the math that correction broke",
       "188b9fb fix(f1-followup): close the second copy of the 50-digit mpmath mislabel",
       "4f3e752 chore(opsx): archive F1-F8 fixes; repair anchors swallowed by archive",
