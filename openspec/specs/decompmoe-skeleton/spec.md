@@ -9,7 +9,7 @@ Defines the observable, testable behavior of the DecompMoE skeleton: type-safe c
 
 ### Requirement: Canonical Package And Version Identifier
 
-The package SHALL expose `decompmoe.__canonical_name__ == "DecompMoE"`, `decompmoe.__alias__ == "GeoMoE"`, and `decompmoe.__version__` as a `str` matching PEP 440 semantics. The package SHALL expose a stable `__all__` listing every public symbol introduced by this skeleton. The alias SHALL NOT appear as a code identifier anywhere in the package (only in design prose / docstrings).
+The package SHALL expose `decompmoe.__canonical_name__ == "DecompMoE"`, `decompmoe.__alias__ == "GeoMoE"`, and `decompmoe.__version__` as a `str` matching PEP 440 semantics. The package SHALL expose a stable `__all__` listing every public symbol introduced by this skeleton. **De-duplication rule (normative):** "every public symbol" means the **de-duplicated union** of the `__all__` entries declared by the 13 submodules — a name declared in more than one submodule counts **once**. At MVP that union is exactly **75** names; together with the 3 package dunders (`__version__`, `__canonical_name__`, `__alias__`) the package-level `__all__` therefore has **78** entries. The **only** cross-module name collision at MVP is `flops_per_token`, declared in both `config` and `metrics` (the `metrics` definition is a passthrough wrapper that mirrors `config.flops_per_token`); the package-level `__all__` MUST bind that name to the `config` definition, and the `metrics` definition MUST remain reachable as `decompmoe.metrics.flops_per_token`. **MUST NOT:** summing the 13 per-module counts without de-duplication yields **76** and is not the expected total. The alias SHALL NOT appear as a code identifier anywhere in the package (only in design prose / docstrings).
 
 #### Scenario: Name resolution
 - **WHEN** `decompmoe.__canonical_name__` is accessed
@@ -146,7 +146,7 @@ The package SHALL provide `extract_C(K, V, proj_W_K, proj_W_V, proj_b, *, H_kv, 
 
 #### Scenario: Output shape on unit sphere
 - **WHEN** `K ∈ R^{B × H_kv × N × d_k}` and `V ∈ R^{B × H_kv × N × d_k}` are fed in
-- **THEN** `C ∈ R^{B × N × d_c}` and `‖C_t‖₂ = 1` for every token (within `1e-5`)
+- **THEN** `C ∈ R^{B × N × d_c}` and `‖C_t‖₂ = 1` for every token (within `1e-5`), **provided the degenerate regime is excluded** — i.e. provided every per-head projection `z^{l,h}` satisfies `‖z^{l,h}‖₂ ≥ ε` with `ε = 1e-6` (req-19). This precondition is normative, not a caveat: the pipeline's spherical-projection steps divide by `max(‖·‖₂, ε)`, so a projection in the sub-epsilon regime `0 < ‖z^{l,h}‖₂ < ε` yields `‖C_t‖₂ < 1` rather than 1. This Scenario previously asserted unit norm **unconditionally**, which contradicted this same spec's req-19 Scenario, which states that `0 < ‖z‖₂ < ε` produces a sub-unit norm on first application. The assertion is now conditioned on the same threshold req-19 uses.
 
 #### Scenario: Fully differentiable
 - **WHEN** `torch.autograd.gradcheck` is run on `extract_C` with random `K`, `V` and the projection parameters
@@ -421,9 +421,9 @@ The package's test suite SHALL include the following three tests, asserting the 
 
 ### Requirement: Centroid Four-Phase Lifecycle Driver — Phase-4 SGD Step Extension
 
-The package SHALL provide `CentroidDriver(phase: Phase) -> CentroidDriver` with `Phase ∈ {SEEDING=0, EMA_090=1, EMA_095=2, EMA_099=3, PROJECTED_SGD=4}`. The `step(centroids, X, mask, *, grad=None, eta=1e-2) -> Tensor` method MUST apply, per phase:
+The package SHALL provide `CentroidDriver(phase: Phase) -> CentroidDriver` with `Phase ∈ {SEEDING=0, EMA_090=1, EMA_095=2, EMA_099=3, PROJECTED_SGD=4}`. The `step(centroids, X, mask, *, grad=None, eta=1e-2) -> Tensor` method MUST apply, per phase. **`mask` is a REQUIRED positional parameter and MUST NOT be given a default value:** per-expert masked means `m_i` are undefined without it, and a defaulted `mask=None` invites an implementation to substitute a whole-batch mean for `m_i`, which silently broadcasts one mean to every centroid and collapses all territories to a single point. An implementation MUST reject a missing `mask` rather than substitute one.
 
-- Phase 0 (SEEDING): `c_i ← c_i.detach()` (driver is a no-op returning the input centroids detached from the autograd graph); `c_i.requires_grad = False`. Driver is no-op; upstream spherical KMeans is assumed to have produced L2-normalized seeds (the `‖c_i‖₂ ≡ 1.0` invariant for Phase 0 is the caller's responsibility, not the driver's).
+- Phase 0 (SEEDING): `c_i ← c_i.detach()` (driver is a no-op returning the input centroids detached from the autograd graph); `c_i.requires_grad = False`. Driver is no-op; upstream spherical KMeans is assumed to have produced L2-normalized seeds. **The caller MUST supply Phase 0 seeds already satisfying `‖c_i‖₂ ≡ 1.0`** — this is a normative obligation on the caller, not a description of the driver's behaviour, and the driver MUST NOT normalise, project, or otherwise repair Phase 0 inputs. This elevation is the deliberate half of a paired correction: `wayfinder` req-23 previously asserted the spherical-norm invariant for "any Phase (including 0 K-Means)" while simultaneously declaring this driver a no-op, giving two peer specs mutually exclusive MUSTs for the same quantity. `wayfinder` req-23 has since been narrowed to **Phase 1–4**; this Requirement is the corresponding owner of the Phase 0 obligation, and the two MUSTs are no longer in conflict.
 - Phase 1 (EMA_090): `c_i ← Normalize(0.90 · c_i + 0.10 · m_i) / ‖·‖₂`, driver Active, gradient channel Frozen.
 - Phase 2 (EMA_095): `c_i ← Normalize(0.95 · c_i + 0.05 · m_i) / ‖·‖₂`, driver Active, gradient channel Frozen.
 - Phase 3 (EMA_099): `c_i ← Normalize(0.99 · c_i + 0.01 · m_i) / ‖·‖₂`, driver Active, gradient channel Frozen.
