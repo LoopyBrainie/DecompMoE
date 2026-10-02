@@ -394,7 +394,12 @@ def test_no_surrogate_in_codebase() -> None:
 
 
 def test_extract_C_signature() -> None:
-    """extract_C signature must accept K, V, W_K, W_V, b, H_kv, d_c, eps.
+    """extract_C signature must accept K, V, proj_W_K, proj_W_V, proj_b, H_kv, d_c, eps.
+
+    The three projection parameters are named to match the signature
+    `decompmoe-skeleton` req-7 declares verbatim. They used to be spelled
+    `W_K` / `W_V` / `b`, which made a keyword call written to the spec
+    raise `TypeError` -- the spec's declared signature was not executable.
 
     Also pins `eps` default value = 1e-6 per spec req-7 L100 (extraction
     four-step pipeline precondition: `‖z‖₂ ≥ ε` for safe division). The
@@ -403,7 +408,15 @@ def test_extract_C_signature() -> None:
     """
     sig = inspect.signature(extraction.extract_C)
     names = set(sig.parameters.keys())
-    assert {"K", "V", "W_K", "W_V", "b"}.issubset(names)
+    assert {"K", "V", "proj_W_K", "proj_W_V", "proj_b"}.issubset(names), (
+        f"extract_C projection params MUST match the req-7 declared signature "
+        f"proj_W_K/proj_W_V/proj_b; got {sorted(names)!r}"
+    )
+    # The pre-rename spelling MUST be gone: a caller who adapts the old
+    # names should get a TypeError, not a silent rebind.
+    assert not ({"W_K", "W_V", "b"} & names), (
+        f"stale pre-rename parameter names still present in {sorted(names)!r}"
+    )
     assert "eps" in names
     assert "H_kv" in names
     assert "d_c" in names

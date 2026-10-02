@@ -518,7 +518,13 @@ def voronoi_angle(centroids: Tensor) -> float:
 
     generator = torch.Generator().manual_seed(VORONOI_AREA_SEED)
     probes = torch.nn.functional.normalize(
-        torch.randn(VORONOI_AREA_SAMPLES, d_c, generator=generator), dim=-1
+        torch.randn(
+            VORONOI_AREA_SAMPLES,
+            d_c,
+            generator=generator,
+            device=centroids.device,
+        ),
+        dim=-1,
     ).to(centroids.dtype)
     owner = (probes @ centroids.T).argmax(dim=1)
     areas = torch.bincount(owner, minlength=N_e).to(torch.float64) / (

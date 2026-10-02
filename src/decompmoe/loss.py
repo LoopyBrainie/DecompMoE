@@ -24,11 +24,11 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor
 
+from decompmoe.schedule import _DEFAULT_TOTAL, phase_boundaries
+
 
 ALPHA: Final[float] = 0.01
 LAMBDA_MAX: Final[float] = 0.001
-
-_PHASE_BOUNDS: Final[tuple[int, ...]] = (1_000, 6_000, 26_000, 56_000, 100_000)
 
 
 @dataclasses.dataclass
@@ -55,13 +55,19 @@ def compute_L_sep(c_centroids: Tensor) -> Tensor:
     return (fro_sq - N_e) / (N_e * (N_e - 1))
 
 
-def _lambda_at(phase: int, step: int) -> float:
-    """Staged λ(t) schedule (Req 12)."""
+def _lambda_at(phase: int, step: int, total_steps: int = _DEFAULT_TOTAL) -> float:
+    """Staged λ(t) schedule (Req 12).
+
+    `total_steps` is honoured the same way `schedule.phase_id` and
+    `schedule.phase_beta_max` honour it, so a non-100K run does not ramp λ over
+    the 100K window while every other consumer rescales.
+    """
     if phase in (1, 2):
         return 0.0
     if phase == 3:
-        t_start = _PHASE_BOUNDS[2]  # 26_000
-        t_end = _PHASE_BOUNDS[3]    # 56_000
+        bounds = phase_boundaries(total_steps)
+        t_start = bounds[2]
+        t_end = bounds[3]
         progress = max(0.0, min(1.0, (step - t_start) / (t_end - t_start)))
         return 0.5 * (1.0 - math.cos(math.pi * progress)) * LAMBDA_MAX
     if phase == 4:
@@ -79,6 +85,7 @@ def L_total(
     step: int,
     *,
     cfg=None,
+    total_steps: int = _DEFAULT_TOTAL,
 ) -> LossParts:
     """Total loss: `L_CE + α·L_lb + λ(t)·L_sep`.
 
@@ -98,6 +105,10 @@ def L_total(
                         (`L_lb = N_e · Σ_i f_i.detach() · P_i`); when
                         omitted, `N_e` falls back to the routing-tensor
                         width `f_per_expert.shape[-1]`.
+        total_steps:    total training-step budget. Threaded into the λ(t)
+                        schedule exactly as `schedule.phase_id` and
+                        `schedule.phase_beta_max` consume it, so a non-100K
+                        run rescales λ and the phase boundaries together.
 
     Returns:
         LossParts dataclass with each component.
@@ -122,7 +133,7 @@ def L_total(
     L_lb = ALPHA * L_lb_raw
 
     L_sep_raw = compute_L_sep(c_centroids)
-    lam = _lambda_at(phase, step)
+    lam = _lambda_at(phase, step, total_steps)
     L_sep = lam * L_sep_raw
 
     L_total_t = L_CE + L_lb + L_sep

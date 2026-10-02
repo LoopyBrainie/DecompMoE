@@ -604,8 +604,11 @@ def test_no_other_module_defines_should_resurrect() -> None:
 
     **Note on enumeration** (code-review N4 fix): earlier draft iterated over
     `vars(decompmoe)` which only contains modules explicitly re-exported by
-    `decompmoe/__init__.py`. That misses the 11 submodules that aren't
-    re-exported (`config`, `contracts`, `distance`, `experts`, `extraction`,
+    `decompmoe/__init__.py`. That misses the 11 submodules regardless of what
+    `decompmoe/__init__.py` re-exports -- and the package's own `__all__` now
+    binds all 13 (req-1), so the identity check below is what distinguishes a
+    re-export from a second definition. Previously re-exported: none; the
+    11 non-canonical modules (`config`, `contracts`, `distance`, `experts`, `extraction`,
     `gating`, `loss`, `metrics`, `schedule`, `sphere`, `viz`). Using
     `pkgutil.iter_modules` against `decompmoe.__path__` enumerates ALL 13
     submodules regardless of `__init__.py` re-exports.
@@ -621,20 +624,35 @@ def test_no_other_module_defines_should_resurrect() -> None:
     module_names = ["decompmoe"] + sorted(set(module_names))
 
     canonical_owner = "decompmoe.safeguards"
+    canonical = safeguards.should_resurrect
     offending: list[tuple[str, object]] = []
+    reexported: list[str] = []
     for module_name in module_names:
         mod = importlib.import_module(module_name)
         if mod is safeguards:
             continue  # canonical owner; should_resurrect is expected here
         attr = getattr(mod, "should_resurrect", None)
-        if attr is not None:
+        if attr is None:
+            continue
+        # A package-level re-export is the SAME object, which is what req-1's
+        # `__all__` contract requires; it is not a second definition and creates
+        # no ownership ambiguity. Only a DIFFERENT callable is a regression.
+        if attr is canonical:
+            reexported.append(module_name)
+        else:
             offending.append((module_name, attr))
 
     assert not offending, (
-        f"Modules other than {canonical_owner!r} define `should_resurrect`: "
+        f"Modules other than {canonical_owner!r} define their OWN `should_resurrect`: "
         f"{offending!r}. Per spec L206, only `decompmoe.safeguards` may expose "
         f"the dead-expert helper. Re-introducing a same-named helper elsewhere "
         f"is a spec-level regression."
+    )
+    # The canonical helper must remain reachable at the package level, otherwise
+    # req-1's public surface is incomplete.
+    import decompmoe as _pkg
+    assert _pkg.should_resurrect is canonical, (
+        f"package-level re-export must be the canonical object; got {_pkg.should_resurrect!r}"
     )
 
 

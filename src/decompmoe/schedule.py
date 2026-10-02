@@ -143,6 +143,7 @@ def beta_effective(
     gamma_p: float,
     phase: int,
     step: int,
+    total_steps: int = _DEFAULT_TOTAL,
 ) -> Tensor:
     """Operational β^eff (spec Req 24 per-phase formulas, wayfinder L491-507).
 
@@ -153,8 +154,10 @@ def beta_effective(
       Phase 4:  β^eff = 1 + 31 · σ(γ')                          — line 497
                  (γ' = γ_reset_for_phase4(β_p3)); no clamp.
 
-    Signature is exactly 3 args: no dead `cfg` param (the constants
-    β_min / β_max / 31 / 31.9 are module-level in `decompmoe.beta`).
+    Signature is 3 positional args plus a defaulted `total_steps`, so that
+    `total_steps` reaches `phase_beta_max` below. There is no dead `cfg` param
+    (the constants β_min / β_max / 31 / 31.9 are module-level in
+    `decompmoe.beta`).
     """
     from decompmoe.beta import (
         inverse_temperature,
@@ -167,7 +170,7 @@ def beta_effective(
     if phase in (2, 3):
         # Spec line 496: Clamp(β^param(γ), 1.0, β_max(t))
         beta_raw = inverse_temperature(torch.as_tensor(float(gamma_p)))
-        cap = phase_beta_max(phase, step)
+        cap = phase_beta_max(phase, step, total_steps)
         return torch.tensor(float(beta_raw.clamp(min=1.0, max=cap).item()))
     if phase == 4:
         # Spec line 497: 1 + 31 · σ(γ'); the γ' reset already places this

@@ -32,9 +32,9 @@ from decompmoe.sphere import spherical_l2_normalize
 def extract_C(
     K: Tensor,
     V: Tensor,
-    W_K: Tensor,
-    W_V: Tensor,
-    b: Tensor,
+    proj_W_K: Tensor,
+    proj_W_V: Tensor,
+    proj_b: Tensor,
     *,
     H_kv: int,
     d_c: int,
@@ -48,11 +48,19 @@ def extract_C(
     Step 3 — cross-head mean with `1/H_kv` factor.
     Step 4 — final spherical projection (ε-safety).
 
+    The three projection parameters are named `proj_W_K` / `proj_W_V` / `proj_b`
+    to match the signature decompmoe-skeleton req-7 declares verbatim; the
+    previous `W_K` / `W_V` / `b` spelling made a keyword call written to the
+    spec raise `TypeError`.
+
     Differentiability: every step contributes a finite gradient; no
     Straight-Through Estimator is inserted between `z` and `C` (Req 6).
     """
-    z = torch.einsum("bhnd,hde->bhne", K, W_K) + torch.einsum("bhnd,hde->bhne", V, W_V)
-    z = z + b.view(1, H_kv, 1, d_c)
+    z = (
+        torch.einsum("bhnd,hde->bhne", K, proj_W_K)
+        + torch.einsum("bhnd,hde->bhne", V, proj_W_V)
+    )
+    z = z + proj_b.view(1, H_kv, 1, d_c)
 
     # Step 2: per-head spherical projection.
     z_unit = spherical_l2_normalize(z, eps=eps)

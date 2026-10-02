@@ -54,7 +54,12 @@ NaNAction = Literal["skip", "div_lr_10", "halt"]
 def clip_global_grad_norm_(params, max_norm: float = 1.0) -> float:
     """Clip gradients in-place to global L2 norm ≤ `max_norm`. Returns the pre-clip norm."""
     pre_norm = torch.nn.utils.clip_grad_norm_(params, max_norm=max_norm)
-    return float(pre_norm.item() if pre_norm.dim() == 0 else pre_norm)
+    # `torch.nn.utils.clip_grad_norm_` always returns `total_norm` as a 0-dim
+    # tensor, so the `pre_norm.dim() == 0` test that used to guard this call was
+    # unconditionally true and its `else` branch was unreachable — and would
+    # have raised `ValueError` had it ever been reached, since `float()` of a
+    # multi-element tensor fails.
+    return float(pre_norm)
 
 
 def nan_ladder(consecutive_nan: int) -> tuple[NaNAction, float, bool]:
