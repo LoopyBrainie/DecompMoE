@@ -103,6 +103,66 @@ req-18 同一句给了两个总数（`1_024 B` 与 `1_600 B`）。
 
 **一个诚实的边界**：`FLOPs_Routing` **没有** spec 闭式（req-19 只要求它「作为独立 line item 报告」），所以它的分解式是**测试自造的**。已在测试里显式标注这一点，避免后人误以为它有 spec 背书。同时 `2 * cfg.N_e * cfg_dc` 写成 `N_e` 而非 `d_c` —— MVP 下 `N_e = d_c = 16` 两者数值相同，原写法因此有歧义；按 gating similarity 的语义应读作 `N_e`。
 
+### D8 — `f6461d7` 是双作者提交：行级归属的判定方法、结论与不可恢复区
+
+**事实**：`f6461d7`（单父 `188b9fb`，**未推送**，`origin/dev` 仍停在 `7bf77af`）打包了本 change、第一轮 change，以及**并行 session 的求积器修复**。20 files / `+2100 −139`，其中 `src/decompmoe/sphere.py` `+216 −59`、`tests/test_sphere.py` `+479 −8`。其 commit message（`correct the A-2 spec defects, then repair the math that correction broke`）**未**声明后一部分，因此 `git log` 给出的归属故事是错的。
+
+#### D8.1 判定方法，以及它为什么不能给出更细的结论
+
+试过两个判别器，**两个都有偏，且偏的方向相反**：
+
+| 判别器 | 方向 | 缺陷 |
+|---|---|---|
+| ① spec 改动的 OLD/NEW 文本是否出现在**我的**归档 delta 中 | 命中 ⇒ 疑似我写的 | **完全无鉴别力**。归档 delta 是整块引用；对方只改了同一 Requirement 里的**另一句**时，我未改动的那些行同样出现在我的 delta 中。实测 30 个 hunk 中 27 个被判 MINE，含全部对方改动。 |
+| ② spec 的 NEW 文本前 80 字符是否出现在**对方** change 目录（`evidence/tools/applied_text_*.txt` + 全部 md/json） | 命中 ⇒ 疑似对方写的 | **单向可靠**。命中 0 ⇒ 一定不是对方写的；命中 > 0 **不可判定**，因为对方引用的同样是整块。 |
+
+因此行级归属**只在两处可断言**：判别器 ② 命中 0（⇒ 我的），以及判别器 ② 命中且主题与对方 change 名直接对应（⇒ 对方的）。其余一律标注为不可恢复，而不是猜。
+
+#### D8.2 可确证为**本 change / 第一轮**所写
+
+| 文件与坐标 | 内容 | 归属依据 |
+|---|---|---|
+| `decompmoe-skeleton` `L34` | `W^O` 移出排除清单 | 判别器 ② = 0；第一轮 **D6** / **E9** |
+| `decompmoe-skeleton` `L157` | per-head MAC 分解补 cross-head mean 项 | 判别器 ② = 0；第一轮 **D5** / **E6** |
+| `decompmoe-skeleton` `L465` | `γ_{d_c}` 解析界 + 标题为显示形式的声明 | 判别器 ② = 0；本轮 **F1** / **F6** |
+| `wayfinder` `L382` / `L384` | `C_t` 重算条款 + `**Source:**` | 判别器 ② = 0；第一轮 **E6** / **D8** |
+| `wayfinder` `L398` / `L400` | residency 闭式 `65_792 B` / `4_096 B` + Source | 判别器 ② = 0；第一轮 **E12** / **D8** |
+| `wayfinder` `L416` / `L431` / `L433` / `L437` | representability 收窄 / 交叉对账 `33_168` / Source / parity 重参数化 | 判别器 ② = 0；第一轮 **E11** / **E13**、本轮 **F3** / **F4** |
+| `governance` `L46-47` | `33_168 MACs` 逐步分解 | 第一轮 **E6**、本轮 **F3**（落在对方也编辑过的 req-gov-1 内，判别器 ② 命中但属误报——见 D8.4） |
+| `openspec/changes/archive/2026-10-02-a2-*`（两个目录）、`tests/test_config.py`、`tests/test_extraction.py`、`tests/test_metrics.py` | 全部 | 本 change 与第一轮的产出，对方语料对这四个测试文件的提及均来自其 A-1..A-8 复查台账与 sha256 基线，非作者身份 |
+
+#### D8.3 可确证为**并行 session**所写
+
+| 文件与坐标 | 内容 | 归属依据 |
+|---|---|---|
+| `src/decompmoe/sphere.py` `+216 −59` | 求积器修复：`_QUAD_RTOL=1e-12`、`_QUAD_MAX_PANELS=4096`、`t = sin²φ` 代换、`hi = π/2 − asin(√(1−x))` 抵消 | 第一轮 **E20** 明确「修 `d_c=2` 的求积精度……属 `src` 行为变更，**超出本 change**（`src` 改动仅限 docstring）→ 记为 open question 6」。对方 change 名即 `…after-integrator-fix` |
+| `tests/test_sphere.py::test_cap_area_dc2_affine_degeneration` | 本轮 **D4** 建立的测试，对方按新求积器重写断言 | 对方语料点名该测试 4 次；断言由本轮的 `0.036..0.0652` 变为 `0.0 ≤ rel ≤ 8e-11` |
+| `decompmoe-skeleton` `L98`、`L113-116`；`wayfinder` `L236`、`L241-242`、`L277-278`、`L283`；`governance` `L17`、`L20-22`、`L56-57` | Voronoi canonical literal 重构与「残差 frame 必须互相一致到 `< 1e-9`」 | 判别器 ② 全部命中；主题与对方 change `2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard` 直接对应 |
+
+#### D8.4 归属**不可恢复**的坐标
+
+| 坐标 | 情形 |
+|---|---|
+| `decompmoe-skeleton` req-6 的 `d_c = 2` Scenario（现 `L135-141`） | **结构是我的**（F1，第一轮 E14/E18/E20 建立的 Scenario），但最后一个 `**AND**` 子句被对方整句重写。该行同时具备「我建立」与「对方改写」两重身份，不应二选一 |
+| `wayfinder` `L234`、`L249`、`L252`、`L256` | 实为我的产物（第一轮 E10 / D6 / D8），但落在对方也编辑过的 req-11 内；对方的整块引用使其在判别器 ② 下命中 |
+| `governance` `L13`、`L26`、`L30`、`L32` | 同上（req-gov-1 双方均编辑） |
+
+#### D8.5 处置：不 amend
+
+对方已在 `2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/design.md:68` **独立核实并记录**：「`sphere.py` 与 `tests/test_sphere.py` 在 HEAD `f6461d7` 已含完整求积器修复……且与工作树逐字节相同」，并据此推翻了自己「修复未提交」的假设，把 `f6461d7` 当作新基准。该 sha 在其语料中出现 9 次，并被 `tasks.md:8` 与 `evidence/baseline.json` 钉为台账坐标。
+
+⇒ `git commit --amend` 会换掉这个 sha 并使上述三处引用失效。因此**保持历史不动**，以本 Decision 作为 provenance 的权威副本；这与第一轮 D3「内容冗余进会随归档进 git 的制品」是同一条纪律。
+
+#### D8.6 本轮 D4 / F5 的下场：被取代，且 Risk 3 预判命中
+
+本 change 的 Risks 第 3 条写的是：「若将来真去修 `d_c=2` 的求积，这条测试会红 —— 那是正确行为，届时应同步更新 spec 与带宽。」**这正是发生的事**：对方修完求积后，spec 的偏差带由 `3.63%–6.52%` 变为「同参数残差 `≤ 3.23e-16` / 跨参数化 `7.60e-11 @ 89.99999°`」，测试断言由 `0.036..0.0652` 变为 `0.0 ≤ rel ≤ 8e-11`。
+
+⇒ **D4 的数值结论已作废**，其仅存的历史意义是重测方法本身（声明的定义域 `(0°, 90°)` 大于第一轮的测量定义域 `≤ 89.9°`；`θ = 90°` 处的早退平台不得参与 min/max 统计）。D4 的另一条结论「随 `N_e` 单调递增、上确界 `5.3994%`」被对方以更强的形式取代：相对偏差与 `N_e` **成正比**（`rel_dev / N_e = 1.42e-14`）因而**无有限上确界**。本轮未预见到这一点。
+
+#### D8.7 残留缺口（不属本 change 范围）
+
+对方两个 change 目录仍为 untracked：`openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/` 与活跃的 `2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/`。即 D8.3 组的 spec 文本**已随本 commit 落地，而其变更记录尚未入库**。补齐属对方的提交范围——由本 change 代为提交会把别人的在制品混入本 change 的血缘，比留空更坏。
+
 ## Risks / Trade-offs
 
 1. **`d·eps` 比 `4·eps` 松约 `d/4` 倍（MVP 下 4 倍）。** 条款变弱了，但变得**为真**。收紧它需要改 kernel（`torch.linalg.norm` 的内部累加顺序），属行为变更，超出本 change。已把 `4·eps` 作为 MVP 的紧致包络单列，MVP 场景的实际约束力未降低。
