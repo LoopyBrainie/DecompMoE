@@ -132,25 +132,38 @@ def test_flops_routing_ratio_within_allowance() -> None:
     assert ratio < 0.003, f"actual={ratio} exceeds the 0.3% allowance"
 
 
-def test_flops_routing_cross_req_net_delta_32() -> None:
-    """Spec L428: net `+32 FLOPs = (128+144)·2 − 2·N_e·d_c = 544 − 512` ≈ 0.05%.
+def test_flops_routing_cross_req_net_delta_288() -> None:
+    """Spec Req 19 cross-req note: net `+288 FLOPs = 66_336 − 66_048` ≈ 0.436%.
 
     Guards the cross-req consistency claim between Req 19's `FLOPs_Routing`
-    and Req 17's `extract_C` accounting (66_080 − 66_048 = 32).
+    and Req 17's `extract_C` accounting (66_336 − 66_048 = 288).
+
+    CHANGED by `2026-10-02-audit-a2-errata-and-spec-math-fixes`: this test used
+    to pin `+32 FLOPs` (66_080 − 66_048) with the decomposition
+    `128 bias + 144 two-L2`, because Req 17's closed form omitted the step-(3)
+    cross-head mean. The spec now states that term, so the net is 288.
+
+    DENOMINATOR: `288 / 66_048 ≈ 0.436%` is the ratio against `FLOPs_Routing`
+    and is NOT the `0.3%` allowance — that allowance is denominated in the
+    active-core slice (`66_336 / 33_554_432 ≈ 0.1977%`, guarded separately by
+    `test_flops_routing_ratio_within_allowance` and by
+    `test_complexity_budget` in test_extraction.py). The old wording conflated
+    the two denominators, which is what made `+32` read as "well under".
     """
     cfg = config.MVPConfig()
     projection = 4 * cfg.d_c * cfg.H_kv * cfg.d_k
     # 128 = bias H_kv·d_c; 144 = the two L2 steps (per-head H_kv·d_c = 128 plus
-    # final d_c = 16) per decompmoe-skeleton spec.md:138. Kept as spec literals,
-    # not derived, so a change to that decomposition turns this assertion red.
-    macs_bias_l2 = 128 + 144
-    extract_c_flops = projection + macs_bias_l2 * 2
+    # final d_c = 16); 128 = the step-(3) cross-head mean with its 1/H_kv
+    # factor, all three per decompmoe-skeleton spec.md req-7. Kept as spec
+    # literals, not derived, so a change to that decomposition turns this red.
+    macs_bias_l2_mean = 128 + 144 + 128
+    extract_c_flops = projection + macs_bias_l2_mean * 2
     flops_routing = projection + 2 * cfg.N_e * cfg.d_c
     net_delta = extract_c_flops - flops_routing
-    assert extract_c_flops == 66_080, f"actual={extract_c_flops}"
-    assert net_delta == 32, f"actual={net_delta}"
-    assert net_delta / flops_routing == pytest.approx(0.0005, abs=1e-4), (
-        f"actual={net_delta / flops_routing} (≈0.05% of FLOPs_Routing)"
+    assert extract_c_flops == 66_336, f"actual={extract_c_flops}"
+    assert net_delta == 288, f"actual={net_delta}"
+    assert net_delta / flops_routing == pytest.approx(0.004360, abs=1e-6), (
+        f"actual={net_delta / flops_routing} (≈0.436% of FLOPs_Routing)"
     )
 
 
@@ -229,4 +242,124 @@ def test_geomee_not_used_as_code_identifier() -> None:
         "Per NAR-1 wording: 'The alias MUST appear only in design prose and never "
         "as a code identifier.' Violations:\n"
         + "\n".join(f"  {p}:L{ln} {kind}" for p, ln, kind in violations)
+    )
+# ---------------------------------------------------------------------------
+# W^O exclusion reconciled with the 4·d_model² closed form, and the
+# weight-tying counterfactual as a closed form.
+# (change 2026-10-02-audit-a2-errata-and-spec-math-fixes; F4 / F5)
+#
+# `compute_total_and_active` is guarded by `test_total_param_estimate` above.
+# These two tests pin the COUNTERFACTUALS that the spec now states, so a future
+# edit that re-introduces an inconsistent term turns them red:
+#   - Req 11's exclusion list used to contain `W^O`, which cannot be reconciled
+#     with `P_attn/layer = 4·d_model² (Q/K/V/O)` and `total == 452_329_984`
+#     inside the same Requirement;
+#   - the tying prose said "≈ 484 M" while the closed form gives 485_097_984.
+# ---------------------------------------------------------------------------
+
+
+def test_param_estimate_WO_exclusion_counterfactual() -> None:
+    """`W^O` is INCLUDED; excluding it would give 448_135_680 (−0.9273%)."""
+    d_model = 1024
+    L = 4
+    total = 452_329_984
+
+    per_layer_attn = 4 * d_model * d_model
+    assert per_layer_attn == 4_194_304, f"actual={per_layer_attn}"
+    assert per_layer_attn == L * d_model * d_model, (
+        f"actual={per_layer_attn} vs {L}*{d_model}*{d_model}="
+        f"{L * d_model * d_model}; excluding W^O per layer would be "
+        f"3·{d_model}²={3 * d_model * d_model}"
+    )
+
+    # the counterfactual the spec now spells out
+    excluded_total = total - L * d_model * d_model
+    assert excluded_total == 448_135_680, f"actual={excluded_total}"
+    assert (total - excluded_total) == 4_194_304, f"actual={total - excluded_total}"
+    assert (total - excluded_total) / total == pytest.approx(0.009273, abs=1e-6), (
+        f"actual={(total - excluded_total) / total}; excluding W^O would "
+        f"undercount by 0.9273%, and the closed form is not that value"
+    )
+
+    # and the estimator itself must still be on the closed-form side
+    assert config.compute_total_and_active(config.MVPConfig())[0] == total, (
+        "the implementation stands on the closed-form side, so the exclusion "
+        "sentence was the isolated error"
+    )
+
+
+def test_param_estimate_weight_tying_counterfactual() -> None:
+    """No-tying total is 485_097_984 (≈ 485.1 M), not the prose "≈ 484 M"."""
+    V = 32_000
+    d_model = 1024
+    tied = 452_329_984
+
+    no_tying = tied + V * d_model
+    assert no_tying == 485_097_984, f"actual={no_tying}"
+    assert no_tying / 1e6 == pytest.approx(485.1, abs=0.05), (
+        f"actual={no_tying / 1e6} M; the spec's closed form rounds to ≈485.1 M, "
+        f"so the old prose '≈ 484 M' understated it by 0.23%"
+    )
+    assert (no_tying - tied) / tied == pytest.approx(0.0724, abs=1e-4), (
+        f"actual={(no_tying - tied) / tied}; the embedding is +V·d_model"
+    )
+# ---------------------------------------------------------------------------
+# Req 18 residency figures, as closed forms, with a drift guard
+# (change 2026-10-02-audit-a2-errata-and-spec-math-fixes; F7)
+#
+# The Requirement claimed `W_proj ≈ 64 KB` and `activations ≈ 4 KB total` with
+# NO test pinning either, so a silent drift in H_kv / d_k / d_c would have
+# invalidated both L2/SRAM residency promises without turning anything red. The
+# spec now states the closed forms, and the tensor set is corrected: the
+# literally-listed `{z, ẑ, z̄, C}` sums to at most 1_600 B and does NOT account
+# for 4 KB — only the per-head K/V workspace `H_kv·d_k·4 B = 4_096 B` is.
+#
+# The drift guard below is the part that was missing entirely before.
+# ---------------------------------------------------------------------------
+
+
+def test_routing_residency_closed_forms() -> None:
+    """`W_proj` = 65_792 B (64.25 KiB); per-head K/V workspace = 4_096 B."""
+    cfg = config.MVPConfig()
+    H_kv, d_k, d_c = cfg.H_kv, cfg.d_k, cfg.d_c
+
+    w_proj_params = H_kv * (2 * d_k * d_c) + H_kv * d_c
+    assert w_proj_params == 32_896, f"actual={w_proj_params}"
+    # BF16 = 2 B/param
+    w_proj_bf16 = w_proj_params * 2
+    assert w_proj_bf16 == 65_792, f"actual={w_proj_bf16}"
+    assert w_proj_bf16 / 1024 == pytest.approx(64.25, abs=1e-9), (
+        f"actual={w_proj_bf16 / 1024} KiB; the spec's '≈ 64 KiB' is this value"
+    )
+
+    # the literal tensor set: z/zhat/zbar are per-head, C is post-mean
+    per_head = H_kv * d_c * 4
+    assert per_head == 512, f"actual={per_head}"
+    assert 3 * per_head + d_c * 4 == 1_600, (
+        f"actual={3 * per_head + d_c * 4}; the four listed tensors reach at most "
+        f"1_600 B, which is why they cannot be the source of the 4 KB figure"
+    )
+
+    # the per-head K/V workspace IS exactly 4 KB
+    workspace = H_kv * d_k * 4
+    assert workspace == 4_096, f"actual={workspace}"
+    assert workspace / 1024 == pytest.approx(4.0, abs=1e-12), (
+        f"actual={workspace / 1024} KiB"
+    )
+
+
+def test_routing_residency_drift_guard() -> None:
+    """`H_kv` / `d_k` / `d_c` MUST NOT drift: both residency figures depend on them.
+
+    This is the assertion whose absence the audit flagged — previously nothing
+    tied the Req 18 numbers to the MVP constants, so changing `d_c` alone would
+    leave the 64 KiB / 4 KiB claims silently wrong.
+    """
+    cfg = config.MVPConfig()
+    assert cfg.H_kv == 8, f"actual_H_kv={cfg.H_kv}"
+    assert cfg.d_k == 128, f"actual_d_k={cfg.d_k}"
+    assert cfg.d_c == 16, f"actual_d_c={cfg.d_c}"
+    assert (cfg.H_kv, cfg.d_k, cfg.d_c) == (8, 128, 16), (
+        f"actual=({cfg.H_kv}, {cfg.d_k}, {cfg.d_c}); the Req 18 residency "
+        f"closed forms 65_792 B and 4_096 B are only valid at (8, 128, 16)"
     )

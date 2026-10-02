@@ -63,21 +63,131 @@ def spherical_l2_normalize(z: Tensor, eps: float = 1e-6) -> Tensor:
 # Regularized incomplete Beta function (self-implemented, no scipy dependency)
 # ---------------------------------------------------------------------------
 
+_GL8 = (
+    (-0.9602898564975363, 0.1012285362903763),
+    (-0.7966664774136267, 0.2223810344533745),
+    (-0.5255324099163290, 0.3137066458778883),
+    (-0.1834346424956498, 0.3626837833783620),
+    (0.1834346424956498, 0.3626837833783620),
+    (0.5255324099163290, 0.3137066458778883),
+    (0.7966664774136267, 0.2223810344533745),
+    (0.9602898564975363, 0.1012285362903763),
+)
+
+_GL16 = (
+    (-0.9894009349916499, 0.0271524594117541),
+    (-0.9445750230732326, 0.0622535239386479),
+    (-0.8656312023878317, 0.0951585116824928),
+    (-0.7554044083550030, 0.1246289712555339),
+    (-0.6178762444026438, 0.1495959888165767),
+    (-0.4580167776572274, 0.1691565193950025),
+    (-0.2816035507792589, 0.1826034150449236),
+    (-0.0950125098376374, 0.1894506104550685),
+    (0.0950125098376374, 0.1894506104550685),
+    (0.2816035507792589, 0.1826034150449236),
+    (0.4580167776572274, 0.1691565193950025),
+    (0.6178762444026438, 0.1495959888165767),
+    (0.7554044083550030, 0.1246289712555339),
+    (0.8656312023878317, 0.0951585116824928),
+    (0.9445750230732326, 0.0622535239386479),
+    (0.9894009349916499, 0.0271524594117541),
+)
+
+_QUAD_RTOL = 1e-12
+"""Relative agreement required between the 8- and 16-point panel results.
+
+Deliberately NOT tighter. The acceptance test is scale-free, so for a small
+argument (`x = 0.02`, `a = 7.5` gives `I_x ~ 2e-14`) the threshold
+`1e-15 * 2e-14 = 2e-26` sits at the same magnitude as the roundoff floor of the
+comparison itself, and the recursion then never terminates. `1e-12` still
+leaves four orders of margin against the `< 1e-9` residual bound on
+`G(θ) - 1/N_e`, and is far above the ~`1e-16` relative noise of two independent
+panel sums.
+"""
+
+_QUAD_MAX_PANELS = 4096
+"""Hard cap on evaluated panels; a backstop so no input can run away."""
+
+
+def _gauss_legendre(f, lo: float, hi: float, rule) -> float:
+    half = 0.5 * (hi - lo)
+    mid = 0.5 * (hi + lo)
+    total = 0.0
+    for node, weight in rule:
+        total += weight * f(mid + half * node)
+    return total * half
+
+
+def _adaptive_gauss_legendre(f, lo: float, hi: float, budget: list[int]) -> float:
+    """Integrate `f` on `[lo, hi]`, bisecting until the 8- and 16-point panels
+    agree to `_QUAD_RTOL` relative.
+
+    Comparing two orders makes the acceptance test an error estimate rather
+    than an assumption. `budget` is a single-element list used as a shared
+    counter so the recursion cannot exceed `_QUAD_MAX_PANELS` evaluations.
+    """
+    budget[0] += 1
+    coarse = _gauss_legendre(f, lo, hi, _GL8)
+    fine = _gauss_legendre(f, lo, hi, _GL16)
+    converged = abs(fine - coarse) <= _QUAD_RTOL * abs(fine)
+    if converged or budget[0] >= _QUAD_MAX_PANELS:
+        return fine
+    mid = 0.5 * (lo + hi)
+    return _adaptive_gauss_legendre(f, lo, mid, budget) + _adaptive_gauss_legendre(
+        f, mid, hi, budget
+    )
+
 
 def _betainc_regularized(x: float, a: float, b: float) -> float:
-    """Regularized incomplete beta function I_x(a, b) via Gauss–Legendre 8-point.
+    """Regularized incomplete beta function I_x(a, b) via adaptive Gauss–Legendre.
 
     Direct numerical integration of B(x; a, b) = ∫₀ˣ t^{a−1} (1−t)^{b−1} dt
-    then normalized by B(a, b) = Γ(a)Γ(b)/Γ(a+b).
+    then normalized by B(a, b) = Γ(a)Γ(b)/Γ(a+b), carried out on the
+    `t = sin²φ` substitution described in the body below.
 
-    A **single** 8-point Gauss–Legendre panel is applied on [0, x]; there is
-    no subdivision. Accuracy is therefore parameter-dependent and NOT uniform
-    across the declared domain: at the MVP point (`a = 7.5`, `b = 0.5`,
-    `x = sin²θ ≈ 0.8503`) the absolute error against exact quadrature is
-    `8.29e-07` (relative `6.63 ppm`). Callers MUST NOT assume a 1e-12-accurate
-    regularized beta over all `signature_dim >= 2`; see
-    `canonical_voronoi_angle` for the validated band. Pure stdlib
-    (math.lgamma + math.exp).
+    ACCURACY. An adaptive 8/16-point Gauss–Legendre rule is bisected until the
+    two orders agree to `_QUAD_RTOL` relative, so the error estimate is
+    UNIFORM over the declared domain instead of parameter-dependent. Measured
+    against exact quadrature at 50 decimal digits, the absolute error sits at
+    the float64 noise floor everywhere: at the MVP point (`a = 7.5`, `b = 1/2`,
+    `x = 0.8503215893859075`) it is `3.04e-16` (relative `2.43e-15`), and
+
+        θ = 60.0°      x = 0.7499999999999999   abs 1.22e-17   rel 2.97e-16
+        θ = 82.6036°   x = 0.9834277406156522   abs 3.58e-16   rel 5.75e-16
+        θ = 89.999°    x = 0.9999999996953826   abs 5.45e-16   rel 5.45e-16
+        θ = 89.99999°  x = 0.9999999999695371   abs 6.80e-16   rel 6.80e-16
+        1 − 1 ulp      x = 0.9999999999999999   abs 6.45e-16   rel 6.45e-16
+
+    On the small-`x` side (`a = 1/2`, i.e. `signature_dim = 2`) the errors are
+    `4.53e-17` at `x = 0.02`, `9.42e-18` at `x = 0.001` and `3.54e-20` at
+    `x = 1e-8`.
+
+    ⚠️ HISTORY — the pre-fix figures were a POINT SAMPLE plus a worst case, and
+    are recorded here only so the change is legible. A single never-subdivided
+    8-point panel gave `8.29e-07` (6.633 ppm) at the MVP and grew to
+    `1.57e-01` at `x → 1⁻`, because `b = 1/2` puts an integrable
+    `(1 − t)^(−1/2)` singularity at the panel's RIGHT endpoint while `a = 1/2`
+    puts a `t^(−1/2)` singularity at its LEFT one. The `t = sin²φ` substitution
+    makes the exponents `2b − 1` and `2a − 1` zero at exactly those parameter
+    values, so both singularities are removed EXACTLY rather than subdivided
+    around. Callers MAY now rely on a domain-wide absolute bound of `1e-12`
+    for every `signature_dim >= 2`;
+    `tests/test_sphere.py::test_betainc_error_uniform_toward_one` is the
+    guard, and it goes red if the flatness regresses. The old "the MVP point
+    does not characterize the domain" caveat MUST NOT be reintroduced without
+    re-measuring.
+
+    HISTORY — the RETIRED `82.6°` "convexity boundary" artefact. An earlier
+    revision of `tests/test_sphere.py` asserted a sign change in the
+    central-differenced `G''` at `81.3148° / 82.6036° / 83.7313°`, and the
+    pre-fix helper did reproduce sign changes there. Recomputing that stencil
+    from THIS helper now matches the true `G''` to 8 significant digits and
+    shows no sign change (at `82.6036°`, `d_c = 16`: stencil `2.4567645`, true
+    `2.4567645`) — the sign changes were the error curve, not `G`. `G`'s only
+    inflection on `(0, π)` is at exactly `pi/2`, since
+    `G''(θ) = (d_c−2)·sin^{d_c−3}θ·cosθ / B((d_c−1)/2, ½)` and `sinθ > 0`
+    throughout. `tests/test_sphere.py::test_voronoi_angle_precondition_is_area_below_half`
+    is the regression guard against that claim returning.
 
     Per fix-openspec-doc-bugs-apply design.md Decision 1 + Risk 1 mitigation:
     avoids scipy dependency by direct Gauss–Legendre quadrature.
@@ -88,41 +198,42 @@ def _betainc_regularized(x: float, a: float, b: float) -> float:
         return 1.0
 
     log_beta = math.lgamma(a) + math.lgamma(b) - math.lgamma(a + b)
-    # Transform [0, x] to [-1, 1]: t = x * (1 + u) / 2.
-    half_x = x / 2.0
-    # 8-point Gauss–Legendre nodes and weights on [-1, 1].
-    nodes = [
-        -0.9602898564975363,
-        -0.7966664774136267,
-        -0.5255324099163290,
-        -0.1834346424956498,
-        0.1834346424956498,
-        0.5255324099163290,
-        0.7966664774136267,
-        0.9602898564975363,
-    ]
-    weights = [
-        0.1012285362903763,
-        0.2223810344533745,
-        0.3137066458778883,
-        0.3626837833783620,
-        0.3626837833783620,
-        0.3137066458778883,
-        0.2223810344533745,
-        0.1012285362903763,
-    ]
-    integral = 0.0
-    for node, weight in zip(nodes, weights, strict=True):
-        t = half_x * (1.0 + node)
-        if t <= 0.0:
-            continue
-        # log(t) − log(1−t) formulation to avoid 0**negative.
-        log_t = math.log(t) if t > 0 else -math.inf
-        log_one_minus_t = math.log1p(-t) if t < 1 else -math.inf
-        log_integrand = (a - 1.0) * log_t + (b - 1.0) * log_one_minus_t
-        integral += weight * math.exp(log_integrand)
-    integral *= half_x  # Jacobian of t = x·(1+u)/2 mapping
-    incomplete = math.exp(math.log(max(integral, 1e-300)) - log_beta)
+    # Substitute t = sin^2(phi). The integrand becomes
+    #     t^(a-1) (1-t)^(b-1) dt = 2 sin^(2a-1)(phi) cos^(2b-1)(phi) dphi
+    # so the integration range is [0, asin(sqrt(x))] and BOTH endpoint
+    # singularities of the original are removed exactly for the parameter
+    # values this package uses: b = 1/2 makes the exponent 2b-1 = 0 (the
+    # (1-t)^(-1/2) singularity at t = 1 becomes a constant), and a = 1/2
+    # (signature_dim = 2) makes 2a-1 = 0 (the t^(-1/2) singularity at t = 0
+    # likewise). The log-form below keeps the remaining cases finite even when
+    # an exponent is negative, because Gauss-Legendre nodes are strictly
+    # interior and are never evaluated at an endpoint.
+    p = 2.0 * a - 1.0
+    q = 2.0 * b - 1.0
+    log_two = math.log(2.0)
+
+    def integrand(phi: float) -> float:
+        s = math.sin(phi)
+        c = math.cos(phi)
+        if s <= 0.0 or c <= 0.0:
+            # Only reachable at an endpoint, which the quadrature never samples.
+            return 0.0
+        return math.exp(log_two + p * math.log(s) + q * math.log(c))
+
+    # Upper limit asin(sqrt(x)). For x near 1 that expression cancels: sqrt(x)
+    # rounds to exactly 1.0 (the offset 5.55e-17 is below the 2.22e-16 spacing
+    # near 1), which silently pins the limit to pi/2 and drops the true
+    # pi/2 - 1.49e-8 offset, costing ~1.3e-08 in the result. Compute the offset
+    # from `1 - x` instead, which is exact for x >= 0.5 (Sterbenz), and
+    # asin(sqrt(d)) ~ sqrt(d) is accurate in relative terms for small d.
+    if x <= 0.5:
+        hi = math.asin(math.sqrt(x))
+    else:
+        hi = math.pi / 2.0 - math.asin(math.sqrt(1.0 - x))
+    integral = _adaptive_gauss_legendre(integrand, 0.0, hi, [0])
+    if not (integral > 0.0):
+        return 0.0
+    incomplete = math.exp(math.log(integral) - log_beta)
     return min(1.0, max(0.0, incomplete))
 
 
@@ -219,21 +330,67 @@ def canonical_voronoi_angle(num_experts: int, signature_dim: int) -> float:
     "no hard-coded table values"; the prior tabulated MVP fast-path
     values were wrong and have been removed).
 
-    Accuracy note: the impl-internal residual is always ~1e-15..1e-14
-    because it is measured against `_betainc_regularized` itself. The TRUE
-    closed-form residual is dominated by that helper's error and varies
-    strongly with `signature_dim` — measured at `N_e = 16`:
-    `d_c=2 → 3.35e-03`, `d_c=4 → 1.37e-05`, `d_c=6 → 2.21e-07`,
-    `d_c=8 → 7.39e-09`, `d_c=16 → 4.15e-07`, `d_c=32 → 4.29e-05`.
-    MVP is frozen at `d_c = 16` (`CLAUDE.md` §5); outside that the returned
-    float is still a genuine root of the impl-internal equation, but its
-    accuracy against the exact regularized incomplete beta is NOT bounded
-    by the spec's `< 1e-9` claim.
+    Accuracy: the returned angle is the root of the impl-internal equation to
+    within the bisection's own `break < 1e-13` bracket, and because the
+    quadrature underneath is now uniformly accurate, that carries over to the
+    TRUE closed form. Measured at `N_e = 16` against exact `G` at 50 decimal
+    digits, the absolute residual is
+
+        d_c=2  4.46e-14   d_c=4  4.13e-14   d_c=6  2.45e-14
+        d_c=8  3.74e-14   d_c=16 3.54e-14   d_c=32 6.10e-16
+
+    i.e. below the spec's `< 1e-9` claim for EVERY `signature_dim >= 2`
+    measured here, not merely at the frozen MVP `d_c = 16`. The pre-fix
+    residuals for the same six points ran from `7.39e-09` to `4.29e-05`, and
+    that spread is why this note used to warn that the `< 1e-9` claim held
+    only at `d_c = 16`. That warning no longer applies and MUST NOT be
+    reintroduced without re-measuring.
 
     The body delegates to `_cap_radius(1 / N_e, d_c)`, which solves the same
-    root: `1/N_e ≤ 0.5` places it in the small-cap branch, where
-    `_cap_radius` reproduces this function's former `(0, π/2)` bisection to
-    `0.00e+00` at `(16, 16)`, `(32, 16)` and `(64, 16)`.
+    root: `1/N_e ≤ 0.5` places it in the small-cap branch. Its impl-internal
+    residual is `1.74e-14` at `(16, 16)`, `6.45e-15` at `(32, 16)` and
+    `2.67e-15` at `(64, 16)`. (This paragraph used to claim `0.00e+00` at
+    those three points; the quadrature beneath them has since changed, and
+    the figures above are the measured ones.)
+
+    ⚠️ THE `pi/2` ENDPOINT IS AN EXACT EARLY RETURN, NOT A DISCONTINUITY.
+    `math.sin(math.pi / 2) ** 2` evaluates to EXACTLY `1.0` in float64, so
+    `_cap_area(pi/2, d_c)` takes `_betainc_regularized`'s `x >= 1.0` early
+    return and yields `0.5` BY CONSTRUCTION rather than by quadrature. That
+    used to disagree violently with the quadrature arriving from below; it no
+    longer does:
+
+        `_cap_area(pi/2, 16)`          = 0.5
+        `_cap_area(pi/2 - 1e-7, 16)`  = 0.4999998481030135
+
+    a step of `1.518970e-07`, which IS the true step — `1.518970e-07` at this
+    same float argument, `1.519577e-07` at exact `θ = pi/2 - 1e-7`. The
+    pre-fix step was `7.870852e-02`, `18.68%` of the left limit.
+
+    Note the argument reached from below is `x = math.sin(pi/2 - 1e-7) ** 2 =
+    0.99999999999999`, which is **90 ulps** below `1.0` — NOT
+    `math.nextafter(1.0, 0)`. The two are distinct: at the 1-ulp neighbour the
+    helper returns `0.49999997735653384`, at the 90-ulp point
+    `0.4999998481030135`.
+
+    CONSEQUENCES.
+    (1) The pre-fix prohibition on differencing through or across `pi/2` no
+        longer has a defect behind it: the function is continuous there to
+        `1.5e-07`, the size of the true step, so a stencil straddling `pi/2`
+        no longer measures an implementation artefact. Differencing is still
+        unwise within the last `1e-7` below `pi/2`, where the float `x` is
+        only 90 ulps from `1.0` and therefore carries 90 ulps of argument
+        error — that is a property of `x = sin²θ` in float64, not of this
+        function.
+    (2) `_cap_radius` is unaffected because its target `1/N_e` is at most
+        `0.5`, and `N_e >= 3` keeps its bisection root strictly below `pi/2`
+        (e.g. `canonical_voronoi_angle(3, 16) = 1.4578378442369877`).
+    (3) `N_e = 2` targets exactly `0.5`, so bisection lands on the `pi/2`
+        plateau and this function returns `1.5707963162581635` for EVERY
+        `d_c` — a constant that detects nothing about the signature
+        dimension. That is also why its `d_c = 2` residual looks like a
+        harmless `6.71e-09`: that figure is the distance to `pi/2`, not
+        quadrature accuracy.
 
     Returns the angle in radians (multiply by 180/π for degrees).
     """

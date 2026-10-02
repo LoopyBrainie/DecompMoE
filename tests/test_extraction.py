@@ -35,7 +35,7 @@ from decompmoe.sphere import spherical_l2_normalize
 # derived here would multiply a constant the test itself chose and would
 # therefore agree with the spec no matter what the implementation did. The
 # magnitude is the closed form's job — it is pinned as the spec literal
-# `33_040` in `test_complexity_budget`.
+# `33_168` in `test_complexity_budget`.
 #
 # The census earns its place by being *sensitive*: dropping the cross-head
 # mean, removing a projection, removing a normalization, or adding a fourth
@@ -183,15 +183,15 @@ def test_complexity_budget() -> None:
     Spec: skeleton "C Extraction Four-Step Pipeline", Scenario "Per-token
     MAC closed form" (pinned convention: 1 MAC = 1 multiply + 1 accumulate;
     FLOPs = 2·MACs). At MVP (H_kv=8, d_k=128, d_c=16):
-    8·4112 + 8·16 + 16 = 33_040 per-token MACs exactly.
+    8·4112 + 8·16 + 8·16 + 16 = 33_168 per-token MACs exactly.
     Scaling: O(H_kv · d_k · d_c).
 
     What this test does:
-      1. Closed-form MAC value at MVP: 33_040 exact (integer closed form),
+      1. Closed-form MAC value at MVP: 33_168 exact (integer closed form),
          pinned as a spec literal so a change to the spec's decomposition turns
          this red.
       2. IMPLEMENTATION-SIDE operator census: `extract_C`'s own source is parsed
-         with `ast` and the operators it executes are counted, so the 33_040
+         with `ast` and the operators it executes are counted, so the 33_168
          claim is backed by the implementation rather than by a test-local
          helper that re-states the closed form (the tautology governance
          req-gov-1 clause (3) forbids). The census is deliberately NOT a MAC
@@ -200,7 +200,9 @@ def test_complexity_budget() -> None:
       3. d_c-scaling: m2 == 2·m1 (every term in the closed form is linear
          in d_c, so doubling d_c doubles the total).
       4. d_k-scaling: m4 - m3 == 4·2·(64−32)·8 (the d_k step contribution).
-      5. ACTUAL extract_C invocation: verifies the impl returns shape
+      5. The `0.3%` routing-overhead allowance, whose denominator is the
+         active-core slice, NOT `FLOPs_Routing` — see below.
+      6. ACTUAL extract_C invocation: verifies the impl returns shape
          (B, N, d_c) and unit-sphere output (step-4 normalization).
 
     Why AST and not `torch.profiler`: the profiler route is backend-dependent
@@ -208,24 +210,31 @@ def test_complexity_budget() -> None:
     zero-tolerance intent of an integer closed form. req-gov-1 clause (3) lists
     `inspect.getsource` / AST analysis as an acceptable mechanism.
 
-    KNOWN SPEC GAP — the closed form omits the cross-head mean. The skeleton
-    "Per-token MAC closed form" enumerates only (i) per-head K/V/bias
-    projection, (ii) per-head L2, (iii) final L2. It does not list
-    `z_unit.mean(dim=1)`, which is real arithmetic: reducing H_kv values per
-    channel costs (H_kv−1) accumulates + 1 scale by 1/H_kv per channel, i.e.
-    H_kv·(d_c) MACs on the spec's own "1 MAC = 1 multiply + 1 accumulate"
-    convention. So the true pipeline cost is at least 33_040 + 128 = 33_168 and
-    the spec literal understates it by ~0.39%. The census still requires the
-    reduction to be present (`reduction == 1`), so the implementation cannot
-    silently drop it; the magnitude shortfall is a spec defect registered as a
-    hand-off in this change's proposal, not something this test should paper
-    over by inventing a term the spec does not state.
+    THE CROSS-HEAD MEAN TERM (iv) — closed by change
+    `2026-10-02-audit-a2-errata-and-spec-math-fixes`. An earlier revision of
+    this test carried a "KNOWN SPEC GAP" note: the spec's closed form enumerated
+    only (i) projection, (ii) per-head L2, (iii) final L2, and omitted the
+    cross-head mean `z_unit.mean(dim=1)`, which is real arithmetic — reducing
+    H_kv values per channel costs (H_kv−1) accumulates plus 1 scale by 1/H_kv per
+    channel, i.e. `H_kv·d_c` MACs on this convention. That test therefore pinned
+    the understated literal 33_040 and refused to invent a term the spec did not
+    state, registering the shortfall as a hand-off. The spec now states term
+    (iv), so the literal is 33_168 and the note is resolved. The census below
+    already required `reduction == 1`, so the implementation never lacked the
+    term — only the spec's arithmetic understated it.
     """
     cfg = MVPConfig()
     cfg_hkv, cfg_dk, cfg_dc = cfg.H_kv, cfg.d_k, cfg.d_c
 
     def macs(h_kv: int, d_k: int, d_c: int) -> int:
-        return h_kv * (2 * d_k * d_c + d_c) + h_kv * d_c + d_c
+        # (i) projection + bias, (ii) per-head L2, (iii) cross-head mean,
+        # (iv) final L2. Term (iii) is the one the old spec omitted.
+        return (
+            h_kv * (2 * d_k * d_c + d_c)
+            + h_kv * d_c
+            + h_kv * d_c
+            + d_c
+        )
 
     # (1) Implementation-side operator census — the tautology-free half.
     # Each mutation below turns exactly one of these red:
@@ -240,11 +249,45 @@ def test_complexity_budget() -> None:
         "bias_add": 1,
         "l2_normalize": 2,
         "reduction": 1,
-    }, f"actual={census} — extract_C's operator set no longer matches the " f"4-step pipeline the 33_040 closed form accounts for"
+    }, f"actual={census} — extract_C's operator set no longer matches the " f"4-step pipeline the 33_168 closed form accounts for"
 
-    # (2) Closed-form MAC value at MVP: 33_040 exact.
+    # (2) Closed-form MAC value at MVP: 33_168 exact.
     expected = macs(cfg_hkv, cfg_dk, cfg_dc)
-    assert expected == 33_040, f"actual={expected}"
+    assert expected == 33_168, f"actual={expected}"
+
+    # (3) The `0.3%` routing-overhead allowance is denominated in the
+    # active-core slice, NOT in `FLOPs_Routing`. Both ratios are pinned so a
+    # future edit cannot quietly swap the denominator: the routing-relative
+    # figure is 0.436% (which is NOT the allowance) while the allowance-
+    # relevant figure is 0.1977% (which is).
+    #
+    # Every dimension is read from `cfg` rather than written as a literal, so
+    # a drift in `MVPConfig` turns this red instead of silently leaving the
+    # ratio pinned to a stale constant. NOTE: the spec fixes a closed form for
+    # the active-core slice (`8·d_model² + k·6·d_model·d_ffn^Expert`) but NOT
+    # for `FLOPs_Routing`, whose decomposition below is TEST-LOCAL — the spec
+    # only requires it to be reported as a standalone line item.
+    flops_routing = 4 * cfg_dc * cfg_hkv * cfg_dk + 2 * cfg.N_e * cfg_dc
+    assert flops_routing == 66_048, f"actual={flops_routing}"
+    assert 33_168 * 2 - flops_routing == 288, (
+        f"actual={33_168 * 2 - flops_routing}"
+    )
+    # spec closed form, wayfinder req-19 "Active-Core FLOPs canonical formula"
+    active_core = 8 * cfg.d_model**2 + cfg.k * 6 * cfg.d_model * cfg.d_ffn
+    assert active_core == 33_554_432, f"actual={active_core}"
+    assert (33_168 * 2 - flops_routing) / flops_routing == pytest.approx(
+        0.004360, abs=1e-6
+    ), (
+        f"actual={(33_168 * 2 - flops_routing) / flops_routing}"
+    )
+    assert 33_168 * 2 / active_core == pytest.approx(0.001977, abs=1e-6), (
+        f"actual={33_168 * 2 / active_core}; this is the figure the 0.3% "
+        f"allowance is measured against, and it must stay under 0.003"
+    )
+    assert 33_168 * 2 / active_core < 0.003, (
+        f"actual={33_168 * 2 / active_core}; the 0.3% routing-overhead "
+        f"allowance would be breached"
+    )
 
     # ACTUAL extraction call — must not degenerate if impl adds extra ops.
     torch.manual_seed(0)

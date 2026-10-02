@@ -5,11 +5,14 @@ ST-12 / Req 19, 20.
 
 from __future__ import annotations
 
+import ast
 import math
+import pathlib
 
 import pytest
 import torch
 
+from decompmoe import config
 from decompmoe import loss as loss_mod
 from decompmoe import metrics
 
@@ -549,3 +552,117 @@ def test_cg_raises_type_error_on_complex_dtype() -> None:
         tensor = torch.zeros(8, dtype=dtype)
         with pytest.raises(TypeError, match="CG requires a floating-point"):
             metrics.CG(tensor)
+# ---------------------------------------------------------------------------
+# Req 19: the 1:1 parity assertion covers only the reparameterizable entries,
+# and the representable-baseline set is pinned so the deferral note stays honest
+# (change 2026-10-02-audit-a2-errata-and-spec-math-fixes; F6 / F8)
+#
+# The Scenario used to claim "every MoE entry equals the Dense baseline's
+# per-token active FLOPs", which is wider than the parity formula's own object
+# range: it is defined for a given (N_e, k, d_model, d_ffn^Expert) via
+# `d_ffn^Dense ≡ k · d_ffn^Expert`, and cannot be asserted for external QLoRA /
+# GMoE checkpoints. The Scenario is now scoped accordingly, and the deferred
+# entries are declared in the Requirement body.
+#
+# These two tests are the enforcement: the parity pin, and an AST guard that
+# fails if `flops_per_token` ever admits a third arch — which would silently
+# make the Requirement's deferral annotation stale.
+# ---------------------------------------------------------------------------
+
+# the arch discriminators this test expects the impl to compare against
+_EXPECTED_ARCH_LITERALS = {"MOE", "DENSE"}
+
+
+def _arch_literals_of(node: ast.AST) -> set[str]:
+    """String literals that `node` compares for equality with `==`.
+
+    Deliberately NOT "every string in the body": the `raise` in
+    `flops_per_token` embeds `'MOE' or 'DENSE'` inside an f-string message, so
+    a naive Constant walk would pick up message fragments that are not
+    discriminators at all.
+    """
+    out: set[str] = set()
+    for sub in ast.walk(node):
+        if not isinstance(sub, ast.Compare):
+            continue
+        for op, comparator in zip(sub.ops, sub.comparators):
+            if (
+                isinstance(op, ast.Eq)
+                and isinstance(comparator, ast.Constant)
+                and isinstance(comparator.value, str)
+            ):
+                out.add(comparator.value)
+    return out
+
+
+def test_flops_per_token_admits_only_moe_and_dense() -> None:
+    """Guard the Req 19 deferral: `flops_per_token` admits exactly MOE / DENSE.
+
+    If a future change adds a third arch, the Requirement's "the other four
+    baselines are deferred / zero representation" note becomes false, and this
+    test turns red so the spec is updated in the same change.
+    """
+    # (0) MINIMAL SMOKE TEST of the extractor before trusting it on the real
+    # source — a counter that silently reports an empty set would make the
+    # assertion below vacuously true.
+    smoke = ast.parse(
+        "def probe(arch):\n"
+        "    if arch == 'ALPHA':\n"
+        "        return 1\n"
+        "    if arch == 'BETA':\n"
+        "        return 2\n"
+        "    raise ValueError(f\"unknown {arch!r} (ALPHA or BETA)\")\n"
+    )
+    smoke_fn = next(
+        n for n in ast.walk(smoke) if isinstance(n, ast.FunctionDef)
+    )
+    smoke_got = _arch_literals_of(smoke_fn)
+    assert smoke_got == {"ALPHA", "BETA"}, (
+        f"actual={sorted(smoke_got)}; the extractor must return the equality "
+        f"operands only and must NOT pick up the f-string message fragments"
+    )
+
+    # (1) the real source
+    src = pathlib.Path(config.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    fn = next(
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.FunctionDef) and n.name == "flops_per_token"
+    )
+    got = _arch_literals_of(fn)
+    assert got == _EXPECTED_ARCH_LITERALS, (
+        f"actual={sorted(got)}; flops_per_token must admit exactly "
+        f"{sorted(_EXPECTED_ARCH_LITERALS)}. A third arch means Req 19's "
+        f"deferral note for the QLoRA / GMoE / Random-* baselines is stale"
+    )
+
+
+def test_active_flops_parity_reparameterization_closed_form() -> None:
+    """Parity holds exactly for the entries admitting `d_ffn^Dense ≡ k·d_ffn^Expert`."""
+    cfg = config.MVPConfig()
+    d_ffn_dense = 4096
+    k, d_ffn_expert = 2, 2048
+
+    # MVP: the one entry the Requirement can pin exactly
+    assert d_ffn_dense == k * d_ffn_expert, (
+        f"actual={d_ffn_dense} vs {k}*{d_ffn_expert}={k * d_ffn_expert}; "
+        f"MVP parity is the identity d_ffn^Dense = k·d_ffn^Expert"
+    )
+
+    # Mixtral reproduction (N_e=8, k=2): parity REQUIRES a re-densified
+    # baseline, it does not hold against a stock d_ffn.
+    mixtral_d_ffn = 14_336
+    assert k * mixtral_d_ffn == 28_672, (
+        f"actual={k * mixtral_d_ffn}; a Mixtral-shaped MoE is at parity only "
+        f"with a Dense baseline re-densified to 28_672, not with a stock one"
+    )
+    assert 28_672 != d_ffn_dense, (
+        "premise broken: if the re-densified Mixtral width equalled the MVP "
+        "Dense width, the two entries would be indistinguishable here"
+    )
+
+    # the active-core FLOPs really do match under that reparameterization
+    moe = 8 * cfg.d_model**2 + k * 6 * cfg.d_model * d_ffn_expert
+    dense = 8 * cfg.d_model**2 + 6 * cfg.d_model * d_ffn_dense
+    assert moe == dense == 33_554_432, f"actual_moe={moe}, actual_dense={dense}"
