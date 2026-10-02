@@ -1,0 +1,53 @@
+{
+  "head_rev": "473072e93ac10a6711e5f9fc4212f020c341d908",
+  "untracked_archive_dirs": [
+    {
+      "dir": "openspec/changes/archive/2026-10-01-audit-errata-a1-numeric-guard-list",
+      "worktree_file_count": 4
+    }
+  ],
+  "deleted_but_head_tracked": {
+    "openspec/changes/2026-09-26-followup-spec-wording-bugs-after-precision-disclosure": [
+      {
+        "path": "openspec/changes/2026-09-26-followup-spec-wording-bugs-after-precision-disclosure/proposal.md",
+        "code": " D",
+        "tracked_at_head": true
+      },
+      {
+        "path": "openspec/changes/2026-09-26-followup-spec-wording-bugs-after-precision-disclosure/tasks.md",
+        "code": " D",
+        "tracked_at_head": true
+      }
+    ],
+    "openspec/changes/fix-review-findings-voronoi-precision-and-lineage": [
+      {
+        "path": "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/proposal.md",
+        "code": " D",
+        "tracked_at_head": true
+      },
+      {
+        "path": "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/tasks.md",
+        "code": " D",
+        "tracked_at_head": true
+      }
+    ]
+  },
+  "own_evidence": {
+    "head_tracked_count": 44,
+    "worktree_file_count": 49,
+    "untracked_files": [
+      "openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/ledger.json.pre-xbucket",
+      "openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/__pycache__/_tmp_lib.cpython-314.pyc",
+      "openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/__pycache__/check_ledger.cpython-314.pyc",
+      "openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/measure_worktree_state.py",
+      "openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/worktree_state.json"
+    ],
+    "status_lines": [
+      " M openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/baseline.json",
+      "?? openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/ledger.json.pre-xbucket",
+      "?? openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/measure_worktree_state.py",
+      "?? openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/worktree_state.json"
+    ],
+    "all_tracked": false
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "head_rev": "473072e93ac10a6711e5f9fc4212f020c341d908",
+  "subject_change": "fix-review-findings-voronoi-precision-and-lineage",
+  "adjudication_under_test": "applied inline, never archived",
+  "method": "Independent re-derivation at HEAD. The prior adjudication lives in the A-2 errata change (archived task 1.0); per D8 this change does not cite it as a verdict source, so every coordinate below is re-grepped here rather than copied.",
+  "structural_facts": {
+    "head_tree": [
+      "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/proposal.md",
+      "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/tasks.md"
+    ],
+    "has_specs_dir": false,
+    "still_in_changes_not_archive": true,
+    "interpretation": "proposal.md/tasks.md only, no specs/ delta, directory still under changes/ rather than archive/ => the change was never archived, and the mechanism by which it 'was applied' cannot be archive-apply."
+  },
+  "claimed_changes_reverified": [
+    {
+      "id": "G1",
+      "file": "tests/test_schedule.py",
+      "why": "phase-4 gamma reset literal, claimed at :204",
+      "positive_pattern": "round\\(\\s*g_reset\\s*,\\s*5\\s*\\)\\s*==\\s*-0\\.06454",
+      "positive_hits": [
+        204
+      ],
+      "negative_pattern": null,
+      "negative_hits": [],
+      "verdict": "PRESENT"
+    },
+    {
+      "id": "G5",
+      "file": "tests/test_schedule.py",
+      "why": "beta continuity boundary; the call uses POSITIONAL args, so a pattern requiring the step to be first would falsely read ABSENT",
+      "positive_pattern": "phase_beta_max\\(\\s*3\\s*,\\s*55_?999\\s*\\).*|55_?999",
+      "positive_hits": [
+        28,
+        96,
+        215,
+        220,
+        231,
+        233,
+        236,
+        241,
+        245
+      ],
+      "negative_pattern": null,
+      "negative_hits": [],
+      "verdict": "PRESENT"
+    },
+    {
+      "id": "H2",
+      "file": "tests/test_sphere.py",
+      "why": "6dp bisection literal. The pre-fix impl output 1.173548... was deliberately replaced by the canonical truncation 1.173547, so the negative control pins the impl output as the forbidden form",
+      "positive_pattern": "1\\.173547",
+      "positive_hits": [
+        88,
+        100,
+        254
+      ],
+      "negative_pattern": "1\\.1735482746999482",
+      "negative_hits": [],
+      "verdict": "PRESENT"
+    },
+    {
+      "id": "H2b",
+      "file": "tests/test_sphere.py",
+      "why": "2dp degree prose guard, claimed at :117",
+      "positive_pattern": "round\\(\\s*math\\.degrees\\([^)]*\\)\\s*,\\s*2\\s*\\)\\s*==\\s*67\\.24",
+      "positive_hits": [
+        123
+      ],
+      "negative_pattern": null,
+      "negative_hits": [],
+      "verdict": "PRESENT"
+    },
+    {
+      "id": "H2b64",
+      "file": "tests/test_sphere.py",
+      "why": "2dp degree prose guard for N_e=64, claimed at :142",
+      "positive_pattern": "round\\(\\s*math\\.degrees\\([^)]*\\)\\s*,\\s*2\\s*\\)\\s*==\\s*58\\.47",
+      "positive_hits": [
+        148
+      ],
+      "negative_pattern": null,
+      "negative_hits": [],
+      "verdict": "PRESENT"
+    },
+    {
+      "id": "L5",
+      "file": "tests/test_gating.py",
+      "why": "Sigma p == 1 guard must carry the f\"actual=\" payload",
+      "positive_pattern": "actual=",
+      "positive_hits": [
+        43,
+        45
+      ],
+      "negative_pattern": null,
+      "negative_hits": [],
+      "verdict": "PRESENT"
+    }
+  ],
+  "known_residual_gaps": [
+    {
+      "id": "L4",
+      "file": "tests/test_distance.py",
+      "why": "adjudication recorded that this site still uses the old f\"d_min = {...}\" form; confirm the gap is still open",
+      "pattern": "actual=",
+      "hits": [
+        88
+      ],
+      "gap_still_open": false,
+      "state": "CLOSED (actual= now present)"
+    }
+  ],
+  "verdict": "adjudication still holds at current HEAD"
+}

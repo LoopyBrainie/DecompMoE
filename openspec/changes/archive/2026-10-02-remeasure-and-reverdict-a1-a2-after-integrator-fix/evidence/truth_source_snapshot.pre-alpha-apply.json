@@ -1,0 +1,371 @@
+{
+  "head_rev": "473072e93ac10a6711e5f9fc4212f020c341d908",
+  "specs": {
+    "governance": {
+      "path": "openspec/specs/governance/spec.md",
+      "sha256_worktree": "A333F0A35404A46115665FF610D1A21552FD48CE7C8A4F0897297FBA66CDD037",
+      "head_blob_id": "e72667fcfbc8fa2f5cd3eb3410f85adf2c72ec3e",
+      "line_count": 171,
+      "anchor_count": 4,
+      "unique_anchor_count": 4,
+      "duplicate_ids": [],
+      "anchor_inventory": [
+        {
+          "id": "req-gov-1",
+          "line": 7,
+          "heading": "Test Guard Precision for Closed-Form Numerical Claims"
+        },
+        {
+          "id": "req-gov-2",
+          "line": 65,
+          "heading": "Ticket `(historical, ...)` supersede annotation pattern — CLAUDE.md §3 source-field rules application"
+        },
+        {
+          "id": "req-gov-3",
+          "line": 82,
+          "heading": "Loop Severity Framework Gap Closure"
+        },
+        {
+          "id": "req-gov-4",
+          "line": 142,
+          "heading": "Ticket Advisory Boundary — Stale Contamination Monitoring"
+        }
+      ]
+    },
+    "decompmoe-skeleton": {
+      "path": "openspec/specs/decompmoe-skeleton/spec.md",
+      "sha256_worktree": "10C20A5D4A42FFA872482812BD4570ED081DE8973B4806A54830E541A0BE7F92",
+      "head_blob_id": "ee46f3520afb7dc656ad23c03b4ed51aa36903f5",
+      "line_count": 644,
+      "anchor_count": 23,
+      "unique_anchor_count": 23,
+      "duplicate_ids": [],
+      "anchor_inventory": [
+        {
+          "id": "req-1",
+          "line": 8,
+          "heading": "Canonical Package And Version Identifier"
+        },
+        {
+          "id": "req-2",
+          "line": 22,
+          "heading": "Total And Active Parameter Estimator"
+        },
+        {
+          "id": "req-3",
+          "line": 40,
+          "heading": "Active FLOPs Parity Against Dense Baseline"
+        },
+        {
+          "id": "req-4",
+          "line": 62,
+          "heading": "Wire-Level Contracts"
+        },
+        {
+          "id": "req-5",
+          "line": 72,
+          "heading": "Inverse-Temperature Sigmoid With Gradient Bounds"
+        },
+        {
+          "id": "req-6",
+          "line": 94,
+          "heading": "Voronoi Self-Consistency Threshold"
+        },
+        {
+          "id": "req-7",
+          "line": 142,
+          "heading": "C Extraction Four-Step Pipeline"
+        },
+        {
+          "id": "req-8",
+          "line": 162,
+          "heading": "Isotropic Squared-Chord Distance And Logit"
+        },
+        {
+          "id": "req-9",
+          "line": 180,
+          "heading": "Top-K Sparse Mask With Local Softmax"
+        },
+        {
+          "id": "req-10",
+          "line": 198,
+          "heading": "Standard SwiGLU Expert With No Shared Branch"
+        },
+        {
+          "id": "req-11",
+          "line": 224,
+          "heading": "Loss Composition With Staged Lambda"
+        },
+        {
+          "id": "req-12",
+          "line": 254,
+          "heading": "Five Numerical Safeguard Helpers"
+        },
+        {
+          "id": "req-13",
+          "line": 321,
+          "heading": "Five-Phase Schedule State Machine"
+        },
+        {
+          "id": "req-14",
+          "line": 346,
+          "heading": "Six Visualization Module Protocol Stubs"
+        },
+        {
+          "id": "req-15",
+          "line": 364,
+          "heading": "Hard-Constraint Grep Invariants"
+        },
+        {
+          "id": "req-16",
+          "line": 381,
+          "heading": "Centroid Driver Semantic Invariants"
+        },
+        {
+          "id": "req-17",
+          "line": 399,
+          "heading": "Centroid Driver Invariant Test Scenarios"
+        },
+        {
+          "id": "req-18",
+          "line": 419,
+          "heading": "Centroid Four-Phase Lifecycle Driver — Phase-4 SGD Step Extension"
+        },
+        {
+          "id": "req-19",
+          "line": 455,
+          "heading": "Spherical L2 Normalization — max(…z…, ε) Formula"
+        },
+        {
+          "id": "req-20",
+          "line": 475,
+          "heading": "Beta Parameterization Operational Domain — D1 Module-Level Constants"
+        },
+        {
+          "id": "req-21",
+          "line": 500,
+          "heading": "Frozen MVP Hyperparameter Set — D1 Geometric-Only Fields"
+        },
+        {
+          "id": "req-22",
+          "line": 533,
+          "heading": "Eight Metrics And Classification — CG Type Guard"
+        },
+        {
+          "id": "req-23",
+          "line": 620,
+          "heading": "No decompmoe-skeleton spec changes required for cycle-12 finding 1 closure"
+        }
+      ]
+    },
+    "wayfinder": {
+      "path": "openspec/specs/wayfinder/spec.md",
+      "sha256_worktree": "6A05178A23A629C3AFB408AF7200B1EABCFDD1B45F48A80BD17617C006341580",
+      "head_blob_id": "f9af93712ab6788a8dca73e5c2cdfdfbe1810712",
+      "line_count": 946,
+      "anchor_count": 39,
+      "unique_anchor_count": 37,
+      "duplicate_ids": [
+        "req-17",
+        "req-20"
+      ],
+      "anchor_inventory": [
+        {
+          "id": "req-1",
+          "line": 8,
+          "heading": "Naming And Alias Convention"
+        },
+        {
+          "id": "req-2",
+          "line": 20,
+          "heading": "Formal Symbols And Code Naming"
+        },
+        {
+          "id": "req-38",
+          "line": 32,
+          "heading": "Territory Collapse Deferred Contract"
+        },
+        {
+          "id": "req-3",
+          "line": 49,
+          "heading": "Post-FFN Geometric Mount Point"
+        },
+        {
+          "id": "req-4",
+          "line": 65,
+          "heading": "Layer-Wise Head-Aggregated Routing"
+        },
+        {
+          "id": "req-5",
+          "line": 77,
+          "heading": "Spherical Normalized C Extraction"
+        },
+        {
+          "id": "req-6",
+          "line": 93,
+          "heading": "C Extraction Differentiability And Centroid Lifecycle"
+        },
+        {
+          "id": "req-7",
+          "line": 136,
+          "heading": "Isotropic Squared-Chord Distance And Bounded Beta"
+        },
+        {
+          "id": "req-8",
+          "line": 181,
+          "heading": "Top-K Sparse Mask With Local Softmax Gating"
+        },
+        {
+          "id": "req-9",
+          "line": 197,
+          "heading": "Standard SwiGLU FFN Expert"
+        },
+        {
+          "id": "req-21",
+          "line": 213,
+          "heading": "No Shared Expert (Pure Geometric Routing)"
+        },
+        {
+          "id": "req-10",
+          "line": 225,
+          "heading": "Territory Seeding Deferred Contract"
+        },
+        {
+          "id": "req-11",
+          "line": 247,
+          "heading": "4070 MVP Hyperparameter Set"
+        },
+        {
+          "id": "req-12",
+          "line": 303,
+          "heading": "Loss Composition"
+        },
+        {
+          "id": "req-13",
+          "line": 328,
+          "heading": "Numerical Safeguards"
+        },
+        {
+          "id": "req-14",
+          "line": 351,
+          "heading": "Five-Phase Time-Driven Schedule"
+        },
+        {
+          "id": "req-15",
+          "line": 371,
+          "heading": "Hybrid Three-Layer Phase Triggers"
+        },
+        {
+          "id": "req-16",
+          "line": 383,
+          "heading": "Prefill And Decode Share The Same Algorithm"
+        },
+        {
+          "id": "req-17",
+          "line": 395,
+          "heading": "Stateless Per-Frame C Recomputation"
+        },
+        {
+          "id": "req-18",
+          "line": 411,
+          "heading": "Hardware And Kernel Friendliness"
+        },
+        {
+          "id": "req-19",
+          "line": 427,
+          "heading": "Six Baseline Set On 4070 MVP"
+        },
+        {
+          "id": "req-17",
+          "line": 448,
+          "heading": null
+        },
+        {
+          "id": "req-20",
+          "line": 460,
+          "heading": "Eight Geometric Quantification Metrics"
+        },
+        {
+          "id": "req-35",
+          "line": 562,
+          "heading": "CG n=1 boundary behavior"
+        },
+        {
+          "id": "req-25",
+          "line": 586,
+          "heading": "Six-Module Visualization Toolchain"
+        },
+        {
+          "id": "req-22",
+          "line": 598,
+          "heading": "Empty-Cell Fallback Invariant"
+        },
+        {
+          "id": "req-23",
+          "line": 614,
+          "heading": "Spherical Re-Projection And Zero-Vector Invariant"
+        },
+        {
+          "id": "req-24",
+          "line": 630,
+          "heading": "Beta Parameterization Space vs Operational Domain"
+        },
+        {
+          "id": "req-27",
+          "line": 658,
+          "heading": "CentroidDriver Dual-Channel Architecture Contract"
+        },
+        {
+          "id": "req-26",
+          "line": 686,
+          "heading": "Operational Domain γ' Reset Closed-Form Worked Example"
+        },
+        {
+          "id": "req-33",
+          "line": 699,
+          "heading": "Phase 2 β Box Equality"
+        },
+        {
+          "id": "req-28",
+          "line": 719,
+          "heading": "Resurrection Perturbation Per-Expert Contract"
+        },
+        {
+          "id": "req-29",
+          "line": 730,
+          "heading": "β^eff Phase 3 → 4 Continuity Closed-Form"
+        },
+        {
+          "id": "req-30",
+          "line": 744,
+          "heading": "Closed-Form Gradient Bound Worst Case"
+        },
+        {
+          "id": "req-31",
+          "line": 762,
+          "heading": "Forward Formula Numerical Verification (Routing Layer)"
+        },
+        {
+          "id": "req-32",
+          "line": 776,
+          "heading": "Resurrection Perturbation Per-Expert Contract — Single-Event Wrapper"
+        },
+        {
+          "id": "req-34",
+          "line": 820,
+          "heading": "Source Field Format Invariant for OpenSpec Specs"
+        },
+        {
+          "id": "req-36",
+          "line": 896,
+          "heading": "Eight Geometric Quantification Metrics — Ticket A8-2 L70/L74 Supersede Annotation Closure"
+        },
+        {
+          "id": "req-20",
+          "line": 900,
+          "heading": null
+        }
+      ]
+    }
+  }
+}

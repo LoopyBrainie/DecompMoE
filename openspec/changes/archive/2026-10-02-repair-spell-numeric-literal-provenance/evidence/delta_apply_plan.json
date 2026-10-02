@@ -1,0 +1,12 @@
+{
+  "note": "整行替换计划：每条片段必须恰好命中 1 行，否则生成器 abort",
+  "openspec/specs/governance/spec.md": [
+    {"old": '`5.01e-52` at N_e=16, `2.92e-52` at N_e=64', "new": 'the measured residual at the canonical literal is `1.4635872379108090131680874e-17` at N_e=16 and `1.9420345120803994000206689e-18` at N_e=64'},
+    {"old": '| = 5.01e-52`', "new": '| = 1.4635872379108090131680874e-17`'},
+    {"old": 'yields `5.01e-52`', "new": 'yields `1.4635872379108090131680874e-17`'},
+  ],
+  "openspec/specs/decompmoe-skeleton/spec.md": [
+    {"old": 'is `5.01e-52` (N_e=16) / `2.92e-52` (N_e=64)', "new": 'is `1.4635872379108090131680874e-17` (N_e=16) / `1.9420345120803994000206689e-18` (N_e=64)'},
+  ],
+  "anchor_contract_unchanged": "两个 capability 的 anchor 不动，只改 body"
+}

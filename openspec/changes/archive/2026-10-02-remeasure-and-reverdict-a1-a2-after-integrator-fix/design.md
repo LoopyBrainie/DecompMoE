@@ -191,3 +191,47 @@
 - **[R5] 依赖性判定把 A-4 的行号指针与 A-1/A-2 的数值问题混为一谈]** → A-4 的失效机制是**坐标位移**而非**数值失效**，台账须分列 `invalidation_kind: numeric | coordinate | provenance`，三类的重测动作不同。
 - **[R6] 「不引用勘误」被架空成「不写 E 编号」]** → 真正的风险是把勘误的**结论**换个说法抄进去。D8 因此不只查 `E\d+` 编号，还查勘误独有的数值 token，并要求证据串自带独立锚点（T5）。
 - **[R7] 9 条无坐标导致长期 `PENDING`** → 盲区 1 不提供 `file:line`，D1 第③步须从零建立。若某条建立不出坐标（如 `X-D3-01` 的 2001 点往返闭合测试需重新设计采样口径），该条**长期 `PENDING` 并写明缺什么**，不得借勘误补齐。
+
+## 交付说明（tasks.md 7.3）
+
+### 1. 本 change 只判定，不修复
+
+台账的产出是**裁决与坐标**，不是补丁。104 条里每一条被判定为 `STILL_REAL` / `REMEASURED_SAME` / `RESOLVED_BY_UPSTREAM` / `PARTIALLY_REAL` 的，都**另开 change 修复**。本 change 对 `src/`、对 spec 文本、对 ticket 均无写入（`.openspec.yaml` 的 `skip_specs: true` 使归档在机制上无法改动真相源）。
+
+### 2. 交付边界：已判定 17 条，未判定 87 条
+
+| 桶 | 条目数 | 状态 |
+|---|---|---|
+| A-3 | 19 | **已判定**（`tasks.md` §3，5 项全勾） |
+| A-1 | 24 | 未判定（§1，6 项未勾） |
+| A-2 | 17 | 未判定（§2，5 项未勾） |
+| A-4 | 18 | 未判定（§4，5 项未勾） |
+| A-5 | 18 | 未判定（§5，5.1/5.2/5.5 未勾） |
+| A-7 | 8 | 未判定（§6，4 项未勾） |
+
+`check_ledger.py` 在归档时的读数是 **`problems: 0` / `outstanding: 87` / `scope ok=True`**。二者含义不同且都成立：**结构完整**（没有残缺条目、没有伪造 id、95 条源内集合逐字相符）与**工作未完**（87 条待重测）同时为真。**归档记录的是前者，后者由本节承担。**
+
+### 3. 未归档 change `fix-review-findings-voronoi-precision-and-lineage` 的状态
+
+该 change 的状态此前已由 A-2 勘误 change 裁决为「**已 inline 应用未归档**」。按 D8，本 change **不引用该裁决**，而是在当前 HEAD 独立复核（`evidence/tools/recheck_lineage_adjudication.py` → `evidence/lineage_recheck.json`）：
+
+- **结构事实**：HEAD 上该 change 目录只有 `proposal.md` + `tasks.md`，**无 `specs/` 目录**，且仍位于 `changes/` 而非 `changes/archive/`。⇒ 确未归档；且「已应用」这一事实**不可能**由 archive-apply 产生，只能是直接改源文件。
+- **声称的改动逐条重验（6/6 命中）**：G1 `test_schedule.py:204`、G5 `test_schedule.py:231-245`、H2 `test_sphere.py:100`、H2b `:123` / `:148`、L5 `test_gating.py:43,45`。
+- **一处坐标漂移**：H2b 的实际行号是 `123` / `148`，原裁决记 `117` / `142`。判定成立，行号已更新。
+- **一处内容已变**：H2 钉的字面量现为 **`1.173547`**，而原裁决记 `1.173548`。原因是后续 `2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard` **刻意**把 impl 二分输出 `1.1735482746999482` 换成 canonical 截断值 `1.173547`——正是本 change D1 原则（钉数学根、不钉实现输出）的落实。负向控制确认 impl 输出在 `test_sphere.py` 中**零命中**。
+- **一处缺口已闭合**：原裁决登记为残留的 L4（`test_distance.py` 仍是旧 `f"d_min = {...}"` 格式）**现已闭合**——`tests/test_distance.py:88` 出现 `actual=`。原裁决写「与本 change 无关，不处置」，本 change 复核后**确认它已被别的 change 处置了**，故此处不继承该结论。
+
+> **复核本身的一处自造缺陷**（记录在案）：复核脚本首轮报 3 条 `ABSENT` 并给出「裁决不成立」的结论。独立查证后确认是**脚本的正则过窄**——H2 的字面量已从 `1.173548` 改为 `1.173547`、G5 的调用是位置参数 `phase_beta_max(3, 55_999)` 而非 `beta_max(55_999)`。**零命中与「守护不存在」在输出上完全同形**。已加机制：每条检查带一个宽松 token，任何 `ABSENT` 必须同时吐出该 token 的候选行，不允许报告无法解释的零。
+
+### 4. 本 change 派生出的新 change
+
+| change | 内容 | 优先级依据 |
+|---|---|---|
+| `2026-10-02-repair-spell-numeric-literal-provenance`（α） | 真相源 4 处 `5.01e-52` / `2.92e-52` 的 provenance 修复 + 新增 `req-gov-5` 数值字面量溯源规则 | 治理层缺陷优先——它是一条 MUST 的支点，会污染后续所有 derivation 的引证链 |
+| `2026-10-02-corr-pytest-approx-abs-semantics`（β） | `governance` 4 处 + `tests/test_sphere.py` docstring 的 `pytest.approx(abs=…)` 语义勘误 | 纯措辞修复；判别力结论不受影响（`1.275e-6` / `1.297e-6` 在两种读法下都 FAIL，`8.34e-7` 都 PASS） |
+
+D8 反向注记里点名的 4 处 `pytest.approx` 错误语义副本，即 β 的范围。
+
+### 5. 自指状态（D11 / tasks.md 5.4）
+
+`evidence/**` 与 Change 2 归档目录在本 change 起草时**全部 untracked**——与 AC-23 / AC-100 的主题同形。二者已在 `b05c727` 入库；`evidence/tools/measure_worktree_state.py` 在归档前重测一次以确认，并把「本 change 自身的 tracked 状态」与「被测对象的 tracked 状态」放在同一份 `evidence/worktree_state.json` 里对照。

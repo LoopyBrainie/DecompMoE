@@ -1,0 +1,133 @@
+{
+  "change": "2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix",
+  "source": "evidence/ledger.json :: excluded_items",
+  "why_a_separate_file": "excluded_items inside ledger.json is a bare id+bucket+title list. tasks.md 7.1 requires the *reasons*, and a reason that lives only in prose is the same citation-drift class this change exists to eliminate.",
+  "buckets": {
+    "A-6": {
+      "item_count": 7,
+      "ids": [
+        "AC-06",
+        "AC-26",
+        "AC-27",
+        "AC-29",
+        "AC-30",
+        "AC-50",
+        "AC-51"
+      ],
+      "items": [
+        {
+          "ac_id": "AC-06",
+          "bucket": "A-6",
+          "title": "裁决时点漂移：e50cc02 已切断环4→环6，环1/环2 未修"
+        },
+        {
+          "ac_id": "AC-26",
+          "bucket": "A-6",
+          "title": "main45：镜像分歧后合并为 STILL_REAL 的先例"
+        },
+        {
+          "ac_id": "AC-27",
+          "bucket": "A-6",
+          "title": "MOVED 的漂移源单一：33f7cc9 造成 +1/+13/+8"
+        },
+        {
+          "ac_id": "AC-29",
+          "bucket": "A-6",
+          "title": "诚实的边界：D3 未能证明 Jensen 单向界本身"
+        },
+        {
+          "ac_id": "AC-30",
+          "bucket": "A-6",
+          "title": "gap0：结论成立但 finding 自身证据不可复用"
+        },
+        {
+          "ac_id": "AC-50",
+          "bucket": "A-6",
+          "title": "main42 的「结论反转」被驳回，定级由 MAJOR 降为 MEDIUM"
+        },
+        {
+          "ac_id": "AC-51",
+          "bucket": "A-6",
+          "title": "main21/main22 的 violates 归因被三镜一致驳回"
+        }
+      ],
+      "name": "verdict-criteria / mirror-divergence / precedent disputes",
+      "reason": "These items dispute the audit's own adjudication criteria, the divergence between the pin-state and its mirror, or which prior precedent governs. Re-deciding them requires settling a methodological question that is out of scope for this change; doing it here would silently pick a side of an open dispute and then report it as a measurement."
+    },
+    "A-8": {
+      "item_count": 6,
+      "ids": [
+        "UD-01",
+        "UD-02",
+        "UD-03",
+        "UD-04",
+        "UD-05",
+        "UD-06"
+      ],
+      "items": [
+        {
+          "ac_id": "UD-01",
+          "bucket": "A-8",
+          "title": "main 与 dev 无共同祖先，dev → main --no-ff 当前不可执行"
+        },
+        {
+          "ac_id": "UD-02",
+          "bucket": "A-8",
+          "title": "release 分支与任何 tag 都不存在"
+        },
+        {
+          "ac_id": "UD-03",
+          "bucket": "A-8",
+          "title": "run d53 的 pin agent hand-back 触发了不可逆本地销毁告警"
+        },
+        {
+          "ac_id": "UD-04",
+          "bucket": "A-8",
+          "title": "CLAUDE.md 对 ticket 同时声明非约束与必须维护"
+        },
+        {
+          "ac_id": "UD-05",
+          "bucket": "A-8",
+          "title": "beta_effective 对 γ 不可微，训练性论证依赖该通路"
+        },
+        {
+          "ac_id": "UD-06",
+          "bucket": "A-8",
+          "title": "312 行审计台账从未回流主干且与主干分叉"
+        }
+      ],
+      "name": "UD-01..UD-06, awaiting user adjudication",
+      "reason": "Six `### UD-` headings (not `### AC-`) that the audit raised but did not decide; they need a user call, not a remeasurement."
+    }
+  },
+  "ud_prefix_note": {
+    "claim": "A-8 headings use `### UD-`, not `### AC-`",
+    "evidence": "ledger excluded_items carry ac_id UD-01..UD-06",
+    "false_alarm": "An earlier scan of this change reported 'the ledger is missing 6 items'. The defect was the scanner's regex (it only matched `### AC-`), not a gap in the ledger. Recorded because a corrected alarm is still evidence."
+  },
+  "blind_spots_3_and_4": {
+    "ids": [
+      "AC-06",
+      "AC-26",
+      "AC-27",
+      "AC-29",
+      "AC-30",
+      "AC-50",
+      "AC-51"
+    ],
+    "all_in": "A-6",
+    "impact": "All 7 fall in an excluded bucket, so the 104-item scope is unaffected by excluding A-6."
+  },
+  "denominators": {
+    "in_source": 95,
+    "unregistered": 9,
+    "excluded": 13,
+    "handled_total": 117,
+    "ledger_entries": 104,
+    "identity": "95 + 9 + 13 = 117 handled, of which 104 are ledger entries"
+  },
+  "source_bucket_counts_unchanged": {
+    "A-6": 7,
+    "A-8": 6
+  }
+}

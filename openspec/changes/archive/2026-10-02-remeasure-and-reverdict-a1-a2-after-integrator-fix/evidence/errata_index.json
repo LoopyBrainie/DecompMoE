@@ -1,6 +1,6 @@
 {
   "source": ".audit\\wayfinder-opsx-code-review\\lists\\opsx-changes.md",
-  "head": "8bd684d",
+  "head": "473072e",
   "pin": "6593a06",
   "layer_structure": {
     "h3_headings_total": 135,
@@ -129,7 +129,7 @@
       "188b9fb",
       "6593a06"
     ],
-    "anchoring_rev_note": "勘误正文自称锚定 ['188b9fb', '6593a06']；当前 HEAD = 8bd684d，两者相差 9 个改过 openspec/specs 的 commit，故勘误坐标与数值均已过期",
+    "anchoring_rev_note": "勘误正文自称锚定 ['188b9fb', '6593a06']；当前 HEAD = 473072e，两者相差 9 个改过 openspec/specs 的 commit，故勘误坐标与数值均已过期",
     "spec_changing_commits_pin_to_head": [
       "8bd684d fix(a3-r1): close the 13 R1 review findings across the A-3 remediation round",
       "a97e3a7 fix(a3): clone-then-perturb resurrection, require per-expert mask, window UR",
