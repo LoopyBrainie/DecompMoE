@@ -1,0 +1,39 @@
+{
+  "note": "Written after the fact: pre_apply_status.json (task 0.2) recorded file LISTS but no content hashes, so it could not by itself prove task 5.5. This manifest is the baseline from here on.",
+  "forbidden": {
+    "tests/test_config.py": {
+      "sha256": "047253c592e435ae1fe8ced175cc6be9ffb437d14e93e6482272c168dc333da8",
+      "mtime_utc": "2026-10-01T16:53:00+00:00"
+    },
+    "tests/test_extraction.py": {
+      "sha256": "38686e5b71e96b5808cf8c383c0354d7b05810e456e653e29d99d7e27f9ab562",
+      "mtime_utc": "2026-10-02T06:02:36+00:00"
+    },
+    "tests/test_metrics.py": {
+      "sha256": "d400ee1b50189c30d8a8c4a23db944e7e05ccbd81345060ac3988ccdb5ac419c",
+      "mtime_utc": "2026-10-01T16:53:55+00:00"
+    },
+    "openspec/specs/wayfinder/spec.md": {
+      "sha256": "90c66db083a38c116f5228d2c4c95ec6207306c4e4fb72676a9b77efc912011b",
+      "mtime_utc": "2026-10-02T06:10:55+00:00"
+    },
+    "wayfinder/tickets/WF-1.md": {
+      "sha256": "ee3dc9efef7a013b4e637b1bedace39083642702de0dbc94082f8bdd14849025",
+      "mtime_utc": "2026-09-30T15:34:59+00:00"
+    }
+  },
+  "edited_by_this_change": {
+    "src/decompmoe/sphere.py": {
+      "sha256": "325f4661395a45d6d2e87172fe7e580d53d5a7a7e252ceaa9a34150c76ceb2ea",
+      "mtime_utc": "2026-10-02T07:03:55+00:00"
+    },
+    "src/decompmoe/gating.py": {
+      "sha256": "8a832abf8299591fecfb09c2287b0c41b87549b7c6f827061b6d416df821c83e",
+      "mtime_utc": "2026-10-02T07:15:30+00:00"
+    },
+    "tests/test_sphere.py": {
+      "sha256": "4211154abb1547e567810ee64eb3e42b9bf7e811e5d6b812da47554f420bd40d",
+      "mtime_utc": "2026-10-02T07:13:20+00:00"
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "rows": [
+    {
+      "deg": 1.0,
+      "one_minus_x": 0.9996954135095478,
+      "cross_rel": "0.0",
+      "same_x_abs": "7.95642e-19"
+    },
+    {
+      "deg": 20.0,
+      "one_minus_x": 0.8830222215594891,
+      "cross_rel": "4.996003610813204e-16",
+      "same_x_abs": "5.33199e-17"
+    },
+    {
+      "deg": 37.0,
+      "one_minus_x": 0.6378186779084996,
+      "cross_rel": "5.401084984662923e-16",
+      "same_x_abs": "8.64069e-17"
+    },
+    {
+      "deg": 60.0,
+      "one_minus_x": 0.2500000000000001,
+      "cross_rel": "4.996003610813204e-16",
+      "same_x_abs": "1.44231e-16"
+    },
+    {
+      "deg": 81.34,
+      "one_minus_x": 0.022671531037877668,
+      "cross_rel": "6.142123937562336e-16",
+      "same_x_abs": "3.2294e-16"
+    },
+    {
+      "deg": 89.0,
+      "one_minus_x": 0.00030458649045206343,
+      "cross_rel": "8.981579525057446e-16",
+      "same_x_abs": "1.8892e-16"
+    },
+    {
+      "deg": 89.9,
+      "one_minus_x": 3.046171104803541e-06,
+      "cross_rel": "5.55728988966986e-16",
+      "same_x_abs": "2.19857e-16"
+    },
+    {
+      "deg": 89.999,
+      "one_minus_x": 3.046174423815273e-10,
+      "cross_rel": "4.1311857766943926e-13",
+      "same_x_abs": "2.15789e-16"
+    },
+    {
+      "deg": 89.99999,
+      "one_minus_x": 3.042011087472929e-14,
+      "cross_rel": "7.595158679899925e-11",
+      "same_x_abs": "1.94216e-16"
+    }
+  ],
+  "max_cross_rel": 7.595158679899925e-11,
+  "max_same_x_abs": 3.2294e-16,
+  "quadrature_is_clean": true,
+  "verdict": "quadrature clean; the visible deviation is the sin^2(theta) conditioning gap"
+}

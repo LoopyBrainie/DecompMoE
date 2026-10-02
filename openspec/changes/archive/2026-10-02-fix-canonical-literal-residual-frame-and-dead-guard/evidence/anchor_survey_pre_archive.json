@@ -1,0 +1,35 @@
+{
+  "wayfinder": {
+    "sha256": "90c66db083a38c116f5228d2c4c95ec6207306c4e4fb72676a9b77efc912011b",
+    "bytes": 113962,
+    "anchors": 36,
+    "unique_anchors": 36,
+    "quoted_mentions": 2,
+    "headings": 36,
+    "duplicate_ids": {},
+    "misordered_pairs": [],
+    "coverage_100pct": true
+  },
+  "decompmoe-skeleton": {
+    "sha256": "a4bacf19317356d2f34e7673bd242e2a7117e5089118d3123c96646e8dd1aae0",
+    "bytes": 79772,
+    "anchors": 23,
+    "unique_anchors": 23,
+    "quoted_mentions": 0,
+    "headings": 23,
+    "duplicate_ids": {},
+    "misordered_pairs": [],
+    "coverage_100pct": true
+  },
+  "governance": {
+    "sha256": "43586947c648eb1e07672ce26f17803e0aec5058835d299af16f3e92a50d5a99",
+    "bytes": 41875,
+    "anchors": 4,
+    "unique_anchors": 4,
+    "quoted_mentions": 0,
+    "headings": 4,
+    "duplicate_ids": {},
+    "misordered_pairs": [],
+    "coverage_100pct": true
+  }
+}
