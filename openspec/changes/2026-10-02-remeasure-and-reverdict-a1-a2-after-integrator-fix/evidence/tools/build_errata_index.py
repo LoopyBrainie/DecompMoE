@@ -61,9 +61,31 @@ def ref(i):
 # The table sits under "### 盲区 1" and has 3 columns:
 #   | 报告 §3 id | 内容 | 最近的本桶条目 |
 bs1, be1 = span(lambda t: t.startswith("盲区 1"), lambda t: t.startswith("盲区 2"))
-X_BUCKET = {                      # D9: proposed bucket per item
-    "D1-02": ("A-1", "求积器失效无有效守卫：单面板 GL 零细分，b=1/2 奇点"),
-    "D2-02": ("A-1", "MC 容差 sigma 建立在可证伪的独立性假设上，无有效守卫"),
+# D9 bucket per item.
+#
+# A-1 vs A-3 boundary, decided by ONE rule rather than by feel:
+#   "Is there a normative statement that the artefact's current form violates?"
+#   yes -> A-3 (fix the artefact back onto the spec)   no -> A-1 (nobody guarded
+#   the risk; a guard has to be added)
+# Re-decided under that rule, two items moved OUT of A-1:
+#   D1-02 -> A-3. design.md D1 is imperative -- "Freeze the mathematical root,
+#     not the implementation's output" -- and tests/test_sphere.py:1059 / :1194
+#     pin 4.462e-14, which is the bisection TOLERANCE artefact, not the root.
+#     The coupling means any legitimate tightening of the convergence criterion
+#     turns the test red. Norm exists, artefact violates it.
+#   D2-02 -> A-3. governance req-gov-1 obligation 7 and its Scenario are
+#     normative: the Monte-Carlo 5-sigma MUST be *derived*. skeleton req-6 cites
+#     5-sigma = 7.31e-5 deg as a spec figure, and the blind-spot finding says
+#     that derivation assumes independent cell areas, which is false (cell
+#     counts are multinomial and sum to 1, so the first-order delta-method
+#     variance cancels). Norm exists, artefact violates it.
+X_BUCKET = {                      # D9: bucket per item, with the reason
+    "D1-02": ("A-3", "D1 原则「Freeze the mathematical root, not the "
+                     "implementation's output」是规范性祈使句；tests/test_sphere.py:1059/"
+                     ":1194 钉的 4.462e-14 是二分容差伪影而非数学根，违反该原则"),
+    "D2-02": ("A-3", "governance req-gov-1 义务 7 及其 Scenario 规范性要求 MC 的 5σ "
+                     "必须被推导；skeleton req-6 引用 5σ=7.31e-5°，而该推导假设各 cell "
+                     "面积独立（实际为多项分布且 ΣA≡1，一阶 delta-method 方差相消）"),
     "D1-07": ("A-2", "治理把 impl-internal frame（8 点 GL + 逐位二分输出）钉成规范"),
     "D2-05": ("A-2", "spec 声称的三个实测 gap 有两个错、第三个原理上不可能"),
     "D3-01": ("A-3", "公开 API 超出 spec 声称的 totality / 逆映射声明"),

@@ -1,6 +1,6 @@
 {
   "source": ".audit\\wayfinder-opsx-code-review\\lists\\opsx-changes.md",
-  "head": "b05c727",
+  "head": "8bd684d",
   "pin": "6593a06",
   "layer_structure": {
     "h3_headings_total": 135,
@@ -16,8 +16,8 @@
       {
         "ac_id": "X-D1-02",
         "upstream_id": "D1-02",
-        "bucket": "A-1",
-        "bucket_rationale": "求积器失效无有效守卫：单面板 GL 零细分，b=1/2 奇点",
+        "bucket": "A-3",
+        "bucket_rationale": "D1 原则「Freeze the mathematical root, not the implementation's output」是规范性祈使句；tests/test_sphere.py:1059/:1194 钉的 4.462e-14 是二分容差伪影而非数学根，违反该原则",
         "in_source_as_heading": false,
         "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1426",
         "statement": "`_betainc_regularized` 用单个 8 点 Gauss–Legendre 面板、零细分；b=1/2 的平方根奇点使误差随 x=sin²θ→1 爆炸，MVP 工作点 67.24° 已越过 CF 对称性阈值 x*=0.85，89° 处相对误差 1.1e-1。报告 §4 环 1 判其为整条 Voronoi 数值主线的根因，§10 Batch A 列为首条。",
@@ -40,8 +40,8 @@
       {
         "ac_id": "X-D2-02",
         "upstream_id": "D2-02 + gap4",
-        "bucket": "A-1",
-        "bucket_rationale": "MC 容差 sigma 建立在可证伪的独立性假设上，无有效守卫",
+        "bucket": "A-3",
+        "bucket_rationale": "governance req-gov-1 义务 7 及其 Scenario 规范性要求 MC 的 5σ 必须被推导；skeleton req-6 引用 5σ=7.31e-5°，而该推导假设各 cell 面积独立（实际为多项分布且 ΣA≡1，一阶 delta-method 方差相消）",
         "in_source_as_heading": false,
         "source_ref": ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md:1428",
         "statement": "`voronoi_angle` 的 MC 容差 σ 建立在「各 cell 面积独立」这一可证伪的假设上；实际 cell 计数服从多项分布且 ΣA_i≡1，一阶 delta-method 方差相消。5σ=0.0355° 比实测 SE 大 10×（随机 16 站点）到 228×（crosspolytope）。",
@@ -129,8 +129,9 @@
       "188b9fb",
       "6593a06"
     ],
-    "anchoring_rev_note": "勘误正文自称锚定 ['188b9fb', '6593a06']；当前 HEAD = b05c727，两者相差 8 个改过 openspec/specs 的 commit，故勘误坐标与数值均已过期",
+    "anchoring_rev_note": "勘误正文自称锚定 ['188b9fb', '6593a06']；当前 HEAD = 8bd684d，两者相差 9 个改过 openspec/specs 的 commit，故勘误坐标与数值均已过期",
     "spec_changing_commits_pin_to_head": [
+      "8bd684d fix(a3-r1): close the 13 R1 review findings across the A-3 remediation round",
       "a97e3a7 fix(a3): clone-then-perturb resurrection, require per-expert mask, window UR",
       "557a54e fix(skeleton): make Phase 0 and mask obligations normative; pin the __all__ de-dup rule",
       "1afac58 fix(wayfinder): narrow Req 23 to Phase 1-4; make territory_collapse and req-15 Layer 2 explicit deferrals",

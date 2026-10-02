@@ -35,7 +35,14 @@ CONTRACT = {
     # below rather than a silent overwrite.
     "build_ledger.py":            ("all status PENDING : True", "ABORT"),
     "check_ledger.py":            ("CHECKER SELF-TEST: PASS", "CHECKER SELF-TEST: FAIL"),
-    "verify_anchor_three_ways.py": ("sphere.py -> IDENTICAL  OK", "CONTROL FAILED "),
+    # The must-appear used to be "sphere.py -> IDENTICAL  OK" -- a hardcoded
+    # snapshot of one path's verdict. It rotted when sphere.py became
+    # line-ending-different from HEAD (raw DIFF, both normalising methods
+    # `same`), and the control then fired on a probe that was working
+    # correctly. The control now derives its expectation from live
+    # `git status`, so the assertion is "the probe agrees with git", which
+    # cannot rot.
+    "verify_anchor_three_ways.py": ("CONTROL: OK", "CONTROL FAILED"),
     # M1: was ("gating.py", "REAL CONTENT DIFF for every path"). The tool emits
     # a bare verdict token per row and never that sentence, so the clause could
     # not fire. crlf_discriminator.py now reports its real failure modes

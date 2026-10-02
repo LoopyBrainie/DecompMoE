@@ -124,10 +124,48 @@ if disagree:
     for r in disagree:
         print("   ", r["path"], r["m1"], r["m2"], r["m3"])
 
-# Control: a path we KNOW differs, and a path we KNOW matches, per `git status`.
+# Control paths: one that is normally worktree-carried and one that is normally
+# clean, so the control exercises BOTH branches of the derived expectation.
+CONTROL_PAIRS = [("src/decompmoe/gating.py",
+                  next(r for r in rows if r["path"].endswith("gating.py"))),
+                 ("src/decompmoe/sphere.py",
+                  next(r for r in rows if r["path"].endswith("sphere.py")))]
+CONTROL_PATHS = [p for p, _ in CONTROL_PAIRS]
+
+# Control: the expected verdict for each control path is DERIVED from live
+# `git status`, not hardcoded.
+#
+# It used to assert "gating.py must be DIFFERS, sphere.py must be IDENTICAL",
+# frozen from the `git status` of the day it was written. That rotted: sphere.py
+# is raw-different from HEAD purely because of line endings (raw DIFF, both
+# normalising methods `same`), so the control reported CONTROL FAILED while the
+# probe was in fact behaving correctly. A control that encodes a snapshot
+# measures the snapshot's age, not the probe's trustworthiness -- the same
+# disease as the CRLF count in D4 and the anchor count in EXPECT_ANCHORS.
+#
+# The invariant the control actually wants: a path git reports as unmodified
+# MUST come back IDENTICAL, and a path git reports as modified MUST NOT come
+# back IDENTICAL. Both halves are derived, so neither can rot.
 print()
-print("control: gating.py must be DIFFERS, sphere.py must be IDENTICAL")
-g = next(r for r in rows if r["path"].endswith("gating.py"))
-s = next(r for r in rows if r["path"].endswith("sphere.py"))
-print(f"  gating.py -> {g['verdict']}  {'OK' if g['verdict'] == 'DIFFERS' else 'CONTROL FAILED'}")
-print(f"  sphere.py -> {s['verdict']}  {'OK' if s['verdict'] == 'IDENTICAL' else 'CONTROL FAILED'}")
+st = subprocess.run(["git", "status", "--porcelain", "--"] + CONTROL_PATHS,
+                    cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
+                    errors="replace")
+dirty = set()
+for ln in st.stdout.splitlines():
+    if len(ln) > 3:
+        dirty.add(ln[3:].strip().replace("\\", "/"))
+print("control (expectation derived from live git status, not hardcoded):")
+ctrl_ok = True
+for p, row in CONTROL_PAIRS:
+    expect_dirty = p in dirty
+    got = row["verdict"]
+    # unmodified -> must be IDENTICAL; modified -> must NOT be IDENTICAL
+    good = (got == "IDENTICAL") if not expect_dirty else (got != "IDENTICAL")
+    why = "git says clean, probe must say IDENTICAL" if not expect_dirty \
+        else "git says modified, probe must NOT say IDENTICAL"
+    print(f"  {p:<46} -> {got:<9} {'OK' if good else 'CONTROL FAILED'}   "
+          f"({why}; git {'modified' if expect_dirty else 'clean'})")
+    ctrl_ok &= good
+print(f"CONTROL: {'OK' if ctrl_ok else 'FAILED'}  "
+      f"({sum(1 for p, _ in CONTROL_PAIRS if p in dirty)} of "
+      f"{len(CONTROL_PAIRS)} control paths are dirty right now)")
