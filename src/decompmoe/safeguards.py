@@ -19,6 +19,7 @@ import torch
 from torch import Tensor
 
 from decompmoe.beta import BETA_MAX
+from decompmoe.sphere import spherical_l2_normalize
 
 # Saturation thresholds (Req 13 / A6a-2)
 BETA_SATURATION_WARN: Final[float] = 0.95 * BETA_MAX  # 30.4
@@ -194,13 +195,14 @@ def resurrect_expert(
     i: int,
     j_star: int,
     β_per_expert: Tensor,
+    c_centroids: Tensor,
     cfg: "MVPConfig",
     *,
     eps_std: float = 0.05,
 ) -> tuple[Tensor, Tensor]:
-    """Single-event resurrection: centroid perturb + β decay in same call stack.
+    """Single-event resurrection: clone-and-perturb + β decay in same call stack.
 
-    Spec (wayfinder Req "Resurrection Perturbation Per-Expert Contract"):
+    Spec (wayfinder Req 32, anchor `<a id="req-32">`):
     the perturbation and the `β_i ← 0.85·β_{j*}` AND `β_{j*} ← 0.85·β_{j*}`
     mutation MUST execute as part of the same resurrection event. This
     wrapper is the canonical single-event API; callers MUST use it instead
@@ -209,17 +211,39 @@ def resurrect_expert(
     — the two primitive calls happen in the same Python call stack.
 
     Returns `(c_perturbed, β_per_expert_new)`:
-    - `c_perturbed`: shape `(cfg.d_c,)`, drawn from
-      `resurrection_perturb_distribution(torch.empty(0), j_star, ...)`
-      (a fresh Gaussian tensor independent of the caller's β data;
-      the first positional argument is intentionally unused per the
-      per-expert perturbation contract).
+    - `c_perturbed`: shape `(cfg.d_c,)` and on the unit sphere,
+      `c_perturbed = spherical_l2_normalize(c_centroids[j_star] + ε)` where
+      `ε = resurrection_perturb_distribution(f_per_expert, j_star,
+      eps_std=eps_std, dim=cfg.d_c)`. The **first positional argument of the
+      primitive is `f_per_expert`** — the wrapper's own
+      `f_per_expert = β_per_expert.detach()` — and `dim` is the
+      **keyword-only, required** `cfg.d_c` (the primitive raises `TypeError`
+      when `dim=None`; its value is not consumed, it only fixes the output
+      length of the per-expert perturbation).
     - `β_per_expert_new`: cloned tensor with
       `β[i] ← 0.85·β[j_star].item()` AND `β[j_star] ← 0.85·β[j_star].item()`
       applied (donor read BEFORE either write, per immutability).
 
+    The clone source is row `j_star` (**the donor**), not row `i`: `i` is
+    the dead expert whose own centroid is exactly the degenerate quantity
+    this event exists to replace, and cloning it would return a perturbed
+    copy of the state being repaired. This mirrors the β double-write,
+    which likewise reads its pre-write value from `β_per_expert[j_star]`.
+
+    `c_centroids` is a **required per-call argument** (shape `(N_e, d_c)`,
+    unit-norm rows), not a field of `MVPConfig`: the donor differs on every
+    resurrection event, whereas `MVPConfig` is frozen configuration. Its
+    absence would make Req 28's "perturb the single cloned expert"
+    unsatisfiable — which is why the previous form, returning the bare `ε`
+    as the new centroid, was wrong: `ε ~ N(0, eps_std²·I)` has
+    `E‖ε‖₂ ≈ eps_std·sqrt(d_c) ≈ 0.2` at `d_c = 16, eps_std = 0.05`, so
+    assigning it to `c_i` broke `‖c_i‖₂ = 1` before any other invariant
+    could be checked, and placed the revived expert in a direction
+    orthogonal to its donor (`E[cos] ≈ 0`, `90.02°`).
+
     Preconditions: `0 ≤ i, j_star < β_per_expert.shape[0]`; `i ≠ j_star`
-    (spec scenario); `cfg` MUST be `MVPConfig`.
+    (spec scenario); `c_centroids.shape == (cfg.N_e, cfg.d_c)`;
+    `cfg` MUST be `MVPConfig`.
     """
     from decompmoe.config import MVPConfig  # local import to avoid cycle
     if not isinstance(cfg, MVPConfig):
@@ -251,6 +275,15 @@ def resurrect_expert(
             f"f_per_expert trailing axis must equal N_e (= cfg.N_e "
             f"= {cfg.N_e}); got f_per_expert.shape={tuple(f_per_expert.shape)}"
         )
+    # Clone source is the DONOR row `j_star` (spec wayfinder Req 32): `c_centroids`
+    # MUST be the full `(N_e, d_c)` centroid matrix so that row `j_star` is
+    # addressable and so that a wrong-shaped matrix cannot silently broadcast
+    # (a `(d_c,)` row vector would make `c_centroids[j_star]` a scalar).
+    if c_centroids.shape != (cfg.N_e, cfg.d_c):
+        raise ValueError(
+            f"c_centroids must have shape (N_e, d_c) = ({cfg.N_e}, {cfg.d_c}); "
+            f"got {tuple(c_centroids.shape)}"
+        )
     # Pass the (detached) β_per_expert as the leading positional arg of
     # the perturbation primitive — this satisfies the spec's "f_per_expert
     # leading positional argument" contract while reusing the data we
@@ -258,9 +291,14 @@ def resurrect_expert(
     # accepts any tensor with a trailing axis (including 1-D (N_e,) and
     # 3-D (B, N, N_e)); the layer-2 pair-check above is the canonical
     # N_e verification.
-    c_perturbed = resurrection_perturb_distribution(
+    ε = resurrection_perturb_distribution(
         f_per_expert, j_star, eps_std=eps_std, dim=cfg.d_c
     )
+    # Req 28's "perturb the single cloned expert": perturb the DONOR's
+    # centroid, then renormalize back onto S^{d_c−1}. Returning the bare ε
+    # (the pre-A-3 behaviour) violated both the unit-norm invariant and the
+    # donor-proximity intent.
+    c_perturbed = spherical_l2_normalize(c_centroids[j_star] + ε)
     β_per_expert_new = apply_resurrection_beta_decay(β_per_expert, j_star, i)
     return c_perturbed, β_per_expert_new
 

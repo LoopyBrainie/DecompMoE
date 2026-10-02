@@ -105,12 +105,22 @@ class CentroidDriver:
         self,
         centroids: Tensor,
         X: Tensor,
-        mask: Tensor | None = None,
+        mask: Tensor,
         *,
         grad: Tensor | None = None,
         eta: float = 1e-2,
     ) -> Tensor:
         """Apply the centroid update rule for `self.phase`.
+
+        `mask` is a **required positional parameter** and has no default
+        (spec skeleton req-18: `step(centroids, X, mask, *, grad=None,
+        eta=1e-2)`). The per-expert masked means `m_i` are undefined without
+        it; the previous `mask: Tensor | None = None` default let a caller
+        silently get `X.mean(dim=0)` broadcast to every centroid, which drove
+        all `N_e` territories to a single point (`‖mean(X)‖` decayed by
+        1–3 orders of magnitude over 5999 steps and the terminal mean
+        pairwise cosine was `+1.000000`). A missing mask is rejected, never
+        substituted.
 
         Phase 0 (SEEDING):        no-op (returns centroids detached — actual
                                   k-means is owned by training-time caller).
@@ -124,29 +134,34 @@ class CentroidDriver:
                                   (backward-compat for callers predating
                                   the SGD step).
         """
+        if mask is None:
+            raise TypeError(
+                "CentroidDriver.step requires an explicit per-expert `mask` "
+                "(spec skeleton req-18: step(centroids, X, mask, *, grad=None, "
+                "eta=1e-2)). Per-expert masked means m_i are undefined without "
+                "it, and substituting a whole-batch mean broadcasts one vector "
+                "to every centroid and collapses all territories to one point."
+            )
         if self.phase == Phase.SEEDING:
             return centroids.detach()
 
         if int(self.phase) in _EMA_ALPHA:
             alpha = _EMA_ALPHA[int(self.phase)]
-            if mask is None:
-                mean = X.mean(dim=0)
-                if mean.dim() == 1:
-                    mean = mean.unsqueeze(0).expand_as(centroids)
-            else:
-                # mask: (T, N_e) — soft assignment per token.
-                # Empty-cell invariant (skeleton spec "Centroid Driver Semantic
-                # Invariants" + Invariant 1): when n_i = 0, m_i must default
-                # to the previous centroid c_i^(t-1) — NOT a direction-randomized
-                # 0/clamp_min(eps). `safe_n.clamp_min(1.0)` is used solely to
-                # guard the division against 0/0 NaN; the actual `mean` is
-                # selected via torch.where.
-                weights = mask
-                n_i = weights.sum(dim=0)
-                weighted = weights.T @ X  # zero when n_i = 0
-                safe_n = n_i.clamp_min(1.0)
-                mean_n = weighted / safe_n.unsqueeze(-1)
-                mean = torch.where(n_i.unsqueeze(-1) > 0, mean_n, centroids)
+            # mask: (T, N_e) — soft assignment per token. There is no
+            # `mask is None` fallback by construction: `mask` is a required
+            # parameter, so this path always computes true per-expert means.
+            # Empty-cell invariant (skeleton spec "Centroid Driver Semantic
+            # Invariants" + Invariant 1): when n_i = 0, m_i must default
+            # to the previous centroid c_i^(t-1) — NOT a direction-randomized
+            # 0/clamp_min(eps). `safe_n.clamp_min(1.0)` is used solely to
+            # guard the division against 0/0 NaN; the actual `mean` is
+            # selected via torch.where.
+            weights = mask
+            n_i = weights.sum(dim=0)
+            weighted = weights.T @ X  # zero when n_i = 0
+            safe_n = n_i.clamp_min(1.0)
+            mean_n = weighted / safe_n.unsqueeze(-1)
+            mean = torch.where(n_i.unsqueeze(-1) > 0, mean_n, centroids)
             # Spherical re-projection invariant (Invariant 2): every EMA step
             # MUST enforce ‖c_i^(t+1)‖₂ ≡ 1.0. Near-zero candidate fallback
             # (‖candidate‖₂ < 1e-9): preserve the previous centroid to

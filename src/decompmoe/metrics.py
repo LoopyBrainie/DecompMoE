@@ -70,19 +70,42 @@ def S_load(f_per_expert: Tensor) -> Tensor:
     return f_per_expert.shape[-1] * f_per_expert.max(dim=-1).values
 
 
+# Private, NOT exported: req-1 pins the public surface at the 75-name union, so
+# exposing the window as a public symbol would push it to 76 and desynchronise
+# the spec from the code for no gain.
+_UR_WINDOW_STEPS: Final[int] = 100
+
+
 def UR(f_per_expert_history) -> Tensor:
-    """Utilization rate over the most recent W=100 steps.
+    """Utilization rate over the most recent `_UR_WINDOW_STEPS` (= 100) steps.
 
     Spec (wayfinder Req 20): `UR = (1/N_e) · Σ_i I[f_i > 0]` over the most
-    recent W = 100 steps. Accepts either a single-step tensor `(N_e,)`
-    or a history list/stack of recent `f_per_expert` tensors.
+    recent `W = 100` steps. Accepts either a single-step tensor `(N_e,)` or a
+    history list/stack of recent `f_per_expert` tensors.
+
+    **Axis semantics.** The leading axis is the TIME axis: for a list it is the
+    list index, for a tensor it is axis 0. Only the most recent
+    `_UR_WINDOW_STEPS` entries of that axis are reduced, so a 200-step history
+    and its trailing 100 steps give the same answer. A 2-D `(B, N_e)` input is
+    therefore read as a `B`-step history, NOT as a `(B, N_e)` batch — this is
+    deliberate and is the only reading consistent with the `(N_e,)` single-step
+    case being the `T = 1` special case of the same rule.
     """
     if isinstance(f_per_expert_history, list):
         if len(f_per_expert_history) == 0:
             return _ZERO
-        stacked = torch.stack(f_per_expert_history, dim=0)  # (T, ..., N_e)
+        # keep only the most recent W steps, then stack to (T, ..., N_e)
+        stacked = torch.stack(f_per_expert_history[-_UR_WINDOW_STEPS:], dim=0)
     else:
         stacked = f_per_expert_history
+        if stacked.dim() == 0:
+            raise ValueError(
+                f"UR: a 0-dim input carries no time axis and no expert axis; "
+                f"actual shape={tuple(stacked.shape)}"
+            )
+        if stacked.dim() >= 2:
+            # slice the time axis; a (B, N_e) input is a B-step history
+            stacked = stacked[-_UR_WINDOW_STEPS:]
     if stacked.dim() == 1:
         return (stacked > 0).float().mean()
     any_active = (stacked > 0).any(dim=0)  # (..., N_e)

@@ -515,7 +515,12 @@ def test_resurrect_expert_single_event_contract() -> None:
     `resurrection_perturb_distribution` and `apply_resurrection_beta_decay`
     in the SAME call stack (linear composition, no await/yield/spawn),
     returning `(c_perturbed, β_per_expert_new)` where:
-    - `c_perturbed.shape == (cfg.d_c,)`
+    - `c_perturbed.shape == (cfg.d_c)`
+    - `‖c_perturbed‖₂ == 1.0` within `abs=1e-6` (float closed form; AC-43 —
+      the pre-A-3 wrapper returned the bare `ε`, `E‖ε‖₂ ≈ 0.2` at
+      `d_c=16, eps_std=0.05`, breaking `S^{d_c−1}`)
+    - `cos(c_perturbed, c_centroids[j_star]) > 0` (AC-43 — the revived point
+      is a perturbation OF THE DONOR, not an independent random direction)
     - `β_per_expert_new[i] == 0.85 · β_per_expert[j_star].item()`
     - `β_per_expert_new[j_star] == 0.85 · β_per_expert[j_star].item()`
     - other entries unchanged
@@ -529,12 +534,29 @@ def test_resurrect_expert_single_event_contract() -> None:
     β_per_expert = torch.tensor(
         [2.0, 4.0, 6.0, 8.0] + [10.0] * (N_e - 4), dtype=torch.float32
     )
+    c_centroids = nn.functional.normalize(torch.randn(N_e, cfg.d_c), dim=-1)
     i, j_star = 0, 5
     donor = β_per_expert[j_star].item()
-    c_perturbed, β_new = safeguards.resurrect_expert(i, j_star, β_per_expert, cfg)
+    c_perturbed, β_new = safeguards.resurrect_expert(
+        i, j_star, β_per_expert, c_centroids, cfg
+    )
 
     assert c_perturbed.shape == (cfg.d_c,), (
         f"c_perturbed.shape = {c_perturbed.shape}, expected ({cfg.d_c},)"
+    )
+    # AC-43: the returned point MUST be on the unit sphere. Float closed form
+    # -> pytest.approx with an explicit abs; a bare `==` would be flaky and
+    # `abs=0` is forbidden by governance req-gov-1.
+    c_norm = torch.linalg.norm(c_perturbed).item()
+    assert c_norm == pytest.approx(1.0, abs=1e-6), (
+        f"‖c_perturbed‖₂ = {c_norm}, expected 1.0 within abs=1e-6"
+    )
+    # AC-43: donor proximity. Bare ε gave cos ≈ -0.000289 (≈ 90°); the
+    # clone-then-perturb semantics give a strictly positive cosine.
+    cos_donor = torch.dot(c_perturbed, c_centroids[j_star]).item()
+    assert cos_donor > 0, (
+        f"cos(c_perturbed, c_centroids[{j_star}]) = {cos_donor}, expected > 0 "
+        f"(AC-43: perturbation must be applied to the donor centroid)"
     )
     assert β_new[j_star].item() == pytest.approx(0.85 * donor, abs=1e-6), (
         f"β_new[{j_star}] = {β_new[j_star].item()}, expected {0.85 * donor}"
@@ -573,15 +595,17 @@ def test_resurrect_expert_rejects_wrong_length_beta() -> None:
         f"test setup precondition violated: MVPConfig().N_e = {cfg.N_e}, "
         f"expected 16 (per CLAUDE.md §5 MVP hyperparameters)"
     )
+    torch.manual_seed(0)
+    c_centroids = nn.functional.normalize(torch.randn(cfg.N_e, cfg.d_c), dim=-1)
 
     # 1-D β of length 8 ≠ cfg.N_e=16 → MUST raise ValueError.
     β_wrong = torch.ones(8)
     with pytest.raises(ValueError, match=r"trailing axis must equal N_e"):
-        safeguards.resurrect_expert(0, 2, β_wrong, cfg)
+        safeguards.resurrect_expert(0, 2, β_wrong, c_centroids, cfg)
 
     # Canonical 1-D β of length cfg.N_e=16 → MUST pass (no raise).
     β_ok = torch.ones(cfg.N_e)
-    c_perturbed, β_new = safeguards.resurrect_expert(0, 2, β_ok, cfg)
+    c_perturbed, β_new = safeguards.resurrect_expert(0, 2, β_ok, c_centroids, cfg)
     assert c_perturbed.shape == (cfg.d_c,), (
         f"canonical 1-D β must succeed; got c_perturbed.shape={c_perturbed.shape}"
     )

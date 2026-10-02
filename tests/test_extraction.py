@@ -559,7 +559,8 @@ def test_near_zero_candidate_fallback_phase4() -> None:
     centroids[2] = 0.0  # degenerate: ‖c₂‖ < 1e-9
     X = torch.randn(16, d_c)
 
-    out = CentroidDriver(Phase.PROJECTED_SGD).step(centroids, X)
+    mask = torch.zeros(X.shape[0], centroids.shape[0])
+    out = CentroidDriver(Phase.PROJECTED_SGD).step(centroids, X, mask)
     assert torch.isfinite(out).all(), "Phase 4 output must be finite (no NaN)"
     # Degenerate row preserved as-is (prev centroid), NOT divided by ~0.
     assert torch.allclose(out[2], centroids[2])
@@ -601,7 +602,7 @@ def test_phase_4_sgd_1_step_closed_form() -> None:
     ), "test setup precondition violated: ‖grad_i‖₂ must equal 0.05"
     eta = 1e-2
     out = CentroidDriver(Phase.PROJECTED_SGD).step(
-        centroids, torch.zeros(1, d_c), grad=grad, eta=eta
+        centroids, torch.zeros(1, d_c), torch.zeros(1, N_e), grad=grad, eta=eta
     )
     expected = torch.nn.functional.normalize(centroids - eta * grad, dim=-1)
     assert torch.allclose(out, expected, atol=1e-7), (
@@ -630,7 +631,7 @@ def test_phase_4_sgd_near_zero_candidate_fallback() -> None:
     grad = torch.zeros(N_e, d_c)
     grad[0] = centroids[0] / 1e-2
     out = CentroidDriver(Phase.PROJECTED_SGD).step(
-        centroids, torch.zeros(1, d_c), grad=grad, eta=1e-2
+        centroids, torch.zeros(1, d_c), torch.zeros(1, N_e), grad=grad, eta=1e-2
     )
     assert torch.allclose(out[0], centroids[0], atol=1e-12), (
         "Invariant #4 fallback: c_0^(t+1) == c_0^(t) when "
@@ -666,7 +667,10 @@ def test_phase_4_grad_none_preserves_legacy_l2_retraction() -> None:
     # would pass even if `grad=None` semantics were silently broken.
     centroids = torch.randn(N_e, d_c) * 5.0  # ‖c_i‖₂ varies per row
     # Default grad=None, eta=1e-2 — legacy L2 retraction contract.
-    out = CentroidDriver(Phase.PROJECTED_SGD).step(centroids, torch.zeros(1, d_c))
+    mask = torch.zeros(1, centroids.shape[0])
+    out = CentroidDriver(Phase.PROJECTED_SGD).step(
+        centroids, torch.zeros(1, d_c), mask
+    )
     expected = torch.nn.functional.normalize(centroids, dim=-1)
     assert torch.allclose(out, expected, atol=1e-7), (
         f"Phase-4 with grad=None must equal centroids/‖centroids‖₂; "
