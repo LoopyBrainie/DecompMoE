@@ -1,14 +1,18 @@
-"""A-3 remediation: contract-alignment guards for the C3 code change.
+"""A-3 remediation: contract-alignment guards for the C3 and C4 code changes.
 
 Every test here exists to pin a claim the re-verdict ledger established, so a
 later refactor cannot quietly reintroduce the defect it closed. Numeric
 discipline per `governance` req-gov-1:
 
 * integer closed forms (phase boundaries, symbol counts) use a **bare `==`**,
-  never `pytest.approx(..., abs=0)` -- approx's `rel=1e-6` default stays live
-  alongside `abs`, so `abs=0` is not zero tolerance.
+  never `pytest.approx(..., abs=0)`. Note the *reason* is not "approx silently
+  adds a `rel` term": on the installed pytest 9.1.1 `abs` short-circuits
+  `ApproxScalar.tolerance`, so `abs=0` happens to be zero tolerance. The rule
+  stands because `pytest.approx` is a tolerance-admitting comparison and
+  `pyproject.toml` pins no pytest version -- see `governance` req-gov-1
+  obligation 1, whose original derivation was measured and corrected.
 * float closed forms use `pytest.approx(..., abs=...)`.
-* every failure message embeds the actual value via `f"actual={...}"`.
+* every failure message on a numeric assertion embeds the actual value.
 """
 from __future__ import annotations
 
@@ -52,7 +56,10 @@ def test_all_is_deduplicated_union_of_submodule_alls() -> None:
     assert len(union) == 75, f"actual={len(union)} (expected the de-duplicated union 75)"
     assert total_sum == 76, f"actual={total_sum} (the per-module sum, MUST NOT be the target)"
     assert len(decompmoe.__all__) == 78, f"actual={len(decompmoe.__all__)} (75 + 3 dunders)"
-    assert len(set(decompmoe.__all__)) == 78, "actual=__all__ contains duplicates"
+    assert len(set(decompmoe.__all__)) == 78, (
+        f"actual={len(set(decompmoe.__all__))} unique names "
+        f"(duplicates={sorted({n for n in decompmoe.__all__ if decompmoe.__all__.count(n) > 1})})"
+    )
 
 
 def test_all_entries_resolve() -> None:
@@ -125,12 +132,73 @@ def test_clip_global_grad_norm_returns_a_float_for_a_0d_norm() -> None:
 
 
 # ===================================================================== AC-79
-def test_voronoi_angle_probe_honours_the_centroids_device() -> None:
-    """AC-79: the probe was built on CPU because `randn` had no `device=`."""
+def test_voronoi_angle_probe_never_builds_a_default_device_tensor() -> None:
+    """AC-79: every RNG construction inside the probe must carry a `device=`.
+
+    The previous guard asserted the literal string `"device=centroids.device"`,
+    which passes if the text sits in a comment and fails on a behaviourally
+    identical rewrite such as hoisting `dev = centroids.device`. This walks the
+    AST instead, so it pins the property rather than the spelling.
+
+    The load-bearing case is `torch.Generator(...)`: `randn(..., generator=g,
+    device=...)` still raises on a non-CPU host if `g` itself was built on the
+    default device, so the generator is checked with the same rule.
+    `.manual_seed(...)` is deliberately NOT in the set — it is a method on an
+    already-device-bound `Generator`, so requiring a `device=` keyword on it
+    would reject correct code; the device is fixed at construction.
+    """
+    tree = ast.parse(inspect.getsource(sphere.voronoi_angle))
+    rng_calls = [
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and n.func.attr in {"randn", "rand", "Generator"}
+    ]
+    assert rng_calls, "actual=no RNG call found; the probe's shape changed"
+    missing = [
+        ast.unparse(n)
+        for n in rng_calls
+        if not any(kw.arg == "device" for kw in n.keywords)
+    ]
+    assert not missing, f"actual=RNG calls constructed without device=: {missing}"
+
+
+def test_voronoi_angle_generator_device_matches_the_centroids_device() -> None:
+    """AC-79: the generator's device must be the centroids', not the default.
+
+    A CPU generator driving a CUDA sample is rejected by torch at call time
+    ("Expected a 'cuda' device type for generator but found 'cpu'"), so the two
+    devices have to agree. Checked structurally because the failure needs a GPU
+    to observe at runtime.
+    """
     src = inspect.getsource(sphere.voronoi_angle)
-    assert "device=centroids.device" in src, (
-        "actual=voronoi_angle still builds its probe without a device argument"
+    assert "torch.Generator(device=centroids.device)" in src, (
+        "actual=voronoi_angle builds its Generator on the default device; "
+        "randn(device=centroids.device) with a CPU generator still raises on "
+        "a non-CPU host"
     )
+
+
+@pytest.mark.skipif(
+    not torch.cuda.is_available(),
+    reason=(
+        "AC-79's behavioural half needs a non-default device. On a CPU-only "
+        "host torch.randn's default device already equals centroids.device, so "
+        "the defect is unreachable and the two structural guards above are the "
+        "only things verifying this item on this machine."
+    ),
+)
+def test_voronoi_angle_runs_on_a_non_default_device() -> None:
+    """AC-79: the probe must actually execute when the centroids are on a GPU."""
+    torch.manual_seed(0)
+    centroids = torch.nn.functional.normalize(
+        torch.randn(16, 16, device="cuda"), dim=-1
+    )
+    angle = sphere.voronoi_angle(centroids)
+    assert angle == pytest.approx(
+        float(sphere.canonical_voronoi_angle(16, 16)), abs=1e-6
+    ), f"actual={angle!r}"
 
 
 # ===================================================================== AC-44
@@ -165,8 +233,11 @@ def test_lambda_at_rescales_with_total_steps() -> None:
     mid = loss._lambda_at(3, 20_500, total_steps=half)
     assert mid == pytest.approx(loss.LAMBDA_MAX / 2, abs=1e-12), f"actual={mid}"
     # And it must DIFFER from the un-rescaled 100K reading at the same step.
-    assert loss._lambda_at(3, 20_500, total_steps=half) != loss._lambda_at(3, 20_500), (
-        "actual=total_steps had no effect on the lambda schedule"
+    half_at_step = loss._lambda_at(3, 20_500, total_steps=half)
+    full_at_step = loss._lambda_at(3, 20_500)
+    assert half_at_step != full_at_step, (
+        f"actual=total_steps had no effect on the lambda schedule "
+        f"(half={half_at_step!r} full={full_at_step!r})"
     )
 
 
@@ -368,21 +439,46 @@ def test_centroid_driver_per_expert_mask_does_not_collapse_territories() -> None
         per-expert mask      mean pairwise dist =  1.421196, cos = -0.023137
         mask=None (removed)  mean pairwise dist =  0.396100, cos = +0.916776
 
-    The same run taken to 5999 steps ends at dist 0.000291 / cos +1.000000
-    for the removed path -- terminal consensus on a single point.
+    Those two terminal figures are **characterisation values, not closed
+    forms**: no Requirement states them and no Scenario derives them, so they
+    are a change-detector that will drift on a torch/BLAS change. The
+    load-bearing assertions here are therefore the two closed forms checked on
+    every step -- skeleton req-18 Invariant 2 (`‖c_i^(t+1)‖₂ ≡ 1.0` for every
+    expert at every step) and non-degeneracy of the territory geometry (no two
+    centroids coincide at any step). The 5999-step figures quoted in an
+    earlier draft of this docstring (`0.000291 / +1.000000`) are no longer
+    reproducible -- that branch was deleted -- and are kept here only as prose
+    describing what the removed code did.
     """
     torch.manual_seed(0)
     N_e, d_c, steps = 16, 16, 999
     C = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
     driver = extraction.CentroidDriver(extraction.Phase.EMA_090)
+    iu = torch.triu_indices(N_e, N_e, offset=1)
+    worst_norm_err = 0.0
+    min_pairwise = float("inf")
     for t in range(steps):
         X = torch.randn(64, d_c)
         assign = torch.arange(64) % N_e
         mask = torch.zeros(64, N_e)
         mask[torch.arange(64), assign] = 1.0
         C = driver.step(C, X, mask)
+        # req-18 Invariant 2 -- a float closed form, checked EVERY step.
+        n = C.norm(dim=-1)
+        err = float((n - 1.0).abs().max())
+        worst_norm_err = max(worst_norm_err, err)
+        # non-degeneracy -- a property, not a number: territories stay distinct
+        min_pairwise = min(min_pairwise, float(torch.cdist(C, C)[iu[0], iu[1]].min()))
 
-    iu = torch.triu_indices(N_e, N_e, offset=1)
+    assert worst_norm_err == pytest.approx(0.0, abs=1e-6), (
+        f"actual=worst |‖c_i‖₂ - 1| over {steps} steps = {worst_norm_err} "
+        f"(req-18 Invariant 2)"
+    )
+    assert min_pairwise > 0.0, (
+        f"actual=min pairwise centroid distance reached {min_pairwise} -- "
+        f"two experts coincided, i.e. territories collapsed"
+    )
+
     dist = float(torch.cdist(C, C)[iu[0], iu[1]].mean())
     cos = float((C @ C.T)[iu[0], iu[1]].mean())
     assert dist == pytest.approx(1.421196, abs=1e-4), (
@@ -453,7 +549,77 @@ def test_ur_single_step_matches_the_spec_closed_form() -> None:
     assert n_active == 3, f"actual={n_active} expected 3 (integer closed form)"
     ur = float(metrics.UR(single))
     assert ur == pytest.approx(3 / N_e, abs=1e-9), f"actual={ur!r} expected 3/16"
-    assert float(metrics.UR([])) == 0.0, "actual=UR([]) must be 0.0"
+    empty = float(metrics.UR([]))
+    assert empty == 0.0, f"actual={empty!r} expected 0.0 for an empty history"
+
+
+def test_ur_aggregation_is_a_union_not_a_per_step_mean() -> None:
+    """req-20: the indicator is indexed by EXPERT, so the window reduces by union.
+
+    The 200-step fixture used elsewhere CANNOT distinguish the two readings
+    (its active set is constant inside the window, so both give 2/16). The
+    discriminating fixture is one whose active set VARIES within the window,
+    and this test pins both readings side by side so the choice is visible.
+    """
+    N_e = 16
+    hist = torch.zeros(100, N_e)
+    hist[:50, 0] = 1.0          # first half: only expert 0
+    hist[50:, 1] = 1.0           # second half: only expert 1
+    union = float((hist > 0).any(dim=0).float().mean())        # 2/16
+    per_step_mean = float((hist > 0).float().mean(dim=-1).mean())  # 1/16
+    assert union == pytest.approx(2 / N_e, abs=1e-9), f"actual={union!r}"
+    assert per_step_mean == pytest.approx(1 / N_e, abs=1e-9), f"actual={per_step_mean!r}"
+    ur = float(metrics.UR(hist))
+    assert ur == pytest.approx(union, abs=1e-9), (
+        f"actual={ur!r}; req-20 specifies the union reading ({union}), "
+        f"the per-step-mean reading would give {per_step_mean}"
+    )
+    assert ur != per_step_mean, (
+        f"actual={ur!r} -- the fixture no longer discriminates the two readings"
+    )
+
+
+def test_ur_rejects_inputs_with_no_time_axis() -> None:
+    """A 0-dim input has neither axis; an `ndim >= 3` input has no STEP axis.
+
+    `(B, N, N_e)` is the batched routing tensor req-28 lists as canonical: its
+    `B x N` elements are tokens, not steps. Slicing axis 0 there would discard
+    whole batch rows while still reporting a number -- the batch rows below
+    exist precisely to make that loss observable.
+    """
+    with pytest.raises(ValueError, match="0-dim input"):
+        metrics.UR(torch.tensor(1.0))
+    with pytest.raises(ValueError, match=r"only \(N_e,\) and \(T, N_e\) inputs"):
+        metrics.UR(torch.zeros(200, 5, 16))
+    # The list form stacks first, so a list of 3-D tensors is rejected too.
+    with pytest.raises(ValueError, match=r"only \(N_e,\) and \(T, N_e\) inputs"):
+        metrics.UR([torch.zeros(2, 3, 16)])
+    # 1-D and 2-D remain the accepted shapes.
+    assert float(metrics.UR(torch.zeros(16))) == 0.0
+    assert float(metrics.UR(torch.zeros(4, 16))) == 0.0
+
+
+def test_ur_does_not_silently_drop_batch_rows() -> None:
+    """The rejected `(B, N, N_e)` case really did lose data under the old code.
+
+    Rows 0..149 activate expert 3 and rows 150..199 activate expert 11, so any
+    window that keeps only one half reports a different answer than the whole
+    tensor. This pins the fixture, not the old implementation: it is what makes
+    the rejection above a real protection rather than a formality.
+    """
+    N_e = 16
+    b3 = torch.zeros(200, 5, N_e)
+    b3[:150, :, 3] = 1.0
+    b3[150:, :, 11] = 1.0
+    half_a = float((b3[:150] > 0).any(dim=0).float().mean())   # 1/16
+    half_b = float((b3[150:] > 0).any(dim=0).float().mean())  # 1/16
+    both = float((b3 > 0).any(dim=0).float().mean())          # 2/16
+    assert half_a == pytest.approx(1 / N_e, abs=1e-9), f"actual={half_a!r}"
+    assert half_b == pytest.approx(1 / N_e, abs=1e-9), f"actual={half_b!r}"
+    assert both == pytest.approx(2 / N_e, abs=1e-9), (
+        f"actual={both!r} -- the fixture does not distinguish halves, so the "
+        f"rejection above is vacuous"
+    )
 
 
 def test_ur_reads_axis_0_as_the_time_axis() -> None:

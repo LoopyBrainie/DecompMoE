@@ -1460,13 +1460,13 @@
       },
       "invalidation_kind": "numeric",
       "remeasurement": {
-        "old": "任意长度历史都 reduce：200 步历史给 0.1875（spec 0.125）；把 (B, N_e) 批量误当时间轴给 0.25（spec 0.0625）。R_H 与 S_load 的 sliding window 零实现。",
-        "new": "四个数值全部精确复现：impl 0.1875 / spec 0.125、impl 0.25 / spec 0.0625。R_H 为单张量熵 `sum(dim=-1)`、S_load 为 `N_e * max(dim=-1)`，两者签名中根本没有窗口参数。`git grep -n '\\bUR(' HEAD -- src/ tests/` 仅命中定义行，**零调用点**。",
-        "method": "复算：运行时构造 200 步历史（0–99 步 3 个 distinct expert、100–199 步 2 个）与 `(B=8, N_e=16)` 批量，各跑 3 次；`inspect.getsource` 确认无 `[-100:]` 切片。"
+        "old": "任意长度历史都 reduce：200 步历史给 0.1875；把 (B, N_e) 批量误当时间轴给 0.25。R_H 与 S_load 的 sliding window 零实现。【R1 更正】原文此处写着「spec 0.125」与「spec 0.0625」两个判据值，经 2026-10-02 R1 review 实测推翻：(a) 200 步 fixture 在并集读法与逐占比均值读法下**都**给 0.125（窗口内每步恰好 {0,1} 激活，激活集恒定），该 fixture 对两种读法不具区分力；(b) 0.0625 的真实出处是 `wayfinder/tickets/A8-2.md:93` 的「接近 1/16」，而该 ticket 的 UR 是 `f̄_i^(100)`（`:38`）——per-expert 的 100 步滑动均值，均匀路由下健康值即 1/16；spec req-20 的 UR 是「被选中过的专家占比」，健康值为 1.0。把 ticket 的 per-expert 健康值当作 spec 判据属范畴错误。因此原「两个 spec 值来自两条不同规则」的框架本身是假的：真判据只有 0.125 一个，且它与并集读法一致。",
+        "new": "修复前四个数值全部复现：200 步历史 0.1875、`(8, N_e)` 批量 0.25。R_H 为单张量熵 `sum(dim=-1)`、S_load 为 `N_e * max(dim=-1)`，两者签名中根本没有窗口参数。`git grep -n '\\bUR(' HEAD -- src/ tests/` 仅命中定义行，**零调用点**。【R1 补充】spec req-20 的 `R_H` 行确实写了 `f_i` 取自 \"over a sliding window\"，因此 AC-41 只做 UR 的部分**不足以关闭本条**：R_H 的滑窗主张在 spec 中仍是活的。change `2026-10-02-a3-r1-review-remediation` 已在 req-20 的 `R_H` 行补上显式 deferral（未指定窗口长度 → 按设计未实现，而非遗漏），并把 `UR` 的聚合口径从测试 docstring 提升为 req-20 的 Scenario。",
+        "method": "复算：运行时构造 200 步历史（0–99 步 3 个 distinct expert、100–199 步 2 个）与 `(B=8, N_e=16)` 批量，各跑 3 次；`inspect.getsource` 确认无 `[-100:]` 切片。【R1 复算】在 2×2 规则矩阵上逐格重算（并集 / 逐占比均值 × 200 步 / `(8,N_e)`），并追 `0.0625` 的出处到 `wayfinder/tickets/A8-2.md:93`；该 ticket 已按 `CLAUDE.md` §8 补 `(historical, …; superseded by spec req-20 …)` 注释。"
       },
       "verdict_old": "STILL_REAL",
       "verdict_new": "STILL_REAL",
-      "verdict_evidence": "`UR` 的 docstring（`src/decompmoe/metrics.py:74`）仍宣称 “most recent W=100 steps”，而函数体在 spec req-20 L452-454 的 W=100 主张上无任何对应实现——docstring/实现缺口本身就是最可修的部分。`Select-String '^def test_' tests/test_metrics.py` 确认有 `test_R_H_partition_of_unity_input`(L29) 与 `test_S_load_closed_form_mvp`(L38)，但**无任何 `test_UR_*`**：UR 是唯一既无 spec 闭式 Scenario 又无任何数值测试的指标。【交叉核查】audit 自身的「同实体未合并，见 AC-10」标记在 HEAD 仍存在（AC-10 在 A-1 桶，未复核）。",
+      "verdict_evidence": "`UR` 的 docstring（`src/decompmoe/metrics.py:74`）仍宣称 “most recent W=100 steps”，而函数体在 spec req-20 L452-454 的 W=100 主张上无任何对应实现——docstring/实现缺口本身就是最可修的部分。`Select-String '^def test_' tests/test_metrics.py` 确认有 `test_R_H_partition_of_unity_input`(L29) 与 `test_S_load_closed_form_mvp`(L38)，但**无任何 `test_UR_*`**：UR 是唯一既无 spec 闭式 Scenario 又无任何数值测试的指标。【交叉核查】audit 自身的「同实体未合并，见 AC-10」标记在 HEAD 仍存在（AC-10 在 A-1 桶，未复核）。 【R1 追加】(1) 本条的 AC-79 关联项在 `sphere.voronoi_angle` 有一处**未被原判定发现**的残留缺陷：R1 修复前的实现是 `torch.Generator().manual_seed(...)` 配 `torch.randn(..., device=centroids.device)`——只给 `randn` 加了 `device=`，**Generator 本身仍在默认设备**。torch 会拒绝用 CPU generator 向非 CPU 张量采样（\"Expected a '<dev>' device type for generator but found 'cpu'\"），故该修复在 CUDA host 上并未真正闭合；已改为 `torch.Generator(device=centroids.device)`，并把守卫从字符串匹配换成 AST 属性断言 + 显式 skip 理由的 CUDA 行为测试（本机无 GPU，行为半边未执行）。 (2) 原「AC-41 无 `test_UR_*`」的观察已过时：R1 补了 5 条 UR 测试（窗口截断 / 并集 vs 逐占比均值 / 单步闭式 / 轴语义 / 无时间轴输入拒绝 / batch 行不丢失）。",
       "status": "DONE",
       "provenance": {
         "location_at_pin": "src/decompmoe/metrics.py:73",
@@ -1525,12 +1525,12 @@
         "derivation": {
           "1_quantity": "被争议的量是 phase 边界与 λ(t)、β^eff 调度读到的 `step` 阈值（整数闭式），由线性分段与 `math.exp` 产生，不经球面求积。",
           "2_chain": "该量由 src/decompmoe/loss.py 内的纯代数/集合运算产生，调用链不经过 `sphere._betainc_regularized`、`canonical_voronoi_angle` 或任何球面求积；`git log 6593a06..HEAD -- src/decompmoe/loss.py` 返回 969b17c fix(f4,f5,f6,f7): pin loss closed-form wiring; make guards actually fail，故该文件在 pin 之后未被求积器修复触及。",
-          "3_line": "`src/decompmoe/loss.py:31`（`_PHASE_BOUNDS`）、`src/decompmoe/loss.py:58`（`_lambda_at`）、`src/decompmoe/loss.py:142`（`beta_effective`）"
+          "3_line": "`src/decompmoe/loss.py:31`（`_PHASE_BOUNDS` 硬编码元组，pre-fix）、`src/decompmoe/loss.py:58`（`_lambda_at`，无 `total_steps` 形参）、以及 **`src/decompmoe/schedule.py:142`（`beta_effective`）——它调用 `phase_beta_max(phase, step)` 时同样没有转发 `total_steps`**。【本条自造缺陷已更正】本条目初稿把 `beta_effective` 标成 `src/decompmoe/loss.py:142`，而 loss.py 全文仅 139 行、该函数在 `schedule.py:142`——**行号对、文件错**，比两者皆错更难发现，因为只核对行号会看起来完全正确。复算依据：`Select-String 'beta_effective' src/decompmoe/*.py`。"
         },
         "code_refs": [
           "src/decompmoe/loss.py:31",
-          "src/decompmoe/loss.py:58",
-          "src/decompmoe/loss.py:142"
+          "src/decompmoe/loss.py:59",
+          "src/decompmoe/schedule.py:142"
         ]
       },
       "invalidation_kind": "provenance",
@@ -1550,7 +1550,16 @@
         "audit_verdict_claim": "STILL_REAL",
         "audit_baseline_claim": "unchanged-since-pin",
         "problem_statement": "λ(t) 与 β^eff 的调度在 loss.py / beta_effective 中硬编码 100K 边界，而 phase_id / phase_boundaries / phase_beta_max 接受 total_steps 参数，非 100K 运行时两者静默错位。非 100K 不是 spec 强制运行时（skeleton req-13 只在 WHEN total_steps == 100_000 下钉边界），故为 dormant。两条 violates 引用（§6 item 8、req-gov-3 obligation 1）均误引。",
-        "authority_note": "audit 裁决/基线 are transcribed for traceability ONLY; per design.md D3 they are never the basis for verdict_new, which must be re-derived from `git show` / measurement"
+        "authority_note": "audit 裁决/基线 are transcribed for traceability ONLY; per design.md D3 they are never the basis for verdict_new, which must be re-derived from `git show` / measurement",
+        "ledger_corrections": [
+          {
+            "field": "dependency.code_refs[2] / dependency.derivation.3_line",
+            "was": "src/decompmoe/loss.py:142",
+            "now": "src/decompmoe/schedule.py:142",
+            "why": "`beta_effective` is defined in schedule.py, not loss.py; loss.py is 139 lines long so L142 does not exist in it. The line number was coincidentally identical, which is what made the error survive a line-number-only spot check.",
+            "detected_by": "implementing the AC-44 fix, where `grep beta_effective` located the function in schedule.py"
+          }
+        ]
       }
     },
     {
@@ -3081,7 +3090,7 @@
     },
     {
       "ac_id": "X-D1-02",
-      "bucket": "A-1",
+      "bucket": "A-3",
       "title": "`_betainc_regularized` 用单个 8 点 Gauss–Legendre 面板、零细分；b=1/2 的平方根奇点使误差随 x=sin²θ→1 爆炸，MVP 工作点",
       "source_line_at_pin": null,
       "in_source_as_heading": false,
@@ -3145,7 +3154,7 @@
     },
     {
       "ac_id": "X-D2-02",
-      "bucket": "A-1",
+      "bucket": "A-3",
       "title": "`voronoi_angle` 的 MC 容差 σ 建立在「各 cell 面积独立」这一可证伪的假设上；实际 cell 计数服从多项分布且 ΣA_i≡1，一阶 delta-meth",
       "source_line_at_pin": null,
       "in_source_as_heading": false,

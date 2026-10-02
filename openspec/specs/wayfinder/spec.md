@@ -467,9 +467,9 @@ The system MUST report eight metrics in two classes, each with a precise closed-
 | Metric | Definition | Range / Notes |
 |---|---|---|
 | `L_sep` | `L_sep = (‖C^T C‖_F² − N_e) / (N_e · (N_e − 1))` (Frobenius form; equivalent `(2/(N_e(N_e−1))) · Σ_{i<j} (c_i^T c_j)²`) | References Req 12; positive scalar |
-| `R_H` | `R_H = −(1 / ln N_e) · Σ_{i=1}^{N_e} f_i · ln f_i` | `f_i` = per-expert normalized routing fraction over a sliding window; `R_H ∈ [0, 1]` (1 = uniform, 0 = degenerate) |
-| `S_load` | `S_load = N_e · max_{1 ≤ i ≤ N_e} f_i` | `1` at perfect uniformity, `N_e` at full collapse to a single expert |
-| `UR` | `UR = (1 / N_e) · Σ_{i=1}^{N_e} I[f_i > 0]` over the most recent W = 100 steps | fraction of experts actually selected |
+| `R_H` | `R_H = −(1 / ln N_e) · Σ_{i=1}^{N_e} f_i · ln f_i` | `f_i` = per-expert normalized routing fraction; `R_H ∈ [0, 1]` (1 = uniform, 0 = degenerate). **Windowing deferred**: this row's earlier text said `f_i` is taken "over a sliding window", but no window length is stated anywhere in the spec and `R_H(p)` takes a single distribution, so the window remains unimplemented by design rather than by omission — the same treatment `wayfinder` req-15 gives its Layer-2 deferral |
+| `S_load` | `S_load = N_e · max_{1 ≤ i ≤ N_e} f_i` | `1` at perfect uniformity, `N_e` at full collapse to a single expert. Evaluated on a **single step**; like `R_H` it carries no window parameter, and unlike `UR` it never claimed one |
+| `UR` | `UR = (1 / N_e) · Σ_{i=1}^{N_e} I[f_i > 0]` over the most recent W = 100 steps, where the indicator is evaluated on the **union** of the experts selected by any of those steps (not averaged per step) | fraction of experts actually selected at least once in the window; `UR = 1.0` under fully uniform routing and `UR = 1/N_e` when the window routes exclusively to a single expert |
 
 **Offline Tier (computed during diagnostic runs, NOT every step)**
 | Metric | Definition | Range / Notes |
@@ -529,6 +529,36 @@ The system MUST report eight metrics in two classes, each with a precise closed-
 - **WHEN** `CG(g)` and `CG(2·g)` are both evaluated for any non-zero gradient `g`
 - **THEN** `|CG(2·g) − 2·CG(g)| < 1e-6` (L2 norm is positively homogeneous of degree 1)
 
+#### Scenario: UR window, axis semantics and closed form
+- **WHEN** `UR(f_per_expert)` is called with a history of `T` per-expert routing
+  vectors, given either as a list of `T` tensors of shape `(N_e,)` or as a single
+  tensor of shape `(T, N_e)`
+- **THEN** only the most recent `W = 100` entries of the **time axis** are reduced
+  (list index for the list form, axis 0 for the tensor form), so a 200-step history
+  and its trailing 100 steps MUST give the same value; and the reduction is the
+  **union** over the window, i.e. `UR = (1 / N_e) · |{i : f_{t,i} > 0 for some t in
+  the window}|` — **not** the mean of the per-step fractions. Rationale: the
+  indicator is indexed by expert alone and the row's gloss is a fraction *of
+  experts*; averaging per step would make the same expression two different
+  quantities for `T = 1` versus `T > 1`.
+- **AND** for a single step `f ∈ R^{N_e}` (the `T = 1` special case) `UR` equals
+  the number of strictly-positive entries divided by `N_e`; with exactly 3 of
+  `N_e = 16` experts active this is `3/16 = 0.1875` (float closed form, MUST be
+  pinned with `pytest.approx(3/16, abs=1e-9)`)
+- **AND** an input whose active-expert set is constant across the window MUST NOT
+  distinguish the two aggregations — with 8 single-expert steps cycling over 4
+  distinct experts the union reading gives `4/16 = 0.25` while the per-step-mean
+  reading gives `1/16 = 0.0625`; the difference is observable only when the active
+  set varies **within** the window
+
+#### Scenario: UR rejects inputs with no time axis
+- **WHEN** `UR` is called with a 0-dim tensor, or with a tensor of `ndim ≥ 3` such
+  as the `(B, N, N_e)` batched routing tensor that req-28 lists as canonical for
+  `f_per_expert`
+- **THEN** it raises `ValueError` naming the required shapes. A `(B, N, N_e)` input
+  has **no** step axis — each `B × N` element is a token, not a step — so reducing
+  its axis 0 would silently drop whole batch rows rather than truncate a history.
+  Callers MUST reduce over tokens first and pass `(T, N_e)`
 <a id="req-35"></a>
 
 ### Requirement: CG n=1 boundary behavior
@@ -690,14 +720,13 @@ The operational `β_max(t)` box for Phase 2 MUST be `(1.0, 4.0)`, NOT `(1.0, 32.
 
 ### Requirement: Resurrection Perturbation Per-Expert Contract
 
-The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **single cloned expert** (centroid and/or expert weights) — not the per-expert routing frequency vector `f_per_expert`. The perturbation API `resurrection_perturb_distribution(f_per_expert, target_idx, eps_std=0.05, *, dim: int | None = None)` MUST accept `f_per_expert` as the leading positional argument with **shape `(..., N_e)`** — the trailing axis MUST equal `N_e` and leading dims are arbitrary (canonical call sites pass `(N_e,)`, `(T, N_e)`, or `(B, N, N_e)` matching the per-expert routing-frequency convention used by `decompmoe.loss` and `decompmoe.metrics`). Layer 1 shape enforcement (primitive-side, at this primitive): `f_per_expert.ndim ≥ 1` so the primitive cannot silently receive a 0-D scalar. Layer 2 wrapper-side enforcement (trailing-axis = `cfg.N_e` pair-check, enforced at the canonical call site `resurrect_expert`) is described in Req 32. `target_idx` is a positional integer identifying the dead expert slot, `eps_std=0.05` is a positional-or-keyword Gaussian perturbation scale, and `dim` is a **keyword-only** parameter sourcing the per-expert dimensionality (centroid `d_c` or expert-weight `d_model · d_ffn`). `dim=None` MUST raise `TypeError` (explicit `dim` is required so the return-shape contract is enforced at the call site). The returned tensor MUST have leading dimension `dim` — corresponding to a single expert slot — NOT the `(N_e,)` shape of `f_per_expert`. The β double-write semantic (`β_i ← 0.85 · β_{j*}` and `β_{j*} ← 0.85 · β_{j*}`) is defined in Req 13; this primitive does not mutate `β_per_expert` — that mutation is the wrapper's responsibility. (References Req 13.)
+The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **single cloned expert** (centroid and/or expert weights) — not the per-expert routing frequency vector `f_per_expert`. The perturbation API `resurrection_perturb_distribution(f_per_expert, target_idx, eps_std=0.05, *, dim: int | None = None)` MUST accept `f_per_expert` as the leading positional argument with **shape `(..., N_e)`** — the trailing axis MUST equal `N_e` and leading dims are arbitrary (canonical call sites pass `(N_e,)`, `(T, N_e)`, or `(B, N, N_e)` matching the per-expert routing-frequency convention used by `decompmoe.loss` and `decompmoe.metrics`). Layer 1 shape enforcement (primitive-side, at this primitive): `f_per_expert.ndim ≥ 1` so the primitive cannot silently receive a 0-D scalar. Layer 2 wrapper-side enforcement (trailing-axis = `cfg.N_e` pair-check, enforced at the canonical call site `resurrect_expert`) is described in Req 32. `target_idx` is a positional integer naming the expert slot the perturbation is attributed to, and the primitive MUST NOT consume it (it does not select which expert to perturb — the caller's `target_idx` value carries no behavioural meaning); the canonical wrapper in req-32 passes the **donor** `j_star`, because the perturbed quantity is the donor's centroid per req-13's "clones `j*`", while `i` remains the dead expert whose slot is being repaired. `eps_std=0.05` is a positional-or-keyword Gaussian perturbation scale, and `dim` is a **keyword-only** parameter sourcing the per-expert dimensionality (centroid `d_c` or expert-weight `d_model · d_ffn`). `dim=None` MUST raise `TypeError` (explicit `dim` is required so the return-shape contract is enforced at the call site). The returned tensor MUST have leading dimension `dim` — corresponding to a single expert slot — NOT the `(N_e,)` shape of `f_per_expert`. The β double-write semantic (`β_i ← 0.85 · β_{j*}` and `β_{j*} ← 0.85 · β_{j*}`) is defined in Req 13; this primitive does not mutate `β_per_expert` — that mutation is the wrapper's responsibility. (References Req 13.)
 
 **Source:** `wayfinder/tickets/A6a-2.md` (initial A6a-2 design intent); change `fix-math-consistency-audit-2026-08` design.md (Decision 4 — per-expert perturbation contract); signature mirrors the `resurrection_perturb_distribution` function in `src/decompmoe/safeguards.py` at commit `263ac19 feat(safeguards): per-expert resurrection perturb shape + same-event beta decay` (Layer 1 primitive-side `ndim ≥ 1` guard inside that function)
 
 #### Scenario: perturbation output shape matches a single expert slot
 - **WHEN** `resurrection_perturb_distribution(f_per_expert, target_idx=3, eps_std=0.05, dim=16)` is called (explicit `dim` required; `dim=None` raises `TypeError`)
 - **THEN** the returned tensor has shape `(d_c,)` or `(d_model · d_ffn,)` (single expert), NOT `(N_e,)` (whole routing distribution)
-
 <a id="req-29"></a>
 
 ### Requirement: β^eff Phase 3 → 4 Continuity Closed-Form
@@ -771,7 +800,7 @@ The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **singl
 - **THEN** the primitive raises `ValueError` (Layer 1 guard: ndim ≥ 1)
 
 #### Scenario: wrapper pair-checks f_per_expert trailing axis vs cfg.N_e
-- **WHEN** `resurrect_expert(i=3, j_star=0, β_per_expert, cfg)` is called with `β_per_expert.detach()` (the wrapper's internal `f_per_expert = β_per_expert.detach()`) whose trailing axis length `!= cfg.N_e` (the canonical N_e sourced from `cfg.MVPConfig`, **NOT** `β_per_expert.shape[0]` — the latter would be a vacuous self-check given `f_per_expert = β_per_expert.detach()`, where `shape[-1] == shape[0]` identically)
+- **WHEN** `resurrect_expert(i=3, j_star=0, β_per_expert, c_centroids, cfg)` is called with `β_per_expert.detach()` (the wrapper's internal `f_per_expert = β_per_expert.detach()`) whose trailing axis length `!= cfg.N_e` (the canonical N_e sourced from `cfg.MVPConfig`, **NOT** `β_per_expert.shape[0]` — the latter would be a vacuous self-check given `f_per_expert = β_per_expert.detach()`, where `shape[-1] == shape[0]` identically)
 - **THEN** the wrapper raises `ValueError` (Layer 2 guard: trailing-axis = N_e pair-check, anchored on `cfg.N_e`)
 
 #### Scenario: same-event beta decay
@@ -780,7 +809,7 @@ The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **singl
 - **AND** `β_per_expert_new[i] == 0.85 · β_per_expert[j_star].item()` within `abs=1e-6` (donor value is read from `β_per_expert[j_star]` BEFORE either write, per the immutability clause; this matches the canonical pattern in `apply_resurrection_beta_decay`)
 - **AND** `β_per_expert_new[j_star] == 0.85 · β_per_expert[j_star].item()` within `abs=1e-6` (the donor's own β is also decayed by the same factor)
 - **AND** `c_perturbed.shape == (cfg.d_c,)` (single-expert slot shape, consistent with the perturbation output shape scenario above)
-- **AND** `‖c_perturbed‖₂ == 1.0` within `abs=1e-6` — the resurrection MUST return a point on the unit sphere `S^{d_c−1}`. This is the invariant the bare-ε behaviour broke: `ε ~ N(0, eps_std²·I)` has `E‖ε‖₂ ≈ eps_std·sqrt(d_c) ≈ 0.2` at `d_c = 16, eps_std = 0.05`, so assigning it to `c_i` violated the sphere constraint before any other invariant could be checked. This is a **float** closed form and MUST be pinned with `pytest.approx(1.0, abs=1e-6)`, never with a bare `==`
+- **AND** `‖c_perturbed‖₂ == 1.0` within `abs=1e-6` — the resurrection MUST return a point on the unit sphere `S^{d_c−1}`. This is the invariant the bare-ε behaviour broke: `ε ~ N(0, eps_std²·I)` has RMS norm `eps_std·sqrt(d_c) = 0.2` at `d_c = 16, eps_std = 0.05`, so assigning it to `c_i` violated the sphere constraint before any other invariant could be checked. The **mean** norm is strictly smaller and has the exact closed form `E‖ε‖₂ = eps_std · √2 · Γ((d_c+1)/2) / Γ(d_c/2) = 0.196901` at these values (the `eps_std·sqrt(d_c)` figure is the RMS, i.e. `√(E‖ε‖₂²)`, and overstates the mean by 1.58% at `d_c = 16`; measured 0.196838 over 200 000 samples). This is a **float** closed form and MUST be pinned with `pytest.approx(0.196901, abs=1e-3)` against a Monte-Carlo mean, not with the RMS literal. This is a **float** closed form and MUST be pinned with `pytest.approx(1.0, abs=1e-6)`, never with a bare `==`
 - **AND** `cos(c_perturbed, c_centroids[j_star]) > 0` — the returned point is a perturbation **of the donor**, not an independent random direction. Measured over 200 000 samples at `d_c = 16, eps_std = 0.05` the mean cosine is `0.981666` and the mean angle `10.8054°`; the bare-ε behaviour gave `−0.000289` and `90.0177°`, i.e. an 8.33× angle gap and a vector that was orthogonal to the donor
 - **AND** `β_per_expert_new is not β_per_expert` (immutability: the input tensor is never mutated in-place; `apply_resurrection_beta_decay` clones internally)
 
@@ -788,7 +817,6 @@ The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **singl
 - **WHEN** `resurrect_expert(i, j_star, β_per_expert, c_centroids, cfg)` is called with `i != j_star` and `c_centroids` of shape `(N_e, d_c)` with unit-norm rows
 - **THEN** the clone is taken from `c_centroids[j_star]` (the donor) and NOT from `c_centroids[i]`; with `eps_std → 0` the returned `c_perturbed` converges to `c_centroids[j_star]`
 - **AND** an implementation that cloned row `i` MUST be rejected: `i` is the dead expert, so its centroid is the degenerate quantity the resurrection is meant to replace, and cloning it would return a perturbed copy of the very state being repaired
-
 <a id="req-34"></a>
 ### Requirement: Source Field Format Invariant for OpenSpec Specs
 

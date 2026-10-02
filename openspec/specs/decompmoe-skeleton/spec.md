@@ -146,7 +146,7 @@ The package SHALL provide `extract_C(K, V, proj_W_K, proj_W_V, proj_b, *, H_kv, 
 
 #### Scenario: Output shape on unit sphere
 - **WHEN** `K ∈ R^{B × H_kv × N × d_k}` and `V ∈ R^{B × H_kv × N × d_k}` are fed in
-- **THEN** `C ∈ R^{B × N × d_c}` and `‖C_t‖₂ = 1` for every token (within `1e-5`), **provided the degenerate regime is excluded** — i.e. provided every per-head projection `z^{l,h}` satisfies `‖z^{l,h}‖₂ ≥ ε` with `ε = 1e-6` (req-19). This precondition is normative, not a caveat: the pipeline's spherical-projection steps divide by `max(‖·‖₂, ε)`, so a projection in the sub-epsilon regime `0 < ‖z^{l,h}‖₂ < ε` yields `‖C_t‖₂ < 1` rather than 1. This Scenario previously asserted unit norm **unconditionally**, which contradicted this same spec's req-19 Scenario, which states that `0 < ‖z‖₂ < ε` produces a sub-unit norm on first application. The assertion is now conditioned on the same threshold req-19 uses.
+- **THEN** `C ∈ R^{B × N × d_c}` and `‖C_t‖₂ = 1` for every token (within `1e-5`), **provided the degenerate regime is excluded** — i.e. provided the **cross-head mean** `z̄_t^l = (1/H_kv) · Σ_h ẑ^{l,h}` satisfies `‖z̄_t^l‖₂ ≥ ε` with `ε = 1e-6` (req-19). This precondition is normative, not a caveat, and it MUST be stated on the **mean** rather than on the per-head terms: step 4 divides by `max(‖z̄‖₂, ε)`, so the quantity that decides the output norm is `‖z̄‖₂`, not any individual `‖z^{l,h}‖₂`. Conditioning on the per-head norms is **insufficient** — at `H_kv = 8` with four heads projecting to `+e₀` and four to `−e₀` (all `‖z^{l,h}‖₂ = 1.0`, so the per-head form of this precondition is satisfied) the mean is exactly `0` and `extract_C` returns `‖C_t‖₂ = 0.0`, violating this Scenario's own `‖C_t‖₂ = 1` bound. The per-head sub-epsilon regime `0 < ‖z^{l,h}‖₂ < ε` named in req-19 remains a separate, sufficient-to-violate case, and is subsumed by the mean form. This Scenario previously asserted unit norm **unconditionally**, which contradicted req-19; an earlier revision of this same correction conditioned on the per-head norms and was still falsifiable, which is why the condition is now on `z̄`.
 
 #### Scenario: Fully differentiable
 - **WHEN** `torch.autograd.gradcheck` is run on `extract_C` with random `K`, `V` and the projection parameters
@@ -159,7 +159,6 @@ The package SHALL provide `extract_C(K, V, proj_W_K, proj_W_V, proj_b, *, H_kv, 
 #### Scenario: Cross-head awareness
 - **WHEN** `H_kv = 8` GQA input is processed
 - **THEN** the cross-head mean uses the `1/H_kv` factor (mathematical equivalence to a manual `mean(..., dim=1)`)
-
 <a id="req-8"></a>
 
 ### Requirement: Isotropic Squared-Chord Distance And Logit

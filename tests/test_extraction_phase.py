@@ -71,10 +71,130 @@ def test_phase_090_ema() -> None:
         f"actual max abs delta = {(out - expected).abs().max().item()!r}"
     )
     assert not torch.allclose(out[0], out[1], atol=1e-6), (
-        "actual=EMA output collapsed to a single point (territory collapse)"
+        f"actual=EMA output collapsed to a single point (territory collapse); "
+        f"max|out[0]-out[1]| = "
+        f"{(out[0] - out[1]).abs().max().item()!r}"
     )
     norms = out.norm(dim=-1)
-    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-6)
+    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-6), (
+        f"actual=norms {norms.tolist()!r} (req-18 Invariant 2 wants all 1.0)"
+    )
+
+
+def test_dense_mask_makes_the_weighting_and_division_load_bearing() -> None:
+    """A DENSE mask with unequal column totals exercises both parts of `m_i`.
+
+    The one-hot fixture elsewhere makes `m_i` a plain subset mean, so a driver
+    that mishandled the weights could still agree. Here the rows are normalised
+    to sum to 1 (each token spreads its weight across experts) and the column
+    totals are deliberately unequal, so (a) the weighted sum and (b) the
+    division by `n_i` are both load-bearing.
+    """
+    torch.manual_seed(0)
+    centroids = torch.randn(4, 8)
+    X = torch.randn(30, 8)
+    N_e = centroids.shape[0]
+    # Every entry >= 1 so every column total `n_i` exceeds 1, which makes the
+    # driver's `n_i.clamp_min(1.0)` guard a no-op and the expectation the plain
+    # masked mean. (With `n_i` below 1 the clamp silently changes the result;
+    # that behaviour is a separate question from the axis/weighting semantics
+    # this test is about.)
+    mask = torch.rand(30, N_e) + 1.0
+    col_totals = mask.sum(dim=0)
+    assert bool((col_totals > 1.0).all()), (
+        f"actual=n_i must all exceed 1 for this fixture; got {col_totals.tolist()}"
+    )
+    assert not torch.allclose(
+        col_totals, col_totals[0].expand_as(col_totals), atol=1e-6
+    ), "actual=column totals are equal; the division by n_i is not load-bearing"
+
+    out = CentroidDriver(Phase.EMA_090).step(centroids, X, mask)
+    # m_i = sum_t mask[t, i] * X[t] / sum_t mask[t, i] -- the spec's formula,
+    # evaluated with an explicit loop rather than the driver's matmul.
+    m = torch.stack([
+        (mask[:, e].unsqueeze(-1) * X).sum(dim=0) / mask[:, e].sum()
+        for e in range(N_e)
+    ])
+    expected = torch.nn.functional.normalize(0.90 * centroids + 0.10 * m, dim=-1)
+    assert torch.allclose(out, expected, atol=1e-5), (
+        f"actual max abs delta = {(out - expected).abs().max().item()!r}"
+    )
+    # Skipping the division would give a different answer.
+    undivided = mask.t() @ X
+    assert not torch.allclose(m, undivided, atol=1e-6), (
+        f"actual=the n_i division is not load-bearing for this fixture "
+        f"(max|diff| = {(m - undivided).abs().max().item()!r})"
+    )
+
+
+def test_square_mask_detects_a_swapped_expert_axis() -> None:
+    """With `T == N_e` a driver that swapped the mask axes would give a number.
+
+    For a rectangular mask a swapped-axis driver raises a shape error, so the
+    bug can only hide in the square case -- which is exactly the case this
+    fixture covers. `m` reads `mask[:, e]` (experts on axis 1, per the spec's
+    `(T, N_e)`); the swapped reading takes `mask[e, :]` (experts on axis 0).
+    """
+    torch.manual_seed(0)
+    N_e, d_c, T = 4, 8, 4
+    centroids = torch.randn(N_e, d_c)
+    X = torch.randn(T, d_c)
+    mask = torch.rand(T, N_e) + 1.0   # every n_i exceeds 1 -> clamp_min is a no-op
+    assert bool((mask.sum(dim=0) > 1.0).all()), (
+        f"actual=n_i={mask.sum(dim=0).tolist()} must all exceed 1 for this fixture"
+    )
+
+    out = CentroidDriver(Phase.EMA_090).step(centroids, X, mask)
+    m = (mask.t() @ X) / mask.sum(dim=0).unsqueeze(-1)         # experts on axis 1
+    m_swapped = (mask @ X) / mask.sum(dim=1).unsqueeze(-1)    # experts on axis 0
+    assert not torch.allclose(m, m_swapped, atol=1e-6), (
+        f"actual=the two axis readings coincide "
+        f"(max|diff| = {(m - m_swapped).abs().max().item()!r}); "
+        f"this fixture cannot distinguish them"
+    )
+    expected = torch.nn.functional.normalize(0.90 * centroids + 0.10 * m, dim=-1)
+    expected_swapped = torch.nn.functional.normalize(
+        0.90 * centroids + 0.10 * m_swapped, dim=-1
+    )
+    assert torch.allclose(out, expected, atol=1e-5), (
+        f"actual max abs delta = {(out - expected).abs().max().item()!r} "
+        f"(expert axis is axis 1 per the spec's (T, N_e) layout)"
+    )
+    assert not torch.allclose(out, expected_swapped, atol=1e-5), (
+        f"actual=the driver agrees with the SWAPPED expert axis; "
+        f"max|diff| = {(out - expected_swapped).abs().max().item()!r}"
+    )
+
+
+def test_empty_cell_falls_back_to_the_previous_centroid() -> None:
+    """req-18 Invariant 1: when `n_i = 0`, `m_i` MUST be the previous `c_i^(t-1)`.
+
+    A zero column would otherwise make the weighted sum `0/0`; the driver
+    guards the division with `clamp_min(1.0)` and then selects via
+    `torch.where`, so the fallback must be visible as "this expert did not
+    move" rather than "this expert collapsed to zero".
+    """
+    torch.manual_seed(0)
+    N_e, d_c = 4, 8
+    centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
+    X = torch.randn(20, d_c)
+    mask = torch.zeros(20, N_e)
+    mask[:, 0] = 1.0                      # only expert 0 receives any token
+    assert int(mask.sum(dim=0).max()) == 20, "actual=test fixture precondition"
+    empty = [e for e in range(N_e) if float(mask[:, e].sum()) == 0.0]
+    assert empty == [1, 2, 3], f"actual=expected experts 1,2,3 empty, got {empty}"
+
+    out = CentroidDriver(Phase.EMA_090).step(centroids, X, mask)
+    for e in empty:
+        assert torch.allclose(out[e], centroids[e], atol=1e-6), (
+            f"actual=expert {e} moved despite n_i = 0; "
+            f"max|out - prev| = {(out[e] - centroids[e]).abs().max().item()!r} "
+            f"(req-18 Invariant 1 requires the previous centroid)"
+        )
+    # expert 0 DID receive tokens, so it must have moved
+    assert not torch.allclose(out[0], centroids[0], atol=1e-6), (
+        "actual=expert 0 did not move despite receiving every token"
+    )
 
 
 def test_phase_095_to_099_ema_coefficients() -> None:

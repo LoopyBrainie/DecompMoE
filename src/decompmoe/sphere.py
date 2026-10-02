@@ -516,7 +516,14 @@ def voronoi_angle(centroids: Tensor) -> float:
             f"normalize with torch.nn.functional.normalize(centroids, dim=-1)"
         )
 
-    generator = torch.Generator().manual_seed(VORONOI_AREA_SEED)
+    # The generator MUST be constructed on `centroids.device`, not merely
+    # passed to `randn(..., device=...)`: torch rejects a CPU generator used
+    # to sample onto a non-CPU tensor ("Expected a '<device>' device type for
+    # generator but found 'cpu'"). Adding `device=` to `randn` alone leaves
+    # the defect in place on a CUDA host.
+    generator = torch.Generator(device=centroids.device).manual_seed(
+        VORONOI_AREA_SEED
+    )
     probes = torch.nn.functional.normalize(
         torch.randn(
             VORONOI_AREA_SAMPLES,

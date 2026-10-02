@@ -90,26 +90,40 @@ def UR(f_per_expert_history) -> Tensor:
     therefore read as a `B`-step history, NOT as a `(B, N_e)` batch — this is
     deliberate and is the only reading consistent with the `(N_e,)` single-step
     case being the `T = 1` special case of the same rule.
+
+    **Only 1-D and 2-D inputs are accepted.** A tensor of `ndim ≥ 3` (e.g. the
+    `(B, N, N_e)` batched routing tensor, whose leading axis is the *batch* axis
+    and whose `B × N` elements are tokens, not steps) has no time axis at all.
+    Slicing its axis 0 would silently discard whole batch rows while reporting a
+    scalar, so it is rejected instead — the caller MUST reduce over tokens
+    first and pass `(T, N_e)`.
     """
     if isinstance(f_per_expert_history, list):
         if len(f_per_expert_history) == 0:
             return _ZERO
-        # keep only the most recent W steps, then stack to (T, ..., N_e)
         stacked = torch.stack(f_per_expert_history[-_UR_WINDOW_STEPS:], dim=0)
     else:
         stacked = f_per_expert_history
-        if stacked.dim() == 0:
-            raise ValueError(
-                f"UR: a 0-dim input carries no time axis and no expert axis; "
-                f"actual shape={tuple(stacked.shape)}"
-            )
-        if stacked.dim() >= 2:
-            # slice the time axis; a (B, N_e) input is a B-step history
-            stacked = stacked[-_UR_WINDOW_STEPS:]
-    if stacked.dim() == 1:
+    ndim = stacked.dim()
+    if ndim == 0:
+        raise ValueError(
+            f"UR: a 0-dim input carries no time axis and no expert axis; "
+            f"actual shape={tuple(stacked.shape)}"
+        )
+    if ndim >= 3:
+        raise ValueError(
+            f"UR: only (N_e,) and (T, N_e) inputs are accepted; a {ndim}-dim "
+            f"input has no step axis (its leading axis is the batch axis, and "
+            f"reducing it would silently drop rows) — reduce over tokens first "
+            f"and pass (T, N_e); actual shape={tuple(stacked.shape)}"
+        )
+    if ndim == 2:
+        # slice the time axis; a (T, N_e) input is a T-step history
+        stacked = stacked[-_UR_WINDOW_STEPS:]
+    if ndim == 1:
         return (stacked > 0).float().mean()
-    any_active = (stacked > 0).any(dim=0)  # (..., N_e)
-    return any_active.float().mean(dim=-1)
+    any_active = (stacked > 0).any(dim=0)  # (N_e,)
+    return any_active.float().mean()
 
 
 def SP(centroids: Tensor, assignments: Tensor, signatures: Tensor) -> Tensor:
