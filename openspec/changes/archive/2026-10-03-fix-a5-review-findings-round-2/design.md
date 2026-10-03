@@ -170,3 +170,43 @@ review 指出我关于 `> **Source:**` 的论证「是捏造的」。复核结�
 
 **规则**：任何「我查过，X 不存在 / X 存在」的说法，必须同时记下 commit。缺陷会在
 并行 session 手里消失，而没有 revision 的记录无法被追认或推翻。
+
+## D8 — 归档暴露了本工具自身的新缺陷：有意 REMOVE 的 anchor 被报成 LOST
+
+**发现时机**：归档**本 change 自身**时。`anchor-ledger --verify` 输出：
+
+```
+anchor-ledger: 1 LOST anchor(s) — restore surgically, do NOT re-run archive:
+  lost          governance: req-gov-9 (Spec Anchor Ledger Across Archive)
+anchor-ledger: 1 NEVER-ADDED anchor(s) — declared by the change but absent:
+  never-added   req-gov-10
+```
+
+**两条里只有一条是真的**。`req-gov-9` 是本 change 的 `## REMOVED Requirements`
+**有意删除**的，archive 做得完全正确；而 `req-gov-10` 才是真正被吞的那个 anchor
+（第四次复现该缺陷，正文落地、`<a>` 被吞，已按协议手术式补回，**未重跑 archive**）。
+
+**为什么必须修**：协议自己的指令是「手术式补回，**不要**重跑 archive」。若被刻意
+删除的 anchor 永远报 LOST，这条指令就**不可执行**——补回一个已被删除的
+Requirement 的 anchor 本身是错的。而且一个在每个「带删除的 change」上都误报的信号，
+训练出来的读者反应是忽略它。
+
+**修法**：新增 `removed_anchors(change_name)`，从 change 自己的 delta 的
+`## REMOVED Requirements` 块取 `### Requirement:` 标题，再用标题去**基线账本**里
+找对应 anchor id。不能直接把 delta 里的 id 传给 `--verify`——那是循环论证：账本的
+职责是报告 archive **实际做了什么**，不是复述 delta **要求做什么**。
+
+**实现中踩到的两个坑（都被自己的测试抓住）**：
+
+1. `deliberate` 最初是**扁平 id 集合**，于是 `before[cap][aid]` 在另一 capability
+   下抛 `KeyError`——anchor id 是 per-capability 的。改为 `(capability, id)` 二元组，
+   并加 `test_removed_anchor_lookup_is_scoped_per_capability` 钉住：同名 id 在
+   governance 里被有意删除，在 wayfinder 里没有，两者的处置必须不同。
+2. 修法最容易出的错是**过度过滤**——若把排除条件写成「本次 change 有 REMOVED 块时
+   放行所有缺失项」，真实丢失就被静默吞掉。`test_genuine_loss_is_still_reported_when_a_removal_is_also_declared`
+   强制两类同时出现：既报 `lost req-c`，也披露 `removed req-a`，且 `req-a` 不得
+   出现在 `lost` 列表里。
+
+**为什么归档能当自测环境**：这个缺陷在 3 项合成测试里写不出来，因为「archive 删掉一个
+Requirement」这件事本身只有真的跑一次 archive 才发生。协议的价值就在这里——它把工具
+放进了工具自己声称能处理的状态。

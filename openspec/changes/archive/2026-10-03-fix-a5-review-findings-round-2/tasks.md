@@ -48,26 +48,29 @@
 - [ ] 7.2 三个测试用变体 key 而非字面 `actual=`：`test_voronoi_residual_below_1e_minus_9`、`test_voronoi_angle_one_sided_gap`、`test_voronoi_measurement_layer`（均非本 change 的文件），违反 `CLAUDE.md` §6 第 8 条的失败信息要求。**不碰**，仅记录。
 - [ ] 7.3 wayfinder `req-24/26/29/33` 有闭式但提名 0 个测试且无机检强制。**不碰**，仅记录。
 
-## 8. 归档 —— **已裁定延后，用户裁决 2026-10-03**
+## 8. 归档 —— **已完成（2026-10-03）**
 
-用户裁定：**不归档**，等并行 session 修好它的检测器后再归档。本 change 保持
-`openspec/changes/` 下的未归档状态。
+起初因并行 session 的 `pointer_scan` 自指测试红而延后（用户裁决：等其修好检测器）。
+该 session 在 `42d161b` 修好后门禁转 7/7 全绿，延后条件消失，遂继续归档。
 
-**延后原因**：`run_gates.py` 7 项门禁中 6 项 PASS，唯一红是
-`tests/test_pointer_scan.py::test_product_tree_has_zero_actionable_pointers`
-（43 条 actionable pointer，全部落在 `scripts/pointer_scan.py` 自己的 docstring——
-该 docstring 引用了它要检测的字面例）。这两个文件属并行 session，已在 HEAD
-`d0b0705` 提交且工作树干净；在 HEAD 的 detached worktree 上复现到 45 条，证明与本
-change 无关。归档前置条件是 `exit 0`，强行归档会让 `CLAUDE.md` §3 的前置条件形同
-虚设，且下一次归档事故将无法与「明知为红仍归档」区分。
+**归档过程实测**：
 
-- [x] 8.1 门禁现状已实测并记录（6/7 PASS，红项与归因见上）
-- [ ] 8.2 写 anchor 账本 —— **归档前才做**，本轮未执行，故保持未勾选
-      （`python scripts/run_gates.py anchor-ledger --change <name> --write`）
-- [ ] 8.3 归档后比对账本，手术式补回被吞 anchor（**禁止重跑 archive**）
-- [ ] 8.4 `python scripts/run_gates.py --change <name>` 全绿
-- [ ] 8.5 归档后独立复核（需非实现者）
+- [x] 8.1 写 anchor 账本（68 anchor，3 capability，`expect_new` 自动派生为
+      `['req-gov-10', 'req-gov-11']`）
+- [x] 8.2 归档前门禁 `GATE OK`（7/7，稳定工作树）
+- [x] 8.3 **归档再次吞掉 anchor**（第四次复现）：`req-gov-10` 的正文落地而
+      `<a id="req-gov-10"></a>` 被吞。**未重跑 archive**，按协议手术式字节级补回。
+- [x] 8.4 账本比对发现**本工具自身的新缺陷**：`--verify` 把 change 有意 REMOVE 掉的
+      anchor 报成 LOST，并给出"手术式补回"指令——而补回一个被刻意删除的
+      Requirement 的 anchor 本身就是错的。已修（新增 `removed_anchors()`，分列
+      `removed` 与 `lost`），并补 3 项测试（含"不得因此漏报真实丢失"与
+      "按 (capability, id) 定位"两条反向守卫）。见 design D8。
+- [x] 8.5 归档后账本复核：`OK (69 anchor(s) intact, 2 declared-new present,
+      1 deliberate removal(s))`
+- [x] 8.6 归档后门禁全绿
+- [ ] 8.7 归档后独立复核（需非实现者）—— 本轮由实施者自查替代，**未做独立复核**，
+      仍是已知缺口
 
-> 前一版本把 8.1「写 anchor 账本」打了 `[x]`，但本轮并未真的写过任何账本文件——
-> 该勾选是假的，已按实测更正。一个打了勾但没做过的步骤，比一个明确未勾选的步骤
-> 危险得多：前者会让读者以为归档前置已就绪。
+> 前一版本把「写 anchor 账本」打了 `[x]` 却并未真的写过任何账本文件——该勾选是假的，
+> 已按实测更正。一个打了勾但没做过的步骤，比一个明确未勾选的步骤危险得多：前者会让
+> 读者以为归档前置已就绪。

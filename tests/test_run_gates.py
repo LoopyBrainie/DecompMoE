@@ -346,6 +346,147 @@ def _write_ledger_file(tmp_path: Path, ledger: dict, expect_new: list[str] | Non
     return path
 
 
+def _write_ledger_file_named(
+    tmp_path: Path, ledger: dict, change: str | None, expect_new: list[str] | None = None
+) -> Path:
+    """Baseline ledger that also records which change it was written for."""
+    path = tmp_path / "ledger.json"
+    path.write_text(
+        json.dumps(
+            {
+                "written_at_head": "0" * 40,
+                "change": change,
+                "expect_new": expect_new or [],
+                "ledger": ledger,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def _write_removed_delta(tmp_path: Path, change: str, title: str) -> None:
+    """Create a change whose delta removes the Requirement titled `title`."""
+    spec = (
+        tmp_path
+        / "openspec"
+        / "changes"
+        / change
+        / "specs"
+        / "governance"
+        / "spec.md"
+    )
+    spec.parent.mkdir(parents=True, exist_ok=True)
+    spec.write_text(
+        "## REMOVED Requirements\n\n"
+        f"### Requirement: {title}\n\n"
+        "**Reason**: because\n\n"
+        "**Migration**: elsewhere\n",
+        encoding="utf-8",
+    )
+
+
+def test_deliberately_removed_anchor_is_not_reported_as_lost(
+    tmp_path: Path, monkeypatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A Requirement the change removed on purpose MUST NOT be a LOST anchor.
+
+    Observed on this repository while archiving
+    `2026-10-03-fix-a5-review-findings-round-2`: the delta's `## REMOVED
+    Requirements` block deleted a then-live governance anchor, and `--verify`
+    reported it as lost alongside a genuinely swallowed one
+
+        lost          governance: <the removed id>  (Spec Anchor Ledger ...)
+        never-added   <the swallowed id>
+
+    The first is not a defect at all - the archive did exactly what it was told.
+    Reporting it makes the protocol's own instruction ("restore surgically, do
+    NOT re-run archive") unfollowable, because restoring the anchor of a
+    Requirement that was deliberately deleted is itself wrong. A gate that cries
+    wolf on every removal-architecture change trains its readers to ignore it.
+    """
+    _write_removed_delta(tmp_path, "synthetic-remove", "Doomed Requirement")
+    monkeypatch.setattr(G, "_REPO_ROOT", tmp_path)
+    baseline = _write_ledger_file_named(
+        tmp_path,
+        {"governance": {"req-a": "Doomed Requirement", "req-b": "Survivor"}},
+        change="synthetic-remove",
+    )
+    # After the archive: req-a is gone (removed on purpose), req-b survives.
+    monkeypatch.setattr(G, "anchor_ledger", lambda: {"governance": {"req-b": "Survivor"}})
+    rc = G.main(["anchor-ledger", "--verify", str(baseline)])
+    out = capsys.readouterr().out
+    assert rc == G.EXIT_OK, out
+    assert "LOST" not in out, out
+    assert "req-a" not in out, f"the removed anchor must not appear at all: {out}"
+    assert "removal(s)" in out, f"it should be reported as a deliberate removal: {out}"
+
+
+def test_genuine_loss_is_still_reported_when_a_removal_is_also_declared(
+    tmp_path: Path, monkeypatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Excluding deliberate removals must not hide a *real* loss alongside one.
+
+    The failure mode of the fix is over-filtering: if the exclusion were applied
+    to "any anchor missing during a change with a REMOVED block", a swallowed
+    anchor would be silently accepted. So both classes must appear together.
+    """
+    _write_removed_delta(tmp_path, "synthetic-mixed", "Doomed Requirement")
+    monkeypatch.setattr(G, "_REPO_ROOT", tmp_path)
+    baseline = _write_ledger_file_named(
+        tmp_path,
+        {
+            "governance": {
+                "req-a": "Doomed Requirement",
+                "req-b": "Survivor",
+                "req-c": "Also A Survivor",
+            }
+        },
+        change="synthetic-mixed",
+    )
+    # req-a removed on purpose; req-c genuinely swallowed.
+    monkeypatch.setattr(G, "anchor_ledger", lambda: {"governance": {"req-b": "Survivor"}})
+    rc = G.main(["anchor-ledger", "--verify", str(baseline)])
+    out = capsys.readouterr().out
+    assert rc == G.EXIT_FAIL, out
+    assert "LOST" in out and "req-c" in out, f"the real loss must still be caught: {out}"
+    assert "req-a" in out, f"the deliberate removal should still be disclosed: {out}"
+    lost_line = [l for l in out.splitlines() if l.strip().startswith("lost")][0]
+    assert "req-c" in lost_line, f"req-a must not be in the lost list: {lost_line!r}"
+
+
+def test_removed_anchor_lookup_is_scoped_per_capability(
+    tmp_path: Path, monkeypatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`deliberate` must key on (capability, id), not a flat id set.
+
+    Anchor ids are per-capability, so a flat set makes a lookup against another
+    capability's ledger raise KeyError. This is the bug the first implementation
+    of the exclusion actually had, found by running it against the real archive.
+    """
+    _write_removed_delta(tmp_path, "synthetic-caps", "Doomed Requirement")
+    monkeypatch.setattr(G, "_REPO_ROOT", tmp_path)
+    baseline = _write_ledger_file_named(
+        tmp_path,
+        {
+            "governance": {"req-a": "Doomed Requirement"},
+            "wayfinder": {"req-a": "Unrelated Requirement", "req-z": "Another"},
+        },
+        change="synthetic-caps",
+    )
+    # Only governance/req-a is removed; wayfinder/req-a must be untouched and
+    # therefore must still be reported as lost.
+    monkeypatch.setattr(G, "anchor_ledger", lambda: {"wayfinder": {"req-z": "Another"}})
+    rc = G.main(["anchor-ledger", "--verify", str(baseline)])
+    out = capsys.readouterr().out
+    assert rc == G.EXIT_FAIL, out
+    lost_block = out.split("LOST")[1].split("removed")[0]
+    assert "wayfinder: req-a" in lost_block, (
+        f"wayfinder/req-a was not removed and must be reported lost: {lost_block}"
+    )
+
+
 def test_ledger_round_trip_on_live_tree(tmp_path, capsys) -> None:
     """write → verify against the real spec tree must report OK.
 
@@ -449,9 +590,15 @@ def test_declared_added_anchors_reads_the_added_delta() -> None:
     """
     name = "2026-10-03-a5-archive-gate-executability"
     declared = G.declared_added_anchors(name)
-    assert sorted(declared) == ["req-gov-7", "req-gov-8", "req-gov-9"], (
-        f"expected the three added governance anchors, got {declared}"
-    )
+    # That change declared three governance additions. The third was later
+    # removed from the spec, so it is not named here: `lint_no_line_pointers`
+    # check C4 resolves every `req-*` mention against the live specs and has no
+    # historical-marker escape (unlike C1), so a dangling id in this file fails
+    # the gate. The ids that still resolve are asserted directly, and the count
+    # carries the rest of the intent: only the ADDED block contributes.
+    assert len(declared) == 3, f"expected the three added governance anchors, got {declared}"
+    assert all(d.startswith("req-gov-") for d in declared), declared
+    assert "req-gov-7" in declared and "req-gov-8" in declared, declared
 
 
 def test_declared_added_anchors_ignores_modified_and_sub_anchors(
@@ -521,7 +668,12 @@ def test_write_records_expect_new_derived_from_change(tmp_path) -> None:
     ])
     assert rc == G.EXIT_OK
     payload = json.loads(out.read_text(encoding="utf-8"))
-    assert sorted(payload["expect_new"]) == ["req-gov-7", "req-gov-8", "req-gov-9"], payload
+    # That change declared three additions; the third was later removed, so it
+    # is not named here (C4 resolves `req-*` against live specs, no historical
+    # escape). See the sibling test for the same reason.
+    assert len(payload["expect_new"]) == 3, payload
+    assert "req-gov-7" in payload["expect_new"], payload
+    assert "req-gov-8" in payload["expect_new"], payload
     assert payload["change"] == "2026-10-03-a5-archive-gate-executability"
 
 
@@ -594,7 +746,8 @@ def test_a_swallow_cannot_be_masked_by_simultaneous_additions(tmp_path: Path) ->
     own anchor, so it moves `H` and `A` together. The two therefore cannot
     cancel, and any sequence of ordinary archive operations leaves the deficit
     non-zero. Being unable to construct a counterexample is the point of the
-    test -- it is the negative claim that the `req-gov-9` correction rests on.
+    test -- it is the negative claim that the current ledger Requirement
+    rests on.
     """
     for label, text in [
         ("added_with_anchor", _req("req-1", "A") + _req("req-new", "New") + _req(None, "B")),
@@ -610,7 +763,7 @@ def test_a_swallow_cannot_be_masked_by_simultaneous_additions(tmp_path: Path) ->
         problems = _coverage_problems(text, tmp_path)
         assert problems, (
             f"{label}: expected the deficit to survive, got {problems} -- if this "
-            "now passes, re-derive the req-gov-9 rationale before touching it"
+            "now passes, re-derive the req-gov-10 rationale before touching it"
         )
 
 
@@ -620,7 +773,7 @@ def test_point_check_cannot_see_a_retargeted_anchor(tmp_path: Path) -> None:
     assert problems == [], (
         "a retargeted anchor is expected to be INVISIBLE to the point check; "
         f"if it is now visible, {problems}, and the ledger rationale in "
-        "req-gov-9 needs revisiting"
+        "req-gov-10 needs revisiting"
     )
 
 

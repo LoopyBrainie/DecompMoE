@@ -369,6 +369,51 @@ def declared_added_anchors(change_name: str) -> list[str]:
     return declared
 
 
+def removed_anchors(change_name: str) -> set[str]:
+    """Return the anchor ids a change's delta declares it will REMOVE.
+
+    A `## REMOVED Requirements` block has no anchor of its own -- the block is
+    `### Requirement: <title>` plus Reason and Migration -- so the id has to be
+    recovered by matching the title against the *baseline* ledger. Passing the
+    title straight back to `--verify` would be circular: the ledger exists to
+    report what the archive actually did, not to re-assert what the delta asked
+    for.
+
+    Without this, the first change that removes a Requirement produces a
+    permanent false `LOST` report, and the protocol's own instruction --
+    "restore surgically, do NOT re-run archive" -- becomes unfollowable, because
+    restoring the anchor of a Requirement that was deliberately deleted is
+    wrong. Observed on this repository: archiving
+    `2026-10-03-fix-a5-review-findings-round-2` reported
+    `lost governance: req-gov-9` for a Requirement the same archive had just
+    removed on purpose.
+    """
+    titles: set[str] = set()
+    for base in (
+        _REPO_ROOT / "openspec" / "changes" / change_name,
+        _REPO_ROOT / "openspec" / "changes" / "archive" / change_name,
+    ):
+        specs_dir = base / "specs"
+        if not specs_dir.is_dir():
+            continue
+        for spec in sorted(specs_dir.glob(f"*/{SPEC_FILENAME}")):
+            lines = spec.read_text(encoding="utf-8").splitlines()
+            lo = hi = None
+            for i, line in enumerate(lines):
+                if line.startswith("## "):
+                    if lo is not None and line.strip() == "## ADDED Requirements":
+                        hi = i
+                    if lo is None and line.strip() == "## REMOVED Requirements":
+                        lo = i
+            if lo is None:
+                continue
+            for line in lines[lo : hi if hi is not None else len(lines)]:
+                m = _REQUIREMENT_RE.match(line)
+                if m:
+                    titles.add(m.group(1).strip())
+    return titles
+
+
 def cmd_anchor_ledger(args: argparse.Namespace) -> int:
     """`anchor-ledger --write` / `--verify`."""
     if args.write:
@@ -408,9 +453,31 @@ def cmd_anchor_ledger(args: argparse.Namespace) -> int:
         after = anchor_ledger()
 
         lost: list[str] = []
+        # An anchor the change deliberately removed is *supposed* to vanish, so
+        # it is excluded from `lost` and reported separately. Keeping it in
+        # would make every removal-architecture change emit a false
+        # "restore surgically" instruction forever.
+        #
+        # The set holds (capability, anchor_id) pairs, not bare ids: anchor ids
+        # are per-capability, and a flat id set makes a lookup against the wrong
+        # capability's ledger raise KeyError.
+        removed_titles = (
+            removed_anchors(baseline["change"]) if baseline.get("change") else set()
+        )
+        deliberate = {
+            (capability, anchor_id)
+            for capability, entries in before.items()
+            for anchor_id, title in entries.items()
+            if title in removed_titles
+        }
+        expected_removals = sorted(
+            f"{cap}: {aid} ({before[cap][aid]})" for cap, aid in deliberate
+        )
         for capability, entries in sorted(before.items()):
             now = after.get(capability, {})
             for anchor_id, title in sorted(entries.items()):
+                if (capability, anchor_id) in deliberate:
+                    continue
                 if anchor_id not in now:
                     lost.append(f"{capability}: {anchor_id} ({title})")
                 elif now[anchor_id] != title:
@@ -428,9 +495,12 @@ def cmd_anchor_ledger(args: argparse.Namespace) -> int:
 
         if not lost and not never_added:
             total = sum(len(v) for v in after.values())
+            note = (
+                f", {len(deliberate)} deliberate removal(s)" if deliberate else ""
+            )
             print(
                 f"anchor-ledger: OK ({total} anchor(s) intact, "
-                f"{len(expect_new)} declared-new anchor(s) present)"
+                f"{len(expect_new)} declared-new anchor(s) present{note})"
             )
             return EXIT_OK
 
@@ -438,6 +508,13 @@ def cmd_anchor_ledger(args: argparse.Namespace) -> int:
             print(f"anchor-ledger: {len(lost)} LOST anchor(s) — restore surgically, do NOT re-run archive:")
             for item in lost:
                 print(f"  lost          {item}")
+        if expected_removals:
+            print(
+                f"anchor-ledger: {len(expected_removals)} anchor(s) removed on purpose "
+                f"by this change's ## REMOVED block (not a loss):"
+            )
+            for item in expected_removals:
+                print(f"  removed       {item}")
         if never_added:
             print(f"anchor-ledger: {len(never_added)} NEVER-ADDED anchor(s) — declared by the change but absent:")
             for item in never_added:
