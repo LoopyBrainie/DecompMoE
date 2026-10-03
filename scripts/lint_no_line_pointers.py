@@ -194,7 +194,7 @@ def has_historical_marker(text: str) -> bool:
     the very annotation template that line documents. One implementation, one
     behaviour.
     """
-    return _ps._exempt(text) != ""
+    return _ps.has_marker_anywhere(text)
 
 
 def classify_pointer(line: str) -> tuple[list[int], bool] | None:

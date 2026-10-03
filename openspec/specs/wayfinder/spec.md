@@ -804,7 +804,7 @@ The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **singl
 - **THEN** the returned tensor has shape `(d_c,)` or `(d_model · d_ffn,)` (single expert), NOT `(N_e,)` (whole routing distribution)
 
 #### Scenario: perturbation accepts history-stacked (T, ..., N_e) f_per_expert
-- **WHEN** `resurrection_perturb_distribution(f_per_expert, target_idx=3, eps_std=0.05, dim=16)` is called with `f_per_expert.shape == (T, ..., N_e)` (e.g. `(100, N_e)` history stacked by `metrics.UR` per `src/decompmoe/metrics.py:83`)
+- **WHEN** `resurrection_perturb_distribution(f_per_expert, target_idx=3, eps_std=0.05, dim=16)` is called with `f_per_expert.shape == (T, ..., N_e)` (e.g. `(100, N_e)` history stacked by `metrics.UR` per `src/decompmoe/metrics.py::UR`)
 - **THEN** the returned tensor has shape `(d_c,)` or `(d_model · d_ffn,)` (single expert), NOT `(N_e,)` (whole routing distribution)
 
 #### Scenario: perturbation rejects 0-D scalar f_per_expert
@@ -895,7 +895,7 @@ The rules are content-based (not line-number based) so they survive spec edits w
 - **WHEN** a `**Source:**` line's primary reverse-link is backtick-wrapped as the first top-level item, and a parenthetical annotation immediately following the primary contains a ticket reference (e.g. a `supersedes` or `compare with` clause)
 - **THEN** the annotation's ticket reference MUST be written as a bare ticket ID (e.g. `A6a-2.md`), NOT as a backtick-prefixed full path (e.g. `` `wayfinder/tickets/A6a-2.md` ``)
 - **AND** the reason is: a bare full-path reference inside a paren annotation would (under the strict reading of check ② "every occurrence of the per-capability required primary reverse-link substring MUST appear inside a backtick-delimited code span") trigger an `unbackticked reverse-link` violation on the secondary occurrence — because `wayfinder/tickets/` is a substring prefix that appears in any full-path ticket reference
-- **AND** the canonical live example is `openspec/specs/wayfinder/spec.md` L251: ``**Source:** `wayfinder/tickets/A6a-2.md` (historical, threshold `1/128`), change `fix-openspec-doc-bugs` design.md (Decision 7 — threshold superseded by `1/(2·N_e)`)`` — the paren annotation uses bare `1/128` (the value), bare `1/(2·N_e)` (the superseding formula), and bare ticket IDs in change-decision clauses; it MUST NOT use `` `wayfinder/tickets/...` `` in any non-first-item paren annotation
+- **AND** the canonical live example is `openspec/specs/wayfinder/spec.md` `req-13` 的 `**Source:**` 字段: ``**Source:** `wayfinder/tickets/A6a-2.md` (historical, threshold `1/128`), change `fix-openspec-doc-bugs` design.md (Decision 7 — threshold superseded by `1/(2·N_e)`)`` — the paren annotation uses bare `1/128` (the value), bare `1/(2·N_e)` (the superseding formula), and bare ticket IDs in change-decision clauses; it MUST NOT use `` `wayfinder/tickets/...` `` in any non-first-item paren annotation
 - **AND** the scenario is verified by `tests/test_lint_no_source_field_drift.py::test_first_item_is_primary_with_historical_annotation`
 
 #### Scenario: tokenizer handles single-backtick code spans only

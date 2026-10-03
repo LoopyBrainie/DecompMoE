@@ -266,6 +266,164 @@ def test_gate_and_census_exclude_the_same_files():
         "the gate and the census disagree about which files are exempt"
 
     for rel in ("scripts/pointer_scan.py", "tests/test_pointer_scan.py",
-                "scripts/lint_no_line_pointers.py"):
-        assert rel in ps.SELF_EXCLUDE, \
+                "scripts/lint_no_line_pointers.py", "scripts/lint_pointer_detector.py"):
+        assert ps.in_scope([rel]) == [], \
             "%s spells out pointer forms by construction" % rel
+
+    # The entries are PREFIXES, so a lint added later is covered without a
+    # second edit here. Exact-membership assertions passed while the list
+    # still named files one at a time, which is how the new lint would have
+    # ended up reporting its own POSITIVES fixtures as live pointers.
+    assert "scripts/lint_" in ps.SELF_EXCLUDE
+
+
+# ---------------------------------------------------------------------------
+# Round 3: the EXEMPTION was the defect, not just the detection.
+#
+# The previous round proved the detector could FIND a blind-spot class. This
+# round was about the other half: a live pointer that the detector found and
+# then threw away. A detector that reports a site and exempts it by a rule
+# keyed to the wrong unit of text produces a clean gate over a dirty tree --
+# which is precisely the false green this repository already paid for once.
+# ---------------------------------------------------------------------------
+
+
+def test_code_span_mask_marks_the_content_not_just_the_delimiters():
+    """The first version of the mask marked the backticks and nothing between."""
+    line = "a " + BT + "historical, x" + BT + " b"
+    mask = ps.code_span_mask(line)
+    i = line.index("historical")
+    assert mask[i] == 1, "code-span content must be masked"
+    assert mask[line.index("a")] == 0, "prose before the span must not be"
+
+
+def test_code_span_mask_handles_a_double_backtick_span():
+    """Four backticks make the parity even, so the contents read as OUTSIDE.
+
+    That is how the word ``historical`` inside a quoted annotation example
+    came to act as a real marker.
+    """
+    line = "see " + BT + BT + "src.md L251: (historical, 1/128)" + BT + BT + " end"
+    mask = ps.code_span_mask(line)
+    i = line.index("historical")
+    assert mask[i] == 1, "a double-backtick span is still a code span"
+    assert not ps.has_marker_anywhere(line)
+
+
+def test_marker_far_from_the_locator_does_not_exempt_it():
+    """Exemption is per locator. One marker in one clause of a 2000-character
+    Source field used to exempt every other locator on that line."""
+    line = ("**Source:** " + BT + "CLAUDE.md" + BT + " \u00a73; "
+            + BT + "ticket.md" + BT + " historical \u539f " + BT + "1/128" + BT
+            + " vs spec, the boundary now uses " + BT
+            + "src/decompmoe/safeguards.py:34-36" + BT)
+    sites = ps.scan_line("c.md", 94, line)
+    assert sites, "not detected at all"
+    assert any(not s.historical for s in sites), \
+        "a marker 200+ characters away still exempted the live pointer"
+
+
+def test_adjacent_marker_still_exempts():
+    """The tightening must not over-correct into 'never exempt'."""
+    line = "- per " + BT + "wayfinder/spec.md" + BT + " L413, before the change"
+    assert any(s.historical for s in ps.scan_line("g.md", 1, line))
+
+
+def test_canonical_ticket_annotation_is_still_exempt():
+    """``(historical, X; superseded by spec req-N L###)`` is ONE annotation.
+
+    Treating ``;`` as a clause boundary cut the marker off from the locator
+    it annotates, and nine historical annotations were reported as live.
+    """
+    line = ("- lambda_j eigenvalue  "
+            "*(historical, centered-covariance reading; superseded by spec "
+            "req-20 L453 uncentered second moment via " + BT
+            + "fix-openspec-doc-bugs" + BT + " design.md Decision 8)*")
+    assert any(s.historical for s in ps.scan_line("a.md", 70, line)), \
+        "the repository's own annotation format stopped being recognised"
+
+
+def test_marker_at_the_window_edge_is_recognised_whole():
+    """The window bounds where a marker may START, and is read with a tail.
+
+    Truncating the text first turned ``**pre-edit**`` into ``**pre``, which
+    no pattern can match, and left the line actionable for no stated reason.
+    """
+    line = ("> **Note**: The " + BT + "LOOPS.md" + BT
+            + " line ranges (L64-69, L118-122) reference **pre-edit**"
+            + " positions; post this change the sections shift")
+    assert any(s.historical for s in ps.scan_line("g.md", 135, line))
+
+
+def test_technical_noun_history_does_not_exempt():
+    """``history`` is a topic word, not a past-state claim.
+
+    ``\\bhistor\\w*`` accepted it, so ``history stacked by metrics.UR per
+    src/decompmoe/metrics.py:83`` -- a pointer to the CURRENT docstring --
+    exempted itself.
+    """
+    line = ("is called with (e.g. " + BT + "(100, N_e)" + BT
+            + " history stacked by " + BT + "metrics.UR" + BT + " per " + BT
+            + "src/decompmoe/metrics.py:83" + BT + ")")
+    sites = ps.scan_line("w.md", 807, line)
+    assert sites, "not detected at all"
+    assert all(not s.historical for s in sites), \
+        "the technical noun 'history' exempted a live pointer"
+
+
+def test_pinned_commit_exempts_even_inside_backticks():
+    """``at commit `d3689a1``` is an explicit pin; the backticks are
+    formatting, not quotation."""
+    line = ("signature mirrors " + BT + "src/decompmoe/safeguards.py:71-80" + BT
+            + " at commit " + BT + "d3689a1" + BT)
+    assert any(s.historical for s in ps.scan_line("s.md", 261, line))
+
+
+def test_reversed_order_site_has_a_usable_span():
+    """``cm`` is matched inside the tail, so its offsets are tail-relative.
+
+    Slicing with the bare ``cm.end()`` produced an empty ``detail`` and a
+    span of ``(start, 9)``, which then fed a window that could not contain
+    any marker -- so the site was never exempt and never localisable.
+    """
+    line = "verdict-LOW (L1798); " + BT + "LOOPS.md" + BT + " L64-69 (section)"
+    sites = [s for s in ps.scan_line("g.md", 133, line)
+             if s.kind == "L-then-capability"]
+    assert sites, "site not produced"
+    s = sites[0]
+    assert s.detail, "detail came back empty"
+    lo, hi = s.pos
+    assert lo < hi, "span is inverted: %r" % (s.pos,)
+    assert line[lo:hi] == s.detail, "span does not delimit the detail"
+
+
+def test_tracked_file_census_covers_every_extension_the_grammar_names():
+    """The census globbed ``*.md``/``*.py`` while the regexes accept ten
+    more extensions, so a pointer in a ``.yaml`` was unreportable."""
+    canonical = tuple(ps.EXT.removeprefix("(?:").removesuffix(")").split("|"))
+    assert ps.EXT_EXTENSIONS == canonical, \
+        "the list and the grammar disagree: %r vs %r" % (
+            ps.EXT_EXTENSIONS, canonical)
+    assert "ini" in ps.EXT_EXTENSIONS and "in" not in ps.EXT_EXTENSIONS, \
+        "the extension list was sliced, not derived from the group"
+    assert {"md", "py", "yaml", "yml", "json", "toml", "txt", "sh", "ps1",
+            "cfg", "ini"} <= set(ps.EXT_EXTENSIONS)
+
+
+def test_scan_commit_reads_a_revision_without_a_worktree():
+    """The baseline check must not depend on a materialised tree existing.
+
+    The previous harness used a hardcoded absolute path and printed SKIP when
+    it was absent, so the one check that proved the detector is not vacuous
+    at scale stopped running without anything going red.
+    """
+    import subprocess
+    rev = subprocess.run(
+        ["git", "-C", str(_SCRIPTS.parents[0]), "rev-parse", "--verify",
+         "1526b98^{commit}"], capture_output=True, text=True)
+    assert rev.returncode == 0, "baseline revision is missing: %s" % rev.stderr
+    found = ps.scan_commit(_SCRIPTS.parents[0], "1526b98")
+    strong = [s for s in found if not s.historical and not s.weak]
+    assert len(strong) >= 100, \
+        "only %d strong sites on the baseline -- the detector is too narrow" \
+        % len(strong)

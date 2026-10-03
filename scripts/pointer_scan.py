@@ -62,6 +62,14 @@ RE_COMMIT = re.compile(r"\b[0-9a-f]{7,40}\b")
 
 EXT = r"(?:md|py|yaml|yml|json|toml|txt|sh|ps1|cfg|ini)"
 
+#: The same extension set as a list, so the file census and the pointer
+#: grammar can never disagree about what is scannable. Derived by stripping
+#: the group delimiters, not by slicing: ``EXT[3:-2]`` silently turned ``ini``
+#: into ``in`` and the census globbed a file type that does not exist.
+EXT_EXTENSIONS = tuple(
+    EXT.removeprefix("(?:").removesuffix(")").split("|")
+)
+
 #: A path reference: one or more path segments ending in a known extension.
 #: The lookbehind forbids a preceding WORD character only. A backtick is
 #: deliberately allowed: in ``` `wayfinder/tickets/A8-2.md` L70 ``` the
@@ -187,15 +195,35 @@ RE_BRIDGE = re.compile(
 # Historical markers
 # --------------------------------------------------------------------------
 #
-# A marker exempts a line only when it marks a *specific recorded past state*.
-# ``HISTORICAL_MARKERS`` deliberately excludes bare ``historical`` and the
-# arrow glyph: the previous revision included them, which made
-# ``governance/spec.md`` self-exemptify on the word ``historical`` occurring
-# inside the very annotation template that the line documents.
+# A marker exempts a locator only when it asserts a PAST STATE of the thing
+# being pointed at. The test each entry has to pass: could this token appear
+# in ordinary present-tense technical prose?
+#
+# Two revisions got this wrong in opposite directions.
+#
+#   ``\bhistor\w*`` accepted the technical NOUN ``history``, so the phrase
+#   ``history stacked by metrics.UR per src/decompmoe/metrics.py:83`` -- a
+#   pointer to the CURRENT docstring -- exempted itself.
+#
+#   The set was also too small: the repository's own canonical annotation
+#   ``(historical, <value>; superseded by spec req-N L### via <change>)`` was
+#   split at its ``;`` and then matched on nothing, so nine legitimate
+#   historical annotations were reported as live pointers.
+#
+# The rule that resolves both: a marker is a past-state ASSERTION. Adjectives
+# and participles qualify (``historical``, ``historically``, ``superseded``,
+# ``formerly``, ``pre-edit``); a bare noun (``history``) does not.
 
 HISTORICAL_MARKERS = (
-    re.compile(r"\bpre-this-change\b", re.IGNORECASE),
-    re.compile(r"\bhistor\w*", re.IGNORECASE),
+    # ``pre-this-change`` / ``pre-migration`` / ``pre-edit`` / ``pre-sweep``
+    re.compile(r"\bpre-(?:this-change|migration|edit|sweep|rebaseline)\b",
+               re.IGNORECASE),
+    # adjective and adverb only -- the bare noun ``history`` is a topic word,
+    # not a past-state claim
+    re.compile(r"\bhistor(?:ical|ically)\b", re.IGNORECASE),
+    re.compile(r"\bsupersed(?:e|ed|ing)\b", re.IGNORECASE),
+    re.compile(r"\bformer(?:ly)?\b", re.IGNORECASE),
+    re.compile(r"\boriginal(?:ly)?\b", re.IGNORECASE),
     re.compile(r"\u539f", re.IGNORECASE),          # 原
     re.compile(r"\bwas\s+(?=[`\"'(])", re.IGNORECASE),
     re.compile(r"\bbefore\b", re.IGNORECASE),
@@ -207,6 +235,16 @@ HISTORICAL_MARKERS = (
                re.IGNORECASE),
 )
 
+#: A pin commit is a STRUCTURED token, not prose. ``at commit `d3689a1``` is
+#: an explicit statement that the locator is read at that revision, and the
+#: backticks around it are formatting rather than quotation. It is therefore
+#: matched WITHOUT consulting the code-span mask. The hex-letter requirement
+#: above is what keeps a decimal float out.
+RE_PIN_COMMIT = re.compile(
+    r"\bcommit\s+`?(?=[0-9a-f]{7,40}\b)(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}`?",
+    re.IGNORECASE,
+)
+
 
 @dataclass
 class Site:
@@ -215,6 +253,10 @@ class Site:
     kind: str
     detail: str
     text: str
+    #: Half-open character span of the locator inside the RAW line. Exemption
+    #: is decided per site, not per line, so every site must know where it
+    #: sits. ``(-1, -1)`` means "not tracked" and falls back to line scope.
+    pos: tuple = (-1, -1)
     weak: bool = False
     historical: bool = False
     marker: str = ""
@@ -223,24 +265,143 @@ class Site:
     merged: int = 1
 
 
-def _exempt(text: str):
-    """Return the marker that exempts this line, or ``""``.
+#: How far a historical marker may sit from a locator and still exempt it.
+#:
+#: A marker is a clause-level annotation, not a line-level one. The previous
+#: rule exempted the whole LINE if a marker appeared anywhere on it, so on a
+#: 2000-character ``**Source:**`` field a single ``原`` buried in one sub-clause
+#: silently exempted every other locator on the line -- including pointers
+#: that name the CURRENT state of a current file.
+EXEMPT_WINDOW = 40
 
-    A marker inside a code span is a *quoted* token, not a claim about the
-    line. ``governance`` documents the ``(historical, ...)`` annotation format
-    inside backticks; that documentation must not exempt itself.
+#: A marker separated from the locator by one of these is annotating a
+#: DIFFERENT sentence, so it must not carry over.
+#:
+#: ``;`` is deliberately NOT a break. The repository's canonical annotation
+#: ``(historical, <value>; superseded by spec req-N L###)`` is ONE unit split
+#: by a semicolon, and breaking there cut the marker off from the very
+#: locator it is there to annotate -- nine genuine historical annotations were
+#: reported as live pointers. Distance alone carries the separation; the
+#: semicolon is not a clause boundary in this grammar.
+EXEMPT_BREAK = "。\n"
+
+#: Characters read PAST the window so a marker at the very edge is recognised
+#: whole instead of sliced. The window still bounds where a marker may start.
+MARKER_TAIL = 24
+
+
+def code_span_mask(text: str):
+    """Mark every position that lies inside a Markdown code span or a quoted
+    run.
+
+    A code span opens with a run of N backticks and closes with a run of
+    exactly N, and the CONTENT between them is part of the span. The previous
+    implementation counted single backticks and took the parity, which failed
+    twice over: a DOUBLE-backtick span contributes four backticks, so its
+    contents were reported as being OUTSIDE a code span, and even for a single
+    backtick only the delimiters were ever marked, never the text between.
+
+    Both errors point the same way -- a token in backticks is a quotation, not
+    a claim about the line, and must not act as a historical marker. That is
+    how the word ``historical`` inside a quoted annotation example came to hide
+    a live pointer 84 lines out of date.
     """
+    mask = bytearray(len(text))
+    n = len(text)
+    i = 0
+    in_quote = False
+    while i < n:
+        c = text[i]
+        if c == "`":
+            j = i
+            while j < n and text[j] == "`":
+                j += 1
+            run = j - i
+            # find a closing run of exactly the same length
+            k, close = j, -1
+            while k < n:
+                if text[k] == "`":
+                    m = k
+                    while m < n and text[m] == "`":
+                        m += 1
+                    if m - k == run:
+                        close = m
+                        break
+                    k = m
+                else:
+                    k += 1
+            end = close if close >= 0 else j
+            for q in range(i, end):
+                mask[q] = 1
+            i = end
+            continue
+        if c == '"':
+            # The opening quote opens the run, the closing quote does not
+            # belong to it -- this matches the old parity rule exactly.
+            mask[i] = 1 if not in_quote else 0
+            in_quote = not in_quote
+            i += 1
+            continue
+        if in_quote:
+            mask[i] = 1
+        i += 1
+    return mask
+
+
+def has_marker_anywhere(text: str) -> bool:
+    """True when `text` carries a historical marker outside every code span.
+
+    The whole-text question, with no locality requirement. The lint's
+    ``has_historical_marker`` shim is a plain predicate over a sentence and has
+    no locator to measure distance from; the windowed :func:`_exempt` is what
+    decides a real site.
+    """
+    mask = code_span_mask(text)
     for rx in HISTORICAL_MARKERS:
         for m in rx.finditer(text):
-            stripped = _inside_code_span(text, m.start())
-            if not stripped:
+            if not mask[m.start()]:
+                return True
+    return False
+
+
+def _exempt(text: str, start: int, end: int):
+    """Return the marker that exempts THIS locator, or ``""``.
+
+    A marker counts only when it is close to the locator (within
+    ``EXEMPT_WINDOW`` characters, either side), not separated from it by a
+    sentence break, and NOT inside a code span -- a token in backticks is a
+    quotation, not a claim about this line. ``governance`` documents the
+    ``(historical, ...)`` annotation format inside backticks; that
+    documentation must not exempt itself.
+
+    The window bounds where a marker may START. It is read with a tail margin
+    so a marker sitting just outside is still RECOGNISED rather than cut in
+    half: truncating first turned ``**pre-edit**`` into ``**pre``, which no
+    pattern can match, and silently left the line actionable.
+    """
+    if start < 0:
+        start, end = 0, len(text)
+    lo = max(0, start - EXEMPT_WINDOW)
+    hi = min(len(text), end + EXEMPT_WINDOW)
+    raw = text[lo:hi]
+    first_break = min(
+        (i for i, c in enumerate(raw) if c in EXEMPT_BREAK),
+        default=len(raw),
+    )
+    window = text[lo: lo + first_break + MARKER_TAIL]
+    mask = code_span_mask(text)
+
+    def _admissible(abs_start: int) -> bool:
+        return start - EXEMPT_WINDOW <= abs_start <= end + EXEMPT_WINDOW
+
+    m = RE_PIN_COMMIT.search(window)
+    if m and _admissible(lo + m.start()):
+        return m.group(0)
+    for rx in HISTORICAL_MARKERS:
+        for m in rx.finditer(window):
+            if not mask[lo + m.start()] and _admissible(lo + m.start()):
                 return m.group(0)
     return ""
-
-
-def _inside_code_span(text: str, pos: int) -> bool:
-    """True when ``pos`` falls inside a `code span` or a (parenthetical quote)."""
-    return text.count("`", 0, pos) % 2 == 1 or text.count('"', 0, pos) % 2 == 1
 
 
 def _bridge_ok(text: str, ref_end: int, loc_start: int) -> bool:
@@ -267,7 +428,9 @@ def scan_line(rel: str, lineno: int, line: str):
             detail = m.group(0).strip()
             if rx is RE_PATH_L and m.group("loc2"):
                 detail = m.group(0)[: m.start("dash") - m.start(0)].strip() + " ..."
-            sites.append(Site(rel, lineno, kind, detail, line.strip()))
+            sites.append(
+                Site(rel, lineno, kind, detail, line.strip(), (m.start(), m.end()))
+            )
 
     # -- antecedent form: a bare ``:100-101`` whose path was named earlier in
     # the same line. The closing-backtick shorthand is how the skeleton spec
@@ -285,7 +448,7 @@ def scan_line(rel: str, lineno: int, line: str):
                 continue
             sites.append(
                 Site(rel, lineno, "antecedent-colon-line",
-                     m.group(0).strip(), line.strip())
+                     m.group(0).strip(), line.strip(), (m.start(), m.end()))
             )
 
     # -- bare capability word + locator: adjacency REQUIRED ---------------
@@ -296,7 +459,8 @@ def scan_line(rel: str, lineno: int, line: str):
                 continue
             detail = line[cm.start(): lm.end()].strip()
             sites.append(
-                Site(rel, lineno, "capability-L", detail, line.strip())
+                Site(rel, lineno, "capability-L", detail, line.strip(),
+                     (cm.start(), lm.end()))
             )
             break  # one site per capability word is enough
 
@@ -305,9 +469,15 @@ def scan_line(rel: str, lineno: int, line: str):
         tail = line[lm.end():]
         for cm in RE_CAPABILITY.finditer(tail):
             if _bridge_ok(tail, 0, cm.start()):
-                detail = line[lm.start(): cm.end()].strip()
+                # ``cm`` is a match inside ``tail``, so its offsets are
+                # relative to the tail. The absolute end is
+                # ``lm.end() + cm.end()``; slicing with the bare ``cm.end()``
+                # produced an empty detail and a nonsense span.
+                end = lm.end() + cm.end()
+                detail = line[lm.start(): end].strip()
                 sites.append(
-                    Site(rel, lineno, "L-then-capability", detail, line.strip())
+                    Site(rel, lineno, "L-then-capability", detail, line.strip(),
+                         (lm.start(), end))
                 )
                 break
 
@@ -316,11 +486,11 @@ def scan_line(rel: str, lineno: int, line: str):
         for m in RE_WORD_LINE.finditer(line):
             sites.append(
                 Site(rel, lineno, "word-line", m.group(0).strip(),
-                     line.strip(), weak=True)
+                     line.strip(), (m.start(), m.end()), weak=True)
             )
 
     for s in sites:
-        s.marker = _exempt(line)
+        s.marker = _exempt(line, s.pos[0], s.pos[1])
         s.historical = bool(s.marker)
     return sites
 
@@ -342,8 +512,11 @@ def scan_line(rel: str, lineno: int, line: str):
 #: `tests/test_pointer_scan.py` asserts the two agree. The two tools kept
 #: separate copies of this list, they drifted, and the census reported 43
 #: "actionable pointers" that were the detector and its own tests.
+#:
+#: The lint entries are PREFIXES, so a lint added later is covered without
+#: anyone remembering to add it here -- the same drift, one directory over.
 SELF_EXCLUDE = (
-    "scripts/lint_no_line_pointers.py",
+    "scripts/lint_",
     "scripts/pointer_scan.py",
     "tests/test_lint_",
     "tests/test_pointer_scan.py",
@@ -405,17 +578,44 @@ def dedupe(sites):
     return sorted(best.values(), key=lambda s: (s.path, s.line, s.detail))
 
 
-def tracked_files(root: Path):
-    out = subprocess.run(
-        ["git", "ls-files", "*.md", "*.py"],
-        cwd=root, capture_output=True, text=True, encoding="utf-8",
-    ).stdout.splitlines()
+def in_scope(paths):
+    """Drop everything the census is not allowed to report on.
+
+    The single filter used by every entry point -- the worktree scan and the
+    historical-commit scan alike -- so the two can never disagree about the
+    population.
+    """
     return [
-        f for f in out
+        f for f in paths
         if "openspec/changes/archive/" not in f
         and not any(x in f for x in SELF_EXCLUDE)
         and not _is_working_note(f)
     ]
+
+
+def tracked_files(root: Path):
+    """Every tracked file whose extension the pointer grammar can name.
+
+    Derived from :data:`EXT` rather than hardcoded. The previous version globbed
+    ``*.md`` and ``*.py`` only, while the path regexes accept ten more
+    extensions -- so a pointer living in a ``.yaml`` / ``.txt`` / ``.json``
+    file could never be reported, no matter how it was written.
+    """
+    out = subprocess.run(
+        ["git", "ls-files", "--"] + [f"*.{e}" for e in EXT_EXTENSIONS],
+        cwd=root, capture_output=True, text=True, encoding="utf-8",
+    ).stdout.splitlines()
+    return in_scope(out)
+
+
+def _git(root: Path, *args, binary=False):
+    r = subprocess.run(["git", "-C", str(root), *args],
+                       capture_output=True, **({} if binary else
+                                               {"text": True, "encoding": "utf-8"}))
+    if r.returncode != 0:
+        raise RuntimeError("git %s failed: %s"
+                           % (" ".join(args), r.stderr))
+    return r.stdout
 
 
 def scan(root: Path, files=None):
@@ -426,6 +626,30 @@ def scan(root: Path, files=None):
             continue
         text = p.read_text(encoding="utf-8", errors="replace")
         for n, line in enumerate(text.splitlines(), 1):
+            sites.extend(scan_line(rel, n, line))
+    return dedupe(sites)
+
+
+def scan_commit(root: Path, rev: str):
+    """Scan the tree of ``rev`` straight out of the object store.
+
+    Read-only by construction: it never creates a worktree, never touches the
+    index, and leaves nothing behind. The previous harness materialised a
+    baseline with ``git worktree add`` at a HARDCODED absolute path and
+    printed ``SKIP`` when that path was absent -- so the one check that
+    proved the detector is not vacuous at scale silently stopped running the
+    moment the path went away, and the gate stayed green either way.
+    """
+    listing = _git(root, "ls-tree", "-r", "--name-only", rev).splitlines()
+    files = [
+        f for f in in_scope(listing)
+        if Path(f).suffix.lstrip(".") in EXT_EXTENSIONS
+    ]
+    sites = []
+    for rel in files:
+        blob = _git(root, "show", f"{rev}:{rel}", binary=True).decode(
+            "utf-8", errors="replace")
+        for n, line in enumerate(blob.splitlines(), 1):
             sites.extend(scan_line(rel, n, line))
     return dedupe(sites)
 
