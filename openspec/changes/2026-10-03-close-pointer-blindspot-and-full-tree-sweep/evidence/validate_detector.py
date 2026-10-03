@@ -263,13 +263,13 @@ have = {(s.path, s.line) for s in live}
 for rel, ln in REPRO_SURVIVORS:
     check("swept: %s:%d absent" % (rel, ln), (rel, ln) not in have)
 
-# The one deliberate residue: a Scenario heading cannot be renamed inside a
-# MODIFIED block, so req-gov-2 is handled by REMOVE + ADD instead.
-KNOWN_RESIDUE = {("openspec/specs/governance/spec.md", 76)}
-residue = {(s.path, s.line) for s in live_actionable}
-check("only the known Scenario-heading residue remains",
-      residue == KNOWN_RESIDUE,
-      "unexpected: %s" % sorted(residue - KNOWN_RESIDUE))
+# The product tree must be exactly zero. This used to allow a known
+# residue (the governance req-gov-2 Scenario heading) and it is now gone:
+# the same fix table that sweeps the bodies reworded the heading, so the
+# live spec is clean and the delta emits as a plain MODIFIED block.
+check("product tree has zero actionable pointers",
+      len(live_actionable) == 0,
+      "unexpected: %s" % sorted({(s.path, s.line) for s in live_actionable}))
 
 # Not vacuous: the detector must still find the whole class when the class
 # is present. Asserting "zero" on a detector that has stopped matching

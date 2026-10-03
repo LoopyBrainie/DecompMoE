@@ -318,14 +318,30 @@ def scan_line(rel: str, lineno: int, line: str):
     return sites
 
 
-#: Files that describe pointer FORMS rather than containing pointers. The
-#: detector and its tests are self-referential by construction: their
-#: doc-strings and fixtures must spell out ``req-11 L245`` in order to test
-#: for it. Counting them would make the detector unable to ever pass.
+#: Files that describe pointer FORMS rather than containing pointers.
+#:
+#: Two families, for the same reason: a file that has to spell out
+#: ``req-11 L245`` in order to test for it, or a change's own working notes
+#: documenting the defect it is fixing, cannot also be required to be free
+#: of it.
+#:
+#: Under an ACTIVE change, everything except ``specs/`` is a working note.
+#: The ``specs/`` delta IS normative spec text and stays in scope.
 SELF_EXCLUDE = (
     "scripts/lint_no_line_pointers.py",
     "tests/test_lint_",
 )
+
+
+def _is_working_note(rel: str) -> bool:
+    if "openspec/changes/archive/" in rel:
+        return True                      # already excluded upstream
+    if not rel.startswith("openspec/changes/"):
+        return False
+    rest = rel[len("openspec/changes/"):]
+    if "/" not in rest:
+        return False
+    return not rest.split("/", 1)[1].startswith("specs/")
 
 #: When several forms match the same locator on the same line, keep the most
 #: specific. ``wayfinder/spec.md` L83`` is otherwise reported three times
@@ -381,6 +397,7 @@ def tracked_files(root: Path):
         f for f in out
         if "openspec/changes/archive/" not in f
         and not any(x in f for x in SELF_EXCLUDE)
+        and not _is_working_note(f)
     ]
 
 

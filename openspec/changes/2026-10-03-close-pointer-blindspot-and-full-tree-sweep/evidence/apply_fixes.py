@@ -26,6 +26,31 @@ from pointer_fixes import FIXES  # noqa: E402
 ROOT = Path(r"D:\myProject\DecompMoE")
 
 
+def assert_table_is_wellformed():
+    """A malformed row here fails SILENTLY: apply_fixes reads entry[5] as the
+    expected occurrence count, and a stray string in that slot never equals
+    an int, so the row silently takes the 'already applied' branch and does
+    nothing. A swallowed neighbouring row is exactly what happened once
+    while editing this table by hand, so the shape is asserted up front.
+    """
+    bad = []
+    for e in FIXES:
+        if len(e) not in (5, 6):
+            bad.append("row has %d elements: %r" % (len(e), e[:2]))
+            continue
+        # (file:str, line:int, token:str, repl:str, why:str[, count:int])
+        if not isinstance(e[0], str) or not isinstance(e[1], int) \
+                or not all(isinstance(x, str) for x in e[2:5]):
+            bad.append("row %r has the wrong element types: %r"
+                       % (e[:2], [type(x).__name__ for x in e[:5]]))
+        elif len(e) == 6 and not isinstance(e[5], int):
+            bad.append("row %r has a non-int 6th element %r" % (e[:2], e[5]))
+    if bad:
+        raise SystemExit("pointer_fixes.py is malformed:\n  - "
+                         + "\n  - ".join(bad))
+    return len(FIXES)
+
+
 def profile(text: str):
     crlf = text.count("\r\n")
     return {
@@ -39,6 +64,8 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--write", action="store_true")
     args = ap.parse_args()
+
+    n_entries = assert_table_is_wellformed()
 
     by_file = defaultdict(list)
     for entry in FIXES:

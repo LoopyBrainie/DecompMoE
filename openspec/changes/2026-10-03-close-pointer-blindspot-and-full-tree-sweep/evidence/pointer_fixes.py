@@ -108,6 +108,14 @@ FIXES = [
      "path form the old regex could not match"),
 
     # ================= governance ======================================
+    ("openspec/specs/governance/spec.md", 76,
+     "Ticket A8-2 L70 + L74 annotations follow",
+     "Ticket A8-2 supersede annotations follow",
+     "a Scenario HEADING. A MODIFIED block may not rename a Scenario, but "
+     "the live spec is swept by the same table BEFORE the delta is emitted, "
+     "so the validator -- which compares the delta against the current "
+     "spec -- sees matching titles and the special REMOVE+ADD channel is "
+     "not needed."),
     ("openspec/specs/governance/spec.md", 78,
      _("@wayfinder/tickets/A8-2.md@ L70 + L74"),
      _("@wayfinder/tickets/A8-2.md@ supersede annotations"),
