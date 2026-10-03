@@ -1,10 +1,11 @@
 {
   "pin": "6593a06",
-  "head": "2510ea562ca8a640bc9a1e746adf5da7390bb26a",
-  "head_subject": "fix(approx-semantics): apply beta delta on top of alpha, correct the test docstring copy",
+  "head": "1526b98f4eb30517e4a42947f462d9ac32871c6a",
+  "head_subject": "fix(archived-tools): repoint the change's own evidence tools after archiving",
   "supersedes_note": "The first baseline.json asserted 'the integrator fix is NOT committed; HEAD (188b9fb) still carries the PRE-fix _betainc_regularized'. Measured false on three counts: (1) HEAD was f6461d7, not 188b9fb, at the time of that measurement; (2) sphere.py at HEAD carries the full quadrature fix; (3) the three specs are in HEAD, not worktree-carried. Only gating.py was uncommitted. This field is a record of a past measurement and does NOT assert anything about the current HEAD -- read `head` / `head_subject` for that. The prose used to name f6461d7 as if it were still HEAD, which it stopped being once a parallel session committed on top of it; a snapshot is not a fact about the present.",
   "anchor_expectation_as_of": "1afac58 (wayfinder 37), pre-1afac58 for the other two",
   "pin_to_head_commits": [
+    "1526b98 fix(archived-tools): repoint the change's own evidence tools after archiving",
     "2510ea5 fix(approx-semantics): apply beta delta on top of alpha, correct the test docstring copy",
     "16b2f46 fix(provenance): apply alpha delta, restore swallowed anchors, archive the remeasure change",
     "473072e fix(a3-reverdict): derive the anchor-probe control from live git status",
@@ -586,18 +587,6 @@
       "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/tasks.md"
     ],
     "modified_but_uncommitted": [
-      "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_decisive_h1_h2.py",
-      "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_audit_index.py",
-      "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_baseline.py",
-      "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_errata_index.py",
-      "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_ledger.py",
-      "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/check_ledger.py",
-      "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/oracle_recheck.py",
-      "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/parse_findings.py",
-      "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/relocate_tools.py",
-      "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/repoint_root_lines.py",
-      "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/superseded_freetext_scan.py",
-      "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/verify_toolchain.py",
       "src/decompmoe/gating.py",
       "wayfinder/tickets/WF-1.md"
     ],
@@ -614,7 +603,6 @@
       "_numdrift_dbg2.py",
       "_numdrift_dbg3.py",
       "_r2_reconcile.txt",
-      "_repoint_archived_tools.py",
       "_revcheck_impl.py",
       "_revcheck_math.py",
       "_revcheck_refl.py",
@@ -646,6 +634,7 @@
       "_verify_distance_orig.py",
       "_w02_betacross.py",
       "_w02_recheck.py",
+      "openspec/changes/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/",
       "openspec/changes/archive/2026-10-01-audit-errata-a1-numeric-guard-list/"
     ]
   },

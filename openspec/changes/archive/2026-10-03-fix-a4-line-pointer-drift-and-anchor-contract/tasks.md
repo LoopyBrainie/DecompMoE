@@ -85,3 +85,23 @@
 - [x] 9.3 Verify anchor coverage across all three capabilities. Verify: `anchors == Requirement headings` in each, with no duplicate id, and 100% coverage per `CLAUDE.md` §6. Result via `run_gates.py`: 68 anchors across 3 capabilities, PASS. Per capability: wayfinder 36 Requirement anchors + 2 block anchors (`req-20-mci`, `req-20-source`); decompmoe-skeleton 23; governance 6. `evidence/verify_apply.py` re-derives the same counts and additionally asserts that no anchor token survives outside a standalone anchor line.
 - [x] 9.4 Append an Errata section to `.audit/wayfinder-opsx-code-review/lists/opsx-changes.md` recording the A-4 corrections — the 6 zero-based "真实位置" coordinates, the `基线` field being wrong for 14/15 under the file-level reading, and the AC-88 ⊃ AC-34/89/90 plus AC-59/70 duplication. Append only; do not rewrite entries, so the audit trail stays intact. Verify: original entries byte-identical; Errata appended below them. **Result: `## Errata (A-4 段)` appended (+107 lines, 1641 → 1748); the original content is verified to be a byte-identical prefix.** The section is written by `evidence/append_a4_errata.py`, which re-derives every coordinate from git (`evidence/derive_a4_errata.py`) against pin `6593a06` and audit HEAD `188b9fb` rather than restating the list's self-reported fields, and names the rev it measured at. **Three of this change's own earlier claims were corrected in the process**: (a) the `基线` count is **15/15** at `850ed8a`, not 14/15 — it was 14/15 at the apply-phase start, and this change's own sweep commit then touched `config.py`, so a count with no stated basis drifts, which is the very defect being documented; (b) **AC-59 and AC-70 are NOT duplicates** (spec→spec vs spec→code, different targets, `位置` two lines apart) — an earlier review pass registered them as duplicates and that was wrong; (c) AC-88's duplication is invisible to any check comparing whole `origin_ids` field values, because it packs `main44`/`main72`/`main74`/`main77` into one field while AC-34/89/90 carry them singly. Additionally, pin `6593a06` and audit HEAD `188b9fb` are **byte-identical at every probed coordinate** (894 lines each), so part of AC-34's "已漂移" evidence is that base error rather than drift. **Note**: `.audit/` is gitignored (`.gitignore:37`), so the Errata is a local artifact by the repository's own configuration and is not committed; its reproducible derivation lives in this change's tracked `evidence/`.
 - [ ] 9.5 Post-archive independent review by someone other than the implementer: recompute every number in design.md D1 from git, not from this change's evidence files, and re-verify each A-4 item's closure. Verify: reviewer reports their own counts, and any divergence from the census is explained rather than averaged away.
+
+### Archive result (recorded after `openspec archive --skip-specs -y`)
+
+| | |
+|---|---|
+| Archived as | `openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract` |
+| Spec updates | **skipped** — the delta had already been applied during the apply phase, so re-applying it would have refused the `governance` ADDED block and reverted every post-apply fix |
+| Anchors swallowed | **none** — 68 anchors across 3 capabilities before and after; wayfinder holds 38 ids (36 Requirement anchors + `req-20-mci` + `req-20-source`) |
+| Gates after archive | `GATE OK`, exit 0 — 3 lints discovered, `openspec validate --specs --strict` PASS, anchor coverage 68, `326 passed, 1 skipped` |
+
+**Anchor-ledger usage error, recorded rather than quietly corrected.** The
+ledger was written *after* the two block anchors had already been minted, so
+`--expect-new req-20-mci --expect-new req-20-source` had nothing to distinguish
+them from the baseline and the verifier reported both as `never-added`. The
+anchors are present — `wayfinder/spec.md` carries 38 ids including both — so this
+is a usage error in when the ledger was taken, not a spec defect. The ledger's
+purpose is to catch anchors swallowed BY the archive, and `--skip-specs` means
+the archive never touched the spec files; the substantive check is the
+`run_gates.py` anchor-coverage gate, which passes. A ledger taken on the
+pre-change tree would have been the correct input.

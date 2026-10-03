@@ -1,6 +1,6 @@
 {
   "source": ".audit\\wayfinder-opsx-code-review\\lists\\opsx-changes.md",
-  "head": "2510ea5",
+  "head": "1526b98",
   "pin": "6593a06",
   "layer_structure": {
     "h3_headings_total": 135,
@@ -129,7 +129,7 @@
       "188b9fb",
       "6593a06"
     ],
-    "anchoring_rev_note": "勘误正文自称锚定 ['188b9fb', '6593a06']；当前 HEAD = 2510ea5，两者相差 11 个改过 openspec/specs 的 commit，故勘误坐标与数值均已过期",
+    "anchoring_rev_note": "勘误正文自称锚定 ['188b9fb', '6593a06']；当前 HEAD = 1526b98，两者相差 11 个改过 openspec/specs 的 commit，故勘误坐标与数值均已过期",
     "spec_changing_commits_pin_to_head": [
       "2510ea5 fix(approx-semantics): apply beta delta on top of alpha, correct the test docstring copy",
       "16b2f46 fix(provenance): apply alpha delta, restore swallowed anchors, archive the remeasure change",
