@@ -48,9 +48,26 @@
 - [ ] 7.2 三个测试用变体 key 而非字面 `actual=`：`test_voronoi_residual_below_1e_minus_9`、`test_voronoi_angle_one_sided_gap`、`test_voronoi_measurement_layer`（均非本 change 的文件），违反 `CLAUDE.md` §6 第 8 条的失败信息要求。**不碰**，仅记录。
 - [ ] 7.3 wayfinder `req-24/26/29/33` 有闭式但提名 0 个测试且无机检强制。**不碰**，仅记录。
 
-## 8. 归档
+## 8. 归档 —— **已裁定延后，用户裁决 2026-10-03**
 
-- [x] 8.1 写 anchor 账本（归档前）
-- [ ] 8.2 归档后比对账本，手术式补回被吞 anchor（**禁止重跑 archive**）
-- [ ] 8.3 `python scripts/run_gates.py --change <name>` 全绿
-- [ ] 8.4 归档后独立复核（需非实现者）
+用户裁定：**不归档**，等并行 session 修好它的检测器后再归档。本 change 保持
+`openspec/changes/` 下的未归档状态。
+
+**延后原因**：`run_gates.py` 7 项门禁中 6 项 PASS，唯一红是
+`tests/test_pointer_scan.py::test_product_tree_has_zero_actionable_pointers`
+（43 条 actionable pointer，全部落在 `scripts/pointer_scan.py` 自己的 docstring——
+该 docstring 引用了它要检测的字面例）。这两个文件属并行 session，已在 HEAD
+`d0b0705` 提交且工作树干净；在 HEAD 的 detached worktree 上复现到 45 条，证明与本
+change 无关。归档前置条件是 `exit 0`，强行归档会让 `CLAUDE.md` §3 的前置条件形同
+虚设，且下一次归档事故将无法与「明知为红仍归档」区分。
+
+- [x] 8.1 门禁现状已实测并记录（6/7 PASS，红项与归因见上）
+- [ ] 8.2 写 anchor 账本 —— **归档前才做**，本轮未执行，故保持未勾选
+      （`python scripts/run_gates.py anchor-ledger --change <name> --write`）
+- [ ] 8.3 归档后比对账本，手术式补回被吞 anchor（**禁止重跑 archive**）
+- [ ] 8.4 `python scripts/run_gates.py --change <name>` 全绿
+- [ ] 8.5 归档后独立复核（需非实现者）
+
+> 前一版本把 8.1「写 anchor 账本」打了 `[x]`，但本轮并未真的写过任何账本文件——
+> 该勾选是假的，已按实测更正。一个打了勾但没做过的步骤，比一个明确未勾选的步骤
+> 危险得多：前者会让读者以为归档前置已就绪。
