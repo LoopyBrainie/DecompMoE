@@ -72,56 +72,47 @@ import sys
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 
+# C1's detector is shared with the census. `scripts/` is this file's own
+# directory, so a plain import resolves whether the gate is run as a script,
+# from the repo root, or imported by a test.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import pointer_scan as _ps  # noqa: E402
+
 SCAN_ROOTS = ("openspec/specs", "src", "tests")
 SCAN_SUFFIX = (".md", ".py")
 CAPABILITIES = ("wayfinder", "decompmoe-skeleton", "governance")
 
-# The gates' own test suites assert on deliberately malformed text — a C1 test
-# must contain a real line-number reference for there to be anything to assert.
-# Unlike `lint_no_source_field_drift.py`, which does not scan `tests/**` at all
-# and so never met the problem, this gate must scan `tests/**` because 63 of the
-# 97 actionable sites live there. So the exclusion is one rule about one class of
-# file, stated here and pinned by a test, rather than a per-site exemption table:
-# a lint never reports its own fixtures. Nothing else is excluded by this rule.
-SELF_TEST_PATTERNS = ("tests/test_lint_",)
+# The gates' own test suites assert on deliberately malformed text — a C1
+# test must contain a real line-number reference for there to be anything to
+# assert. Unlike `lint_no_source_field_drift.py`, which does not scan
+# `tests/**` at all and so never met the problem, this gate must scan
+# `tests/**`. So the exclusion is one rule about one class of file, stated
+# here and pinned by a test, rather than a per-site exemption table:
+# a lint never reports its own fixtures. The check is applied inside C1 and
+# C4, not only during discovery, so it holds however the paths are spelled.
+SELF_TEST_PATTERNS = ("tests/test_lint_", "tests/test_pointer_scan.py")
 
 # --- C1 detector -------------------------------------------------------------
-# `L2-step2` / `L4-postmean` name a layer or a step, never a line.
-RE_LABEL_L = re.compile(r"\bL\d{1,4}-")
-RE_FILE_L = re.compile(r"([A-Za-z_][\w/]*\.py):(\d{1,4})")
-
-_POINTER_FORMS = (
-    # <capability> [spec] L123   /   <capability> L123-L130
-    re.compile(
-        r"\b(wayfinder|skeleton|decompmoe-skeleton|spec)\s+(?:spec\s+)?L?(\d{1,4})"
-        r"(?:\s*[-–]\s*L?(\d{1,4}))?",
-        re.IGNORECASE,
-    ),
-    # req-11 L245   /   Req 20 L394
-    re.compile(r"\b(?:req-(\d+)|Req\.?\s*(\d+))\s+L(\d{1,4})", re.IGNORECASE),
-    # L123-L130 spec   /   L123 wayfinder
-    re.compile(
-        r"\bL(\d{1,4})(?:\s*[-–]\s*L?(\d{1,4}))?\s+(spec|wayfinder|skeleton)\b",
-        re.IGNORECASE,
-    ),
-)
-
-# "line 495" counts even without a capability token, but is tagged weak.
-RE_LINE_WORD = re.compile(r"\blines?\s+(\d{1,4})\b", re.IGNORECASE)
+# C1 delegates to `scripts/pointer_scan.py`. The inline regexes that used to
+# live here required whitespace immediately after the capability word:
+#
+#     \b(wayfinder|skeleton|decompmoe-skeleton|spec)\s+(?:spec\s+)?L?(\d{1,4})
+#
+# so `wayfinder/spec.md L83` (next char `/`) and
+# ``` `wayfinder/tickets/A8-2.md` L70 ``` (next char a backtick) never
+# matched, and this gate reported a clean tree over 75 live pointers. The
+# module is shared with the census on purpose: a gate carrying its own
+# detector will drift from the evidence again, and a gate importing one
+# cannot. `pointer_scan.HISTORICAL_MARKERS` also refuses to fire on a token
+# inside a code span, which is what stopped `governance/spec.md` from
+# self-exemptifying on the word `historical` inside the template it
+# documents.
+#
+# `RE_CAP_MENTION` stays local: C4's capability resolver needs it and it is
+# not part of C1's semantics.
 RE_CAP_MENTION = re.compile(
     r"\b(wayfinder|decompmoe-skeleton|skeleton|governance|spec)\b", re.IGNORECASE
 )
-RE_REQ_MENTION = re.compile(r"\b(?:req-\d+|Req\.?\s*\d+)\b")
-
-# Explicit historical markers. `ex-` and a bare arrow are deliberately ABSENT:
-# both fire on ordinary vocabulary (`-> Tensor` return annotations, math arrows
-# such as `c in [1, 2] -> ("skip", 1.0, False)`, `ex-` inside ordinary words),
-# and a line-level exemption triggered by one of them silently exempted lines
-# that also carried a live pointer. Measured in
-# `.../evidence/measure_marker_tightening.py`: those two markers accounted for
-# 4 false exemptions.
-HISTORICAL_MARKERS = ("pre-this-change", "histor", "原", "was ", "before")
-RE_COMMIT_ID = re.compile(r"\b[0-9a-f]{7,40}\b")
 
 # --- C2 / C3 -----------------------------------------------------------------
 RE_ANCHOR = re.compile(r'<a id="([^"]+)"')
@@ -193,39 +184,40 @@ _REPO_ROOT = _repo_root()
 def has_historical_marker(text: str) -> bool:
     """True when `text` explicitly records history rather than pointing at live code.
 
-    A 7-40 hex token is a git object id (`at commit d3689a1`), which is what an
-    explicit historical citation looks like in this repository.
+    Delegates to the shared detector. The earlier version here carried its own
+    copy of the marker list, and the two copies disagreed: `governance/spec.md`
+    line 78 self-exemptified on the literal word `historical` occurring inside
+    the very annotation template that line documents. One implementation, one
+    behaviour.
     """
-    low = text.lower()
-    if any(m.lower() in low for m in HISTORICAL_MARKERS):
-        return True
-    return bool(RE_COMMIT_ID.search(text))
+    return _ps._exempt(text) != ""
 
 
 def classify_pointer(line: str) -> tuple[list[int], bool] | None:
     """Return `(line_numbers, weak)` if `line` carries a line-number reference.
 
-    Returns None when the line is not a pointer. `weak` marks a bare `line <n>`
-    with no capability token on the same line.
+    Delegates to `scripts/pointer_scan.py`, which is the same module the
+    census uses. The inline regexes this replaced required whitespace
+    immediately after the capability word, so `wayfinder/spec.md L83` (next
+    char `/`) and ``` `wayfinder/tickets/A8-2.md` L70 ``` (next char a
+    backtick) never matched -- and the gate reported a clean tree over 75
+    live pointers. A gate that carries its own detector will drift from the
+    evidence again; a gate that imports one cannot.
     """
-    if RE_FILE_L.search(line):
-        nums = [int(n) for n in re.findall(r":(\d{1,4})", RE_FILE_L.search(line).group(0))]
-        return (nums, False)
-    stripped = RE_LABEL_L.sub(" ", line)
-    nums: list[int] = []
-    for rx in _POINTER_FORMS:
-        for hit in rx.finditer(stripped):
-            for g in hit.groups():
-                if g and g.isdigit():
-                    nums.append(int(g))
-    weak = False
-    for m in RE_LINE_WORD.finditer(stripped):
-        nums.append(int(m.group(1)))
-        if not (RE_CAP_MENTION.search(stripped) or RE_REQ_MENTION.search(stripped)):
-            weak = True
+    sites = _ps.scan_line("<lint>", 1, line)
+    if not sites:
+        return None
+    nums = []
+    weak = True
+    for s in sites:
+        m = _ps.RE_NUM.search(s.detail)
+        if m:
+            nums.append(int(m.group(1)))
+        if not s.weak:
+            weak = False
     if not nums:
         return None
-    return (nums, weak)
+    return (sorted(set(nums)), weak)
 
 
 def capability_of_spec(path: Path) -> str | None:
@@ -288,6 +280,13 @@ def iter_lines(paths: Iterable[Path]) -> Iterator[tuple[Path, int, str]]:
 def check_c1(paths: Iterable[Path]) -> list[tuple[Path, int, str, str]]:
     out: list[tuple[Path, int, str, str]] = []
     for path, line_no, line in iter_lines(paths):
+        # The self-test exclusion is an invariant of the CHECK, not of path
+        # discovery. It used to live only in collect_paths, so running the
+        # gate with explicit paths reported this file's own synthetic
+        # fixtures -- 13 violations that exist only because of how the
+        # paths were spelled.
+        if is_self_test(path):
+            continue
         if "http" in line:
             continue
         hit = classify_pointer(line)
@@ -472,6 +471,11 @@ def check_c4(paths: Iterable[Path], inventory: dict[str, set[str]]) -> tuple[lis
     placeholders = 0
     ambiguous = 0
     for path, line_no, line in iter_lines(paths):
+        # Same invariant as C1: this gate's own fixtures use synthetic ids
+        # (`req-999`) that resolve nowhere by construction, and that must be
+        # true regardless of how the caller spelled the paths.
+        if is_self_test(path):
+            continue
         own = capability_of_spec(path)
         refs: list[tuple[str, int]] = []
         for m in RE_REF_HASH.finditer(line):

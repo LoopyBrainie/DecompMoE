@@ -18,7 +18,10 @@ from collections import defaultdict
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
+# The detector lives in scripts/, not here: the gate and the census MUST
+# be the same implementation. A private copy in a change directory is
+# exactly how the two drifted apart the first time.
+sys.path.insert(0, str(HERE.parents[3] / 'scripts'))
 
 import pointer_scan as ps  # noqa: E402
 from pointer_fixes import FIXES  # noqa: E402

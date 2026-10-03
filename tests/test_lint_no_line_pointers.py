@@ -84,12 +84,23 @@ def test_c1_bare_line_word_is_weak_not_silent() -> None:
     assert 495 in nums, f"expected 495 in {nums!r}"
 
 
-def test_c1_strong_when_capability_present() -> None:
-    """With a capability token on the line the hit is not weak."""
-    hit = L.classify_pointer("per wayfinder spec, line 495 states it")
-    assert hit is not None
-    _nums, weak = hit
-    assert weak is False, f"expected weak=False, actual={weak!r}"
+def test_c1_strong_when_reference_is_adjacent_to_locator() -> None:
+    """A reference immediately preceding the locator makes the hit strong.
+
+    The earlier version of this test asserted that merely HAVING a
+    capability word somewhere on the line was enough. That is not what
+    decides it: `per wayfinder spec, line 495` puts two words and a comma
+    between the reference and the locator, so the hit is weak, and weak
+    means "prose may legitimately say this", which it may.
+    """
+    weak_hit = L.classify_pointer("per wayfinder spec, line 495 states it")
+    assert weak_hit is not None
+    assert weak_hit[1] is True, f"expected weak=True, actual={weak_hit[1]!r}"
+
+    strong_hit = L.classify_pointer("per wayfinder spec L495 states it")
+    assert strong_hit is not None
+    assert strong_hit[1] is False, \
+        f"expected weak=False, actual={strong_hit[1]!r}"
 
 
 # --- C1: historical exemption -----------------------------------------------

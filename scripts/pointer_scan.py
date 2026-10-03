@@ -51,10 +51,11 @@ from pathlib import Path
 # Exclusions
 # --------------------------------------------------------------------------
 
-#: ``L2-step2`` / ``L4-postmean`` name a layer or a step, never a line.
-#: The lookahead must be LOWERCASE. ``L236-L237`` is a range, and an
-#: upper-case-only lookahead silently swallowed every range form.
-RE_LABEL_L = re.compile(r"\bL\d{1,4}-(?=[a-z])")
+#: ``L2-step2`` / ``L4-postmean`` name a layer or a step; ``L2-F5`` names an
+#: audit FINDING. Neither is a line locator. But ``L236-L237`` IS a range of
+#: line locators, so the exemption is "hyphen followed by a letter that is
+#: not the start of another line number".
+RE_LABEL_L = re.compile(r"\bL\d{1,4}-(?=[A-Za-z])(?![Ll]\d)")
 
 #: 7-hex and 40-hex commit ids appear next to prose; never a line pointer.
 RE_COMMIT = re.compile(r"\b[0-9a-f]{7,40}\b")
@@ -274,12 +275,18 @@ def scan_line(rel: str, lineno: int, line: str):
     # third one survives the sweep.
     if RE_PATH.search(line):
         for m in RE_BARE_COLON.finditer(line):
-            span = line[max(0, m.start() - 12): m.start()]
-            if not any(c.isdigit() for c in span):
-                sites.append(
-                    Site(rel, lineno, "antecedent-colon-line",
-                         m.group(0).strip(), line.strip())
-                )
+            # The token must be a real code-span delimiter, not the tail of
+            # a bare `word:12`. Checking only the IMMEDIATELY preceding
+            # character matters: an earlier version looked back 12
+            # characters for any digit, and the `4` of a neighbouring
+            # `93-94` suppressed the very form this rule exists for.
+            prev = line[m.start() - 1] if m.start() else ""
+            if prev and (prev.isalnum() or prev in "_."):
+                continue
+            sites.append(
+                Site(rel, lineno, "antecedent-colon-line",
+                     m.group(0).strip(), line.strip())
+            )
 
     # -- bare capability word + locator: adjacency REQUIRED ---------------
     for cm in list(RE_CAPABILITY.finditer(line)) + list(RE_REQ_REF.finditer(line)):
