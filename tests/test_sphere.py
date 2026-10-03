@@ -94,9 +94,20 @@ def test_voronoi_monotone_in_ne() -> None:
     # These 6dp literals are the integrator's INDEPENDENT guard: they are
     # truncations of the canonical values, and at `abs=1e-6` they fail against
     # a defective integrator (measured 1.275e-6 at the pre-fix (16,16) output)
-    # while passing against a conforming one (4.259e-7). The tolerance is NOT
-    # tightened: a 6dp literal carries an inherent truncation error up to
-    # 5e-7, so any bound below 1e-6 would fail on the true value itself.
+    # while passing against a conforming one (4.259e-7).
+    #
+    # The tolerance is NOT tightened, but the reason this comment used to give
+    # was wrong and is corrected here. It claimed a 6dp literal carries
+    # "truncation error up to 5e-7, so any bound below 1e-6 would fail on the
+    # true value itself". A TRUNCATED 6dp literal's error is strictly below
+    # 1e-6; 5e-7 is the round-half-up half-unit, not the truncation bound
+    # (trunc6(0.9999999) = 0.999999 has error 9e-7, which exceeds 5e-7). So
+    # 1e-6 is a defensible guard but NOT the minimum the 6dp display format
+    # permits -- measured, abs=4.3e-7 already passes for 1.173547. Keeping
+    # the wider guard is a stability choice, not a correctness limit.
+    # (governance req-gov-1 obligation 3; measured on pytest 9.1.1, where
+    # pytest.approx(expected, abs=T) has tolerance exactly T -- the rel default
+    # is None, and the tolerance property returns before the max branch.)
     assert theta_16 == pytest.approx(1.173547, abs=1e-6), f"actual={theta_16}"
     assert theta_17 == pytest.approx(1.165847, abs=1e-6), f"actual={theta_17}"
     # Principle: each θ must solve the closed-form equation ½·I_{sin²θ}(7.5, ½) = 1/N_e

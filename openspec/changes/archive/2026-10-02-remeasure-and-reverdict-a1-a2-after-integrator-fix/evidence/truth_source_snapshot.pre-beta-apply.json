@@ -3,7 +3,7 @@
   "specs": {
     "governance": {
       "path": "openspec/specs/governance/spec.md",
-      "sha256_worktree": "CE7863B727764594CB7733511FB243066FBB23B3B7AC1A76E2AD6FCAC0AF7574",
+      "sha256_worktree": "45178590368B9AE9B3B795C95B16631E2F2006A6915234A46575BB46E418D5E0",
       "head_blob_id": "2195b1738beda8dcfbaec282199e983ed4f3357b",
       "line_count": 223,
       "anchor_count": 5,
