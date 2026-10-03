@@ -25,7 +25,7 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 ROOT = next(p for p in Path(__file__).resolve().parents if all((p / m).exists() for m in (".git", ".audit", "pyproject.toml")))   # repo root; this file lives in evidence/tools/
-EV = ROOT / "openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence"
+EV = ROOT / "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence"
 sys.path.insert(0, str(ROOT / "src"))
 
 import mpmath as mp  # noqa: E402

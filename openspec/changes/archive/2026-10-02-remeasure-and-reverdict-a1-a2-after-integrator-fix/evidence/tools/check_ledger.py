@@ -23,7 +23,7 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 ROOT = next(p for p in Path(__file__).resolve().parents if all((p / m).exists() for m in (".git", ".audit", "pyproject.toml")))   # repo root; this file lives in evidence/tools/
-EV = ROOT / "openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence"
+EV = ROOT / "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence"
 LEDGER = EV / "ledger.json"
 
 # Single source of truth for the partition (risk R-a: several call sites used to

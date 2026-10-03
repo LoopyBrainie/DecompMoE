@@ -29,7 +29,7 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8")
 ROOT = next(p for p in Path(__file__).resolve().parents
             if all((p / m).exists() for m in (".git", ".audit", "pyproject.toml")))
-EV = ROOT / "openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence"
+EV = ROOT / "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence"
 LIST = ROOT / ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md"
 
 lines = LIST.read_text(encoding="utf-8").splitlines()

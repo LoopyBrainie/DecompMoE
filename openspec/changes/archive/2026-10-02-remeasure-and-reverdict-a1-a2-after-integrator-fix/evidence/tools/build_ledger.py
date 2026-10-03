@@ -53,10 +53,10 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 ROOT = next(p for p in Path(__file__).resolve().parents if all((p / m).exists() for m in (".git", ".audit", "pyproject.toml")))   # repo root; this file lives in evidence/tools/
-EV = ROOT / "openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence"
+EV = ROOT / "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence"
 LIST = ROOT / ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md"
 LEDGER = EV / "ledger.json"
-REL = "openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/ledger.json"
+REL = "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/ledger.json"
 
 REBUILD = "--rebuild" in sys.argv[1:]
 FORCE = "--force" in sys.argv[1:]

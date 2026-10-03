@@ -97,7 +97,7 @@ for pat in (mustnot,):
                        encoding="utf-8", errors="replace")
     hits.append(("HEAD 全仓", r.stdout.strip() or "(0 hits)"))
     r2 = subprocess.run(["git", "grep", "-n", "-F", pat, "--",
-                         "openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix"],
+                         "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix"],
                         cwd=ROOT, capture_output=True, text=True,
                         encoding="utf-8", errors="replace")
     hits.append(("change 目录", r2.stdout.strip() or "(0 hits)"))

@@ -22,7 +22,7 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8")
 ROOT = next(p for p in Path(__file__).resolve().parents if all((p / m).exists() for m in (".git", ".audit", "pyproject.toml")))   # repo root; this file lives in evidence/tools/
 LIST = ROOT / ".audit/wayfinder-opsx-code-review/lists/opsx-changes.md"
-OUT = ROOT / "openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/audit_index.json"
+OUT = ROOT / "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/audit_index.json"
 
 SCOPED = ["A-1", "A-2", "A-3", "A-4", "A-5", "A-7"]
 EXCLUDED = ["A-6", "A-8"]

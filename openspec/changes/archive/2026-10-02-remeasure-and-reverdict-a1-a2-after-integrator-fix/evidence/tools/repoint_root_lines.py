@@ -17,7 +17,7 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8")
 ROOT = next(p for p in Path(__file__).resolve().parents if all((p / m).exists() for m in (".git", ".audit", "pyproject.toml")))
 HERE = ROOT
-TOOLS = HERE / "openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools"
+TOOLS = HERE / "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools"
 
 MARKERS = (".git", ".audit", "pyproject.toml")
 NEW = ('ROOT = next(p for p in Path(__file__).resolve().parents '

@@ -21,7 +21,7 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8")
 ROOT = next(p for p in Path(__file__).resolve().parents
             if all((p / m).exists() for m in (".git", ".audit", "pyproject.toml")))
-EV = ROOT / "openspec/changes/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence"
+EV = ROOT / "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence"
 SPHERE = ROOT / "src/decompmoe/sphere.py"
 
 # ---- the quadrature chain: functions in sphere.py that call _betainc_regularized
