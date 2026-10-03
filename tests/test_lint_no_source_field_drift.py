@@ -321,13 +321,21 @@ def test_one_line_multiple_independent_violations() -> None:
     """Rule body 3 第 2 句: a single line may trigger multiple independent violations.
 
     The canonical case: ``**Source:** change `foo` design.md (Decision 1), wayfinder/tickets/A2-1.md``
-    - check ①: PASS (`wayfinder/tickets/` is present in the line)
+    - check ①a: PASS (`wayfinder/tickets/` is present in the line)
+    - check ①b: FAIL (AC-24 — the only code span on the line is `foo`, so no
+      backtick-wrapped span names a concrete `wayfinder/tickets/<ID>.md` file)
     - check ②: FAIL (the `wayfinder/tickets/` occurrence is bare, not backticked)
     - check ③: FAIL (first item is the change-decision clause
       `` change `foo` design.md (Decision 1) ``, not the backticked primary;
       first_code_span is `foo`, which does NOT contain `wayfinder/tickets/`)
 
-    Expected: exactly 2 violations with distinct reason codes, not 1.
+    Expected: exactly 3 violations with distinct reason codes, not 1.
+
+    Count moved from 2 to 3 when check ①b (reverse-link form presence) was
+    added: the bare `wayfinder/tickets/A2-1.md` on this line is independently
+    un-backticked (②) and independently un-formed (①b). The property under
+    test — one line, several independent violations — is unchanged; the line is
+    now a strictly stronger witness for it.
     """
     import tempfile
     body = "change `foo` design.md (Decision 1), wayfinder/tickets/A2-1.md"
@@ -339,9 +347,12 @@ def test_one_line_multiple_independent_violations() -> None:
     try:
         violations = L.lint_file(p)
         reasons = [v[2] for v in violations]
-        assert len(violations) == 2, (
-            f"Expected exactly 2 violations (unbackticked + first-item-not-primary), "
-            f"got {len(violations)}: {reasons}"
+        assert len(violations) == 3, (
+            f"Expected exactly 3 violations (concrete-file + unbackticked + "
+            f"first-item-not-primary), got {len(violations)}: {reasons}"
+        )
+        assert any("must name a concrete file" in r for r in reasons), (
+            f"Expected 'must name a concrete file' reason, got {reasons}"
         )
         assert any("unbackticked reverse-link" in r for r in reasons), (
             f"Expected 'unbackticked reverse-link' reason, got {reasons}"
@@ -349,9 +360,9 @@ def test_one_line_multiple_independent_violations() -> None:
         assert any("first item is not the primary reverse-link" in r for r in reasons), (
             f"Expected 'first item is not the primary reverse-link' reason, got {reasons}"
         )
-        # The two violations must both be on the same line (the Source line).
+        # All three violations must be on the same line (the Source line).
         assert all(v[0] == violations[0][0] for v in violations), (
-            f"Both violations should be on the same Source line, got {violations}"
+            f"All violations should be on the same Source line, got {violations}"
         )
     finally:
         p.unlink()
@@ -380,3 +391,122 @@ def test_governance_spec_passes_structural_checks() -> None:
     assert violations == [], (
         f"Expected 0 violations in governance/spec.md, got {violations}"
     )
+
+
+# --- AC-24: reverse-link FORM presence (check ①b) -----------------------------
+#
+# Audit item AC-24: the gate required only the directory prefix
+# `wayfinder/tickets/`, so the bare-directory form and the extension-less form
+# `wayfinder/tickets/A4-1` were indistinguishable from the canonical
+# `wayfinder/tickets/A4-1.md`. An untraceable lineage could therefore pass.
+# Check ①b closes that by requiring a backtick-wrapped concrete filename.
+
+
+def _write_spec_with_source_line(body: str) -> Path:
+    """Write a throwaway single-Source-line spec and return its path."""
+    import tempfile
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".md", delete=False, encoding="utf-8"
+    ) as f:
+        f.write(f"# Test spec\n\n**Source:** {body}\n")
+        return Path(f.name)
+
+
+def test_bare_directory_form_is_rejected() -> None:
+    """The bare directory form is NOT lineage — check ①b MUST reject it.
+
+    This is the exact AC-24 gap: before ①b this line produced 0 violations
+    because `wayfinder/tickets/` was present, backticked, and first.
+    """
+    p = _write_spec_with_source_line(
+        "`wayfinder/tickets/`, change `foo` design.md (Decision 1)"
+    )
+    try:
+        violations = L.lint_file(p)
+        reasons = [v[2] for v in violations]
+        assert any("must name a concrete file" in r for r in reasons), (
+            f"Bare directory form must be rejected by check ①b, got {reasons}"
+        )
+    finally:
+        p.unlink()
+
+
+def test_extensionless_ticket_id_form_is_rejected() -> None:
+    """``wayfinder/tickets/A4-1`` without ``.md`` MUST be rejected.
+
+    This is the second indistinguishable form named by AC-24: it names a real
+    ticket id but is not a file, so the reverse-link does not resolve.
+    """
+    p = _write_spec_with_source_line(
+        "`wayfinder/tickets/A4-1`, change `foo` design.md (Decision 1)"
+    )
+    try:
+        violations = L.lint_file(p)
+        reasons = [v[2] for v in violations]
+        assert any("must name a concrete file" in r for r in reasons), (
+            f"Extension-less ticket id form must be rejected, got {reasons}"
+        )
+    finally:
+        p.unlink()
+
+
+def test_concrete_ticket_filename_form_passes() -> None:
+    """The canonical ``wayfinder/tickets/<ID>.md`` form MUST pass unchanged."""
+    p = _write_spec_with_source_line(
+        "`wayfinder/tickets/A4-1.md`, change `foo` design.md (Decision 1)"
+    )
+    try:
+        violations = L.lint_file(p)
+        assert violations == [], (
+            f"Canonical ticket filename form must pass, got {violations}"
+        )
+    finally:
+        p.unlink()
+
+
+def test_tightened_check_accepts_governance_claude_md_form() -> None:
+    """Tightening ①b MUST NOT break the governance ``CLAUDE.md`` form.
+
+    Regression guard against a tightening that is asymmetric: governance has no
+    ticket file to name, so its form pattern is the literal ``CLAUDE.md``.
+    """
+    p = _write_spec_with_source_line("`CLAUDE.md` §6")
+    try:
+        original_table = dict(L.REQUIRED_SUBSTRING_BY_PATH_RELATIVE)
+        L.REQUIRED_SUBSTRING_BY_PATH_RELATIVE = {p.resolve(): "CLAUDE.md"}
+        try:
+            violations = L.lint_file(p)
+        finally:
+            L.REQUIRED_SUBSTRING_BY_PATH_RELATIVE = original_table
+        assert violations == [], (
+            f"Governance CLAUDE.md form must still pass, got {violations}"
+        )
+    finally:
+        p.unlink()
+
+
+def test_code_spans_ignores_unterminated_backtick() -> None:
+    """`_code_spans` must not credit a span the line never closed.
+
+    Without this, a line ending in a dangling backtick could satisfy ①b with a
+    span that does not exist — turning the tightening into a new bypass.
+    """
+    assert L._code_spans("`wayfinder/tickets/A4-1.md`") == ["wayfinder/tickets/A4-1.md"]
+    assert L._code_spans("`wayfinder/tickets/A4-1.md") == []
+    assert L._code_spans("no code spans here") == []
+    assert L._code_spans("`a` and `b`") == ["a", "b"]
+
+
+def test_live_spec_tree_passes_tightened_form_check() -> None:
+    """All three live spec files pass ①b — the tightening breaks no real field.
+
+    Guards the failure mode where a tightening is correct in isolation but
+    reddens the live tree (i.e. the change cannot land).
+    """
+    for capability in ("wayfinder", "decompmoe-skeleton", "governance"):
+        spec = _REPO_ROOT / "openspec" / "specs" / capability / "spec.md"
+        violations = L.lint_file(spec)
+        assert violations == [], (
+            f"Expected 0 violations in {capability}/spec.md under the tightened "
+            f"check ①b, got {violations}"
+        )

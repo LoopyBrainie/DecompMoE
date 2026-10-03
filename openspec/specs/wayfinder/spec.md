@@ -18,8 +18,8 @@ The system MUST adopt **DecompMoE** as the canonical project name and MUST adopt
 - **THEN** the reference uses "DecompMoE" as the primary name, with "GeoMoE" only as a secondary alias inside design prose
 
 <a id="req-2"></a>
-### Requirement: Formal Symbols And Code Naming
 
+### Requirement: Formal Symbols And Code Naming
 
 The system MUST use formal symbol `Σ_i` (per-expert covariance), `P_i = Σ_i^{-1}` (precision matrix), and the subscript convention `(i ∈ 1..N_e, l ∈ 1..L, h ∈ 1..H_kv, t ∈ 1..S)` for expert / layer / head / token — where the per-head index `h` enumerates the KV-head axis (per req-5 cross-head mean `z̄_t^l = (1/H_kv) · Σ_h C_t^{l,h}`), which at MVP equals the Q-head count `H` because `H_kv = H = 8` (GQA degenerates to MHA at MVP scale per `Req 11` "4070 MVP Hyperparameter Set" (`#req-11`)); when true GQA is later enabled (`H_kv < H`), the convention remains `h ∈ 1..H_kv` (the KV-head axis is the gating-relevant axis). Under per-layer head-aggregation, head subscript `h` MUST be elided and symbols MUST collapse to per-layer `C_t^l`, `c_i^l`, `Σ_i^l`, `P_i^l`. Code identifiers MUST map to: `GeometricRouter`, `TerritoryHolder`, `territory_volume`, `active_territories`, `coverage_balance_loss`, `territory_seeding`, `territory_collapse`. **Note:** `territory_seeding` is the canonical API contract name for the Phase 0 K-Means initialization pathway. Its implementation is **deferred to the training-time caller** per req-6 Phase 0 sub-clause; the function exists as a thin contract placeholder that raises `NotImplementedError` with a verbatim pointer to req-6 Phase 0 (see the deferred-contract Requirement anchored below this one). Drivers and inference-time callers MUST NOT invoke this function. **Note:** `territory_collapse` (expert territory collapse detection) is likewise **deferred to the training-time caller** at MVP; it is NOT a MUST-level code identifier at MVP, requires NO placeholder function, and is declared spec-only by the deferred-contract Requirement anchored below this one (see also the source Open Question in archive `2026-09-23-07-fix-spec-territory-seeding-phase-0`).
 
@@ -91,8 +91,8 @@ The system MUST extract `C_t^l` using a four-step pipeline that enforces spheric
 - **THEN** per-token compute is O(`H_kv · d_c · d_k`) and resident memory for the activation is O(`d_c`)
 
 <a id="req-6"></a>
-### Requirement: C Extraction Differentiability And Centroid Lifecycle
 
+### Requirement: C Extraction Differentiability And Centroid Lifecycle
 
 The system MUST compute the extraction in a fully differentiable manner (the D-path, no Straight-Through Estimator). The per-expert territory centroids `c_i^l` MUST evolve through a five-phase dual-channel lifecycle, strictly separating two orthogonal update channels:
 
@@ -301,6 +301,7 @@ LayerNorm gains, `β_i`, `c_i` are excluded from the estimator (`MVPConfig` does
 - **AND** the guard MUST be expressed as a two-sided bound rather than an equality against a pinned bias value, so that a future accuracy improvement in `_betainc_regularized` that shrinks the bias toward zero does not require revising this Requirement
 
 <a id="req-12"></a>
+
 ### Requirement: Loss Composition
 
 The system MUST train with `L_total = L_CE + α · L_lb + λ(t) · L_sep`, where `α = 0.01` is the Switch-style fixed weight on `L_lb`, and `λ(t)` follows a staged schedule: `0` in Phases 1–2, a cosine ramp from `0` to `0.001` during Phase 3, and `0.001` fixed in Phase 4.
@@ -326,8 +327,8 @@ The system MUST keep the notation distinction between per-token `C_t^l` and per-
 - **THEN** `L_sep == (‖C^T C‖_F² − N_e) / (N_e · (N_e − 1))` within `1e-6`; the diagonal `N_e` term is subtracted exactly once
 
 <a id="req-13"></a>
-### Requirement: Numerical Safeguards
 
+### Requirement: Numerical Safeguards
 
 The system MUST execute the standard training step as `Backward → clip_grad_norm_(1.0) → optimizer.step() → L2_norm(c_i)`, which is a first-order Riemannian SGD equivalent on the spherical constraint. The system MUST implement all five safeguards: (1) Global Gradient Clipping at threshold `1.0` covering all learnable parameters; (2) NaN Detection & Escalation with `1 skip → 3 consecutive NaN trigger LR ÷ 10 → 10 consecutive NaN halt training`; (3) Dead Expert Splitting Resurrection triggered when `f_i^avg < 1 / (2 · N_e)` for 200 consecutive steps (clones `j* = argmax f_j^avg`, perturbs with `ε ~ N(0, 0.05² I)`, sets `β_i ← 0.85 · β_{j*}` and `β_{j*} ← 0.85 · β_{j*}`, rate-limited to once per 1000 steps). At MVP scale `N_e = 16`, `1/(2 · N_e) = 1/32`; the rule is `f_threshold = 1/(2 · N_e)` parameterized by `N_e`, not a hardcoded `1/128` from a prior `N_e = 64` design; (4) β Saturation Guard with warning at `β_i > 30.4` (95% of `β_max`) and global `LR ÷ 2` when more than 50% of experts have `β_i > 28.8` (90% of `β_max`); (5) Loss Spike Defense in Phase 3+ with `L_task > 2.5 · EMA(L_task)` triggering `LR × 0.8`.
 
@@ -459,8 +460,8 @@ The system MUST, for evaluation on the 4070 8 GB MVP, hold active FLOPs strictly
 - **THEN** `FLOPs_Routing` is reported as a standalone line item and MUST NOT enter the parity equation
 
 <a id="req-20"></a>
-### Requirement: Eight Geometric Quantification Metrics
 
+### Requirement: Eight Geometric Quantification Metrics
 
 The system MUST report eight metrics in two classes, each with a precise closed-form definition.
 
@@ -785,8 +786,8 @@ The forward equation `x_out = x + Σ_{i ∈ I_k} p_i · Expert_i(x)` in Req 8 / 
 ---
 
 <a id="req-32"></a>
-### Requirement: Resurrection Perturbation Per-Expert Contract — Single-Event Wrapper
 
+### Requirement: Resurrection Perturbation Per-Expert Contract — Single-Event Wrapper
 
 The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **single cloned expert** (centroid and/or expert weights) — not the per-expert routing frequency vector `f_per_expert`. The perturbation API `resurrection_perturb_distribution(f_per_expert, target_idx, eps_std=0.05, *, dim: int | None = None)` MUST accept `f_per_expert` as the leading positional argument with **shape `(..., N_e)`** — the trailing axis MUST equal `N_e` and leading dims are arbitrary (canonical call sites pass `(N_e,)`, `(T, N_e)`, or `(B, N, N_e)`). Layer 2 shape enforcement (wrapper-side, at this wrapper): `f_per_expert.shape[-1] == cfg.N_e` pair-check. The vacuous self-check `f_per_expert.shape[-1] == β_per_expert.shape[0]` (which is identically true given `f_per_expert = β_per_expert.detach()` inside this wrapper, where `shape[-1] == shape[0]`) was an earlier draft and was corrected by commit `0b2202e` to anchor on the spec-defined `cfg.N_e`. Layer 1 primitive-side enforcement (`ndim ≥ 1`) is described in Req 28. `target_idx` is a positional integer, `eps_std=0.05` is a positional-or-keyword perturbation scale, and `dim` is a **keyword-only** parameter sourcing the per-expert dimensionality. `dim=None` MUST raise `TypeError`. The returned tensor MUST have leading dimension `dim` — corresponding to a single expert slot — NOT the `(N_e,)` shape of `f_per_expert`. The β double-write semantic (`β_i ← 0.85 · β_{j*}` and `β_{j*} ← 0.85 · β_{j*}`) is defined in Req 13; this wrapper additionally guarantees same-call-stack execution (see wrapper contract paragraph below). (References Req 13.)
 
@@ -830,6 +831,7 @@ The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **singl
 - **AND** an implementation that cloned row `i` MUST be rejected: `i` is the dead expert, so its centroid is the degenerate quantity the resurrection is meant to replace, and cloning it would return a perturbed copy of the very state being repaired
 
 <a id="req-34"></a>
+
 ### Requirement: Source Field Format Invariant for OpenSpec Specs
 
 Every `**Source:**` field in `openspec/specs/**/spec.md` MUST carry a **primary reverse-link** to its design lineage as the **first top-level item** of the field, with each reverse-link token **wrapped in backticks** (inline code span). The required primary reverse-link is per-capability:
@@ -843,7 +845,7 @@ When the ticket's value at the time of writing differs from the current spec val
 
 This invariant MUST be enforced at archive time by `scripts/lint_no_source_field_drift.py`. The lint script performs three structural checks on every `**Source:**` line:
 
-1. **Capability-aware substring presence** — the line MUST contain the per-capability required primary reverse-link substring (`CLAUDE.md` for governance, `wayfinder/tickets/` for all others).
+1. **Capability-aware presence, two independent parts** — the line MUST contain the per-capability required primary reverse-link marker (`CLAUDE.md` for governance, `wayfinder/tickets/` for all others), AND at least one backtick-wrapped code span MUST name a concrete file in the per-capability required form: `wayfinder/tickets/<ID>.md` for ticket lineage (where `<ID>` is the ticket file's stem, e.g. `A4-1`), or the literal `CLAUDE.md` for governance, which has no file to name. The bare directory form `wayfinder/tickets/` and the extension-less form `wayfinder/tickets/<ID>` MUST each be reported as violations: neither resolves to a file, and at the gate they are indistinguishable from the canonical form, so an untraceable reverse-link could pass.
 2. **Backtick wrapping** — every occurrence of the per-capability required primary reverse-link substring MUST appear inside a backtick-delimited code span; a reverse-link that appears outside a code span is a violation regardless of substring presence.
 3. **Primary-first ordering** — the first top-level item (the substring from the `**Source:**` marker up to the first `,` or `;` at paren-depth 0, with code-span atomicity so a delimiter inside a backtick pair does NOT split) MUST be a backtick-wrapped code span whose contents include the per-capability required primary reverse-link substring.
 
@@ -854,7 +856,7 @@ The rules are content-based (not line-number based) so they survive spec edits w
 #### Scenario: every Source field contains a wayfinder ticket reference
 
 - **WHEN** `scripts/lint_no_source_field_drift.py` is run against `openspec/specs/**/spec.md`
-- **THEN** the script enumerates every line beginning with `**Source:**` and verifies the line contains the substring `wayfinder/tickets/` (or `CLAUDE.md` for the governance capability)
+- **THEN** the script enumerates every line beginning with `**Source:**` and verifies (a) the line contains the per-capability marker substring `wayfinder/tickets/` (or `CLAUDE.md` for the governance capability), and (b) at least one backtick-wrapped code span matches the per-capability form (`wayfinder/tickets/<ID>.md`, or the literal `CLAUDE.md` for governance)
 - **AND** the script exits with code `0` if and only if every such line satisfies the substring check
 - **AND** the script outputs a per-line violation report (file path, line number, the violating line content) when any violation exists, with no aggregate-only summary that hides which line failed
 
@@ -873,7 +875,7 @@ The rules are content-based (not line-number based) so they survive spec edits w
 
 #### Scenario: reverse-link must be wrapped in backticks
 
-- **WHEN** a `**Source:**` line in `openspec/specs/**/spec.md` contains the per-capability required primary reverse-link substring (`wayfinder/tickets/` for wayfinder-ticketed / decompmoe-skeleton specs, `CLAUDE.md` for governance specs) OUTSIDE a backtick-delimited code span
+- **WHEN** a `**Source:**` line in `openspec/specs/**/spec.md` contains the per-capability required primary reverse-link marker (`wayfinder/tickets/` for wayfinder-ticketed / decompmoe-skeleton specs, `CLAUDE.md` for governance specs) OUTSIDE a backtick-delimited code span
 - **THEN** `scripts/lint_no_source_field_drift.py` MUST report a violation with reason `"unbackticked reverse-link: <substring>"` for that line
 - **AND** the lint script's check is structural: it MUST strip code spans from the line body and verify that the remaining (unbackticked) text does NOT contain the required substring
 - **AND** a backtick-wrapped reverse-link on the same line that satisfies ① still passes (multiple backticked reverse-links on a single line are permitted, e.g. `**Source:** \`wayfinder/tickets/A2-1.md\`, \`wayfinder/tickets/A2-2.md\``)
@@ -904,3 +906,10 @@ The rules are content-based (not line-number based) so they survive spec edits w
 - **AND** the canonical backslash-escape behavior: `\`` is treated as a regular character (the escape is not recognized), so the next backtick will toggle `in_code_span` normally — producing unpredictable parse state
 - **AND** the canonical multi-line behavior: the lint script reads `**Source:**` lines one line at a time; a Source field whose content continues onto subsequent lines is NOT concatenated — the subsequent lines are scanned as separate `**Source:**` lines (none of which will match the regex), and the original line's body is processed as a self-contained single-line Source field, almost certainly failing check ① because the body is incomplete
 - **AND** the convention enforced by this Scenario is: Source fields MUST use single-backtick code spans exclusively, MUST NOT use backslash-escapes inside backticks, and MUST be written on a single line. Any violation of these conventions MUST be fixed by rewriting the line, not by expecting the lint script to handle the edge case
+#### Scenario: Bare-directory and extension-less reverse-link forms are violations
+
+- **WHEN** a `**Source:**` line's only ticket reverse-link is the bare directory form `` `wayfinder/tickets/` `` or the extension-less form `` `wayfinder/tickets/A4-1` ``
+- **THEN** the script MUST report a violation stating that the reverse-link does not name a concrete file
+- **AND** it MUST NOT be reported as passing merely because the marker substring is present, backtick-wrapped, and first
+- **AND** the canonical form `` `wayfinder/tickets/A4-1.md` `` MUST pass unchanged
+- **AND** the governance form `` `CLAUDE.md` `` MUST pass unchanged, since governance lineage names a file already and the tightened form check MUST NOT be asymmetric between capabilities

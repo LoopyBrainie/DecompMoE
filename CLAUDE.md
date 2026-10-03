@@ -29,7 +29,7 @@ When sources disagree, consult in this order:
 ## 3. Workflow Conventions
 
 - **Spec-level 变更**：`/opsx:propose` → review 制品 → `/opsx:apply`（含 archive）
-- **`/opsx:archive` 前置条件**：lint gate 必须 `exit=0`（同时跑 `python scripts/lint_no_dead_defensive.py` 与 `python scripts/lint_no_source_field_drift.py`），避免 archived change 留下 lint 报红（参见 `db14222` 修复的 12f673d 漏洞）。`lint_no_source_field_drift.py` 按 capability 区分 Source 反链规则，仍为纯内容子串检查（无豁免注册表、无 CLI 开关、无环境变量）。
+- **`/opsx:archive` 前置条件**：门禁由 `python scripts/run_gates.py --change <name>` 统一执行并判定 `exit 0`（`<name>` = 被归档的 change）。该入口自动发现 `scripts/lint_*.py` 下**全部** lint，另跑 `openspec validate --specs --strict`、被归档 change 自身的 `--type change --strict`、anchor 覆盖检查与 `pytest`；发现数为 0 时直接报 FAIL。**本清单不逐条枚举 lint 脚本**——新增 lint 无需改本文件，清单与实际门禁因此不可能失步（治理条款 `governance/spec.md` `req-gov-7`）。`run_gates.py` 在运行前后各采样 `HEAD` 与工作树摘要，不一致时输出 `GATE RESULT INVALID` 并 **exit 2**（区别于报红的 exit 1），「通过」与「不知道」不可混读（`req-gov-8`）。归档 anchor 必须走「写账本 → 归档 → 比对 → 手术式补回 → 复测」，**禁止重跑 archive** 修复被吞的 anchor（`req-gov-9`，用 `python scripts/run_gates.py anchor-ledger --write|--verify`）。
 - **Source 反链**（per capability，`scripts/lint_no_source_field_drift.py` 硬卡；治理条款 `governance/spec.md` `req-gov-1`）：
   - `wayfinder/` / `decompmoe-skeleton/` 的 Requirement：必须含 `` `wayfinder/tickets/<ID>.md` `` 字面反链（pure ticket 或 `(historical, <原值>; superseded by <change> Decision N)` 标注均可），允许附加 `` `change <name> design.md (Decision N)` ``
   - `governance/` 的 Requirement：必须含 `` `CLAUDE.md` `` 字面反链

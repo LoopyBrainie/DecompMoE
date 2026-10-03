@@ -103,6 +103,34 @@ REQUIRED_SUBSTRING_BY_PATH_RELATIVE: dict[Path, str] = {
 
 DEFAULT_REQUIRED_SUBSTRING = "wayfinder/tickets/"
 
+# Form requirement per marker substring (AC-24 / wayfinder req-34).
+#
+# The marker (`DEFAULT_REQUIRED_SUBSTRING`) is a fixed-length needle, which is what
+# checks ② (backtick wrapping) and ③ (primary-first ordering) are defined over. It is
+# deliberately NOT changed to a regex: those two checks index into the body by
+# `len(marker)`, so a pattern would silently change their semantics.
+#
+# The pattern below is the *form* that check ① additionally requires: the primary
+# reverse-link must name a concrete file, not just the directory. Before AC-24 the
+# bare directory form `wayfinder/tickets/` and the extension-less form
+# `wayfinder/tickets/A4-1` were indistinguishable from the canonical
+# `wayfinder/tickets/A4-1.md` at the gate, so an untraceable lineage could pass.
+#
+# `<ID>` matches the repository's actual ticket naming convention (23 files, e.g.
+# `A0-1.md`, `A4-1.md`, `A6a-2.md`, `A6b-1.md`, `A8-3.md`).
+#
+# Keyed by the marker substring so there is exactly ONE source of truth for the
+# per-capability requirement: a second parallel path table would be free to drift.
+REQUIRED_FORM_PATTERNS: dict[str, re.Pattern[str]] = {
+    "wayfinder/tickets/": re.compile(r"wayfinder/tickets/[A-Za-z0-9]+-[0-9A-Za-z]+\.md"),
+    "CLAUDE.md": re.compile(r"CLAUDE\.md"),
+}
+
+# Used when a capability marker has no entry in `REQUIRED_FORM_PATTERNS`. Defaults
+# to the strict ticket form (the lineage-bearing default), never to the loose
+# directory prefix: an unmapped capability must not be able to skip check ①.
+DEFAULT_REQUIRED_FORM_PATTERN = REQUIRED_FORM_PATTERNS["wayfinder/tickets/"]
+
 
 def _unbackticked_refs(body: str, required_substring: str) -> list[str]:
     """Return every occurrence of ``required_substring`` in ``body`` that lies OUTSIDE a backtick code span.
@@ -235,6 +263,50 @@ def _first_code_span(item: str) -> str | None:
     return None
 
 
+def _code_spans(body: str) -> list[str]:
+    """Return every backtick-wrapped code span in ``body``, in order.
+
+    Same tokenizer as `_first_code_span` and `_split_top_level_items`
+    (single-backtick spans only, no backslash-escape support), but returns all
+    spans instead of just the first. Used by check ① to test whether a required
+    *form* occurs inside backticks, as opposed to check ② which tests whether
+    the bare *marker* occurs outside them.
+
+    An unterminated trailing backtick yields no span (the span is only emitted
+    when its closing backtick is seen), so a malformed line cannot be credited
+    with a form it never closed.
+    """
+    spans: list[str] = []
+    in_code_span = False
+    start = -1
+    for i, ch in enumerate(body):
+        if ch == "`":
+            if not in_code_span:
+                in_code_span = True
+                start = i + 1
+            else:
+                spans.append(body[start:i])
+                in_code_span = False
+    return spans
+
+
+def required_form_pattern_for(path: Path) -> re.Pattern[str]:
+    """Return the reverse-link FORM pattern required for `path`.
+
+    Resolves the per-capability marker via `required_substring_for(path)` and
+    then looks the marker up in `REQUIRED_FORM_PATTERNS`. Deriving the pattern
+    from the marker (rather than from a second path table) keeps the capability
+    dispatch single-sourced: a new capability is added in exactly one place.
+
+    Falls back to `DEFAULT_REQUIRED_FORM_PATTERN` for a marker with no explicit
+    form, which keeps a hypothetical future capability from silently skipping
+    check ①.
+    """
+    return REQUIRED_FORM_PATTERNS.get(
+        required_substring_for(path), DEFAULT_REQUIRED_FORM_PATTERN
+    )
+
+
 def required_substring_for(path: Path) -> str:
     """Return the primary reverse-link substring required for `path`.
 
@@ -276,11 +348,19 @@ def lint_file(path: Path) -> list[tuple[int, str, str]]:
 
     A violation is a `**Source:**` line that fails any of three structural
     checks (per `openspec/changes/tighten-source-field-format-lint-2026-09/design.md`
-    Decisions 1-3):
+    Decisions 1-3), where check 1 has two independent parts:
 
-      1. **Capability-aware substring presence**: the line MUST contain the
+      1a. **Capability-aware marker presence**: the line MUST contain the
          per-capability required substring (`required_substring_for(path)`).
          Violation reason: ``"source field missing required reverse-link <required> for capability"``.
+      1b. **Reverse-link form presence** (AC-24): at least one backtick-wrapped
+         code span MUST match the per-capability FORM pattern
+         (`required_form_pattern_for(path)`), i.e. name a concrete file
+         (``wayfinder/tickets/<ID>.md``) rather than only the directory prefix.
+         1a alone admitted the bare directory form and the extension-less form
+         as passing, so an untraceable lineage cleared the gate. Violation
+         reason: ``"source field reverse-link <required> must name a concrete
+         file (expected a backtick-wrapped match for <pattern>)"``.
       2. **Backtick wrapping**: every occurrence of ``required`` MUST appear
          inside a backtick code span. Violation reason per occurrence:
          ``"unbackticked reverse-link: <required>"``.
@@ -290,23 +370,39 @@ def lint_file(path: Path) -> list[tuple[int, str, str]]:
          Violation reason: ``"first item is not the primary reverse-link
          (first code span = <...>, required substring = <required>)"``.
 
+    All four parts are independent: a line may fail 1b while passing 1a, 2 and 3
+    (the bare directory form), or fail 1a while passing 1b (a well-formed
+    reverse-link to the wrong capability).
+
     The returned tuples are sorted by `line_no`. Multiple violations per line
     are possible (each check is independent).
     """
     required = required_substring_for(path)
+    form_pattern = required_form_pattern_for(path)
     missing_reason = f"source field missing required reverse-link {required!r} for capability"
+    form_reason = (
+        f"source field reverse-link {required!r} must name a concrete file "
+        f"(expected a backtick-wrapped match for {form_pattern.pattern!r})"
+    )
     violations: list[tuple[int, str, str]] = []
     for _, line_no, line in iter_source_lines([path]):
         # Strip the leading "**Source:**" marker to get the line body.
         # SOURCE_LINE_RE matches "**Source:**" exactly (with the two asterisks
         # on each side of "Source"); everything after that marker is the body.
         body = line[len("**Source:**"):].strip()
-        # Check 1: capability-aware substring presence.
+        # Check 1a: capability-aware marker presence.
         if required not in body:
             violations.append((line_no, line, missing_reason))
-            continue  # Without the required substring, checks 2 and 3 are moot
+            continue  # Without the required substring, checks 1b, 2 and 3 are moot
                       # (they would either trivially pass on no occurrences or
                       # degenerate on an empty body).
+        # Check 1b: reverse-link FORM presence. Independent of 1a/2/3 — the
+        # directory prefix alone satisfies 1a and 2, so without this check the
+        # bare `wayfinder/tickets/` form and the extension-less
+        # `wayfinder/tickets/A4-1` form were indistinguishable from the
+        # canonical `wayfinder/tickets/A4-1.md` at the gate (AC-24).
+        if not any(form_pattern.search(span) for span in _code_spans(body)):
+            violations.append((line_no, line, form_reason))
         # Check 2: backtick wrapping. Every occurrence of `required` must be
         # inside a backtick code span.
         for _occurrence in _unbackticked_refs(body, required):
