@@ -83,7 +83,13 @@ and the referenced line usually now sits inside a **different** Requirement:
   "spec L413 Reason" — it means **`req-20`'s** Reason narrative;
 - the 12-site `spec L206` cluster resolves to `req-9`, but the text is
   "Five Numerical Safeguard Helpers" / `clip_global_grad_norm_` — it means
-  **`decompmoe-skeleton` `req-11`**.
+  **`decompmoe-skeleton` `req-12`**.
+
+  *(Corrected at apply time: this decision originally read `req-11`. Measured
+  against the spec, "Five Numerical Safeguard Helpers" is `req-12`; `req-11` is
+  "Loss Composition With Staged Lambda". `req-11` here was the same stale
+  line-number resolution the paragraph is warning about, applied to the
+  Requirement NUMBER instead of the line.)*
 
 This is not a bug in the census; it is the defect itself, observed. Consequence:
 **block anchors are minted from adjudicated intent, not from the census's
