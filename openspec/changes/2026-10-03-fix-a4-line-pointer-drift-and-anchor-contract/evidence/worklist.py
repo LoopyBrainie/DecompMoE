@@ -14,6 +14,10 @@ import re
 import sys
 from collections import Counter
 from pathlib import Path
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent))
+from _repo import REPO  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("pc", HERE / "pointer_census.py")
@@ -26,7 +30,7 @@ RE_TOKEN = re.compile(r"(?:[A-Za-z_][\w/]*\.py:\d{1,4}(?:-\d{1,4})?)"
                       r"|(?:\bL\d{1,4}(?:-\d{1,4})?\s+(?:spec|wayfinder|skeleton)\b)"
                       r"|(?:\blines?\s+\d{1,4}\b)")
 
-ROOT = HERE.parents[3]
+ROOT = REPO
 TITLES = {}
 
 

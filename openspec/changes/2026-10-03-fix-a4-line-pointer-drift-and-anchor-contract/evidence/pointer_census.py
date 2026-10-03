@@ -20,11 +20,26 @@ import re
 import subprocess
 from collections import Counter, defaultdict
 from pathlib import Path
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent))
+from _repo import REPO  # noqa: E402
 
 # evidence/ -> <change>/ -> changes/ -> openspec/ -> repo root
-REPO = Path(__file__).resolve().parents[4]
+REPO = REPO
 SCAN_ROOTS = ("openspec/specs", "src", "tests")
 SCAN_SUFFIX = (".md", ".py")
+
+# The gates' own test suites assert on deliberately malformed text, so they are
+# synthetic by construction. `scripts/lint_no_line_pointers.py` applies the same
+# rule to its own scan; the census MUST apply it too, or the two instruments
+# disagree about scope and the census can never report 0 actionable while those
+# suites exist. Stated here rather than in a registry, for the same reason.
+SELF_TEST_PATTERNS = ("tests/test_lint_",)
+
+
+def is_self_test(rel_path: str) -> bool:
+    return any(pat in rel_path for pat in SELF_TEST_PATTERNS)
 
 # --- pointer detection -------------------------------------------------------
 # Three shapes, per plan section 1.1.
@@ -119,6 +134,9 @@ def iter_files():
             continue
         for path in sorted(base.rglob("*")):
             if path.is_file() and path.suffix in SCAN_SUFFIX:
+                r = rel(path)
+                if is_self_test(r):
+                    continue
                 yield path
 
 

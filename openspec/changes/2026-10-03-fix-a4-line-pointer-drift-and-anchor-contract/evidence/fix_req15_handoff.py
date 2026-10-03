@@ -14,8 +14,12 @@ extracted from the live spec after the edit rather than hand-written.
 import re
 import sys
 from pathlib import Path
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent))
+from _repo import REPO  # noqa: E402
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = REPO
 SPEC = ROOT / "openspec" / "specs" / "decompmoe-skeleton" / "spec.md"
 DELTA = (ROOT / "openspec" / "changes"
          / "2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract"

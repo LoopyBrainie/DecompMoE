@@ -25,8 +25,12 @@ from __future__ import annotations
 import math
 import sys
 from pathlib import Path
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent))
+from _repo import REPO  # noqa: E402
 
-REPO = Path(__file__).resolve().parents[4]
+REPO = REPO
 sys.path.insert(0, str(REPO / "src"))
 
 from decompmoe import sphere  # noqa: E402

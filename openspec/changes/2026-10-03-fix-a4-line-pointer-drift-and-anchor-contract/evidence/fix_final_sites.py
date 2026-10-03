@@ -14,8 +14,12 @@ the exemption nameable, which is what task 9.2 requires.
 
 import sys
 from pathlib import Path
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent))
+from _repo import REPO  # noqa: E402
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = REPO
 
 EDITS = [
     # --- schedule.py: docstring header, then the three aligned rows ----------
