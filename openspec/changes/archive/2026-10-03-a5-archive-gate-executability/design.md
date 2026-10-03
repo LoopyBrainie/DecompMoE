@@ -114,3 +114,77 @@ Requirement（本仓已复现三次：req-20 因 `<a id="req-20-mci">` 发出时
 绿灯打红 —— 修一个不存在的漏洞，制造一个真实的回归。
 
 用户已裁决：等并行 change 收工、`req-36` 处理方式确定后重新梳理。
+
+## Errata（2026-10-03，change `2026-10-03-fix-a5-review-findings-round-2`）
+
+本节**不改写**上面 D2 / D4 / D7 的正文——归档是历史日志，记录当时的判断比让历史
+看起来一直正确更有用。但其中三条理由经独立 review 与实测后已不成立，逐条更正如下，
+以免后来的读者从这些决策里重新推导出已被推翻的结论。
+
+### E1 — D4 的前提为假：点态覆盖检查**能**抓到被吞的 anchor
+
+D4 写「`anchors == headings` 显然成立，所以点态覆盖检查在缺 anchor 时仍为绿，只靠
+账本对比才能指名哪一个 Requirement 丢了 anchor」。
+
+**实测相反**：删掉 `governance/spec.md` 的 `<a id="req-gov-7"></a>` 一行后，9 个
+Requirement heading 对 8 个 anchor，点态检查**报红**。AC-19 自己给的 36→35 就是
+计数下降的证据——我当时推出了与它相反的结论。
+
+**为什么会这样**：吞掉一个 anchor 使 `H - A` **增大** 1；新增 Requirement 自带
+anchor，`H` 与 `A` 同增，无法抵消。任何正常归档操作序列都留下非零缺额。六种形态
+的实测表见后续 change 的 `design.md` D2。
+
+**账本仍然必要，但理由不同**：点态只给每 capability 一个缺额数字，**不给 anchor id、
+不给 Requirement 标题**；它看不到 anchor 被 **retarget**（id 存活但标题换了 ⇒ 计数
+相等 ⇒ 静默绿）；它分不开 `lost` 与 `never_added`。`governance` 的 `req-gov-9`
+因此被 `## REMOVED` 移除，以 `req-gov-10` 重写——原 Scenario 标题
+「Point-in-time coverage cannot detect the archive defect」本身即错的那一半，而
+`MODIFIED` 块不能就地改标题。
+
+### E2 — D2 的 porcelain 摘要不足以支撑 exit 2
+
+D2 写「采样 `HEAD` 与 `git status --porcelain` 的 SHA-256」。
+
+**porcelain 编码的是路径 + 状态字母，不是内容**。自建 repo 实测：同一文件已脏、
+内容 A 时摘要 `97c0d2fd…`，改成完全不同的内容 B 后摘要**仍是** `97c0d2fd…`。于是
+exit-2 检测在「并发 Edit 一个已脏文件」时静默失效——交付时刻工作树有 48 个脏条目，
+这正是最常见形态。`--porcelain` 还会把未跟踪**目录**折叠成一行，目录内新增文件不
+改变输出。
+
+**已改为**：`head` + `tracked_digest`（`sha256(git diff HEAD)`，覆盖 staged + unstaged
+的**内容**）+ `untracked_digest`（逐文件内容哈希）。`status_lines` 降为诊断字段，
+**不参与判等**：它是同一 porcelain 串的更粗函数，当独立信号会高估指纹的分辨力。
+
+### E3 — D7 的阻塞已消失，AC-81 已修复
+
+D7 延后 AC-81 的唯一理由是 `wayfinder/spec.md` 的 `> **Source:**` 行
+（`req-19` 内对 `req-20` Source 字段的逐字引用副本）会被放宽后的正则判违规。
+
+**该行已随 `req-36` 被并行 change REMOVE**。实测放宽后新增可见行数 = 0
+（strict 48 / loose 48），即关闭绕过而不引入违规。`SOURCE_LINE_RE` 已放宽，且
+`body` 同时改为按 **match 结束偏移**切片——只放宽正则而不改切片会让
+`> **Source:**` 被从行首切掉 10 字符、得到 body `ource:** …`。
+
+**另需更正一条元事实**：review 指出 D7 的这条论证「是捏造的」。复核结论是**理由
+当时为真**，错在我没记下观测对象是哪一个 commit——该行在 `1526b98`（我做决定时的
+HEAD）存在（L908），在 `940b27c` / `ea802c8` / `HEAD` 均已不存在。没有 revision 的
+记录无法被追认或推翻，这本身是缺陷。
+
+### E4 — 本 change 重新引入了 L2-F5 类缺陷
+
+`evidence/gen_deltas.py` 与 `verify_deltas.py` 用
+`REPO = Path(__file__).resolve().parents[4]` 定位仓库根。该下标只在**归档前**成立；
+归档后解析成 `openspec/`，实测 `FileNotFoundError: openspec/openspec/specs/...`。
+
+**这是同一仓库第二次犯**：父 commit `1612778` 的标题正是「make the evidence tools
+survive archiving」。本 change 修好了它，随后的重写又带了回来。**交付证据的 commit
+让证据不可复现**——比没有证据更糟，因为它看起来是可复现的。已在后续 change 中改为
+按内容定位（`evidence/_paths.py`），并加了归档态 preflight（exit 2），因为路径修好
+后重跑仍会得到 4 条读起来像「证据损坏」的红。
+
+### E5 — 三个失效 change 未被接管
+
+`2026-09-26-followup-…`、`fix-review-findings-…`、
+`2026-10-03-close-pointer-blindspot-and-full-tree-sweep` 三者在 `openspec/changes/`
+下无 delta 且长期不归档。**按用户裁决本 change 完全不接管**，在此登记以便后续
+change 知道它们是已知未处理项，而不是被漏掉。

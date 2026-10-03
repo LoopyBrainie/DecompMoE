@@ -11,6 +11,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
 # The lint script lives in `scripts/` (not `src/`), so it is not on the
 # pyproject-managed pythonpath. Load it via importlib rather than via the
 # import system to avoid making `scripts/` a sys.path entry (which would
@@ -510,3 +511,241 @@ def test_live_spec_tree_passes_tightened_form_check() -> None:
             f"Expected 0 violations in {capability}/spec.md under the tightened "
             f"check ①b, got {violations}"
         )
+
+
+# --- AC-81: a leading prefix must not hide a Source field --------------------
+
+
+def _write_spec_with_prefixed_source_line(prefix: str, body: str) -> Path:
+    """Write a spec whose single Source line carries `prefix` before the field."""
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".md", delete=False, encoding="utf-8"
+    ) as f:
+        f.write(f"# Test spec\n\n{prefix}**Source:** {body}\n")
+        return Path(f.name)
+
+
+@pytest.mark.parametrize(
+    ("label", "prefix"),
+    [
+        ("blockquote", "> "),
+        ("two_spaces", "  "),
+        ("ordered_list", "1. "),
+    ],
+)
+def test_prefixed_source_line_is_still_checked(label: str, prefix: str) -> None:
+    """AC-81: `^\\*\\*Source:\\*\\*` let a prefixed field bypass every check.
+
+    Under the old line-start anchor, `iter_source_lines` never yielded this
+    line at all, so `lint_file` returned `[]` — a Source field with a
+    non-canonical reverse-link passed silently. The bare-directory body below is
+    the exact form check ①b exists to reject, so a zero-violation result here
+    means the prefix is still a bypass.
+    """
+    p = _write_spec_with_prefixed_source_line(
+        prefix, "`wayfinder/tickets/`, change `foo` design.md (Decision 1)"
+    )
+    try:
+        violations = L.lint_file(p)
+        reasons = [v[2] for v in violations]
+        assert any("must name a concrete file" in r for r in reasons), (
+            f"{label}: prefixed Source line was not checked, got {reasons}"
+        )
+    finally:
+        p.unlink()
+
+
+def test_prefixed_but_canonical_source_line_is_accepted() -> None:
+    """The relaxation must not redden a *correct* field that happens to be quoted.
+
+    The other half of AC-81: relaxing the anchor is only safe if the body is
+    sliced at the match end. With a fixed-length slice, `> **Source:** ` loses
+    its first 10 characters to the slice and the body becomes `ource:** ...`,
+    which then fails ① for the wrong reason. This test fails if that coupling
+    ever comes back.
+    """
+    p = _write_spec_with_prefixed_source_line(
+        "> ", "`wayfinder/tickets/A4-1.md`, change `foo` design.md (Decision 1)"
+    )
+    try:
+        assert L.lint_file(p) == [], (
+            f"a correctly formed quoted Source field must pass, got {L.lint_file(p)}"
+        )
+    finally:
+        p.unlink()
+
+
+def test_source_body_is_sliced_at_the_match_end_not_a_fixed_length() -> None:
+    """Pin the coupling directly, so the invariant survives a future refactor.
+
+    Asserts the property rather than the symptom: for every prefix, the sliced
+    body must start with the reverse-link, never with a fragment of the marker.
+    """
+    for prefix in ("", "> ", "  ", "1. ", "   >   1. "):
+        line = f"{prefix}**Source:** `wayfinder/tickets/A4-1.md`"
+        m = L.SOURCE_LINE_RE.match(line)
+        assert m is not None, f"prefix {prefix!r} was not matched at all"
+        body = line[m.end():].strip()
+        assert body.startswith("`wayfinder/"), (
+            f"prefix {prefix!r} produced a mis-sliced body {body!r}"
+        )
+
+
+# --- check ④: Source field presence ----------------------------------------
+
+
+def _write_spec(tmp_path: Path, body: str) -> Path:
+    p = tmp_path / "spec.md"
+    p.write_text(body, encoding="utf-8")
+    return p
+
+
+def test_requirement_without_a_source_field_is_reported(tmp_path: Path) -> None:
+    """A Requirement with no field at all is the gap checks ①-③ cannot see.
+
+    `lint_file` returns `[]` for this file, because `iter_source_lines` yields
+    nothing to check. Only the presence check sees it.
+    """
+    p = _write_spec(
+        tmp_path,
+        '<a id="req-99"></a>\n\n### Requirement: No Lineage\n\nbody\n',
+    )
+    assert L.lint_file(p) == [], "format checks should have nothing to say here"
+    problems = L.check_source_presence(p, capability="tmpcap")
+    assert len(problems) == 1, problems
+    assert "no top-level **Source:** field" in problems[0], problems[0]
+    assert "req-99" in problems[0], problems[0]
+
+
+def test_grandfathered_requirement_is_not_reported(tmp_path: Path) -> None:
+    p = _write_spec(
+        tmp_path,
+        '<a id="req-1"></a>\n\n### Requirement: Legacy\n\nbody\n',
+    )
+    # `decompmoe-skeleton`/`req-1` is in the registry.
+    assert L.check_source_presence(p, capability="decompmoe-skeleton") == []
+    # The same anchor id in another capability is NOT covered by that entry.
+    assert L.check_source_presence(p, capability="wayfinder") != []
+
+
+def test_exemption_does_not_transfer_across_capabilities(tmp_path: Path) -> None:
+    """The registry key is `(capability, anchor_id)`, not the id alone.
+
+    A bare-id registry would let a new capability's `req-1` pass unchecked,
+    which is the same shape of bypass as the prefix hole AC-81 found.
+    """
+    assert all(
+        isinstance(k, tuple) and len(k) == 2 for k in L.SOURCE_EXEMPTIONS
+    ), "registry entries must be (capability, anchor_id) pairs"
+    p = _write_spec(tmp_path, '<a id="req-34"></a>\n\n### Requirement: X\n\nb\n')
+    assert L.check_source_presence(p, capability="decompmoe-skeleton") != []
+
+
+def test_stale_entry_for_a_removed_requirement_is_reported(tmp_path: Path) -> None:
+    """A registry entry naming a Requirement that no longer exists is a finding.
+
+    Whole-tree by necessity: "no longer exists" is only decidable against the
+    complete spec for a capability, so this lives in `check_registry_stale`
+    rather than the per-file presence check.
+    """
+    specs = tmp_path / "specs" / "decompmoe-skeleton"
+    specs.mkdir(parents=True)
+    (specs / "spec.md").write_text(
+        '<a id="req-1"></a>\n\n### Requirement: Still Here\n\nb\n', encoding="utf-8"
+    )
+    problems = L.check_registry_stale(tmp_path / "specs")
+    removed = [m for m in problems if "no longer exists" in m]
+    # req-1 is present, so it must not be reported as removed; the 19 other
+    # skeleton entries are absent from this synthetic tree and must be.
+    assert not any("decompmoe-skeleton/req-1 " in m for m in removed), removed
+    assert any("decompmoe-skeleton/req-2 " in m for m in removed), removed
+
+
+def test_stale_entry_now_carrying_a_field_is_reported(tmp_path: Path) -> None:
+    """A backfilled Requirement must retire its exemption, or the gate lies.
+
+    This is the per-file half: decidable from the file alone, because the
+    anchor is right there and now carries a field.
+    """
+    p = _write_spec(
+        tmp_path,
+        '<a id="req-1"></a>\n\n### Requirement: Backfilled\n\n'
+        "**Source:** `wayfinder/tickets/A0-1.md`\n\nbody\n",
+    )
+    problems = L.check_source_presence(p, capability="decompmoe-skeleton")
+    assert any("stale" in m and "prune the registry" in m for m in problems), (
+        f"a registry entry whose Requirement now has a field must be reported: {problems}"
+    )
+
+
+def test_stale_entry_for_a_capability_with_no_spec_is_reported(tmp_path: Path) -> None:
+    """An entry for a capability that has no spec file exempts nothing."""
+    specs = tmp_path / "specs" / "wayfinder"
+    specs.mkdir(parents=True)
+    (specs / "spec.md").write_text(
+        '<a id="req-1"></a>\n\n### Requirement: X\n\nb\n', encoding="utf-8"
+    )
+    problems = L.check_registry_stale(tmp_path / "specs")
+    assert any("no spec file" in m for m in problems), problems
+
+
+def test_section_sub_anchor_is_not_counted_as_a_requirement(tmp_path: Path) -> None:
+    """A block-level sub-anchor must not create a phantom missing-field violation.
+
+    This is the defect that truncated Requirement blocks three times in this
+    repository's archive history, seen from the other side: if the sub-anchor
+    were treated as a block start, a following `#### Scenario:` would look like
+    a Requirement heading with no Source field.
+    """
+    p = _write_spec(
+        tmp_path,
+        '<a id="req-1"></a>\n\n### Requirement: Real\n\n'
+        "**Source:** `wayfinder/tickets/A0-1.md`\n\n"
+        '<a id="req-1-mci"></a>\n\n#### Scenario: inner\n\nbody\n',
+    )
+    assert L.check_source_presence(p, capability="wayfinder") == []
+
+
+def test_inline_anchor_in_prose_is_not_a_block_start(tmp_path: Path) -> None:
+    p = _write_spec(
+        tmp_path,
+        "Prose mentioning <a id=\"req-1\"></a> inline.\n\n"
+        '<a id="req-2"></a>\n\n### Requirement: Real\n\n'
+        "**Source:** `wayfinder/tickets/A0-1.md`\n",
+    )
+    problems = L.check_source_presence(p, capability="wayfinder")
+    assert problems == [], f"inline anchor must not become a Requirement: {problems}"
+
+
+def test_unparseable_file_is_reported_not_silently_passed(tmp_path: Path) -> None:
+    """Zero Requirements parsed is a finding, not an empty pass.
+
+    The `all(...)`-over-an-empty-list failure: a parser that silently matches
+    nothing makes every downstream count zero and the gate green.
+    """
+    p = _write_spec(tmp_path, "just prose, no anchors, no headings\n")
+    problems = L.check_source_presence(p, capability="wayfinder")
+    assert len(problems) == 1, problems
+    assert "no Requirement blocks parsed" in problems[0], problems[0]
+
+
+def test_live_tree_reports_no_unregistered_missing_field() -> None:
+    """The live specs must have no missing field outside the registry."""
+    total_exempt = 0
+    for capability in ("wayfinder", "decompmoe-skeleton", "governance"):
+        spec = _REPO_ROOT / "openspec" / "specs" / capability / "spec.md"
+        problems = L.check_source_presence(spec, capability=capability)
+        assert problems == [], (
+            f"{capability}: ungrandfathered Source-field problems: {problems}"
+        )
+        lines = spec.read_text(encoding="utf-8").splitlines()
+        total_exempt += sum(
+            1 for _, aid, _, has in L.requirement_blocks(lines)
+            if not has and (capability, aid) in L.SOURCE_EXEMPTIONS
+        )
+    assert total_exempt == len(L.SOURCE_EXEMPTIONS), (
+        f"registry lists {len(L.SOURCE_EXEMPTIONS)} entries but only {total_exempt} "
+        "are actually missing a field -- the registry has stale entries"
+    )

@@ -91,17 +91,78 @@ def _git(*args: str) -> tuple[int, str]:
 # --- worktree snapshot (AC-25) ----------------------------------------------
 
 
+def _sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _tracked_content_digest() -> str:
+    """Digest the *content* of every tracked change, staged and unstaged.
+
+    `git diff HEAD` is used rather than `git status --porcelain` on purpose.
+    Porcelain encodes **path + status letter, not content**: two worktrees that
+    are both dirty in the same files with the same status letters produce a
+    byte-identical porcelain listing, and therefore an identical digest, no
+    matter how far the contents have diverged.
+
+    That is not a corner case. It is the *modal* case whenever another session
+    is editing files that are already dirty, which is exactly the situation
+    `req-gov-8` exists to police: a concurrent edit to an already-dirty file
+    would slip through a porcelain fingerprint while every gate still printed
+    green.
+
+    `git diff HEAD` spans both the index and the worktree, so staged and
+    unstaged edits to the same path are both covered by one digest.
+    """
+    rc, out = _git("diff", "HEAD")
+    if rc != 0:
+        raise RuntimeError(f"cannot read `git diff HEAD`: {out.strip()}")
+    return _sha256_bytes(out.encode("utf-8", errors="replace"))
+
+
+def _untracked_content_digest() -> str:
+    """Digest the content of every untracked file, individually.
+
+    `git status --porcelain` collapses an untracked *directory* to a single
+    `?? dir/` line, so adding a second file inside it changes nothing in the
+    listing. `--others --exclude-standard` enumerates the individual paths
+    instead, and hashing each one's bytes makes the digest content-sensitive.
+    """
+    rc, out = _git("ls-files", "--others", "--exclude-standard")
+    if rc != 0:
+        raise RuntimeError(f"cannot enumerate untracked files: {out.strip()}")
+    parts: list[str] = []
+    for rel in sorted(p for p in out.splitlines() if p.strip()):
+        path = _REPO_ROOT / rel
+        try:
+            digest = _sha256_bytes(path.read_bytes())
+        except OSError as exc:
+            # A file that vanished or is locked between the listing and the read
+            # is itself a concurrent change; record the failure rather than
+            # silently skipping the path.
+            digest = f"UNREADABLE:{exc.errno}"
+        parts.append(f"{rel}\0{digest}")
+    return _sha256_bytes("\n".join(parts).encode("utf-8"))
+
+
 def worktree_snapshot() -> dict[str, object]:
-    """Return a stable fingerprint of the tree the gates are about to judge.
+    """Return a stable, content-sensitive fingerprint of the tree.
 
-    Three components, each chosen because it is cheap and changes for a
-    different reason:
+    Three components, each failing for a different reason:
 
-    * `head` — the committed base. Catches a commit landing mid-run.
-    * `status_sha256` — a digest of `git status --porcelain`, so two different
-      dirty states cannot collide even when they have the same file count.
-    * `status_lines` — the raw count, kept so a human reading a failure can see
-      *how* unstable the tree was.
+    * `head` — the committed base. Catches a commit landing mid-run, which moves
+      the base while the working-tree content may be unchanged.
+    * `tracked_digest` — a digest of `git diff HEAD`, i.e. of the *content* of
+      every tracked modification, staged and unstaged. This is the component
+      that catches a concurrent edit to an already-dirty file; a
+      `git status --porcelain` digest cannot, because porcelain carries path +
+      status letter only.
+    * `untracked_digest` — a digest of every untracked file's bytes, enumerated
+      individually so that a new file inside an untracked directory counts.
+
+    `status_lines` is deliberately *not* among them: it is a strictly coarser
+    function of the same porcelain string, so counting it as an independent
+    signal would overstate how much the fingerprint discriminates. It is kept
+    only so a human reading an INVALID result can see how busy the tree was.
     """
     rc_head, head = _git("rev-parse", "HEAD")
     if rc_head != 0:
@@ -111,19 +172,27 @@ def worktree_snapshot() -> dict[str, object]:
         raise RuntimeError(f"cannot read worktree status: {st.strip()}")
     return {
         "head": head.strip(),
-        "status_sha256": hashlib.sha256(st.encode("utf-8")).hexdigest(),
+        "tracked_digest": _tracked_content_digest(),
+        "untracked_digest": _untracked_content_digest(),
         "status_lines": len(st.splitlines()),
     }
 
 
 def _snapshot_differs(before: dict[str, object], after: dict[str, object]) -> list[str]:
-    """Return human-readable descriptions of every field that moved."""
+    """Return human-readable descriptions of every field that moved.
+
+    Digest fields are reported as equal/unequal rather than as their full value:
+    a 64-hex string in an error message hides the thing the reader needs, which
+    is *which* signal tripped.
+    """
     moved: list[str] = []
-    for key in ("head", "status_sha256", "status_lines"):
-        if before.get(key) != after.get(key):
-            moved.append(
-                f"  {key}: {before.get(key)!r} -> {after.get(key)!r}"
-            )
+    for key in ("head", "tracked_digest", "untracked_digest", "status_lines"):
+        if before.get(key) == after.get(key):
+            continue
+        if key.endswith("_digest"):
+            moved.append(f"  {key}: CHANGED")
+        else:
+            moved.append(f"  {key}: {before.get(key)!r} -> {after.get(key)!r}")
     return moved
 
 
@@ -195,8 +264,20 @@ def anchor_ledger(specs_dir: Path = SPECS_DIR) -> dict[str, dict[str, str]]:
 def check_anchor_coverage(specs_dir: Path = SPECS_DIR) -> list[str]:
     """Return one message per Requirement missing an anchor, plus duplicates.
 
-    Point-in-time only. It cannot see a swallowed anchor (see `anchor_ledger`);
-    it exists so a *newly authored* Requirement cannot ship without one.
+    Point-in-time only, and deliberately cheap. It *does* catch the archive
+    defect this runner is built around: a swallowed anchor removes a block start
+    while leaving the heading count alone, so `H - A` grows by one and cannot be
+    cancelled by any simultaneous addition (an added Requirement carries its own
+    anchor, so `H` and `A` move together). Measured, not assumed -- see
+    `tests/test_run_gates.py::test_a_swallow_cannot_be_masked_by_simultaneous_additions`,
+    which exists because that negative claim was originally believed wrong.
+
+    What it does *not* do is name anything: it reports a per-capability deficit,
+    not which anchor id or which Requirement lost it, it cannot see an anchor
+    id that survived but was re-attached to a different Requirement, and it
+    cannot separate a lost anchor from one the change declared but never added.
+    Those three are what `anchor_ledger` adds, and `req-gov-10` is the
+    requirement that asks for them.
     """
     problems: list[str] = []
     for spec in spec_paths(specs_dir):
@@ -265,16 +346,24 @@ def declared_added_anchors(change_name: str) -> list[str]:
             continue
         for spec in sorted(specs_dir.glob(f"*/{SPEC_FILENAME}")):
             lines = spec.read_text(encoding="utf-8").splitlines()
-            in_added = False
-            for line in lines:
+            # Only anchors that actually introduce a Requirement. A block-level
+            # sub-anchor inside an ADDED delta (e.g. `req-20-mci`) is a section
+            # header, not a Requirement header, and `never_added` is computed
+            # against `present` — which comes from `block_starts` only. Counting
+            # sub-anchors here would report one forever-absent for every ADDED
+            # block that carries them.
+            added_ranges: list[tuple[int, int]] = []
+            start: int | None = None
+            for i, line in enumerate(lines):
                 if line.startswith("## "):
-                    in_added = line.strip() == "## ADDED Requirements"
-                    continue
-                if not in_added:
-                    continue
-                m = _ANCHOR_RE.match(line.strip())
-                if m:
-                    declared.append(m.group(1))
+                    if start is not None:
+                        added_ranges.append((start, i))
+                    start = i if line.strip() == "## ADDED Requirements" else None
+            if start is not None:
+                added_ranges.append((start, len(lines)))
+            for lo, hi in added_ranges:
+                for line_no, anchor_id, _title in block_starts(lines[lo:hi]):
+                    declared.append(anchor_id)
         if declared:
             break
     return declared

@@ -14,18 +14,29 @@ Verification is deliberately redundant with the tests (see `verify_deltas.py`):
 block-level difflib, Scenario-count preservation, Source-field preservation, and
 a line-length-collapse guard.
 
-Run from the repo root:
+Run from anywhere inside the repository, before or after the archive moves this
+change under `openspec/changes/archive/`:
 
-    python openspec/changes/2026-10-03-a5-archive-gate-executability/evidence/gen_deltas.py
+    python openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/gen_deltas.py
 """
 from __future__ import annotations
 
+import importlib.util
 import re
 import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[4]
-CHANGE = REPO / "openspec" / "changes" / "2026-10-03-a5-archive-gate-executability"
+_EVIDENCE_DIR = Path(__file__).resolve().parent
+_PATHS_SPEC = importlib.util.spec_from_file_location(
+    "_a5_evidence_paths", _EVIDENCE_DIR / "_paths.py"
+)
+assert _PATHS_SPEC is not None and _PATHS_SPEC.loader is not None
+_paths = importlib.util.module_from_spec(_PATHS_SPEC)
+_PATHS_SPEC.loader.exec_module(_paths)
+
+REPO = _paths.find_repo_root(_EVIDENCE_DIR)
+CHANGE = _paths.find_change_dir(REPO, "2026-10-03-a5-archive-gate-executability")
+_paths.refuse_if_archived("gen_deltas.py", CHANGE)
 WAYFINDER_SPEC = REPO / "openspec" / "specs" / "wayfinder" / "spec.md"
 OUT_WAYFINDER = CHANGE / "specs" / "wayfinder" / "spec.md"
 OUT_GOVERNANCE = CHANGE / "specs" / "governance" / "spec.md"
