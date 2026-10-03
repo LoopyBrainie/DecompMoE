@@ -880,7 +880,7 @@ def test_versine_voronoi_closed_form() -> None:
     # on the closed-form definition itself).
     v_16_16 = 1.0 - math.cos(sphere.canonical_voronoi_angle(num_experts=16, signature_dim=16))
     v_64_16 = 1.0 - math.cos(sphere.canonical_voronoi_angle(num_experts=64, signature_dim=16))
-    # Step 2b: wayfinder/spec.md L236-L237 4dp `versine` literal pins. A
+    # Step 2b: `wayfinder` `#req-10` (Territory Seeding Deferred Contract) 4dp `versine` literal pins. A
     # 4-decimal spec display value is guarded by EXACT `round(v, 4) == literal`,
     # per `decompmoe-skeleton` req-6 (same rule as `round(θ, 4) == 1.1735`),
     # NOT by a widened `pytest.approx` tolerance.
@@ -906,7 +906,7 @@ def test_versine_voronoi_closed_form() -> None:
         f"which is what makes round(v, 4) a decision on the display form; "
         f"actual=({dev_16_16:.6e}, {dev_64_16:.6e})"
     )
-    # Step 3: versine MUST NOT be chord distance (per wayfinder/spec.md L235
+    # Step 3: versine MUST NOT be chord distance (per `wayfinder` `#req-10`
     # definitional layer, which forbids conflating versine with D_chord).
     # versine ∈ [0, 1]; chord ∈ [0, 2]. Sanity check at MVP scale.
     assert 0 < v_16_16 < 1, f"versine_Voronoi(16,16) = {v_16_16:.4f} must be in (0, 1)"

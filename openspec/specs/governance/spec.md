@@ -75,11 +75,11 @@ The system SHALL treat the ticket `(historical, <original reading>; superseded b
 
 #### Scenario: Ticket A8-2 L70 + L74 annotations follow CLAUDE.md §3 source-field rules verbatim
 
-- **WHEN** `wayfinder/tickets/A8-2.md` L70 + L74 italic `(historical, ..., superseded by spec req-20 L413 ... via ...)` annotations are appended
+- **WHEN** `wayfinder/tickets/A8-2.md` supersede annotations italic `(historical, ..., superseded by spec req-20 <Requirement title> (#req-20) ... via ...)` annotations are appended
 - **THEN** each annotation contains the canonical pattern verbatim: `(historical, <original reading>; superseded by spec req-N <Requirement title> (`#req-N`) via <change> Decision M)` — 3 reverse-links complete (ticket + spec anchor + change Decision), backtick-wrapped, with the spec anchor (`wayfinder/tickets/A6a-2.md` for the wayfinder ticket-side lineage); the line-addressed variant `req-N L###` is legacy and MUST NOT appear in a NEW annotation
 - **AND** no new `governance` operational contract is introduced (the existing `req-gov-1` integer-vs-float guard + CLAUDE.md §3 source-field rules are sufficient for this drift remediation instance; the planned `09-fix-claude-md-ticket-advisory-boundary` ticket-advisory-boundary formalization is a separate future change)
-- **AND** the `.audit/` evidence file edits (`.audit/spec-math-audit.md` L524 + `.audit/audit-verification.md` verify-15 verdict) do NOT require new governance anchoring — `.audit/` is a temporary audit evidence library (per `.audit/README.md` L3), not governed by spec Requirements
-- **AND** the `governance` spec.md anchor coverage remains consistent: existing `req-gov-1` anchor at L7 unchanged; this ADDED Requirement introduces `req-gov-2` as a documenting-only meta Requirement (not an operational contract); future governance contracts would be `req-gov-3`+ and are introduced by separate changes
+- **AND** the `.audit/` evidence file edits (`.audit/spec-math-audit.md` verify-14 entry + `.audit/audit-verification.md` verify-15 verdict) do NOT require new governance anchoring — `.audit/` is a temporary audit evidence library (per `.audit/README.md`), not governed by spec Requirements
+- **AND** the `governance` spec.md anchor coverage remains consistent: existing `req-gov-1` anchor unchanged; this ADDED Requirement introduces `req-gov-2` as a documenting-only meta Requirement (not an operational contract); future governance contracts would be `req-gov-3`+ and are introduced by separate changes
 
 #### Scenario: Ticket A8-2 centered-covariance supersede annotation preserved
 
@@ -138,7 +138,7 @@ Concrete obligations:
 
 - **WHEN** an audit-verification loop's axis-γ 复核 finds that a finding satisfies the dormant-bug risk function (`latent_risk ∈ {MEDIUM, HIGH} ∨ trigger_probability ∈ {MEDIUM, HIGH}`, the either-dimension rule)
 - **THEN** the audit-verification verdict severity MUST escalate to `HIGH dormant-bug`, distinct from the reactive HIGH (传染 src/) upgrade
-- **AND** the verdict MUST cite both `latent_risk` value and `trigger_probability` value explicitly with reasoning (e.g. `latent_risk=HIGH (48 orphan clusters fatal if Phase 0 implemented) × trigger_probability=HIGH (any future Phase 0 reader reads ticket A6b-1 L100) ⇒ HIGH dormant-bug`)
+- **AND** the verdict MUST cite both `latent_risk` value and `trigger_probability` value explicitly with reasoning (e.g. `latent_risk=HIGH (48 orphan clusters fatal if Phase 0 implemented) × trigger_probability=HIGH (any future Phase 0 reader reads ticket `wayfinder/tickets/A6b-1.md`) ⇒ HIGH dormant-bug`)
 - **AND** the cited reasoning MUST be retrievable from the finding's own evidence section (no external reference required); the audit trail is self-contained
 - **AND** when both `latent_risk` and `trigger_probability` are `LOW`, finding retains its current MEDIUM (no escalation); this case is the no-op boundary that distinguishes dormant-bug from ordinary stale-finding
 - **AND** the scenario is verified by retro-application to `.audit/audit-verification/audit-verification.md` cycle-13 finding 1 (verify-18 evidence L1316-1322): `latent_risk=HIGH` (48 orphan clusters fatal if Phase 0 implemented) × `trigger_probability=HIGH` (any future Phase 0 reader reads ticket A6b-1 L100) ⇒ dormant-bug HIGH upgrade (was MEDIUM borderline + dormant bug 标注 pre-this-change, becomes HIGH dormant-bug post-this-change)
@@ -171,7 +171,7 @@ The advisory status of `wayfinder/tickets/*.md` (per `CLAUDE.md` §8 "2026-08-21
 
 4. **Drift remediation protocol** — when ticket stale is detected propagating to `src/`: (a) ticket MUST receive a `(historical, <original reading>; superseded by spec req-N <Requirement title> (`#req-N`) via <change> Decision M)` annotation preserving the decision chain (canonical form per `openspec/specs/wayfinder/spec.md` req-34 "Source Field Format Invariant for OpenSpec Specs" Scenario "every Source field contains a wayfinder ticket reference"; the line-addressed `req-N L###` variant is legacy and MUST NOT be newly written); (b) `src/` default values MUST be updated to spec canonical values; (c) tests using `assert == stale_value` MUST migrate to `pytest.approx(spec_value, abs=...)` per `CLAUDE.md` §6 第 8 条 float closed-form convention (formalized by `req-gov-1`).
 
-**Source:** `CLAUDE.md` §8 (cycle-7 audit-verification L581 meta-洞察 boundary clarification, amended by this change)
+**Source:** `CLAUDE.md` §8 (cycle-7 audit-verification meta-洞察 boundary clarification, amended by this change)
 
 #### Scenario: ticket advisory scope is bounded to ticket-edit policy
 

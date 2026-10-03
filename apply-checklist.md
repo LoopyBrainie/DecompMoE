@@ -39,7 +39,7 @@ Do NOT skip step 1 — the spec is the single source of truth, not the code.
 
 - **Spec anchor**: `openspec/specs/wayfinder/spec.md`, Requirement "4070 MVP Hyperparameter Set", Scenario "Closed-form parameter totals"
   - Per-layer `33_554_432`, total `134_217_728` exact
-- **Action**: FFN coefficient `2 * 2` → `3 * 2` at lines 122 and 133 (the FLOPs formula must count SwiGLU's 3 matrices, not 2). DO NOT change attention `4 * 2 * d²` at lines 121/132 — that 4 is correct (Q/K/V/O).
+- **Action**: FFN coefficient `2 * 2` → `3 * 2` in the FFN FLOPs term (the FLOPs formula must count SwiGLU's 3 matrices, not 2). DO NOT change attention `4 * 2 * d²` in the attention FLOPs term — that 4 is correct (Q/K/V/O).
 - **Verify**: `grep -F "3 * 2" src/decompmoe/config.py` → ≥ 2 hits
 - **New test**: `tests/test_config.py::test_flops_per_layer_exact_33554432` and `test_flops_total_exact_134217728` — assert the absolute values
 
@@ -99,8 +99,8 @@ Do NOT skip step 1 — the spec is the single source of truth, not the code.
 ### Apply task 3.6 — `src/decompmoe/extraction.py`
 
 - **Spec anchor**: `openspec/specs/decompmoe-skeleton/spec.md`, Requirement "Centroid Driver Semantic Invariants", invariant #4 (Near-zero candidate fallback for Phase 4)
-  - Phase 4 step applies `torch.where(‖c‖ < 1e-9, prev_c, normalize(c))` like EMA branch (lines 139-142)
-- **Action**: extend `CentroidDriver.step()` Phase 4 branch (line 144-145) with the same `torch.where` guard pattern.
+  - Phase 4 step applies `torch.where(‖c‖ < 1e-9, prev_c, normalize(c))` like EMA branch (the EMA branch of the same helper)
+- **Action**: extend `CentroidDriver.step()` Phase 4 branch (the Phase 4 branch of that helper) with the same `torch.where` guard pattern.
 - **Verify**: `test_near_zero_candidate_fallback_phase4` passes (new test in `tests/test_extraction.py`)
 - **New test**: `tests/test_extraction.py::test_near_zero_candidate_fallback_phase4` — feed `centroids` with `‖c‖₂ < 1e-9`, verify output preserves prev + no NaN
 
@@ -109,7 +109,7 @@ Do NOT skip step 1 — the spec is the single source of truth, not the code.
 ### Apply task 3.7 — `src/decompmoe/safeguards.py`
 
 - **Spec anchor**: `openspec/specs/wayfinder/spec.md`, ADDED Requirement "Resurrection Perturbation Per-Expert Contract"
-  - `resurrection_perturb_distribution(f_per_expert: Tensor, target_idx: int, eps_std: float = 0.05, *, dim: int | None = None) -> Tensor` returns shape `(d_c,)` or `(d_model·d_ffn,)` (single expert), NOT `(N_e,)` (code-review N9 fix: 4-arg form with `f_per_expert` first and keyword-only `dim`; signature mirrors `src/decompmoe/safeguards.py:105-133` at commit `263ac19`; passing `dim=None` raises `TypeError`)
+  - `resurrection_perturb_distribution(f_per_expert: Tensor, target_idx: int, eps_std: float = 0.05, *, dim: int | None = None) -> Tensor` returns shape `(d_c,)` or `(d_model·d_ffn,)` (single expert), NOT `(N_e,)` (code-review N9 fix: 4-arg form with `f_per_expert` first and keyword-only `dim`; signature mirrors `safeguards.py::resurrection_perturb_distribution` at commit `263ac19`; passing `dim=None` raises `TypeError`)
   - `β_i ← 0.85·β_{j*}` and `β_{j*} ← 0.85·β_{j*}` mutation as part of the same event
 - **Action**: stop using `target_idx` as unused param (it's now part of the positional sequence after `f_per_expert`); require explicit `dim` keyword at call site; return single-expert-shape tensor; add β decay mutation
 - **Verify**: output shape `(d_c,)` or `(d_model·d_ffn,)`; not `(N_e,)`. Mutation visible via state inspection.

@@ -354,7 +354,7 @@ def test_cg_n_eq_1_returns_magnitude() -> None:
     # all three coincidentally return `abs(value)` for single-element tensors
     # (L2=sqrt(g²)=|g|, abs(sum)=|g|, abs(max)=|g| for `g.numel()==1`). The actual
     # L2-vs-other-norms discriminator lives in the sibling test
-    # `test_cg_l2_norm_closed_form` (req-20 coverage at L286-310), where the
+    # `test_cg_l2_norm_closed_form` (req-20 coverage), where the
     # assertion `CG(torch.tensor([3.0, 4.0])) == pytest.approx(5.0)` is uniquely
     # satisfied by L2-norm (L1=7.0, abs(sum)=7.0, abs(max)=4.0 — only L2=5.0).
     # This bare `==` is FP-exact because `sqrt(g²)` is exact for `|g| ≤ 2^52` in

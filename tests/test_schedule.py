@@ -61,9 +61,9 @@ def test_phase_step_frozen_names_phase_0_and_4_empty_set() -> None:
     """Spec (wayfinder Req 14 / openspec/specs/decompmoe-skeleton/spec.md
     req-13 "Five-Phase Schedule State Machine"):
     phase_step_frozen_names returns `set()` for phases 0 and 4. Phase 0 =
-    SEEDING has no gradient channel at all (wayfinder/spec.md L83, req-6:
+    SEEDING has no gradient channel at all (wayfinder `#req-6` (Req 6 C Extraction Differentiability And Centroid Lifecycle):
     "Spherical K-Means seeding (no gradient, no EMA)"; phase table
-    wayfinder/spec.md L617, req-27: `| 0 | K-Means seeding |
+    wayfinder `#req-27` (Req 27 CentroidDriver Dual-Channel Architecture Contract): `| 0 | K-Means seeding |
     Frozen (requires_grad=False) | N/A |`), so the freeze-name set is
     vacuously empty — this is NOT "everything frozen", which would instead
     be the FULL name set. Phase 4 = PROJECTED_SGD has full AdamW unfreeze

@@ -87,7 +87,7 @@ This pattern answers four questions per finding:
 ### 3. Distinguish "real defensive code" from "dead defensive code"
 
 ```text
-schedule.py try/excepts (lines 160, 171):
+schedule.py try/excepts (both try/except call sites):
   - pi-lens 'dead-defensive' lint flagged these as dead code
   - VERIFIED: float(None) / float('abc') / float(object()) DO raise
     TypeError/ValueError -> these are REAL input validation, not dead

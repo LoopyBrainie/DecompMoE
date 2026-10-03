@@ -617,7 +617,7 @@ def test_resurrect_expert_rejects_wrong_length_beta() -> None:
 def test_no_other_module_defines_should_resurrect() -> None:
     """The driver MUST NOT define a same-named helper — only `decompmoe.safeguards.should_resurrect` exists.
 
-    Guards the spec contract introduced at `decompmoe-skeleton` L206:
+    Guards the spec contract introduced in `decompmoe-skeleton` `#req-10` (Standard SwiGLU Expert With No Shared Branch):
     > "the driver MUST NOT define a same-named helper"
 
     Iterates over every submodule of `decompmoe` (via `pkgutil.iter_modules`)
@@ -864,7 +864,7 @@ def test_beta_saturation_global_halve_at_exactly_50pct_returns_false() -> None:
 
     Per `wayfinder Req 13 Numerical Safeguards (#req-13)`: 'global LR ÷ 2 when **more than 50%** of experts
     have `β_i > 28.8`'. `more than 50%` is strict (>50%), so the boundary
-    case `n/2` (e.g. 8/16 with N_e=16) MUST return False. Code L265 uses
+    case `n/2` (e.g. 8/16 with N_e=16) MUST return False. Code `safeguards.py::resurrect_expert` uses
     `count > n/2` (strict). This test pins the boundary.
     """
     β = torch.zeros(16)
@@ -889,7 +889,7 @@ def test_beta_saturation_warning_at_exactly_30_4_returns_false() -> None:
     """β_i == 30.4 (== threshold, strict `>`): returns False.
 
     Per `wayfinder Req 13 Numerical Safeguards (#req-13)`: 'warning at `β_i > 30.4`' — strict greater-than.
-    Code L259 uses `(β_per_expert > BETA_SATURATION_WARN)` which is strict.
+    Code `safeguards.py::resurrect_expert` uses `(β_per_expert > BETA_SATURATION_WARN)` which is strict.
     This test pins the strict-boundary semantics.
     """
     β = torch.full((16,), 20.0)
@@ -939,7 +939,7 @@ def test_nan_ladder_zero_returns_skip_per_default() -> None:
 
     Per `decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)`: 'for counts (1, 3, 10) respectively' —
     `consecutive_nan ∉ {1, 3, 10}` is not explicitly specified in spec.
-    Code L72 fallback to `("skip", 1.0, False)` (defensive: do nothing on
+    The `consecutive_nan >= 1` branch fallback to `("skip", 1.0, False)` (defensive: do nothing on
     no NaN). This test pins the default-behavior contract so a future
     change to the ladder edge case breaks loudly.
     """
@@ -968,7 +968,7 @@ def test_should_resurrect_current_per_step_semantic_pinned() -> None:
     Per wayfinder Req 13 (anchor #req-13): 'triggered when `f_i^avg < 1/(2·N_e)` for 200
     consecutive steps'. The `f_i^avg` notation is ambiguous between
     (a) per-step `f_i` with `avg` as a notation convention, and
-    (b) literal average over a window. The current code (L71-80)
+    (b) literal average over a window. The current code (the averaging window)
     implements (a): every snapshot in the last `consec` steps must have
     `f_i < threshold`. This test demonstrates the difference with a
     non-constant history where per-step vs avg would diverge.
@@ -1008,7 +1008,7 @@ def test_should_resurrect_current_per_step_semantic_pinned() -> None:
 def test_should_resurrect_consec_step_boundary_exact() -> None:
     """Pin `consec=200` boundary: history length 199 → empty set; history length 200 → fires.
 
-    Per spec req-13 (anchor `<a id="req-13">` at L264, body at L268): "triggered when
+    Per spec req-13 (anchor `<a id="req-13">`): "triggered when
     `f_i^avg < 1 / (2 · N_e)` for 200 consecutive steps". The trigger MUST NOT
     fire before `consec` consecutive steps have accumulated, and MUST fire
     exactly when `consec` consecutive steps all satisfy the threshold
@@ -1019,7 +1019,7 @@ def test_should_resurrect_consec_step_boundary_exact() -> None:
     silently skip the trigger at exactly 200 steps. Both regressions
     slip past tests that use 250-step history (`test_resurrection_threshold_mvp_value`).
 
-    Spec req-13 / L268 + L770 closes the trigger event in `set()` return;
+    Spec req-13 closes the trigger event in `set()` return;
     integer closed-form via bare `==` per req-gov-1 (DEAD_EXPERT_CONSEC_STEPS=200).
     """
     from decompmoe.safeguards import (
