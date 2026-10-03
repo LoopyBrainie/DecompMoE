@@ -54,16 +54,33 @@ length-collapse and re-reads every file it wrote.
 
 ## 4. Gates
 
-- [ ] 4.1 `python scripts/run_gates.py` green.
-- [ ] 4.2 `pytest` green, plus the new guard tests.
-- [ ] 4.3 `openspec validate --specs --strict` PASS.
-- [ ] 4.4 Anchor coverage still 68/3.
-- [ ] 4.5 Census re-run: **0 actionable**.
-- [ ] 4.6 Regression: detector on the pre-change tree still reports the
-      survivors, so the gate is not passing vacuously.
+- [x] 4.1 Three lints auto-discovered; `lint_no_dead_defensive` and
+      `lint_no_source_field_drift` PASS. `run_gates.py` exit is red for one
+      reason only: `lint_no_line_pointers.py` reports 4 C4 findings, all in
+      `tests/test_run_gates.py`, which is a **parallel session's uncommitted
+      in-flight file** (268 inserted lines, and `req-101` does not exist in
+      HEAD). Verified: `git show HEAD:tests/test_run_gates.py` contains no
+      `req-101`. Scoped to this change's own paths the gate is exit 0.
+- [x] 4.2 `pytest` green for everything this change owns: 343 passed,
+      1 skipped with `tests/test_run_gates.py` excluded. Two failures in
+      the full run are both in that same foreign file.
+- [x] 4.3 `openspec validate --specs --strict` PASS;
+      `openspec validate <change> --type change --strict` **valid**.
+- [x] 4.4 Anchor coverage still 68 / 3 capabilities.
+- [x] 4.5 Census re-run: **0 actionable** in the product tree.
+- [x] 4.6 Regression: the detector still reports 191 strong actionable sites
+      on the `1526b98` baseline worktree, and its validation harness asserts
+      this before any number is believed, so the zero is not vacuous.
 
 ## 5. Archive and re-verify
 
-- [ ] 5.1 `openspec archive --skip-specs`.
+- [ ] 5.1 `openspec archive --skip-specs`. **Deliberately deferred, by user
+      decision, not by oversight.** The only red gate item belongs to a
+      parallel session's uncommitted `tests/test_run_gates.py`, whose
+      synthetic `req-101` fixture does not resolve in any capability.
+      Evidence that it is not ours: `git show HEAD:tests/test_run_gates.py`
+      contains no `req-101`, and the file carries 268 uncommitted inserted
+      lines. Archiving is an irreversible `git` move, so it waits for a
+      genuinely green run rather than a red one annotated as foreign.
 - [ ] 5.2 Independent post-archive recheck by a non-implementer.
 - [ ] 5.3 `.audit` A-4 errata append recording this correction.
