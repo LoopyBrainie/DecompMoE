@@ -127,7 +127,7 @@ class CentroidDriver:
         Phase 1–3 (EMA_xxx):      centroids ← α · centroids + (1 − α) · mean(X|mask)
         Phase 4 (PROJECTED_SGD):  When `grad is not None`, the closed-form
                                   step `c_i ← (c_i − eta · grad_i) / ‖·‖₂`
-                                  (spec L153) is applied with re-projection
+                                  (`decompmoe-skeleton Req 7 C Extraction Four-Step Pipeline (#req-7)`) is applied with re-projection
                                   + Invariant #4 near-zero fallback. When
                                   `grad is None`, legacy L2 retraction
                                   `centroids / ‖centroids‖₂` is preserved
@@ -174,7 +174,7 @@ class CentroidDriver:
             )
 
         if self.phase == Phase.PROJECTED_SGD:
-            # Phase-4 closed form (spec L153): when `grad` is supplied,
+            # Phase-4 closed form (`decompmoe-skeleton Req 7 C Extraction Four-Step Pipeline (#req-7)`): when `grad` is supplied,
             # apply `candidate = centroids - eta * grad`, then L2-retract
             # to the unit sphere. When `grad is None`, fall back to the
             # legacy L2 retraction of the input centroids (preserves the

@@ -1,0 +1,306 @@
+ACTIONABLE SITES: 75
+
+
+==============================================================================
+tests/test_safeguards.py  (34)
+==============================================================================
+  L28  tokens=['skeleton spec L206']
+          -> decompmoe-skeleton req-10 : Standard SwiGLU Expert With No Shared Branch
+          Per skeleton spec L206 (item 1): `clip_global_grad_norm_(params, max_norm: float = 1.0)
+  L30  tokens=['src/decompmoe/safeguards.py:54']
+          -> src/decompmoe/safeguards.py <unresolved>
+          N6 fix: `src/decompmoe/safeguards.py:54` returns `float(pre_clip_norm.item() ...)`).
+  L34  tokens=['spec L206']
+          -> wayfinder req-9 : Standard SwiGLU FFN Expert
+          the three closed-form guards that pin spec L206 word-for-word.
+  L62  tokens=['spec L206']
+          -> wayfinder req-9 : Standard SwiGLU FFN Expert
+          # Closed-form #1: Return-type contract (spec L206: "NOT `Tensor`").
+  L64  tokens=['spec L206']
+          -> wayfinder req-9 : Standard SwiGLU FFN Expert
+          f"clip_global_grad_norm_ must return Python `float` per spec L206 "
+  L69  tokens=['spec L206']
+          -> wayfinder req-9 : Standard SwiGLU FFN Expert
+          # Closed-form #2: Pre-clip norm value (spec L206: "the pre-clip norm"; math
+  L75  tokens=['spec L206']
+          -> wayfinder req-9 : Standard SwiGLU FFN Expert
+          # Closed-form #3: Post-clip strict upper bound (spec L206: "all gradients
+  L111  tokens=['src/decompmoe/safeguards.py:31']
+          -> src/decompmoe/safeguards.py <unresolved>
+          declared at `src/decompmoe/safeguards.py:31`). The test exercises the
+  L159  tokens=['src/decompmoe/safeguards.py:93']
+          -> src/decompmoe/safeguards.py <unresolved>
+          `src/decompmoe/safeguards.py:93`.
+  L330  tokens=['skeleton spec L208']
+          -> decompmoe-skeleton req-10 : Standard SwiGLU Expert With No Shared Branch
+          f"if retuned, update skeleton spec L208 item (5) + this assertion atomically"
+  L343  tokens=['skeleton spec L208']
+          -> decompmoe-skeleton req-10 : Standard SwiGLU Expert With No Shared Branch
+          Per skeleton spec L208 item (5): `L_task > ratio 路 L_task_ema` (strict
+  L458  tokens=['src/decompmoe/metrics.py:83']
+          -> src/decompmoe/metrics.py <unresolved>
+          `metrics.UR` per `src/decompmoe/metrics.py:83`).
+  L578  tokens=['spec Req 32 L644']
+          -> wayfinder req-32 : Resurrection Perturbation Per-Expert Contract 鈥?Single-Event Wrapper
+          """`尾_per_expert.shape[-1] != cfg.N_e` MUST raise ValueError (spec Req 32 L644 contract).
+  L671  tokens=['spec L206']
+          -> wayfinder req-9 : Standard SwiGLU FFN Expert
+          f"{offending!r}. Per spec L206, only `decompmoe.safeguards` may expose "
+  L686  tokens=['skeleton spec L206']
+          -> decompmoe-skeleton req-10 : Standard SwiGLU Expert With No Shared Branch
+          The skeleton spec L206 (Five Numerical Safeguard Helpers) + L210 (Centroid Driver reference) reference these `Final[int]` / `Final[float]`
+  L705  tokens=['spec L206']
+          -> wayfinder req-9 : Standard SwiGLU FFN Expert
+          f"expected 200 (per spec L206 (Five Numerical Safeguard Helpers) + L210 (Centroid Driver reference))"
+  L709  tokens=['spec L206']
+          -> wayfinder req-9 : Standard SwiGLU FFN Expert
+          f"expected 1000 (per spec L206 (Five Numerical Safeguard Helpers) + L210 (Centroid Driver reference))"
+  L720  tokens=['spec L206']
+          -> wayfinder req-9 : Standard SwiGLU FFN Expert
+          f"expected 2.5 (per spec L206 item (5))"
+  L724  tokens=['spec L206']
+          -> wayfinder req-9 : Standard SwiGLU FFN Expert
+          f"expected 0.8 (per spec L206 item (5))"
+  L728  tokens=['spec L206']
+          -> wayfinder req-9 : Standard SwiGLU FFN Expert
+          # Per spec L206 item (4): `BETA_SATURATION_WARN = 0.95 路 BETA_MAX` and
+  L745  tokens=['wayfinder L249']
+          -> wayfinder req-11 : 4070 MVP Hyperparameter Set
+          # Also assert the MVP-evaluated literal value (per wayfinder L249):
+  L814  tokens=['wayfinder L249']
+          -> wayfinder req-11 : 4070 MVP Hyperparameter Set
+          """`_dead_expert_threshold(16) == 1/32` 鈥?MVP closed-form (per wayfinder L249).
+  L816  tokens=['wayfinder L249', 'skeleton spec L206']
+          -> wayfinder req-11 : 4070 MVP Hyperparameter Set
+          Per wayfinder L249 + skeleton spec L206: `f_threshold = 1/(2路N_e)` and
+  L840  tokens=['skeleton spec L206', 'wayfinder L249']
+          -> wayfinder req-9 : Standard SwiGLU FFN Expert
+          Per skeleton spec L206 / wayfinder L249: the previous hardcoded `1/128`
+  L865  tokens=['wayfinder L249']
+          -> wayfinder req-11 : 4070 MVP Hyperparameter Set
+          Per wayfinder L249: 'global LR 梅 2 when **more than 50%** of experts
+  L873  tokens=['wayfinder L249']
+          -> wayfinder req-11 : 4070 MVP Hyperparameter Set
+          "exactly 50% is NOT 'more than 50%' per wayfinder L249"
+  L891  tokens=['wayfinder L249']
+          -> wayfinder req-11 : 4070 MVP Hyperparameter Set
+          Per wayfinder L249: 'warning at `尾_i > 30.4`' 鈥?strict greater-than.
+  L898  tokens=['wayfinder L249']
+          -> wayfinder req-11 : 4070 MVP Hyperparameter Set
+          "尾_i == 30.4 (boundary) is NOT '尾_i > 30.4' per wayfinder L249"
+  L911  tokens=['wayfinder L249']
+          -> wayfinder req-11 : 4070 MVP Hyperparameter Set
+          # (per wayfinder L249 'LR 梅 10' wording).
+  L918  tokens=['wayfinder L249']
+          -> wayfinder req-11 : 4070 MVP Hyperparameter Set
+          Per wayfinder L249: '3 consecutive NaN trigger LR 梅 10'. The code
+  L940  tokens=['skeleton spec L206']
+          -> decompmoe-skeleton req-10 : Standard SwiGLU Expert With No Shared Branch
+          Per skeleton spec L206: 'for counts (1, 3, 10) respectively' 鈥?
+  L996  tokens=[]
+          -> wayfinder req-11 : 4070 MVP Hyperparameter Set
+          f"spec/code semantic decision has been made 鈥?update spec L266-286, "
+  L1033  tokens=['spec req-13 L268']
+          -> wayfinder req-13 : Numerical Safeguards
+          f"expected 200 per spec req-13 L268"
+  L1101  tokens=['src/decompmoe/safeguards.py:71-80']
+          -> src/decompmoe/safeguards.py <unresolved>
+          - **per-step** (current code at `src/decompmoe/safeguards.py:71-80`):
+
+==============================================================================
+tests/test_metrics.py  (10)
+==============================================================================
+  L136  tokens=['spec L413']
+          -> wayfinder req-18 : Hardware And Kernel Friendliness
+          """Principle-form: spec L413 Reason claim 1 鈥?centered-covariance reading has
+  L147  tokens=['spec L413']
+          -> wayfinder req-18 : Hardware And Kernel Friendliness
+          which is exactly why spec L413 Reason supersedes it with uncentered second moment.
+  L149  tokens=['spec L413']
+          -> wayfinder req-18 : Hardware And Kernel Friendliness
+          Verifier F2 鈥?principle-form guard for spec L413 Reason claim 1.
+  L187  tokens=[]
+          -> wayfinder req-18 : Hardware And Kernel Friendliness
+          Spec L413 Reason claim 2 states the floor as a geometric constraint on the
+  L226  tokens=['spec L413']
+          -> wayfinder req-18 : Hardware And Kernel Friendliness
+          f"spec L413 Reason claim 2 (floor 1/d_c = {lower_bound})"
+  L231  tokens=['spec L413']
+          -> wayfinder req-18 : Hardware And Kernel Friendliness
+          """Principle-form: spec L413 Reason claim 3 鈥?uncentered second moment allows BOTH
+  L247  tokens=['spec L413']
+          -> wayfinder req-18 : Hardware And Kernel Friendliness
+          Verifier F2 鈥?principle-form guard for spec L413 Reason claim 3.
+  L255  tokens=['spec L413']
+          -> wayfinder req-18 : Hardware And Kernel Friendliness
+          f"verifies spec L413 Reason claim 3 upper endpoint attainability)"
+  L263  tokens=['spec L413']
+          -> wayfinder req-18 : Hardware And Kernel Friendliness
+          f"verifies spec L413 Reason claim 3 lower endpoint attainability)"
+  L286  tokens=['spec Req 20 L394']
+          -> wayfinder req-20 : Eight Geometric Quantification Metrics
+          """CG(g) = 鈥杇鈥栤倐 per spec Req 20 L394 鈥?closed-form numerical verification.
+
+==============================================================================
+src/decompmoe/schedule.py  (7)
+==============================================================================
+  L148  tokens=[]
+          -> wayfinder req-20-source : <not found>
+          """Operational 尾^eff (spec Req 24 per-phase formulas, wayfinder L491-507).
+  L151  tokens=['line 495']
+          -> wayfinder req-20-source : <not found>
+          Phase 1: 尾^eff = 1.0 (fixed, regardless of 纬)              鈥?line 495
+  L152  tokens=['line 496']
+          -> wayfinder req-20-source : <not found>
+          Phase 2-3: Clamp(尾^param(纬), 1.0, 尾_max(t))               鈥?line 496
+  L154  tokens=['line 497']
+          -> wayfinder req-20-source : <not found>
+          Phase 4:  尾^eff = 1 + 31 路 蟽(纬')                          鈥?line 497
+  L168  tokens=['line 495']
+          -> wayfinder req-20-source : <not found>
+          # Spec line 495: fixed 1.0 (纬-independent exploration phase).
+  L171  tokens=['line 496']
+          -> wayfinder req-20-source : <not found>
+          # Spec line 496: Clamp(尾^param(纬), 1.0, 尾_max(t))
+  L176  tokens=['line 497']
+          -> wayfinder req-20-source : <not found>
+          # Spec line 497: 1 + 31 路 蟽(纬'); the 纬' reset already places this
+
+==============================================================================
+tests/test_beta.py  (6)
+==============================================================================
+  L38  tokens=['spec req-7 L130']
+          -> wayfinder req-7 : Isotropic Squared-Chord Distance And Bounded Beta
+          """MVPConfig().beta_initial 鈮?1.035 鈥?derived from spec req-7 L130 closed-form 尾_0 = 0.1 + 31.9路蟽(纬_init=鈭?.5).
+  L56  tokens=['req-7 L130']
+          -> wayfinder req-7 : Isotropic Squared-Chord Distance And Bounded Beta
+          """Spec req-7 L130: 蟽'(鈭?.5) 鈮?0.02845 (narrative 4 sig figs).
+  L59  tokens=['spec req-7 L130']
+          -> wayfinder req-7 : Isotropic Squared-Chord Distance And Bounded Beta
+          ("healthy gradient") per spec req-7 L130 narrative. The mpmath closed form
+  L86  tokens=['spec req-7 L130']
+          -> wayfinder req-7 : Isotropic Squared-Chord Distance And Bounded Beta
+          # (b) spec req-7 L130 narrative 4-sig-fig disclosure, pinned at its own precision.
+  L89  tokens=['spec req-7 L130']
+          -> wayfinder req-7 : Isotropic Squared-Chord Distance And Bounded Beta
+          f"(spec req-7 L130 narrative, 4 sig figs)"
+  L94  tokens=[]
+          -> wayfinder req-35 : CG n=1 boundary behavior
+          """Spec L578 counterfactual: lowering `尾_min` from `0.1` to `1.0` forces
+
+==============================================================================
+tests/test_sphere.py  (6)
+==============================================================================
+  L114  tokens=['spec L231']
+          -> wayfinder req-10 : Territory Seeding Deferred Contract
+          # with residual < 1e-9 per spec L231.
+  L132  tokens=[]
+          -> wayfinder req-10 : Territory Seeding Deferred Contract
+          # Spec L236 4dp display forms: `胃_Voronoi(16, 16) 鈮?67.24掳 (鈮?1.1735 rad)`.
+  L157  tokens=[]
+          -> wayfinder req-10 : Territory Seeding Deferred Contract
+          # Spec L237 4dp display forms: `胃_Voronoi(64, 16) 鈮?1.0205 rad (鈮?58.47掳)`.
+  L192  tokens=[]
+          -> wayfinder req-16 : Prefill And Decode Share The Same Algorithm
+          """Spec L370 (req-16): Decode SRAM footprint of `C_t` is `16 floats = 64 bytes`
+  L790  tokens=['spec L233']
+          -> wayfinder req-10 : Territory Seeding Deferred Contract
+          MUST NOT be confused with D_chord = 鈭?2(1 鈭?cos 胃)) per spec L233.
+  L793  tokens=['spec  L237']
+          -> wayfinder req-10 : Territory Seeding Deferred Contract
+          (`0.6131` / `0.4771`, spec L236-L237), and the identity assertions on
+
+==============================================================================
+src/decompmoe/config.py  (3)
+==============================================================================
+  L50  tokens=['spec req-7 L130']
+          -> wayfinder req-7 : Isotropic Squared-Chord Distance And Bounded Beta
+          # Initial inverse-temperature 尾鈧€ 鈮?1.035 鈥?per spec req-7 L130 closed-form
+  L95  tokens=['spec req-11 L245']
+          -> wayfinder req-11 : 4070 MVP Hyperparameter Set
+          total = 452_329_984 (鈮?52.33M, exact per spec req-11 L245)
+  L96  tokens=['spec req-11 L245']
+          -> wayfinder req-11 : 4070 MVP Hyperparameter Set
+          active = 100_008_448 (鈮?00.01M, exact per spec req-11 L245)
+
+==============================================================================
+src/decompmoe/extraction.py  (2)
+==============================================================================
+  L130  tokens=['spec L153']
+          -> wayfinder req-7 : Isotropic Squared-Chord Distance And Bounded Beta
+          (spec L153) is applied with re-projection
+  L177  tokens=['spec L153']
+          -> wayfinder req-7 : Isotropic Squared-Chord Distance And Bounded Beta
+          # Phase-4 closed form (spec L153): when `grad` is supplied,
+
+==============================================================================
+tests/test_config.py  (2)
+==============================================================================
+  L100  tokens=[]
+          -> wayfinder req-18 : Hardware And Kernel Friendliness
+          """Spec L426: `FLOPs_Routing^(l) = 4路d_c路H_kv路d_k + 2路N_e路d_c == 66_048` per layer.
+  L128  tokens=['spec L426']
+          -> wayfinder req-18 : Hardware And Kernel Friendliness
+          core = 33_554_432  # FLOPs_MoE,core^(l) per spec L426
+
+==============================================================================
+tests/test_extraction.py  (2)
+==============================================================================
+  L404  tokens=['spec req-7 L100']
+          -> wayfinder req-7 : Isotropic Squared-Chord Distance And Bounded Beta
+          Also pins `eps` default value = 1e-6 per spec req-7 L100 (extraction
+  L424  tokens=['spec req-7 L100']
+          -> wayfinder req-7 : Isotropic Squared-Chord Distance And Bounded Beta
+          f"extract_C(eps=...) default MUST be 1e-6 per spec req-7 L100; "
+
+==============================================================================
+openspec/specs/governance/spec.md  (1)
+==============================================================================
+  L146  tokens=['spec req-1  L185']
+          -> wayfinder req-1 : Naming And Alias Convention
+          - **AND** the scenario is verified by retro-application to `.audit/audit-verification/audit-verification.md` cycle-5 finding 1 (verify-18 evidence L1349): `latent_risk=LOW` (spec 宸?supersede
+
+==============================================================================
+src/decompmoe/metrics.py  (1)
+==============================================================================
+  L203  tokens=['spec Req 20 L394']
+          -> wayfinder req-20 : Eight Geometric Quantification Metrics
+          """Gradient L2 norm debug metric (offline; per spec Req 20 L394).
+
+==============================================================================
+tests/test_schedule.py  (1)
+==============================================================================
+  L131  tokens=['test_gating.py:59']
+          -> src/decompmoe/test_gating.py <unresolved>
+          misclassification that made `test_gating.py:59` exempt in this change.
+
+==============================================================================
+POINTER TOKEN FREQUENCY
+==============================================================================
+   11  spec L206
+   10  wayfinder L249
+    8  spec L413
+    5  spec req-7 L130
+    5  skeleton spec L206
+    2  spec req-11 L245
+    2  spec L153
+    2  spec Req 20 L394
+    2  line 495
+    2  line 496
+    2  line 497
+    2  spec req-7 L100
+    2  skeleton spec L208
+    1  spec req-1  L185
+    1  req-7 L130
+    1  spec L426
+    1  src/decompmoe/safeguards.py:54
+    1  src/decompmoe/safeguards.py:31
+    1  src/decompmoe/safeguards.py:93
+    1  src/decompmoe/metrics.py:83
+    1  spec Req 32 L644
+    1  spec req-13 L268
+    1  src/decompmoe/safeguards.py:71-80
+    1  test_gating.py:59
+    1  spec L231
+    1  spec L233
+    1  spec  L237

@@ -133,7 +133,7 @@ def test_mci_range_bound() -> None:
 
 
 def test_mci_centered_covariance_upper_endpoint_unreachable() -> None:
-    """Principle-form: spec L413 Reason claim 1 — centered-covariance reading has
+    """Principle-form: `wayfinder Req 20 MCI row (#req-20-mci)` Reason claim 1 — centered-covariance reading has
     `(1/d_c, 1]` upper endpoint unreachable at |T| = d_c.
 
     Mathematical derivation (verbatim from design.md §"Centered covariance"):
@@ -144,9 +144,9 @@ def test_mci_centered_covariance_upper_endpoint_unreachable() -> None:
       1/d_c (multiplicity d_c − 1)}, so MCI_centered = 1/(d_c · Σ λ̃_j²) =
       1/(d_c · (d_c − 1) · (1/(d_c − 1))²) = (d_c − 1)/d_c, STRICTLY < 1.0.
     - This proves the centered-covariance reading cannot reach MCI = 1.0,
-    which is exactly why spec L413 Reason supersedes it with uncentered second moment.
+    which is exactly why `wayfinder Req 20 MCI row (#req-20-mci)` Reason supersedes it with uncentered second moment.
 
-    Verifier F2 — principle-form guard for spec L413 Reason claim 1.
+    Verifier F2 — principle-form guard for `wayfinder Req 20 MCI row (#req-20-mci)` Reason claim 1.
     This test computes MCI_centered MANUALLY (not via `metrics.MCI`, which
     uses uncentered) to directly demonstrate the upper endpoint bound.
     """
@@ -184,7 +184,7 @@ def test_mci_health_target_unreachable_below_floor() -> None:
     """Principle-form: the spec's `1/d_c` floor is attained by `metrics.MCI`, and
     the original `< 0.05` health target sits below it, so it is unreachable.
 
-    Spec L413 Reason claim 2 states the floor as a geometric constraint on the
+    `wayfinder Req 20 MCI row (#req-20-mci)` Reason claim 2 states the floor as a geometric constraint on the
     CV reading. The quantity actually implemented and measurable here is
     `metrics.MCI` (uncentered second moment), whose rank-1 floor is exactly
     `1/d_c`. Anchoring the claim on `MCI`'s real output — rather than on a
@@ -223,12 +223,12 @@ def test_mci_health_target_unreachable_below_floor() -> None:
     assert health_target < mci_floor, (
         f"actual health_target={health_target}, MCI rank-1 floor={mci_floor} — "
         f"the < {health_target} health target would be REACHABLE, contradicting "
-        f"spec L413 Reason claim 2 (floor 1/d_c = {lower_bound})"
+        f"`wayfinder Req 20 MCI row (#req-20-mci)` Reason claim 2 (floor 1/d_c = {lower_bound})"
     )
 
 
 def test_mci_uncentered_both_endpoints_attainable_principle() -> None:
-    """Principle-form: spec L413 Reason claim 3 — uncentered second moment allows BOTH
+    """Principle-form: `wayfinder Req 20 MCI row (#req-20-mci)` Reason claim 3 — uncentered second moment allows BOTH
     endpoints of `MCI ∈ [1/d_c, 1]` to be attainable, unlike centered-covariance or CV.
 
     Mathematical derivation (verbatim from design.md §"Uncentered second moment"):
@@ -244,7 +244,7 @@ def test_mci_uncentered_both_endpoints_attainable_principle() -> None:
     `test_mci_rank1_token_distribution`, framed explicitly as "both endpoints
     attainable" with the uncentered reading (the third L413 Reason claim).
 
-    Verifier F2 — principle-form guard for spec L413 Reason claim 3.
+    Verifier F2 — principle-form guard for `wayfinder Req 20 MCI row (#req-20-mci)` Reason claim 3.
     """
     d_c = 16
     # Upper endpoint (uniform basis vectors, |T| = d_c)
@@ -252,7 +252,7 @@ def test_mci_uncentered_both_endpoints_attainable_principle() -> None:
     mci_upper = metrics.MCI(T_uniform).item()
     assert mci_upper == pytest.approx(1.0, abs=1e-12), (
         f"MCI(uniform) = {mci_upper} must equal 1.0 (upper endpoint, "
-        f"verifies spec L413 Reason claim 3 upper endpoint attainability)"
+        f"verifies `wayfinder Req 20 MCI row (#req-20-mci)` Reason claim 3 upper endpoint attainability)"
     )
     # Lower endpoint (rank-1, |T| = d_c copies of e_1)
     T_rank1 = torch.zeros(d_c, d_c)
@@ -260,7 +260,7 @@ def test_mci_uncentered_both_endpoints_attainable_principle() -> None:
     mci_lower = metrics.MCI(T_rank1).item()
     assert mci_lower == pytest.approx(1.0 / d_c, abs=1e-12), (
         f"MCI(rank-1) = {mci_lower} must equal 1/d_c = {1.0 / d_c} (lower endpoint, "
-        f"verifies spec L413 Reason claim 3 lower endpoint attainability)"
+        f"verifies `wayfinder Req 20 MCI row (#req-20-mci)` Reason claim 3 lower endpoint attainability)"
     )
     # Both endpoints attainable within declared range [1/d_c, 1]
     assert 1.0 / d_c <= mci_lower and mci_upper <= 1.0 + 1e-12, (
@@ -283,7 +283,7 @@ def test_cg_positive_homogeneity() -> None:
 
 
 def test_cg_l2_norm_closed_form() -> None:
-    """CG(g) = ‖g‖₂ per spec Req 20 L394 — closed-form numerical verification.
+    """CG(g) = ‖g‖₂ per `wayfinder Req 20 Eight Geometric Quantification Metrics (#req-20)` CG row — closed-form numerical verification.
 
     Audit finding CRIT-3: previous implementation `mean pairwise |g_i − g_j|`
     failed this closed-form test. Known-vector inputs verify L2 directly:

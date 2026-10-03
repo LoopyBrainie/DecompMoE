@@ -258,7 +258,7 @@ The package SHALL provide `L_total(task_logits, targets, f_per_expert, p_per_exp
 
 The package SHALL provide five standalone helpers in `safeguards.py`: (1) `clip_global_grad_norm_(params, max_norm: float = 1.0) -> float` returning the pre-clip norm as a `float` (NOT `Tensor` — code-review N6 fix: `src/decompmoe/safeguards.py:54` returns `float(pre_clip_norm.item() ...)`); (2) `nan_ladder(consecutive_nan) -> tuple[str, float, bool]` returning `(action, lr_scale, halt)` where `action ∈ {"skip", "div_lr_10", "halt"}` for counts `(1, 3, 10)` respectively; (3) `should_resurrect(f_history, current_step, last_resurrection_step, *, N_e, consec=DEAD_EXPERT_CONSEC_STEPS, rate_limit_steps=RESURRECTION_RATE_LIMIT_STEPS, threshold=None) -> set[int]`; when `threshold=None`, the implementation calls `_dead_expert_threshold(N_e) = 1/(2·N_e)` to derive the effective threshold (at MVP `N_e = 16`, this yields `1/32`); (4) `beta_saturation_warning(β_per_expert: Tensor) -> bool` returning `True` when any `β_i > BETA_SATURATION_WARN = 30.4` (= `0.95 · BETA_MAX = 0.95 · 32`) — there is NO `β_max` parameter (code-review N7 fix: `src/decompmoe/safeguards.py:211` signature has no `β_max`; the warning threshold is sourced from the module-level `BETA_MAX` constant via `BETA_SATURATION_WARN: Final[float] = 0.95 * BETA_MAX`); (5) `loss_spike_defense(L_task: float, L_task_ema: float, phase: int, ratio: float = LOSS_SPIKE_RATIO) -> bool` returning `True` when `phase ≥ 3 and L_task > ratio · L_task_ema` — there is NO `*` keyword-only separator before `ratio` (code-review N8 fix: `src/decompmoe/safeguards.py:222` defines `ratio: float = LOSS_SPIKE_RATIO` as POSITIONAL_OR_KEYWORD); the function ONLY returns the boolean — the LR-scaling action (`LR × LOSS_SPIKE_LR_SCALE = LR × 0.8`) is the CALLER's responsibility (the function emits a "should scale" signal, not the scaling itself). The dead-expert threshold `1/(2·N_e)` replaces the previous hardcoded `1/128` (which was the `N_e=64` instantiation of the same `1/(2·N_e)` rule); at MVP `N_e = 16` this evaluates to `1/32`. The constants `DEAD_EXPERT_CONSEC_STEPS = 200`, `RESURRECTION_RATE_LIMIT_STEPS = 1000`, `LOSS_SPIKE_RATIO = 2.5`, `LOSS_SPIKE_LR_SCALE = 0.8`, `BETA_SATURATION_WARN = 30.4`, `BETA_SATURATION_HALVE = 28.8` are `Final[int]` / `Final[float]` module-level constants (see `src/decompmoe/safeguards.py:23-41`); the spec references the constant identifiers rather than literal values. The standard step order SHALL be: `Backward → clip_grad_norm(1.0) → optimizer.step() → L2_norm(c_i)` (asserted via documented ordering constant `STEP_ORDER`).
 
-**Source:** `wayfinder/tickets/A6a-2.md` (initial A6a-2 design intent); change `fix-openspec-doc-bugs` design.md (Decision 7 — threshold parameterization `1/(2·N_e)`); signature mirrors `src/decompmoe/safeguards.py:71-80` at commit `d3689a1`. The `nan_ladder` action Literal member `div_lr_10` (formerly `halve_lr` before archived change `2026-09-13-fix-nan-ladder-action-name-and-loss-spike-test-coverage`) carries the `lr_scale = 0.1` value (LR ÷ 10 per wayfinder L249 wording, NOT LR ÷ 2 as the legacy name suggested); renaming aligns action name with actual scaling math.; change `2026-09-29-fix-b10-b11-b12-test-guard-fidelity` design.md (Decision 1 — rate-limit boundary pinned: guard defers iff `Δ < R`; `Δ = R` is not deferred; window-partition claim withdrawn as false)
+**Source:** `wayfinder/tickets/A6a-2.md` (initial A6a-2 design intent); change `fix-openspec-doc-bugs` design.md (Decision 7 — threshold parameterization `1/(2·N_e)`); signature mirrors `src/decompmoe/safeguards.py:71-80` at commit `d3689a1`. The `nan_ladder` action Literal member `div_lr_10` (formerly `halve_lr` before archived change `2026-09-13-fix-nan-ladder-action-name-and-loss-spike-test-coverage`) carries the `lr_scale = 0.1` value (LR ÷ 10 per `wayfinder Req 13 Numerical Safeguards (#req-13)` wording, NOT LR ÷ 2 as the legacy name suggested); renaming aligns action name with actual scaling math.; change `2026-09-29-fix-b10-b11-b12-test-guard-fidelity` design.md (Decision 1 — rate-limit boundary pinned: guard defers iff `Δ < R`; `Δ = R` is not deferred; window-partition claim withdrawn as false)
 
 #### Scenario: Global clip threshold
 - **WHEN** `clip_global_grad_norm_(params, max_norm=1.0)` is called with `‖g‖₂ > 1.0`
@@ -270,7 +270,7 @@ The package SHALL provide five standalone helpers in `safeguards.py`: (1) `clip_
 
 #### Scenario: NaN ladder default at consecutive_nan=0 (no NaN observed)
 - **WHEN** `nan_ladder(0)` is called
-- **THEN** the returned tuple is `("skip", 1.0, False)` — defensive default: when no NaN has been observed yet, the ladder falls back to skip-and-keep-LR (caller is expected to call only when a NaN flag has been raised). For `c ∉ {1, 3, 10}` and `c > 0` (e.g. `c=2`, `c=5`, `c=9`), the ladder returns the highest-priority tier that has been crossed: `c ∈ [1, 2] → ("skip", 1.0, False)`; `c ∈ [3, 9] → ("div_lr_10", 0.1, False)`; `c ≥ 10 → ("halt", 1.0, True)` (this matches wayfinder Req 13 'Numerical Safeguards' strict-greater-than ladder tiers (anchor `#req-13`) and is the implementation in `src/decompmoe/safeguards.py:62-72`).
+- **THEN** the returned tuple is `("skip", 1.0, False)` — defensive default: when no NaN has been observed yet, the ladder falls back to skip-and-keep-LR (caller is expected to call only when a NaN flag has been raised). For `c ∉ {1, 3, 10}` and `c > 0` (e.g. `c=2`, `c=5`, `c=9`), the ladder returns the highest-priority tier that has been crossed: `c ∈ [1, 2] → ("skip", 1.0, False)`; `c ∈ [3, 9] → ("div_lr_10", 0.1, False)`; `c ≥ 10 → ("halt", 1.0, True)` (this matches wayfinder Req 13 'Numerical Safeguards' strict-greater-than ladder tiers (anchor `#req-13`) and is the implementation in `safeguards.py::nan_ladder`).
 
 #### Scenario: Resurrection rate-limited
 - **WHEN** `should_resurrect(f_history, current_step, last_resurrection_step, ...)` is called, with `Δ := current_step − last_resurrection_step` and `R := RESURRECTION_RATE_LIMIT_STEPS` (at MVP `R = 1000`)
@@ -380,10 +380,10 @@ The package SHALL satisfy the following source-level invariants, asserted by **l
 - **THEN** all invariants pass
 
 <a id="req-16"></a>
-
 ### Requirement: Centroid Driver Semantic Invariants
 
-The package's `CentroidDriver` SHALL enforce four semantic invariants that **cannot be verified by literal-token grep alone** (data-flow analysis, runtime observation, and arithmetic comparison are required). These are the **semantic counterpart** to Requirement "Hard-Constraint Grep Invariants":
+
+The package's `CentroidDriver` SHALL enforce four semantic invariants that **cannot be verified by literal-token grep alone** (data-flow analysis, runtime observation, and arithmetic comparison are required). These are the **semantic counterpart** to Requirement "Hard-Constraint Grep Invariants" and are the landing site for the two invariants that req-15 removed from grep scope:
 
 1. **Empty-cell fallback**: `CentroidDriver.step(centroids, X, mask)` with `n_i = |T_i| = 0` MUST preserve `c_i^(t+1) == c_i^(t)` element-wise (no direction randomization). The driver MUST NOT use `.clamp_min(ε)` as a denominator in the empty-cell branch. Verified by `test_empty_cell_preserves_centroid`.
 
@@ -396,6 +396,16 @@ The package's `CentroidDriver` SHALL enforce four semantic invariants that **can
 #### Scenario: Semantic invariants are enforced by the named test scenarios
 - **WHEN** the four named test scenarios (`test_empty_cell_preserves_centroid`, `test_spherical_norm_is_strictly_one`, `test_near_zero_candidate_fallback`, `test_near_zero_candidate_fallback_phase4`) all pass
 - **THEN** the empty-cell fallback, spherical re-projection, and near-zero candidate fallback invariants hold for `CentroidDriver` across all four active phases
+
+
+#### Scenario: Voronoi closed form is not the arctan shortcut
+
+- **WHEN** `canonical_voronoi_angle(N_e, d_c)` is evaluated at the MVP point `(N_e = 16, d_c = 16)`
+- **THEN** it returns the root of the defining equation `½ · I_{sin²θ}((d_c − 1)/2, 1/2) = 1/N_e`, which is `0.665773750028 rad` **NOT** — the forbidden token `arctan(pi / sqrt(d_c))` evaluates to `0.665773750028 rad` at `d_c = 16`, i.e. `38.146026°`, and MUST NOT be the implementation's closed form
+- **AND** the returned value MUST satisfy `pytest.approx(1.173547, abs=1e-6)` (the 6dp spec literal, per governance req-gov-1 obligation 3) with the actual value embedded in the failure message as `f"actual={...}"`
+- **AND** a substitution of the forbidden token MUST move the result outside that tolerance by at least `1e5` times (measured: `5.078e-01` absolute error at `N_e = 16`, i.e. `507_773×` the `abs=1e-6` tolerance), so the guard discriminates rather than merely passing
+- **AND** the residual frame is named: `|½·I_{sin²θ}(7.5, 1/2) − 1/16| < 1e-9` measured against the implementation-internal reference `src/decompmoe/sphere.py::_betainc_regularized`
+- **AND** this Scenario is the guard that Requirement "Hard-Constraint Grep Invariants" refers to when it states the removed invariants are enforced here; the referenced name MUST be `test_canonical_voronoi_angle_not_arctan_shortcut`
 
 <a id="req-17"></a>
 
@@ -418,8 +428,8 @@ The package's test suite SHALL include the following three tests, asserting the 
 ---
 
 <a id="req-18"></a>
-
 ### Requirement: Centroid Four-Phase Lifecycle Driver — Phase-4 SGD Step Extension
+
 
 The package SHALL provide `CentroidDriver(phase: Phase) -> CentroidDriver` with `Phase ∈ {SEEDING=0, EMA_090=1, EMA_095=2, EMA_099=3, PROJECTED_SGD=4}`. The `step(centroids, X, mask, *, grad=None, eta=1e-2) -> Tensor` method MUST apply, per phase. **`mask` is a REQUIRED positional parameter and MUST NOT be given a default value:** per-expert masked means `m_i` are undefined without it, and a defaulted `mask=None` invites an implementation to substitute a whole-batch mean for `m_i`, which silently broadcasts one mean to every centroid and collapses all territories to a single point. An implementation MUST reject a missing `mask` rather than substitute one.
 
@@ -431,7 +441,7 @@ The package SHALL provide `CentroidDriver(phase: Phase) -> CentroidDriver` with 
 
 The `m_i` is the masked-mean over tokens assigned to expert `i`. The driver MUST enforce the empty-cell invariant: if `n_i = |T_i| = 0`, then `m_i ≡ c_i^(t−1)` (no `clamp_min(ε)` denominator). The driver MUST enforce the spherical re-projection invariant: `‖c_i^(t+1)‖₂ ≡ 1.0` after every step; on near-zero candidate `‖u_i‖₂ < 10⁻⁹`, fall back to `c_i^(t)`. The driver MAY call `decompmoe.safeguards.should_resurrect(f_history, current_step, last_resurrection_step, *, N_e, consec=DEAD_EXPERT_CONSEC_STEPS, rate_limit_steps=RESURRECTION_RATE_LIMIT_STEPS, threshold=None) -> set[int]` for dead-expert detection; the function itself lives in `safeguards.py` and is *called* from the driver (the driver MUST NOT define a same-named helper). When `threshold=None` is passed, the implementation derives the effective threshold via the private helper `_dead_expert_threshold(N_e) = 1/(2·N_e)`; at MVP `N_e = 16` this yields `1/32`. The dead-expert rule is parameterized by `N_e`, not hardcoded `1/128`. The constants `DEAD_EXPERT_CONSEC_STEPS = 200` and `RESURRECTION_RATE_LIMIT_STEPS = 1000` are `Final[int]` module-level constants (see `src/decompmoe/safeguards.py:30-31`); the spec references the constant identifiers rather than literal values to ensure the spec stays in lock-step with the code if these constants are retuned.
 
-**Source:** `wayfinder/tickets/A6a-2.md` (initial A6a-2 design intent); change `fix-openspec-doc-bugs` design.md (Decision 7 — threshold parameterization `1/(2·N_e)`); signature mirrors `src/decompmoe/safeguards.py:71-80` at commit `d3689a1`.
+**Source:** `wayfinder/tickets/A6a-2.md` (initial A6a-2 design intent); change `fix-openspec-doc-bugs` design.md (Decision 7 — threshold parameterization `1/(2·N_e)`); signature mirrors `safeguards.py::clip_global_grad_norm_` as of commit `d3689a1`.
 
 The `step` signature `(*, grad=None, eta=1e-2)` REPLACES the legacy `(centroids, X, mask, eps=1e-6)` contract: the `eps` parameter is removed (no longer used by any active phase); the `grad` keyword is REQUIRED for the projected SGD step (no positional gradient argument); the `eta` keyword defaults to `1e-2` (conservative; spec does not pin a specific value beyond the linear convention); when `grad is None` the P4 branch is the identity L2 retraction (no SGD step applied — this is the backward-compatible fallback for callers that do not provide a gradient). Callers that previously passed `eps=1e-6` will need to remove the kwarg (breaking change; no in-repo callers pass `eps`).
 
@@ -499,12 +509,12 @@ The package SHALL provide `inverse_temperature(gamma) -> Tensor` implementing th
 ---
 
 <a id="req-21"></a>
-
 ### Requirement: Frozen MVP Hyperparameter Set — D1 Geometric-Only Fields
 
-The package SHALL provide a `MVPConfig` frozen dataclass whose locked constants equal: `d_model == 1024`, `N_e == 16`, `k == 2`, `d_ffn == 2048`, `L == 4`, `d_ffn_dense == 4096`, `d_c == 16`, `H_kv == 8`, `d_k == 128`, `β_initial ≈ 1.035` (per wayfinder spec req-7 L130 closed-form `β_0 = 0.1 + 31.9·σ(γ_init)` with `γ_init ≈ −3.5`; 50-digit mpmath `β_0 = 1.0350601609682665718`). Attempting to mutate any field SHALL raise `dataclasses.FrozenInstanceError`. A factory function `MVPConfig()` SHALL return an instance with all default values.
 
-**MVPConfig carries only GEOMETRIC constants** (model shape: `d_model`, `N_e`, `k`, `d_ffn`, `L`, `d_ffn_dense`, `d_c`, `H_kv`, `d_k`, `vocab_size`) **plus the specific initial value `β_initial ≈ 1.035`** (narrative 4-sig-fig; spec req-7 L130 closed-form anchor). The algorithmic range constants `β_min = 0.1` and `β_max = 32` live as module-level `Final[float]` in `decompmoe/beta.py` (NOT in MVPConfig), per `design.md` Decision 1: "Algorithmic constants live with their usage site". MVPConfig does not carry `β_min` or `β_max` fields, and the canonical sources for those constants are `decompmoe.beta.BETA_MIN` and `decompmoe.beta.BETA_MAX`.
+The package SHALL provide a `MVPConfig` frozen dataclass whose locked constants equal: `d_model == 1024`, `N_e == 16`, `k == 2`, `d_ffn == 2048`, `L == 4`, `d_ffn_dense == 4096`, `d_c == 16`, `H_kv == 8`, `d_k == 128`, `β_initial ≈ 1.035` (per wayfinder `Req 7` "Isotropic Squared-Chord Distance And Bounded Beta" (`#req-7`) closed-form `β_0 = 0.1 + 31.9·σ(γ_init)` with `γ_init ≈ −3.5`; 50-digit mpmath `β_0 = 1.0350601609682665718`). Attempting to mutate any field SHALL raise `dataclasses.FrozenInstanceError`. A factory function `MVPConfig()` SHALL return an instance with all default values.
+
+**MVPConfig carries only GEOMETRIC constants** (model shape: `d_model`, `N_e`, `k`, `d_ffn`, `L`, `d_ffn_dense`, `d_c`, `H_kv`, `d_k`, `vocab_size`) **plus the specific initial value `β_initial ≈ 1.035`** (narrative 4-sig-fig; wayfinder `Req 7` "Isotropic Squared-Chord Distance And Bounded Beta" (`#req-7`) closed-form anchor). The algorithmic range constants `β_min = 0.1` and `β_max = 32` live as module-level `Final[float]` in `decompmoe/beta.py` (NOT in MVPConfig), per `design.md` Decision 1: "Algorithmic constants live with their usage site". MVPConfig does not carry `β_min` or `β_max` fields, and the canonical sources for those constants are `decompmoe.beta.BETA_MIN` and `decompmoe.beta.BETA_MAX`.
 
 **Source:** `wayfinder/tickets/A4-1.md`, change `fix-math-consistency-audit-2026-08` design.md (Decision 1)
 
@@ -527,7 +537,7 @@ The package SHALL provide a `MVPConfig` frozen dataclass whose locked constants 
 
 - **WHEN** `MVPConfig().beta_initial` is compared against `0.1 + 31.9·σ(γ_init=−3.5)` evaluated via `torch.sigmoid`
 - **THEN** `abs(MVPConfig().beta_initial − closed_form_value) ≤ 1e-3` (covers narrative 4-sig-fig truncation to 1.035 from 50-digit 1.0350601609682665718)
-- **AND** the test does NOT degenerate to a self-referential check (i.e., `MVPConfig().beta_initial ≈ literal_value`); the closed form MUST be derived from `β_min + (β_max−β_min)·σ(γ_init)` per spec req-7 L123 Sigmoid 闭式
+- **AND** the test does NOT degenerate to a self-referential check (i.e., `MVPConfig().beta_initial ≈ literal_value`); the closed form MUST be derived from `β_min + (β_max−β_min)·σ(γ_init)` per wayfinder `#req-7` Sigmoid 闭式
 
 ---
 
@@ -619,27 +629,28 @@ The four offline metric implementations MUST implement the closed forms above (a
 - **THEN** it raises `TypeError` (the `CG` definition is the `ℓ₂` norm of a learnable-parameter gradient — non-floating-point tensors cannot be such a gradient)
 
 <a id="req-23"></a>
-
 ### Requirement: No decompmoe-skeleton spec changes required for cycle-12 finding 1 closure
 
-The system SHALL NOT modify any `decompmoe-skeleton` spec Requirement as part of cycle-12 finding 1 closure. The cycle-12 finding 1 (ticket A8-2 L70 centered-covariance + L74 CV/convex-hull vs spec L413 uncentered second moment) is **purely a wayfinder spec scope concern** — but `decompmoe-skeleton` **does** own a verbatim mirror of the wayfinder Req 20 closed-form definitions (see below), so this Requirement serves as an explicit declaration that the existing mirror is already aligned and no new mirror / no new behavior is being introduced by this change.
+
+The system SHALL NOT modify any `decompmoe-skeleton` spec Requirement as part of cycle-12 finding 1 closure. The cycle-12 finding 1 (historical: ticket A8-2 L70 centered-covariance + L74 CV/convex-hull vs `wayfinder Req 20 MCI row (#req-20-mci)` uncentered second moment) is **purely a wayfinder spec scope concern** — but `decompmoe-skeleton` **does** own a verbatim mirror of the wayfinder Req 20 closed-form definitions (see below), so this Requirement serves as an explicit declaration that the existing mirror is already aligned and no new mirror / no new behavior is being introduced by this change.
 
 **Why no decompmoe-skeleton changes are needed**:
 
-- `decompmoe-skeleton` Requirement `<a id="req-22">` ("Eight Metrics And Classification — CG Type Guard", `openspec/specs/decompmoe-skeleton/spec.md` L500-518) **verbatim mirrors** `wayfinder` Req 20 closed-forms:
-  - L504 enumerates `L_sep`, `R_H`, `S_load`, `UR`, `SP`, `D_chord`, `MCI`, `CG` (all 8 metric names from wayfinder L394-466)
-  - L500-518 each closed-form matches wayfinder L394-466 verbatim (post-229016fe + 09-22 line-drift correction)
+- `decompmoe-skeleton` Requirement `` `#req-22` `` ("Eight Metrics And Classification — CG Type Guard", `openspec/specs/decompmoe-skeleton/spec.md` L500-518) **verbatim mirrors** `wayfinder` Req 20 closed-forms:
+  - The closed-form table enumerates `L_sep`, `R_H`, `S_load`, `UR`, `SP`, `D_chord`, `MCI`, `CG` — the same 8 metric names wayfinder `Req 20` "Eight Geometric Quantification Metrics" (`#req-20`) defines
+  - Each closed-form matches the corresponding wayfinder `#req-20` row verbatim (post-229016fe + 09-22 line-drift correction)
   - L515 explicitly mirrors the `MCI` row from `wayfinder/spec.md` L413, including the uncentered second moment definition (`M = (1/|T|) · Σ_{t} C_t C_tᵀ`), the CV supersede reasoning (lower bound `1/d_c` on `S^{d_c−1}` makes `< 0.05` health target unreachable), the centered-covariance supersede reasoning (`(1/d_c, 1]` upper endpoint unreachable at `|T| = d_c`), the `MCI ∈ [1/d_c, 1]` range, and the uniform/rank-1 endpoint characterizations
-- `decompmoe-skeleton` Requirement `<a id="req-22">` also defines `MCI closed-form on uniform token distribution` (L560-563, abs=1e-12) and `MCI closed-form on rank-1 token distribution` (L565-568, abs=1e-12) Scenarios — these mirror wayfinder L450-452 + L454-456 Scenarios verbatim
+- `decompmoe-skeleton` Requirement `` `#req-22` `` also defines `MCI closed-form on uniform token distribution` and `MCI closed-form on rank-1 token distribution` Scenarios (both `abs=1e-12`) — these mirror the two corresponding Scenarios under wayfinder `#req-20` verbatim
 - cycle-12 finding 1 is specifically about `MCI` (an eight-metric row in `wayfinder` spec.md L413), implemented in `src/decompmoe/metrics.py` per `wayfinder` spec — `decompmoe-skeleton` mirrors the closed-form but does not own a separate MCI definition; both capabilities use the same uncentered second moment reading
 - The `(historical, ...)` supersede annotations appended to ticket `A8-2.md` L70 + L74 in this change apply to ticket lineage only; they do NOT modify the `decompmoe-skeleton` Req-22 mirror of the L413 closed-form (the mirror is already aligned with the canonical uncentered second moment reading)
 
-**Source:** `wayfinder/tickets/A8-2.md` (cycle-12 finding 1 evidence — wayfinder spec.md L413 owns the MCI closed-form; decompmoe-skeleton L502-568 is a verbatim mirror and is already aligned)
+**Source:** `wayfinder/tickets/A8-2.md` (cycle-12 finding 1 evidence — wayfinder `#req-20` owns the MCI closed-form; this capability's metric table is a verbatim mirror and is already flagged as a drift hazard)
 
 #### Scenario: decompmoe-skeleton mirror of wayfinder Req 20 MCI closed-form is already aligned
 
 - **WHEN** `openspec/specs/decompmoe-skeleton/spec.md` Req 22 (L500-518) is read for the `MCI` closed-form
 - **THEN** the text at L515 verbatim contains the uncentered second moment definition (`M = (1/|T|) · Σ_{t} C_t C_tᵀ`), the CV supersede reasoning (`replaces CV (whose lower bound 1/d_c on S^{d_c−1} made the original < 0.05 health target unreachable — see wayfinder/tickets/A8-2.md)`), the centered-covariance supersede reasoning (`The centered-covariance reading has its (1/d_c, 1] upper endpoint unreachable at |T| = d_c`), the `MCI ∈ [1/d_c, 1]` range, and the uniform/rank-1 endpoint characterizations — all mirroring wayfinder spec.md L413 verbatim
-- **AND** L560-563 `MCI closed-form on uniform token distribution` and L565-568 `MCI closed-form on rank-1 token distribution` Scenarios use `abs=1e-12` (mirroring wayfinder L450/L454 Scenarios) — both endpoints of the declared `[1/d_c, 1]` range are guarded
+- **AND** the `MCI closed-form on uniform token distribution` and `MCI closed-form on rank-1 token distribution` Scenarios use `abs=1e-12` (mirroring the two corresponding Scenarios under wayfinder `#req-20`) — both endpoints of the declared `[1/d_c, 1]` range are guarded
 - **AND** no `decompmoe-skeleton` Requirement is listed in the "Affected code / Affected Requirements" sections of `proposal.md` for this change (the mirror is unchanged)
 - **AND** the `decompmoe-skeleton` spec.md anchor coverage remains unchanged (existing anchors per archived changes `2026-09-15-fix-skeleton-spec-duplicate-and-completeness-2026-09-15` + `2026-09-16-fill-skeleton-spec-leading-anchor-gaps` are not affected by this change)
+

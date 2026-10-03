@@ -200,7 +200,7 @@ def MCI(token_signatures: Tensor) -> Tensor:
 
 
 def CG(grad: Tensor) -> Tensor:
-    """Gradient L2 norm debug metric (offline; per spec Req 20 L394).
+    """Gradient L2 norm debug metric (offline; per `wayfinder Req 20 Eight Geometric Quantification Metrics (#req-20)` CG row).
 
     CG(g) = ‖g‖₂ — zero-gradient invariant (CG(0) == 0) and positively
     homogeneous (CG(α·g) = |α|·CG(g)). Caller MUST select only W^K, W^V,

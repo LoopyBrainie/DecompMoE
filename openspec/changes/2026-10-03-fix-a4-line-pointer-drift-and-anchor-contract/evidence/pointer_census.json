@@ -1,0 +1,31 @@
+{
+  "scan_roots": [
+    "openspec/specs",
+    "src",
+    "tests"
+  ],
+  "scan_excludes": [
+    "openspec/changes/**"
+  ],
+  "historical_markers": [
+    "pre-this-change",
+    "histor",
+    "原",
+    "was ",
+    "before"
+  ],
+  "totals": {
+    "pointer_lines": 10,
+    "actionable": 0,
+    "historical_exempt": 10,
+    "distinct_targets": 0,
+    "files_scanned_with_pointers": 3
+  },
+  "per_file": {
+    "openspec/specs/decompmoe-skeleton/spec.md": 5,
+    "openspec/specs/governance/spec.md": 4,
+    "openspec/specs/wayfinder/spec.md": 1
+  },
+  "targets": {},
+  "sites": []
+}

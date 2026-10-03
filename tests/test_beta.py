@@ -35,7 +35,7 @@ def test_beta_monotone() -> None:
 
 
 def test_beta_param_init_default() -> None:
-    """MVPConfig().beta_initial ≈ 1.035 — derived from spec req-7 L130 closed-form β_0 = 0.1 + 31.9·σ(γ_init=−3.5).
+    """MVPConfig().beta_initial ≈ 1.035 — derived from `wayfinder Req 7 Isotropic Squared-Chord Distance And Bounded Beta (#req-7)` closed-form β_0 = 0.1 + 31.9·σ(γ_init=−3.5).
 
     Per governance req-gov-1 第 2 条 + CLAUDE.md §6 第 8 条: pytest MUST derive the
     expected value from the spec closed form (NOT a self-referential literal that
@@ -53,10 +53,10 @@ def test_beta_param_init_default() -> None:
 
 
 def test_sigma_prime_gamma_init_health_check() -> None:
-    """Spec req-7 L130: σ'(−3.5) ≈ 0.02845 (narrative 4 sig figs).
+    """`wayfinder Req 7 Isotropic Squared-Chord Distance And Bounded Beta (#req-7)`: σ'(−3.5) ≈ 0.02845 (narrative 4 sig figs).
 
     Cold-start region health-check anchor: σ'(γ_init≈−3.5) MUST stay ≈ 0.02845
-    ("healthy gradient") per spec req-7 L130 narrative. The mpmath closed form
+    ("healthy gradient") per `wayfinder Req 7 Isotropic Squared-Chord Distance And Bounded Beta (#req-7)` narrative. The mpmath closed form
     σ'(−3.5) = σ(−3.5)·(1−σ(−3.5)) = 0.0284530238797355598396878271273… is the
     spec-level mathematical truth; this test is the persistent pytest guard
     (`.audit/` scripts are dropped on archive — pytest is the durable layer).
@@ -83,15 +83,15 @@ def test_sigma_prime_gamma_init_health_check() -> None:
         f"actual={mpmath.nstr(sp_mp, 35)}; σ'(−3.5) vs 31-dp transcription "
         f"{sp_literal} at abs=1e-30"
     )
-    # (b) spec req-7 L130 narrative 4-sig-fig disclosure, pinned at its own precision.
+    # (b) `wayfinder Req 7 Isotropic Squared-Chord Distance And Bounded Beta (#req-7)` narrative 4-sig-fig disclosure, pinned at its own precision.
     assert round(sp_mp, 5) == 0.02845, (
         f"actual={mpmath.nstr(sp_mp, 12)}; round(σ'(−3.5), 5) must equal 0.02845 "
-        f"(spec req-7 L130 narrative, 4 sig figs)"
+        f"(`wayfinder Req 7 Isotropic Squared-Chord Distance And Bounded Beta (#req-7)` narrative, 4 sig figs)"
     )
 
 
 def test_counterfactual_floor_1_gamma_starvation() -> None:
-    """Spec L578 counterfactual: lowering `β_min` from `0.1` to `1.0` forces
+    """`wayfinder Req 24 Beta Parameterization Space vs Operational Domain (#req-24)` counterfactual: lowering `β_min` from `0.1` to `1.0` forces
     `γ_init ≈ −6.7835`, giving `σ' ≈ 1.130e-3` — a ~25× gradient starvation
     versus the adopted `σ'(−3.5) ≈ 0.02845`.
 

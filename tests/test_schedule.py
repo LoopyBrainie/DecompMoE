@@ -128,7 +128,7 @@ def test_advisory_signals_read_only() -> None:
     (`src/decompmoe/schedule.py`), so this asserts an identity, not a
     spec-anchored closed-form value. Migrating it to `pytest.approx` would
     apply req-gov-1 §2 to a claim obligation 2 does not scope — the same
-    misclassification that made `test_gating.py:59` exempt in this change.
+    misclassification that made ``tests/test_gating.py::test_zero_grad_for_non_top_k`` exempt in this change.
 
     Consequence, recorded honestly: the spec numbers this nominally guards
     are NOT guarded by this test. `wayfinder/spec.md` req-15 Layer 2 declares

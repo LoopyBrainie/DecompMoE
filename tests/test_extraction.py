@@ -401,7 +401,7 @@ def test_extract_C_signature() -> None:
     `W_K` / `W_V` / `b`, which made a keyword call written to the spec
     raise `TypeError` -- the spec's declared signature was not executable.
 
-    Also pins `eps` default value = 1e-6 per spec req-7 L100 (extraction
+    Also pins `eps` default value = 1e-6 per `decompmoe-skeleton Req 7 C Extraction Four-Step Pipeline (#req-7)` (extraction
     four-step pipeline precondition: `‖z‖₂ ≥ ε` for safe division). The
     tolerance `abs=1e-12` matches the spec closed-form precision per
     governance/spec.md req-gov-1 §2.
@@ -421,7 +421,7 @@ def test_extract_C_signature() -> None:
     assert "H_kv" in names
     assert "d_c" in names
     assert sig.parameters["eps"].default == pytest.approx(1e-6, abs=1e-12), (
-        f"extract_C(eps=...) default MUST be 1e-6 per spec req-7 L100; "
+        f"extract_C(eps=...) default MUST be 1e-6 per `decompmoe-skeleton Req 7 C Extraction Four-Step Pipeline (#req-7)`; "
         f"got {sig.parameters['eps'].default!r}"
     )
 

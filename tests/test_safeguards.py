@@ -25,13 +25,13 @@ def test_clip_grad_norm_threshold() -> None:
 def test_clip_grad_norm_threshold_closed_form() -> None:
     """Closed-form guards for `clip_global_grad_norm_`: return-type + math formula.
 
-    Per skeleton spec L206 (item 1): `clip_global_grad_norm_(params, max_norm: float = 1.0)
+    Per `decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)` (item 1): `clip_global_grad_norm_(params, max_norm: float = 1.0)
     -> float` returning the pre-clip norm as a `float` (**NOT `Tensor`** — code-review
-    N6 fix: `src/decompmoe/safeguards.py:54` returns `float(pre_clip_norm.item() ...)`).
+    N6 fix: `safeguards.py::clip_global_grad_norm_` returns `float(pre_clip_norm.item() ...)`).
     Per `CLAUDE.md §6` last bullet, every spec contract with concrete numeric / typing
     assertions MUST have a `pytest.approx` or exact-typed guard. The functional
     `test_clip_grad_norm_threshold` only asserts ≤ / > inequalities; this test adds
-    the three closed-form guards that pin spec L206 word-for-word.
+    the three closed-form guards that pin `decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)` word-for-word.
 
     Closed-form assertions:
     1. **Return-type contract**: `pre_norm` MUST be a Python `float` (NOT `Tensor`).
@@ -59,20 +59,20 @@ def test_clip_grad_norm_threshold_closed_form() -> None:
 
     pre_norm = safeguards.clip_global_grad_norm_(p, max_norm=1.0)
 
-    # Closed-form #1: Return-type contract (spec L206: "NOT `Tensor`").
+    # Closed-form #1: Return-type contract (`decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)`: "NOT `Tensor`").
     assert isinstance(pre_norm, float), (
-        f"clip_global_grad_norm_ must return Python `float` per spec L206 "
+        f"clip_global_grad_norm_ must return Python `float` per `decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)` "
         f"'NOT Tensor'; got type {type(pre_norm).__name__} "
         f"(value: {pre_norm!r})"
     )
 
-    # Closed-form #2: Pre-clip norm value (spec L206: "the pre-clip norm"; math
+    # Closed-form #2: Pre-clip norm value (`decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)`: "the pre-clip norm"; math
     # formula = ‖g‖₂ of input gradients before scaling).
     assert pre_norm == pytest.approx(expected_pre_norm, abs=1e-6), (
         f"pre_norm returned = {pre_norm}, expected pre-clip ‖g‖₂ = {expected_pre_norm}"
     )
 
-    # Closed-form #3: Post-clip strict upper bound (spec L206: "all gradients
+    # Closed-form #3: Post-clip strict upper bound (`decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)`: "all gradients
     # are scaled to ‖g‖₂ ≤ 1.0"). In this regime (pre > max), the scaling
     # formula g ← g · (max/‖g‖₂) targets ‖g_scaled‖₂ = max_norm exactly.
     post_norm = p.grad.norm().item()
@@ -108,7 +108,7 @@ def test_resurrection_trigger_window() -> None:
 
     Closed-form guard (CLAUDE.md §6 last bullet): the rate-limit window is
     `RESURRECTION_RATE_LIMIT_STEPS = 1000` (spec closed-form constant,
-    declared at `src/decompmoe/safeguards.py:31`). The test exercises the
+    declared at ``safeguards.py::RESURRECTION_RATE_LIMIT_STEPS``). The test exercises the
     window via `current_step − last_resurrection_step`:
       - Δ = 2300 (> 1000): resurrection fires (res non-empty).
       - Δ = 300 (< 1000): rate-limited (res2 empty).
@@ -156,7 +156,7 @@ def test_should_resurrect_rate_limit_boundary() -> None:
     down-open ray and `{Δ : Δ ≥ R}` an up-closed ray. The half-open windows
     `[t, t + R)` partition the step axis into disjoint R-long blocks, and two
     events share a block iff `Δ < R` — which is exactly the guard at
-    `src/decompmoe/safeguards.py:93`.
+    ``safeguards.py::should_resurrect``.
 
     The `≤` alternative is refuted by an R-aligned event stream
     `0, 1000, 2000, 3000, …`: under `≤` each `Δ = 1000` is deferred and
@@ -327,7 +327,7 @@ def test_loss_spike_defense_phase3plus() -> None:
     assert safeguards.LOSS_SPIKE_RATIO == pytest.approx(2.5, abs=1e-12), (
         f"LOSS_SPIKE_RATIO = {safeguards.LOSS_SPIKE_RATIO}, "
         f"expected spec closed-form 2.5 (= LR_SPIKE threshold); "
-        f"if retuned, update skeleton spec L208 item (5) + this assertion atomically"
+        f"if retuned, update `decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)` item (5) + this assertion atomically"
     )
     ratio = safeguards.LOSS_SPIKE_RATIO  # 2.5 per spec
     assert safeguards.loss_spike_defense(L_task=5.0, L_task_ema=1.0, phase=3) is True
@@ -340,7 +340,7 @@ def test_loss_spike_defense_phase3plus() -> None:
 def test_loss_spike_defense_at_ratio_boundary_returns_false() -> None:
     """Strict `>` boundary: `L_task == ratio · L_task_ema` MUST return False.
 
-    Per skeleton spec L208 item (5): `L_task > ratio · L_task_ema` (strict
+    Per `decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)` item (5): `L_task > ratio · L_task_ema` (strict
     greater-than, NOT `>=`). At the equality boundary `L_task = ratio * L_task_ema`,
     the predicate is FALSE — regression weakening `>` to `>=` would silently
     trigger at equality and break this assertion. Added per
@@ -455,7 +455,7 @@ def test_resurrection_perturbation_accepts_history_stacked() -> None:
 
     Spec: wayfinder ADDED Scenario "perturbation accepts history-stacked
     (T, ..., N_e) f_per_expert" (e.g. `(100, N_e)` history stacked by
-    `metrics.UR` per `src/decompmoe/metrics.py:83`).
+    `metrics.UR` per ``metrics.py::UR``).
     Layer 1 (ndim ≥ 1) passes; Layer 2 (trailing axis = cfg.N_e) is the
     wrapper's responsibility (see `test_resurrect_expert_rejects_wrong_length_beta`).
     """
@@ -575,7 +575,7 @@ def test_resurrect_expert_single_event_contract() -> None:
 
 
 def test_resurrect_expert_rejects_wrong_length_beta() -> None:
-    """`β_per_expert.shape[-1] != cfg.N_e` MUST raise ValueError (spec Req 32 L644 contract).
+    """`β_per_expert.shape[-1] != cfg.N_e` MUST raise ValueError (`wayfinder Req 32 Resurrection Perturbation Per-Expert Contract (#req-32)` contract).
 
     Spec: wayfinder Req 32 (anchor L627) + Scenario "same-event beta decay"
     WHEN clause (L644): `β_per_expert ∈ R^{N_e}` — canonical 1-D, length
@@ -668,7 +668,7 @@ def test_no_other_module_defines_should_resurrect() -> None:
 
     assert not offending, (
         f"Modules other than {canonical_owner!r} define their OWN `should_resurrect`: "
-        f"{offending!r}. Per spec L206, only `decompmoe.safeguards` may expose "
+        f"{offending!r}. Per `decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)`, only `decompmoe.safeguards` may expose "
         f"the dead-expert helper. Re-introducing a same-named helper elsewhere "
         f"is a spec-level regression."
     )
@@ -683,7 +683,7 @@ def test_no_other_module_defines_should_resurrect() -> None:
 def test_named_constants_have_spec_values() -> None:
     """Guard the 4 named-constant numerical claims in the spec delta (code-review N5 / CLAUDE.md §6 last bullet).
 
-    The skeleton spec L206 (Five Numerical Safeguard Helpers) + L210 (Centroid Driver reference) reference these `Final[int]` / `Final[float]`
+    The `decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)` (Five Numerical Safeguard Helpers) + L210 (Centroid Driver reference) reference these `Final[int]` / `Final[float]`
     module-level constants by name (rather than literal values) so the spec
     stays in lock-step with the code if these constants are retuned:
 
@@ -702,11 +702,11 @@ def test_named_constants_have_spec_values() -> None:
     # `max(abs, rel·|expected|)` scales with magnitude and defeats "钉值零容差").
     assert safeguards.DEAD_EXPERT_CONSEC_STEPS == 200, (
         f"DEAD_EXPERT_CONSEC_STEPS = {safeguards.DEAD_EXPERT_CONSEC_STEPS}, "
-        f"expected 200 (per spec L206 (Five Numerical Safeguard Helpers) + L210 (Centroid Driver reference))"
+        f"expected 200 (per `decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)` (Five Numerical Safeguard Helpers) + L210 (Centroid Driver reference))"
     )
     assert safeguards.RESURRECTION_RATE_LIMIT_STEPS == 1000, (
         f"RESURRECTION_RATE_LIMIT_STEPS = {safeguards.RESURRECTION_RATE_LIMIT_STEPS}, "
-        f"expected 1000 (per spec L206 (Five Numerical Safeguard Helpers) + L210 (Centroid Driver reference))"
+        f"expected 1000 (per `decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)` (Five Numerical Safeguard Helpers) + L210 (Centroid Driver reference))"
     )
 
     # (Integer closed-form claims continue below with the BETA saturation
@@ -717,15 +717,15 @@ def test_named_constants_have_spec_values() -> None:
     # integer-vs-float binary exemption rationale).
     assert safeguards.LOSS_SPIKE_RATIO == pytest.approx(2.5, abs=1e-12), (
         f"LOSS_SPIKE_RATIO = {safeguards.LOSS_SPIKE_RATIO}, "
-        f"expected 2.5 (per spec L206 item (5))"
+        f"expected 2.5 (per `decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)` item (5))"
     )
     assert safeguards.LOSS_SPIKE_LR_SCALE == pytest.approx(0.8, abs=1e-12), (
         f"LOSS_SPIKE_LR_SCALE = {safeguards.LOSS_SPIKE_LR_SCALE}, "
-        f"expected 0.8 (per spec L206 item (5))"
+        f"expected 0.8 (per `decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)` item (5))"
     )
 
     # β saturation thresholds: closed-form derived from BETA_MAX.
-    # Per spec L206 item (4): `BETA_SATURATION_WARN = 0.95 · BETA_MAX` and
+    # Per `decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)` item (4): `BETA_SATURATION_WARN = 0.95 · BETA_MAX` and
     # `BETA_SATURATION_HALVE = 0.90 · BETA_MAX`. At MVP `BETA_MAX = 32`
     # these evaluate to `30.4` and `28.8` respectively. We assert against
     # the closed-form derivation (not the FP-literal rounded value) so the
@@ -742,7 +742,7 @@ def test_named_constants_have_spec_values() -> None:
         f"BETA_SATURATION_HALVE = {safeguards.BETA_SATURATION_HALVE}, "
         f"expected 0.90 · 32 = {0.90 * 32.0}"
     )
-    # Also assert the MVP-evaluated literal value (per wayfinder L249):
+    # Also assert the MVP-evaluated literal value (per `wayfinder Req 13 Numerical Safeguards (#req-13)`):
     # `BETA_SATURATION_WARN = 30.4` (95% of β_max), `BETA_SATURATION_HALVE
     # = 28.8` (90% of β_max). The literal-evaluated form is FP-exact for
     # `0.95 * 32.0 == 30.4` and `0.90 * 32.0 == 28.8` (both are representable
@@ -811,9 +811,9 @@ def test_max_grad_constants_principle_form() -> None:
 
 
 def test_dead_expert_threshold_mvp_closed_form() -> None:
-    """`_dead_expert_threshold(16) == 1/32` — MVP closed-form (per wayfinder L249).
+    """`_dead_expert_threshold(16) == 1/32` — MVP closed-form (per `wayfinder Req 13 Numerical Safeguards (#req-13)`).
 
-    Per wayfinder L249 + skeleton spec L206: `f_threshold = 1/(2·N_e)` and
+    Per `wayfinder Req 13 Numerical Safeguards (#req-13)` + `decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)`: `f_threshold = 1/(2·N_e)` and
     "At MVP scale `N_e = 16`, `1/(2 · N_e) = 1/32`". Per CLAUDE.md §6 last
     bullet, every spec formula with concrete numeric values MUST have a
     `pytest.approx` (float closed-form) direct guard. This test asserts
@@ -837,7 +837,7 @@ def test_dead_expert_threshold_mvp_closed_form() -> None:
 def test_dead_expert_threshold_legacy_N_e_64_closed_form() -> None:
     """`_dead_expert_threshold(64) == 1/128` — legacy N_e=64 closed-form.
 
-    Per skeleton spec L206 / wayfinder L249: the previous hardcoded `1/128`
+    Per `decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)` / `wayfinder Req 13 Numerical Safeguards (#req-13)`: the previous hardcoded `1/128`
     was the `N_e=64` instantiation of the `1/(2·N_e)` rule. Parameterizing
     by N_e restores both MVP (`1/32`) and legacy (`1/128`) thresholds
     from a single formula.
@@ -862,7 +862,7 @@ def test_dead_expert_threshold_legacy_N_e_64_closed_form() -> None:
 def test_beta_saturation_global_halve_at_exactly_50pct_returns_false() -> None:
     """Exactly 50% of β_i > 28.8: NOT 'more than 50%' → returns False.
 
-    Per wayfinder L249: 'global LR ÷ 2 when **more than 50%** of experts
+    Per `wayfinder Req 13 Numerical Safeguards (#req-13)`: 'global LR ÷ 2 when **more than 50%** of experts
     have `β_i > 28.8`'. `more than 50%` is strict (>50%), so the boundary
     case `n/2` (e.g. 8/16 with N_e=16) MUST return False. Code L265 uses
     `count > n/2` (strict). This test pins the boundary.
@@ -870,7 +870,7 @@ def test_beta_saturation_global_halve_at_exactly_50pct_returns_false() -> None:
     β = torch.zeros(16)
     β[:8] = 30.0  # exactly 8/16 > 28.8 → 50% exactly
     assert safeguards.beta_saturation_global_halve(β) is False, (
-        "exactly 50% is NOT 'more than 50%' per wayfinder L249"
+        "exactly 50% is NOT 'more than 50%' per `wayfinder Req 13 Numerical Safeguards (#req-13)`"
     )
 
 
@@ -888,14 +888,14 @@ def test_beta_saturation_global_halve_just_over_50pct_returns_true() -> None:
 def test_beta_saturation_warning_at_exactly_30_4_returns_false() -> None:
     """β_i == 30.4 (== threshold, strict `>`): returns False.
 
-    Per wayfinder L249: 'warning at `β_i > 30.4`' — strict greater-than.
+    Per `wayfinder Req 13 Numerical Safeguards (#req-13)`: 'warning at `β_i > 30.4`' — strict greater-than.
     Code L259 uses `(β_per_expert > BETA_SATURATION_WARN)` which is strict.
     This test pins the strict-boundary semantics.
     """
     β = torch.full((16,), 20.0)
     β[5] = 30.4  # exactly at threshold, NOT strictly above
     assert safeguards.beta_saturation_warning(β) is False, (
-        "β_i == 30.4 (boundary) is NOT 'β_i > 30.4' per wayfinder L249"
+        "β_i == 30.4 (boundary) is NOT 'β_i > 30.4' per `wayfinder Req 13 Numerical Safeguards (#req-13)`"
     )
 
 
@@ -908,14 +908,14 @@ def test_beta_saturation_warning_just_above_30_4_returns_true() -> None:
 
 # ---------------------------------------------------------------------------
 # `nan_ladder` LR-scale closed-form guard: `lr_scale = 0.1` ≡ `LR ÷ 10`
-# (per wayfinder L249 'LR ÷ 10' wording).
+# (per `wayfinder Req 13 Numerical Safeguards (#req-13)` 'LR ÷ 10' wording).
 # ---------------------------------------------------------------------------
 
 
 def test_nan_ladder_lr_scale_equivalence_to_lr_div_10() -> None:
     """`nan_ladder(3)[1] == 0.1` is mathematically equivalent to `LR ÷ 10`.
 
-    Per wayfinder L249: '3 consecutive NaN trigger LR ÷ 10'. The code
+    Per `wayfinder Req 13 Numerical Safeguards (#req-13)`: '3 consecutive NaN trigger LR ÷ 10'. The code
     expresses this as `lr_scale = 0.1` (multiplicative), which is
     numerically equivalent to `LR × (1/10)`. The `0.1` FP literal is
     FP-exactly equal to `1/10` (both are `0x3FB999999999999A` in IEEE-754
@@ -937,7 +937,7 @@ def test_nan_ladder_lr_scale_equivalence_to_lr_div_10() -> None:
 def test_nan_ladder_zero_returns_skip_per_default() -> None:
     """`nan_ladder(0)` (no NaN): returns ("skip", 1.0, False).
 
-    Per skeleton spec L206: 'for counts (1, 3, 10) respectively' —
+    Per `decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)`: 'for counts (1, 3, 10) respectively' —
     `consecutive_nan ∉ {1, 3, 10}` is not explicitly specified in spec.
     Code L72 fallback to `("skip", 1.0, False)` (defensive: do nothing on
     no NaN). This test pins the default-behavior contract so a future
@@ -993,7 +993,7 @@ def test_should_resurrect_current_per_step_semantic_pinned() -> None:
     assert res == set(), (
         f"per-step semantic: last snapshot 0.04 > threshold {threshold} "
         f"→ expert NOT flagged; got {sorted(res)}. If this changes, the "
-        f"spec/code semantic decision has been made — update spec L266-286, "
+        f"spec/code semantic decision has been made — update `decompmoe-skeleton Req 12 Five Numerical Safeguard Helpers (#req-12)`, "
         f"wayfinder Req 13 (anchor #req-13), and this test consistently."
     )
     # Avg-window reading would have flagged (sanity assertion, demonstrating
@@ -1030,7 +1030,7 @@ def test_should_resurrect_consec_step_boundary_exact() -> None:
     # Integer closed-form pin (per req-gov-1 integer closure protocol).
     assert DEAD_EXPERT_CONSEC_STEPS == 200, (
         f"DEAD_EXPERT_CONSEC_STEPS = {DEAD_EXPERT_CONSEC_STEPS}, "
-        f"expected 200 per spec req-13 L268"
+        f"expected 200 per `wayfinder Req 13 Numerical Safeguards (#req-13)`"
     )
 
     N_e = 16
@@ -1098,7 +1098,7 @@ def test_should_resurrect_per_step_is_strict_subset_of_avg_window_for_monotonic_
     `should_resurrect semantic interpretation (per-step vs avg-window)`
     (extended by this change with the math derivation block). The
     spec's mathematical equivalence disambiguation establishes:
-      - **per-step** (current code at `src/decompmoe/safeguards.py:71-80`):
+      - **per-step** (current code at ``safeguards.py::should_resurrect``):
         `flag_step(i) ⟺ ∀ j ∈ [0, consec): H[j][i] < T`
       - **avg-window** (hypothetical, NOT implemented):
         `flag_avg(i) ⟺ (1/consec) · Σ_{j=0..consec-1} H[j][i] < T`

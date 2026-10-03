@@ -18,10 +18,10 @@ The system MUST adopt **DecompMoE** as the canonical project name and MUST adopt
 - **THEN** the reference uses "DecompMoE" as the primary name, with "GeoMoE" only as a secondary alias inside design prose
 
 <a id="req-2"></a>
-
 ### Requirement: Formal Symbols And Code Naming
 
-The system MUST use formal symbol `Σ_i` (per-expert covariance), `P_i = Σ_i^{-1}` (precision matrix), and the subscript convention `(i ∈ 1..N_e, l ∈ 1..L, h ∈ 1..H_kv, t ∈ 1..S)` for expert / layer / head / token — where the per-head index `h` enumerates the KV-head axis (per req-5 cross-head mean `z̄_t^l = (1/H_kv) · Σ_h C_t^{l,h}`), which at MVP equals the Q-head count `H` because `H_kv = H = 8` (GQA degenerates to MHA at MVP scale per req-11 L211); when true GQA is later enabled (`H_kv < H`), the convention remains `h ∈ 1..H_kv` (the KV-head axis is the gating-relevant axis). Under per-layer head-aggregation, head subscript `h` MUST be elided and symbols MUST collapse to per-layer `C_t^l`, `c_i^l`, `Σ_i^l`, `P_i^l`. Code identifiers MUST map to: `GeometricRouter`, `TerritoryHolder`, `territory_volume`, `active_territories`, `coverage_balance_loss`, `territory_seeding`, `territory_collapse`. **Note:** `territory_seeding` is the canonical API contract name for the Phase 0 K-Means initialization pathway. Its implementation is **deferred to the training-time caller** per req-6 Phase 0 sub-clause; the function exists as a thin contract placeholder that raises `NotImplementedError` with a verbatim pointer to req-6 Phase 0 (see the deferred-contract Requirement anchored below this one). Drivers and inference-time callers MUST NOT invoke this function. **Note:** `territory_collapse` (expert territory collapse detection) is likewise **deferred to the training-time caller** at MVP; it is NOT a MUST-level code identifier at MVP, requires NO placeholder function, and is declared spec-only by the deferred-contract Requirement anchored below this one (see also the source Open Question in archive `2026-09-23-07-fix-spec-territory-seeding-phase-0`).
+
+The system MUST use formal symbol `Σ_i` (per-expert covariance), `P_i = Σ_i^{-1}` (precision matrix), and the subscript convention `(i ∈ 1..N_e, l ∈ 1..L, h ∈ 1..H_kv, t ∈ 1..S)` for expert / layer / head / token — where the per-head index `h` enumerates the KV-head axis (per req-5 cross-head mean `z̄_t^l = (1/H_kv) · Σ_h C_t^{l,h}`), which at MVP equals the Q-head count `H` because `H_kv = H = 8` (GQA degenerates to MHA at MVP scale per `Req 11` "4070 MVP Hyperparameter Set" (`#req-11`)); when true GQA is later enabled (`H_kv < H`), the convention remains `h ∈ 1..H_kv` (the KV-head axis is the gating-relevant axis). Under per-layer head-aggregation, head subscript `h` MUST be elided and symbols MUST collapse to per-layer `C_t^l`, `c_i^l`, `Σ_i^l`, `P_i^l`. Code identifiers MUST map to: `GeometricRouter`, `TerritoryHolder`, `territory_volume`, `active_territories`, `coverage_balance_loss`, `territory_seeding`, `territory_collapse`. **Note:** `territory_seeding` is the canonical API contract name for the Phase 0 K-Means initialization pathway. Its implementation is **deferred to the training-time caller** per req-6 Phase 0 sub-clause; the function exists as a thin contract placeholder that raises `NotImplementedError` with a verbatim pointer to req-6 Phase 0 (see the deferred-contract Requirement anchored below this one). Drivers and inference-time callers MUST NOT invoke this function. **Note:** `territory_collapse` (expert territory collapse detection) is likewise **deferred to the training-time caller** at MVP; it is NOT a MUST-level code identifier at MVP, requires NO placeholder function, and is declared spec-only by the deferred-contract Requirement anchored below this one (see also the source Open Question in archive `2026-09-23-07-fix-spec-territory-seeding-phase-0`).
 
 **Source:** `wayfinder/tickets/A1-1.md`, `wayfinder/tickets/A2-2.md`
 
@@ -91,13 +91,13 @@ The system MUST extract `C_t^l` using a four-step pipeline that enforces spheric
 - **THEN** per-token compute is O(`H_kv · d_c · d_k`) and resident memory for the activation is O(`d_c`)
 
 <a id="req-6"></a>
-
 ### Requirement: C Extraction Differentiability And Centroid Lifecycle
+
 
 The system MUST compute the extraction in a fully differentiable manner (the D-path, no Straight-Through Estimator). The per-expert territory centroids `c_i^l` MUST evolve through a five-phase dual-channel lifecycle, strictly separating two orthogonal update channels:
 
 **Driver Channel (CentroidDriver, gradient-free)**: responsible for centroid updates under explicit, deterministic rules.
-- **Phase 0** — Spherical K-Means seeding (no gradient, no EMA): `c_i^(t+1) = KMeans(C)` initialization. **Phase 0 K-Means implementation is deferred to the training-time caller** (MVP scope per `CLAUDE.md §7 "Out of Scope"` — training execution out-of-scope). The canonical contract name in the codebase is `territory_seeding(C_batch, N_e, *, d_c)` (per req-2 "Formal Symbols And Code Naming" identifier map), which currently raises `NotImplementedError` with a verbatim pointer to this clause. Drivers and inference-time callers MUST NOT call `territory_seeding` at inference time; `CentroidDriver.step` Phase 0 (`Phase.SEEDING`) returns the input centroids detached as a no-op (see `src/decompmoe/extraction.py:119-120`).
+- **Phase 0** — Spherical K-Means seeding (no gradient, no EMA): `c_i^(t+1) = KMeans(C)` initialization. **Phase 0 K-Means implementation is deferred to the training-time caller** (MVP scope per `CLAUDE.md §7 "Out of Scope"` — training execution out-of-scope). The canonical contract name in the codebase is `territory_seeding(C_batch, N_e, *, d_c)` (per req-2 "Formal Symbols And Code Naming" identifier map), which currently raises `NotImplementedError` with a verbatim pointer to this clause. Drivers and inference-time callers MUST NOT call `territory_seeding` at inference time; `CentroidDriver.step` Phase 0 (`Phase.SEEDING`) returns the input centroids detached as a no-op (see `extraction.py::CentroidDriver.step`, Phase 0 branch).
 - **Phase 1** — Masked Spherical EMA at `α = 0.90` (`c_i^(t+1) = Normalize(0.90·c_i^(t) + 0.10·m_i^(t))`); driver channel Active; this is the "Fast Adapt (Warmup)" stage.
 - **Phase 2** — Masked Spherical EMA at `α = 0.95` (`c_i^(t+1) = Normalize(0.95·c_i^(t) + 0.05·m_i^(t))`); driver channel Active; "Coarse Align" stage.
 - **Phase 3** — Masked Spherical EMA at `α = 0.99` (`c_i^(t+1) = Normalize(0.99·c_i^(t) + 0.01·m_i^(t))`); driver channel Active; "High-Inertia Annealing (Pre-SGD)" stage.
@@ -326,8 +326,8 @@ The system MUST keep the notation distinction between per-token `C_t^l` and per-
 - **THEN** `L_sep == (‖C^T C‖_F² − N_e) / (N_e · (N_e − 1))` within `1e-6`; the diagonal `N_e` term is subtracted exactly once
 
 <a id="req-13"></a>
-
 ### Requirement: Numerical Safeguards
+
 
 The system MUST execute the standard training step as `Backward → clip_grad_norm_(1.0) → optimizer.step() → L2_norm(c_i)`, which is a first-order Riemannian SGD equivalent on the spherical constraint. The system MUST implement all five safeguards: (1) Global Gradient Clipping at threshold `1.0` covering all learnable parameters; (2) NaN Detection & Escalation with `1 skip → 3 consecutive NaN trigger LR ÷ 10 → 10 consecutive NaN halt training`; (3) Dead Expert Splitting Resurrection triggered when `f_i^avg < 1 / (2 · N_e)` for 200 consecutive steps (clones `j* = argmax f_j^avg`, perturbs with `ε ~ N(0, 0.05² I)`, sets `β_i ← 0.85 · β_{j*}` and `β_{j*} ← 0.85 · β_{j*}`, rate-limited to once per 1000 steps). At MVP scale `N_e = 16`, `1/(2 · N_e) = 1/32`; the rule is `f_threshold = 1/(2 · N_e)` parameterized by `N_e`, not a hardcoded `1/128` from a prior `N_e = 64` design; (4) β Saturation Guard with warning at `β_i > 30.4` (95% of `β_max`) and global `LR ÷ 2` when more than 50% of experts have `β_i > 28.8` (90% of `β_max`); (5) Loss Spike Defense in Phase 3+ with `L_task > 2.5 · EMA(L_task)` triggering `LR × 0.8`.
 
@@ -343,11 +343,12 @@ The system MUST execute the standard training step as `Backward → clip_grad_no
 
 #### Scenario: Resurrection respects rate limit
 - **WHEN** `should_resurrect(f_history, current_step, last_resurrection_step, *, N_e, ...)` is called with `Δ := current_step − last_resurrection_step` and `R := RESURRECTION_RATE_LIMIT_STEPS` (at MVP `R = 1000`)
-- **THEN** the call is **deferred** — it returns `set()` at the rate-limit guard — **if and only if `Δ < R`**. The window edge is **exclusive**: `Δ = R` is **not** deferred and the call proceeds to the dead-expert trigger. The normative formalization (monotone single-jump predicate, the per-pair window equivalence, and the `R`-aligned counterexample that fixes the edge) is `openspec/specs/decompmoe-skeleton/spec.md` req-12 Scenario "Resurrection rate-limited"; guarded by `tests/test_safeguards.py::test_should_resurrect_rate_limit_boundary`. **Scope correction**: the prior wording — "two experts meet the dead-expert trigger within the same 1000-step window … only one resurrection event executes; the second is deferred" — described a **per-window quota of one resurrection**, which `should_resurrect` does **not** implement: it returns **every** expert satisfying the per-step trigger in the call (`src/decompmoe/safeguards.py:98-102`, no one-per-window clipping). The rate limit is a **per-call deferral gate** only, and this Scenario is restated to match the implemented contract; the superseded reading is recorded here rather than silently dropped.
+- **THEN** the call is **deferred** — it returns `set()` at the rate-limit guard — **if and only if `Δ < R`**. The window edge is **exclusive**: `Δ = R` is **not** deferred and the call proceeds to the dead-expert trigger. The normative formalization (monotone single-jump predicate, the per-pair window equivalence, and the `R`-aligned counterexample that fixes the edge) is `openspec/specs/decompmoe-skeleton/spec.md` req-12 Scenario "Resurrection rate-limited"; guarded by `tests/test_safeguards.py::test_should_resurrect_rate_limit_boundary`. **Scope correction**: the prior wording — "two experts meet the dead-expert trigger within the same 1000-step window … only one resurrection event executes; the second is deferred" — described a **per-window quota of one resurrection**, which `should_resurrect` does **not** implement: it returns **every** expert satisfying the per-step trigger in the call (`safeguards.py::should_resurrect`, no one-per-window clipping). The rate limit is a **per-call deferral gate** only, and this Scenario is restated to match the implemented contract; the superseded reading is recorded here rather than silently dropped.
 
 #### Scenario: Beta saturation guard
 - **WHEN** any single executor reaches `β_i > 30.4` or more than 50% of experts cross `β_i > 28.8`
 - **THEN** the system logs a warning or halves the global learning rate respectively
+
 <a id="req-14"></a>
 
 ### Requirement: Five-Phase Time-Driven Schedule
@@ -445,7 +446,7 @@ The system MUST, for evaluation on the 4070 8 GB MVP, hold active FLOPs strictly
 **Routing overhead, reported separately (not part of parity)**:
 `FLOPs_Routing^(l) = 4 · d_c · H_kv · d_k + 2 · N_e · d_c`, where `4 · d_c · H_kv · d_k` accounts for the `W^K, W^V` low-rank projections (each projection is a forward GEMM of `2 · H_kv · d_k · d_c`; two projections sum to `4 · d_c · H_kv · d_k`), and `2 · N_e · d_c` accounts for the gating similarity dot product `C^T c_i`. At MVP this evaluates to `4·16·8·128 + 2·16·16 = 65_536 + 512 = 66_048` FLOPs/layer; `L = 4` layers yields `264_192` FLOPs/token. Against the active-core denominator `FLOPs_MoE,core^(l) = 8·d_model² + k·6·d_model·d_ffn^Expert = 33_554_432` per layer, the ratio is `66_048 / 33_554_432 ≈ 0.001968 → ≈ 0.20%` (the previous figure `0.26%` was arithmetically inconsistent with the same-paragraph `FLOPs_MoE,core` definition; it is now corrected), within the `0.3%` allowance.
 
-**Cross-req consistency note (vs. Req 17 / `wayfinder/tickets/A7-2.md`)**: Req 17 (anchored `<a id="req-17"></a>`) reports the *extract_C pipeline* cost as `33_168 MACs = 66_336 FLOPs`, which decomposes into projection-only `4·d_c·H_kv·d_k = 65_536 FLOPs` plus `+128 MACs` bias add, `+144 MACs` for the two L2-normalize steps (per-head `H_kv·d_c = 128` + final `d_c = 16`) and `+128 MACs` for the step-(3) cross-head mean with the `1/H_kv` factor (`+400 MACs = +800 FLOPs` on top of projection-only, at the convention `1 MAC = 2 FLOPs` used by Req 17). The routing-overhead line item reported here covers the *projection + gating similarity* slice and intentionally does **not** repackage the bias add, the per-head L2-normalize, the step-(3) cross-head mean, or the final L2-normalize as standalone line items; instead they remain attributable to Req 17's extract_C accounting. Net difference between the two specs at MVP is therefore `+288 FLOPs` (= `66_336 − 66_048`; decomposing the extract_C side as `(128 bias + 144 two L2 + 128 cross-head mean)·2 = 800 FLOPs` gives `800 − 512 = 288`, the prior `+32 FLOPs` having omitted the step-(3) cross-head mean's `128 MACs = 256 FLOPs`), in the direction that **Req 17's extract_C total is 288 FLOPs higher** than the `FLOPs_Routing` value quoted here. `288 / 66_048 ≈ 0.436%` is the ratio against `FLOPs_Routing` and is **not** the allowance's measure — the `0.3%` allowance is denominated in the active-core slice: `66_336 / 33_554_432 ≈ 0.1977% ≤ 0.3%`, which still holds. The prior wording conflated the two denominators, which is what made the smaller `+32 FLOPs` net read as "well under"; the allowance itself is unaffected and the net does NOT enter the parity equation under either spec. (Future revisions that consolidate the two cost items MUST retain the `0.3%` allowance invariant.)
+**Cross-req consistency note (vs. Req 17 / `wayfinder/tickets/A7-2.md`)**: Req 17 (`#req-17` Stateless Per-Frame C Recomputation) reports the *extract_C pipeline* cost as `33_168 MACs = 66_336 FLOPs`, which decomposes into projection-only `4·d_c·H_kv·d_k = 65_536 FLOPs` plus `+128 MACs` bias add, `+144 MACs` for the two L2-normalize steps (per-head `H_kv·d_c = 128` + final `d_c = 16`) and `+128 MACs` for the step-(3) cross-head mean with the `1/H_kv` factor (`+400 MACs = +800 FLOPs` on top of projection-only, at the convention `1 MAC = 2 FLOPs` used by Req 17). The routing-overhead line item reported here covers the *projection + gating similarity* slice and intentionally does **not** repackage the bias add, the per-head L2-normalize, the step-(3) cross-head mean, or the final L2-normalize as standalone line items; instead they remain attributable to Req 17's extract_C accounting. Net difference between the two specs at MVP is therefore `+288 FLOPs` (= `66_336 − 66_048`; decomposing the extract_C side as `(128 bias + 144 two L2 + 128 cross-head mean)·2 = 800 FLOPs` gives `800 − 512 = 288`, the prior `+32 FLOPs` having omitted the step-(3) cross-head mean's `128 MACs = 256 FLOPs`), in the direction that **Req 17's extract_C total is 288 FLOPs higher** than the `FLOPs_Routing` value quoted here. `288 / 66_048 ≈ 0.436%` is the ratio against `FLOPs_Routing` and is **not** the allowance's measure — the `0.3%` allowance is denominated in the active-core slice: `66_336 / 33_554_432 ≈ 0.1977% ≤ 0.3%`, which still holds. The prior wording conflated the two denominators, which is what made the smaller `+32 FLOPs` net read as "well under"; the allowance itself is unaffected and the net does NOT enter the parity equation under either spec. (Future revisions that consolidate the two cost items MUST retain the `0.3%` allowance invariant.)
 
 **Source:** `wayfinder/tickets/A8-1.md`, change `2026-09-28-fix-a7-flops-attribution-and-stale-ref` design.md (Decision 1 — 144 MAC 归属标注对齐 canonical 闭式; Decision 2 — Req 17 引用改为 anchor 锚点引用（消除行号漂移脆弱性）), change `2026-10-02-audit-a2-errata-and-spec-math-fixes` design.md (D4 errata table row E11 — 1:1 assertion narrowed to parity-reparameterizable entries; D4 errata table row E12 — residency figures given as closed forms with a drift guard; four baselines marked deferred; Decision D5 — cross-Req-17 reconciliation re-anchored to the active-core denominator)
 
@@ -458,8 +459,8 @@ The system MUST, for evaluation on the 4070 8 GB MVP, hold active FLOPs strictly
 - **THEN** `FLOPs_Routing` is reported as a standalone line item and MUST NOT enter the parity equation
 
 <a id="req-20"></a>
-
 ### Requirement: Eight Geometric Quantification Metrics
+
 
 The system MUST report eight metrics in two classes, each with a precise closed-form definition.
 
@@ -476,9 +477,11 @@ The system MUST report eight metrics in two classes, each with a precise closed-
 |---|---|---|
 | `SP_i` | `SP_i = (1 / ‖T_i‖₁) · Σ_{t ∈ T_i} c_i^T C_t`; aggregated `SP = mean({SP_i : ‖T_i‖₁ > 0})` (skip experts with empty `T_i`) | `T_i` = set of tokens routed to expert `i`. If `‖T_i‖₁ = 0`, `SP_i` is excluded; SP MUST NOT be reported as `0` |
 | `D_chord` | `D_chord = (2 / (N_e(N_e−1))) · Σ_{i<j} √(2(1 − c_i^T c_j))` | mean spherical chord between off-diagonal centroid pairs; note: `D_chord = √(2 · versine)` |
+<a id="req-20-mci"></a>
 | `MCI` | `MCI = 1 / (d_c · Σ_{j=1}^{d_c} λ̃_j²)`, with `λ_j` the eigenvalues of the **uncentered** second moment `M = (1 / \|T\|) · Σ_{t ∈ T} C_t C_tᵀ` over the routed-token signature set `T`, and `λ̃_j = λ_j / Σ_r λ_r` (normalized eigenvalue of `M`) | effective-dimensionality fraction; replaces CV (whose lower bound `1/d_c` on `S^{d_c−1}` made the original `< 0.05` health target unreachable — see `wayfinder/tickets/A8-2.md`). The centered-covariance reading has its `(1/d_c, 1]` upper endpoint unreachable at `\|T\| = d_c`; this Requirement uses the **uncentered** second moment so that both endpoints of the declared range are attainable. `MCI ∈ [1/d_c, 1]` (closed range); `MCI = 1.0` when `M` is proportional to identity (uniform token-distribution across the `d_c` basis), `MCI = 1/d_c` when `M` is rank-1 |
 | `CG` | `CG = ‖∇_{W^{K, V, b}} L_total‖₂` | debug-only stability probe; non-negative; MUST NOT enter quality acceptance |
 
+<a id="req-20-source"></a>
 **Source:** `wayfinder/tickets/A8-2.md`, change `fix-openspec-doc-bugs` design.md (Decision 8), change `fix-math-consistency-audit-2026-08` design.md (Decision 5)
 
 #### Scenario: Realtime vs offline classification
@@ -559,6 +562,14 @@ The system MUST report eight metrics in two classes, each with a precise closed-
   has **no** step axis — each `B × N` element is a token, not a step — so reducing
   its axis 0 would silently drop whole batch rows rather than truncate a history.
   Callers MUST reduce over tokens first and pass `(T, N_e)`
+
+#### Scenario: req-20 is the single canonical source for the MCI closed form
+
+- **WHEN** `MCI(token_signatures)` is implemented per `#req-20-mci`
+- **THEN** the implementation uses `M = (1/|T|) · Σ C_t C_t^T` uncentered second moment (NOT centered covariance, NOT convex hull radius), with eigenvalues `λ_j` extracted from `M`, normalized to `λ̃_j = λ_j / Σ_r λ_r`, and the result is `1 / (d_c · Σ λ̃_j²)`
+- **AND** the result lies in `MCI ∈ [1/d_c, 1]` closed range with both endpoints attainable, guarded by the two `MCI closed-form` Scenarios above at `abs=1e-12`
+- **AND** no other Requirement restates this closed form: a Requirement that points at this one MUST reference `#req-20-mci` rather than a line number or a verbatim copy, so that editing this Requirement cannot invalidate a pointer elsewhere
+
 <a id="req-35"></a>
 
 ### Requirement: CG n=1 boundary behavior
@@ -774,8 +785,8 @@ The forward equation `x_out = x + Σ_{i ∈ I_k} p_i · Expert_i(x)` in Req 8 / 
 ---
 
 <a id="req-32"></a>
-
 ### Requirement: Resurrection Perturbation Per-Expert Contract — Single-Event Wrapper
+
 
 The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **single cloned expert** (centroid and/or expert weights) — not the per-expert routing frequency vector `f_per_expert`. The perturbation API `resurrection_perturb_distribution(f_per_expert, target_idx, eps_std=0.05, *, dim: int | None = None)` MUST accept `f_per_expert` as the leading positional argument with **shape `(..., N_e)`** — the trailing axis MUST equal `N_e` and leading dims are arbitrary (canonical call sites pass `(N_e,)`, `(T, N_e)`, or `(B, N, N_e)`). Layer 2 shape enforcement (wrapper-side, at this wrapper): `f_per_expert.shape[-1] == cfg.N_e` pair-check. The vacuous self-check `f_per_expert.shape[-1] == β_per_expert.shape[0]` (which is identically true given `f_per_expert = β_per_expert.detach()` inside this wrapper, where `shape[-1] == shape[0]`) was an earlier draft and was corrected by commit `0b2202e` to anchor on the spec-defined `cfg.N_e`. Layer 1 primitive-side enforcement (`ndim ≥ 1`) is described in Req 28. `target_idx` is a positional integer, `eps_std=0.05` is a positional-or-keyword perturbation scale, and `dim` is a **keyword-only** parameter sourcing the per-expert dimensionality. `dim=None` MUST raise `TypeError`. The returned tensor MUST have leading dimension `dim` — corresponding to a single expert slot — NOT the `(N_e,)` shape of `f_per_expert`. The β double-write semantic (`β_i ← 0.85 · β_{j*}` and `β_{j*} ← 0.85 · β_{j*}`) is defined in Req 13; this wrapper additionally guarantees same-call-stack execution (see wrapper contract paragraph below). (References Req 13.)
 
@@ -788,7 +799,7 @@ The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **singl
 - **THEN** the returned tensor has shape `(d_c,)` or `(d_model · d_ffn,)` (single expert), NOT `(N_e,)` (whole routing distribution)
 
 #### Scenario: perturbation accepts batched (B, N, N_e) f_per_expert
-- **WHEN** `resurrection_perturb_distribution(f_per_expert, target_idx=3, eps_std=0.05, dim=16)` is called with `f_per_expert.shape == (B, N, N_e)` (e.g. `(4, 3, 16)` at MVP — matches `loss.L_lb` hot-path shape per `src/decompmoe/loss.py:88`)
+- **WHEN** `resurrection_perturb_distribution(f_per_expert, target_idx=3, eps_std=0.05, dim=16)` is called with `f_per_expert.shape == (B, N, N_e)` (e.g. `(4, 3, 16)` at MVP — matches the `L_lb` hot-path shape per `loss.py::LossComposition`)
 - **THEN** the returned tensor has shape `(d_c,)` or `(d_model · d_ffn,)` (single expert), NOT `(N_e,)` (whole routing distribution)
 
 #### Scenario: perturbation accepts history-stacked (T, ..., N_e) f_per_expert
@@ -817,6 +828,7 @@ The Dead Expert Splitting Resurrection pathway (Req 13) MUST perturb the **singl
 - **WHEN** `resurrect_expert(i, j_star, β_per_expert, c_centroids, cfg)` is called with `i != j_star` and `c_centroids` of shape `(N_e, d_c)` with unit-norm rows
 - **THEN** the clone is taken from `c_centroids[j_star]` (the donor) and NOT from `c_centroids[i]`; with `eps_std → 0` the returned `c_perturbed` converges to `c_centroids[j_star]`
 - **AND** an implementation that cloned row `i` MUST be rejected: `i` is the dead expert, so its centroid is the degenerate quantity the resurrection is meant to replace, and cloning it would return a perturbed copy of the very state being repaired
+
 <a id="req-34"></a>
 ### Requirement: Source Field Format Invariant for OpenSpec Specs
 
@@ -892,55 +904,3 @@ The rules are content-based (not line-number based) so they survive spec edits w
 - **AND** the canonical backslash-escape behavior: `\`` is treated as a regular character (the escape is not recognized), so the next backtick will toggle `in_code_span` normally — producing unpredictable parse state
 - **AND** the canonical multi-line behavior: the lint script reads `**Source:**` lines one line at a time; a Source field whose content continues onto subsequent lines is NOT concatenated — the subsequent lines are scanned as separate `**Source:**` lines (none of which will match the regex), and the original line's body is processed as a self-contained single-line Source field, almost certainly failing check ① because the body is incomplete
 - **AND** the convention enforced by this Scenario is: Source fields MUST use single-backtick code spans exclusively, MUST NOT use backslash-escapes inside backticks, and MUST be written on a single line. Any violation of these conventions MUST be fixed by rewriting the line, not by expecting the lint script to handle the edge case
-
-<a id="req-36"></a>
-
-### Requirement: Eight Geometric Quantification Metrics — Ticket A8-2 L70/L74 Supersede Annotation Closure
-
-The system SHALL maintain the existing spec Requirement **"Eight Geometric Quantification Metrics"** (`openspec/specs/wayfinder/spec.md` L434-505, anchored `<a id="req-20"></a>`) — specifically the `MCI` row at L453 — as the **钉死真相源** (canonical truth source) for the closed-form `uncentered second moment` definition that supersedes the historical centered-covariance and CV/convex-hull-radius readings. This change does NOT modify the spec Requirement; it documents that the spec's existing supersede annotation (via L453 Reason narrative + L456 Source field) is the canonical reference against which ticket-side and audit-side supersede annotations MUST be aligned.
-
-**Spec L453 verbatim closed-form (钉死真相源, unchanged by this change)**:
-
-> `MCI = 1 / (d_c · Σ_{j=1}^{d_c} λ̃_j²)`, with `λ_j` the eigenvalues of the **uncentered** second moment `M = (1 / \|T\|) · Σ_{t ∈ T} C_t C_tᵀ` over the routed-token signature set `T`, and `λ̃_j = λ_j / Σ_r λ_r` (normalized eigenvalue of `M`) | effective-dimensionality fraction; replaces CV (whose lower bound `1/d_c` on `S^{d_c−1}` made the original `< 0.05` health target unreachable — see `wayfinder/tickets/A8-2.md`). The centered-covariance reading has its `(1/d_c, 1]` upper endpoint unreachable at `\|T\| = d_c`; this Requirement uses the **uncentered** second moment so that both endpoints of the declared range are attainable. `MCI ∈ [1/d_c, 1]` (closed range); `MCI = 1.0` when `M` is proportional to identity (uniform token-distribution across the `d_c` basis), `MCI = 1/d_c` when `M` is rank-1
-
-**Spec L416 Source verbatim (3 反链齐, unchanged by this change)**:
-
-> **Source:** `wayfinder/tickets/A8-2.md`, change `fix-openspec-doc-bugs` design.md (Decision 8), change `fix-math-consistency-audit-2026-08` design.md (Decision 5)
-
-**Spec Scenarios verbatim (uncentered 闭式两端守护, unchanged by this change)**:
-
-- L450 `MCI closed-form on uniform token distribution` — abs=1e-12 守护 `MCI = 1.0` upper endpoint
-- L454 `MCI closed-form on rank-1 token distribution` — abs=1e-12 守护 `MCI = 1/d_c` lower endpoint
-
-**Ticket-side supersede annotations (this change, additive, NOT spec modifications)**:
-
-- `wayfinder/tickets/A8-2.md` L70 (`λ_j = C 分布协方差矩阵的特征值`) — italic `(historical, centered-covariance reading; superseded by spec req-20 L413 uncentered second moment ...)` annotation appended; **original stale数字 verbatim retained**
-- `wayfinder/tickets/A8-2.md` L74 (`**关键修正**：原 CV（C 分布凸包半径）在 S^{d_c-1} 下界为 1/d_c = 0.0625（健康值不可达），故替换`) — italic `(historical, geometric convex hull radius CV reading; superseded by spec req-20 L413 uncentered second moment ...)` annotation appended; **original stale数字 verbatim retained**
-
-**Source:** `wayfinder/tickets/A8-2.md`, change `fix-openspec-doc-bugs` design.md (Decision 8), change `fix-math-consistency-audit-2026-08` design.md (Decision 5)
-
-#### Scenario: Spec L413 is the unchanging canonical closed-form for MCI
-
-- **WHEN** `MCI(token_signatures)` is called from `src/decompmoe/metrics.py` per spec L413 closed form
-- **THEN** the implementation uses `M = (1/|T|) · Σ C_t C_tᵀ` uncentered second moment verbatim (NOT centered covariance, NOT convex hull radius), with eigenvalues `λ_j` extracted from `M`, normalized to `λ̃_j = λ_j / Σ_r λ_r`, and the result is `1 / (d_c · Σ λ̃_j²)` — all per spec L413 verbatim (no drift)
-- **AND** the result lies in `MCI ∈ [1/d_c, 1]` closed range, with both endpoints attainable (uniform distribution ⇒ `MCI = 1.0`; rank-1 distribution ⇒ `MCI = 1/d_c`)
-- **AND** the spec text at `openspec/specs/wayfinder/spec.md` L413 verbatim contains the uncentered second moment closed form AND the L413 Reason supersede narrative AND the L413 Range `MCI ∈ [1/d_c, 1]` AND the L416 Source 3-反链 — all unchanged by this change
-
-#### Scenario: Ticket A8-2 L70 historical supersede annotation preserved
-
-- **WHEN** `wayfinder/tickets/A8-2.md` L70 is read for the `λ_j = C 分布协方差矩阵的特征值` historical definition attempt
-- **THEN** the line preserves the original `λ_j = C 分布协方差矩阵的特征值` text AND a subsequent italic annotation `(historical, centered-covariance reading; superseded by spec req-20 L413 uncentered second moment via fix-openspec-doc-bugs design.md Decision 8 + fix-math-consistency-audit-2026-08 design.md Decision 5 — centered reading has (1/d_c, 1] upper endpoint unreachable at |T| = d_c)` follows immediately (the original stale定义 is retained for ticket lineage traceability; supersede annotation tells future readers that the定义 is historical, not current spec truth)
-
-#### Scenario: Ticket A8-2 L74 historical supersede annotation preserved
-
-- **WHEN** `wayfinder/tickets/A8-2.md` L74 is read for the `原 CV（C 分布凸包半径）` historical definition attempt
-- **THEN** the line preserves the original `**关键修正**：原 CV（C 分布凸包半径）在 S^{d_c-1} 下界为 1/d_c = 0.0625（健康值不可达），故替换` text AND a subsequent italic annotation `(historical, geometric convex hull radius CV reading; superseded by spec req-20 L413 uncentered second moment via fix-openspec-doc-bugs design.md Decision 8 + fix-math-consistency-audit-2026-08 design.md Decision 5 — CV lower bound 1/d_c on S^{d_c-1} makes original < 0.05 health target unreachable)` follows immediately (the original stale定义 is retained for ticket lineage traceability; supersede annotation tells future readers that the定义 is historical, not current spec truth)
-
-#### Scenario: Ticket L70 + L74 dual annotations jointly cover spec L413 Reason's dual supersede argument
-
-- **WHEN** both `wayfinder/tickets/A8-2.md` L70 (centered-covariance) and L74 (CV/convex-hull) supersede annotations are read jointly
-- **THEN** they jointly cover spec L413 Reason's dual supersede argument verbatim:
-  - L70 annotation verbatim cites "centered reading has `(1/d_c, 1]` upper endpoint unreachable at `|T| = d_c`" (matches spec L413 Reason's centered-covariance clause)
-  - L74 annotation verbatim cites "CV lower bound `1/d_c` on `S^{d_c-1}` makes original `< 0.05` health target unreachable" (matches spec L413 Reason's CV/convex-hull clause)
-  - both annotations reference the **same** supersession target: "spec req-20 L413 uncentered second moment" with the **same** chain of authority: "fix-openspec-doc-bugs design.md Decision 8 + fix-math-consistency-audit-2026-08 design.md Decision 5"
-- **AND** the joint coverage forms a complete reverse-absorption chain: spec L413 Reason (钉死真相) → ticket L70 + L74 (历史 lineage) → audit `.audit/spec-math-audit.md` L524 evidence段 (审计 trail)

@@ -97,7 +97,7 @@ def test_flops_total_exact_134217728() -> None:
 
 
 def test_flops_routing_closed_form_66048() -> None:
-    """Spec L426: `FLOPs_Routing^(l) = 4·d_c·H_kv·d_k + 2·N_e·d_c == 66_048` per layer.
+    """`wayfinder Req 19 Six Baseline Set On 4070 MVP (#req-19)`: `FLOPs_Routing^(l) = 4·d_c·H_kv·d_k + 2·N_e·d_c == 66_048` per layer.
 
     Integer closed form → bare `==` per `governance/spec.md` req-gov-1 §1
     (never `pytest.approx(..., abs=0)`, whose `rel=1e-12` default would scale
@@ -118,14 +118,14 @@ def test_flops_routing_closed_form_66048() -> None:
 
 
 def test_flops_routing_ratio_within_allowance() -> None:
-    """Spec L426: routing ratio ≈ 0.001968 → ≈ 0.20%, within the 0.3% allowance.
+    """wayfinder Req 19 Six Baseline Set On 4070 MVP (`#req-19`): routing ratio ≈ 0.001968 → ≈ 0.20%, within the 0.3% allowance.
 
     Float closed form (involves division) → `pytest.approx(abs=...)` per
     `governance/spec.md` req-gov-1 §2.
     """
     cfg = config.MVPConfig()
     flops_routing = 4 * cfg.d_c * cfg.H_kv * cfg.d_k + 2 * cfg.N_e * cfg.d_c
-    core = 33_554_432  # FLOPs_MoE,core^(l) per spec L426
+    core = 33_554_432  # FLOPs_MoE,core^(l) per `wayfinder Req 19 Six Baseline Set On 4070 MVP (#req-19)`
     ratio = flops_routing / core
     assert ratio == pytest.approx(0.001968, abs=1e-6), f"actual={ratio}"
     assert ratio == pytest.approx(0.0020, abs=1e-4), f"actual={ratio} (≈0.20%)"

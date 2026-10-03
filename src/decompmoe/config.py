@@ -47,7 +47,7 @@ class MVPConfig:
     d_c: int = 16
     H_kv: int = 8
     d_k: int = 128
-    # Initial inverse-temperature β₀ ≈ 1.035 — per spec req-7 L130 closed-form
+    # Initial inverse-temperature β₀ ≈ 1.035 — per `wayfinder Req 7 Isotropic Squared-Chord Distance And Bounded Beta (#req-7)` closed-form
     # β_0 = 0.1 + 31.9·σ(γ₀) with γ₀ ≈ −3.5 (proxy for Phase 1 宽门控探索).
     # 50-digit mpmath (verify-7 axis-α): σ(γ_init=−3.5) = 0.029312230751356318865,
     # β_0 = 1.0350601609682665718. Stored here so downstream code can read the canonical
@@ -92,8 +92,8 @@ def compute_total_and_active(cfg: MVPConfig) -> tuple[int, int]:
                                     + router_per_layer)
 
     With `MVPConfig()` (vocab=32K, d_model=1024, L=4, N_e=16, k=2):
-        total = 452_329_984 (≈452.33M, exact per spec req-11 L245)
-        active = 100_008_448 (≈100.01M, exact per spec req-11 L245)
+        total = 452_329_984 (≈452.33M, exact per `wayfinder Req 11 4070 MVP Hyperparameter Set (#req-11)`)
+        active = 100_008_448 (≈100.01M, exact per `wayfinder Req 11 4070 MVP Hyperparameter Set (#req-11)`)
     """
     embedding = cfg.vocab_size * cfg.d_model
     attn = _attention_params_per_layer(cfg)

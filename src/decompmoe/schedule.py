@@ -145,13 +145,14 @@ def beta_effective(
     step: int,
     total_steps: int = _DEFAULT_TOTAL,
 ) -> Tensor:
-    """Operational β^eff (spec Req 24 per-phase formulas, wayfinder L491-507).
+    """Operational β^eff (per-phase formulas of wayfinder Req 24 Beta
+    Parameterization Space vs Operational Domain (`#req-24`)).
 
     Spec declarations:
-      Phase 1: β^eff = 1.0 (fixed, regardless of γ)              — line 495
-      Phase 2-3: Clamp(β^param(γ), 1.0, β_max(t))               — line 496
+      Phase 1: β^eff = 1.0 (fixed, regardless of γ)              — Req 24 Phase 1 row
+      Phase 2-3: Clamp(β^param(γ), 1.0, β_max(t))               — Req 24 Phase 2-3 row
                  where β^param(γ) = 0.1 + 31.9 · σ(γ)
-      Phase 4:  β^eff = 1 + 31 · σ(γ')                          — line 497
+      Phase 4:  β^eff = 1 + 31 · σ(γ')                          — Req 24 Phase 4 row
                  (γ' = γ_reset_for_phase4(β_p3)); no clamp.
 
     Signature is 3 positional args plus a defaulted `total_steps`, so that
@@ -165,15 +166,15 @@ def beta_effective(
     )
 
     if phase == 1:
-        # Spec line 495: fixed 1.0 (γ-independent exploration phase).
+        # Req 24 Phase 1 row: fixed 1.0 (γ-independent exploration phase).
         return torch.tensor(1.0)
     if phase in (2, 3):
-        # Spec line 496: Clamp(β^param(γ), 1.0, β_max(t))
+        # Req 24 Phase 2-3 row: Clamp(β^param(γ), 1.0, β_max(t))
         beta_raw = inverse_temperature(torch.as_tensor(float(gamma_p)))
         cap = phase_beta_max(phase, step, total_steps)
         return torch.tensor(float(beta_raw.clamp(min=1.0, max=cap).item()))
     if phase == 4:
-        # Spec line 497: 1 + 31 · σ(γ'); the γ' reset already places this
+        # Req 24 Phase 4 row: 1 + 31 · σ(γ'); the γ' reset already places this
         # at β_p3 on entry, so no further clamp needed (spec does not
         # request one for Phase 4).
         beta_raw = phase4_inverse_temperature(torch.as_tensor(float(gamma_p)))

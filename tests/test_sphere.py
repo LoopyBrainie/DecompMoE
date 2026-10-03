@@ -111,7 +111,7 @@ def test_voronoi_monotone_in_ne() -> None:
     assert theta_16 == pytest.approx(1.173547, abs=1e-6), f"actual={theta_16}"
     assert theta_17 == pytest.approx(1.165847, abs=1e-6), f"actual={theta_17}"
     # Principle: each θ must solve the closed-form equation ½·I_{sin²θ}(7.5, ½) = 1/N_e
-    # with residual < 1e-9 per spec L231.
+    # with residual < 1e-9 per `decompmoe-skeleton Req 6 Voronoi Self-Consistency Threshold (#req-6)`.
     for theta, N in ((theta_16, 16), (theta_17, 17)):
         s2 = math.sin(theta) ** 2
         residual = 0.5 * sphere._betainc_regularized(s2, 7.5, 0.5) - 1.0 / N
@@ -129,7 +129,7 @@ def test_voronoi_canonical_mvp_value() -> None:
     the true root is ≈ 1.1735 rad (67.24°), independently confirmed.
     """
     theta = sphere.canonical_voronoi_angle(num_experts=16, signature_dim=16)
-    # Spec L236 4dp display forms: `θ_Voronoi(16, 16) ≈ 67.24° (≈ 1.1735 rad)`.
+    # `decompmoe-skeleton Req 6 Voronoi Self-Consistency Threshold (#req-6)` 4dp display forms: `θ_Voronoi(16, 16) ≈ 67.24° (≈ 1.1735 rad)`.
     assert round(theta, 4) == 1.1735, f"actual={theta} → round4={round(theta, 4)}"
     assert round(math.degrees(theta), 2) == 67.24, (
         f"actual_deg={math.degrees(theta)} → round2={round(math.degrees(theta), 2)}"
@@ -154,7 +154,7 @@ def test_voronoi_canonical_N_e_dependence() -> None:
     theta_16 = sphere.canonical_voronoi_angle(num_experts=16, signature_dim=16)
     # Closed-form literal pin (governance req-gov-1 §3 — bisection-6dp literal).
     assert theta_64 == pytest.approx(1.020506, abs=1e-6), f"actual={theta_64}"
-    # Spec L237 4dp display forms: `θ_Voronoi(64, 16) ≈ 1.0205 rad (≈ 58.47°)`.
+    # `decompmoe-skeleton Req 6 Voronoi Self-Consistency Threshold (#req-6)` 4dp display forms: `θ_Voronoi(64, 16) ≈ 1.0205 rad (≈ 58.47°)`.
     assert round(theta_64, 4) == 1.0205, f"actual={theta_64} → round4={round(theta_64, 4)}"
     assert round(math.degrees(theta_64), 2) == 58.47, (
         f"actual_deg={math.degrees(theta_64)} → round2={round(math.degrees(theta_64), 2)}"
@@ -182,14 +182,14 @@ def test_voronoi_self_consistency_against_1_e_boundary() -> None:
         f"θ_Voronoi = {math.degrees(theta_voronoi):.4f}° must exceed "
         f"θ_{{1/e}}(16) = {math.degrees(theta_1_over_e):.4f}°"
     )
-    # Spec L245 literal: `arccos(15/16) ≈ 20.36°` (float closed form → abs=1e-2 deg).
+    # wayfinder Req 11 4070 MVP Hyperparameter Set (`#req-11`) literal: `arccos(15/16) ≈ 20.36°` (float closed form → abs=1e-2 deg).
     assert math.degrees(theta_1_over_e) == pytest.approx(20.36, abs=1e-2), (
         f"actual={math.degrees(theta_1_over_e)}"
     )
 
 
 def test_ct_decode_footprint_is_dtype_dependent() -> None:
-    """Spec L370 (req-16): Decode SRAM footprint of `C_t` is `16 floats = 64 bytes`
+    """wayfinder Req 16 Prefill And Decode Share The Same Algorithm (`#req-16`): Decode SRAM footprint of `C_t` is `16 floats = 64 bytes`
     per layer per token at `d_c = 16`.
 
     The spec states `16 floats` without naming an element type, so `64` bytes
@@ -787,10 +787,10 @@ def test_versine_voronoi_closed_form() -> None:
     """Audit findings MAJ-M1 / MAJ-M2: versine_Voronoi closed-form values.
 
     versine_Voronoi(N_e, d_c) = 1 − cos(canonical_voronoi_angle(N_e, d_c))
-    MUST NOT be confused with D_chord = √(2(1 − cos θ)) per spec L233.
+    MUST NOT be confused with D_chord = √(2(1 − cos θ)) per `wayfinder Req 7 Isotropic Squared-Chord Distance And Bounded Beta (#req-7)`.
     The test enforces the versine principle via the bisection residual
     < 1e-9 on the underlying angle, the spec's 4dp `versine` literals
-    (`0.6131` / `0.4771`, spec L236-L237), and the identity assertions on
+    (`0.6131` / `0.4771`, `decompmoe-skeleton Req 6 Voronoi Self-Consistency Threshold (#req-6)`-L237), and the identity assertions on
     the closed-form definition.
 
     Note: the literal pins below were restored by change
