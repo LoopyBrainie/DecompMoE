@@ -90,7 +90,11 @@ CAPABILITIES = ("wayfinder", "decompmoe-skeleton", "governance")
 # here and pinned by a test, rather than a per-site exemption table:
 # a lint never reports its own fixtures. The check is applied inside C1 and
 # C4, not only during discovery, so it holds however the paths are spelled.
-SELF_TEST_PATTERNS = ("tests/test_lint_", "tests/test_pointer_scan.py")
+#
+# Derived from the detector's own list rather than restated: the two tools
+# once kept separate copies, they drifted, and the census then reported the
+# detector and its guard tests as 43 actionable pointers. One definition.
+SELF_TEST_PATTERNS = _ps.SELF_EXCLUDE
 
 # --- C1 detector -------------------------------------------------------------
 # C1 delegates to `scripts/pointer_scan.py`. The inline regexes that used to

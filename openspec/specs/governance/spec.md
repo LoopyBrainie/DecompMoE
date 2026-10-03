@@ -73,7 +73,7 @@ The system SHALL treat the ticket `(historical, <original reading>; superseded b
 
 **Source:** `CLAUDE.md` (`governance/CLAUDE.md` back-link per `CLAUDE.md` §3 Workflow Conventions source-field rules)
 
-#### Scenario: Ticket A8-2 L70 + L74 annotations follow CLAUDE.md §3 source-field rules verbatim
+#### Scenario: Ticket A8-2 supersede annotations follow CLAUDE.md §3 source-field rules verbatim
 
 - **WHEN** `wayfinder/tickets/A8-2.md` supersede annotations italic `(historical, ..., superseded by spec req-20 <Requirement title> (#req-20) ... via ...)` annotations are appended
 - **THEN** each annotation contains the canonical pattern verbatim: `(historical, <original reading>; superseded by spec req-N <Requirement title> (`#req-N`) via <change> Decision M)` — 3 reverse-links complete (ticket + spec anchor + change Decision), backtick-wrapped, with the spec anchor (`wayfinder/tickets/A6a-2.md` for the wayfinder ticket-side lineage); the line-addressed variant `req-N L###` is legacy and MUST NOT appear in a NEW annotation

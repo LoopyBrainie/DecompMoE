@@ -1,0 +1,144 @@
+root: D:\myProject\DecompMoE
+sites=87 actionable=43 historical=44 files=14
+
+==============================================================================
+ACTIONABLE (43)
+==============================================================================
+
+--- scripts/pointer_scan.py  (24 site(s)) ---
+  L10    path-space-L     wayfinder/spec.md L83
+         | ``wayfinder/spec.md L83`` (next char is ``/``) and
+  L11    path-space-L     wayfinder/tickets/A8-2.md` L70
+         | ``` `wayfinder/tickets/A8-2.md` L70 ``` (next char is a backtick) never match.
+  L67    path-space-L     wayfinder/tickets/A8-2.md` L70
+         | #: deliberately allowed: in ``` `wayfinder/tickets/A8-2.md` L70 ``` the
+  L75    req-L            req-20 L413
+         | #: ``req-20 L413`` / ``Req 20 L394``. The COLON form is only a line
+  L86    ticket-L         Ticket A8-2 L70
+         | #: ``Ticket A8-2 L70 + L74`` — the ticket id is the reference. The literal
+  L87    ticket-L         A5-3 L62
+         | #: word "Ticket" is OPTIONAL: audit-log prose writes bare ``A5-3 L62`` and
+  L88    ticket-L         A4-1 L58
+         | #: ``A4-1 L58``, which are the same pointer.
+  L93    decision-L       Decision 3 L412
+         | #: ``Decision 3 L412``
+  L98    path-colon-line  src/decompmoe/metrics.py:83
+         | #: ``src/decompmoe/metrics.py:83`` — code-line form.
+  L105   path-space-L     spec.md L500 ...
+         | #: ``... spec.md L500-518`` — the self-carrying markdown form. The gap
+  L107   path-space-L     wayfinder/tickets/A8-2.md` L70
+         | #: (``` `wayfinder/tickets/A8-2.md` L70 ```), so a bare ``\s+`` is not
+  L140   symbol-L         MVPConfig L51
+         | #: A symbol reference plus a line locator: ``MVPConfig L51``,
+  L141   symbol-L         DEAD_EXPERT_CONSEC_STEPS L12
+         | #: ``DEAD_EXPERT_CONSEC_STEPS L12``. The symbol must be a genuine identifier
+  L160   word-line        line 495
+         | #: ``line 495`` / ``lines 71-80`` with no capability token: counted, but
+  L160   word-line        lines 71-80
+         | #: ``line 495`` / ``lines 71-80`` with no capability token: counted, but
+  L161   word-line        line 495
+         | #: tagged ``weak`` because prose legitimately says "line 495" about a
+  L177   capability-L     req-gov-1` anchor at L7
+         | #: "the existing `req-gov-1` anchor at L7 unchanged" resolves. A CAPITALISED
+  L303   L-then-capability 
+         | # -- reversed order: ``L413 wayfinder`` -------------------------------
+  L314   word-line        line 495
+         | # -- "line 495" with no reference: weak -------------------------------
+  L331   L-then-capability L245``
+         | #: ``req-11 L245`` in order to test for it, or a change's own working notes
+  L331   req-L            req-11 L245
+         | #: ``req-11 L245`` in order to test for it, or a change's own working notes
+  L354   path-space-L     wayfinder/spec.md` L83
+         | #: specific. ``wayfinder/spec.md` L83`` is otherwise reported three times
+  L379   path-colon-line  src/decompmoe/safeguards.py:93
+         | line 277 cites `src/decompmoe/safeguards.py:93-94` once and
+  L380   path-colon-line  src/decompmoe/safeguards.py:93
+         | `src/decompmoe/safeguards.py:93` again, 1400 characters later. Both are
+
+--- tests/test_pointer_scan.py  (19 site(s)) ---
+  L8     path-space-L     wayfinder/spec.md L83
+         | `wayfinder/spec.md L83`.
+  L52    path-space-L     wayfinder/spec.md L83
+         | # `wayfinder/spec.md L83`: the char after the capability word is `/`.
+  L54    path-space-L     wayfinder/spec.md L83
+         | "SEEDING has no gradient at all (wayfinder/spec.md L83, req-6: "
+  L66    path-colon-line  src/decompmoe/metrics.py:83
+         | "implemented in " + BT + "src/decompmoe/metrics.py:83" + BT)
+  L72    path-colon-line  src/decompmoe/safeguards.py:93
+         | + "src/decompmoe/safeguards.py:93-94" + BT + " ... ("
+  L78    ticket-L         A5-3 L62
+         | # "Ticket" is optional in prose: audit logs write `A5-3 L62`.
+  L79    ticket-L         A5-3 L62
+         | assert "ticket-L" in kinds("next step (A5-3 L62 + spec L185)")
+  L79    capability-L     spec L185
+         | assert "ticket-L" in kinds("next step (A5-3 L62 + spec L185)")
+  L83    symbol-L         MVPConfig L51
+         | assert "symbol-L" in kinds("MVPConfig L51 docstring 自承")
+  L87    symbol-L         DEAD_EXPERT_CONSEC_STEPS L12
+         | assert "symbol-L" in kinds("see DEAD_EXPERT_CONSEC_STEPS L12 for it")
+  L115   path-space-L     wayfinder/spec.md L236 ...
+         | "# Step 2b: wayfinder/spec.md L236-L237 4dp versine pins")
+  L141   capability-L     spec L122
+         | "spec L122 数值差 0.0350601609682665718 verbatim")
+  L165   req-L            req-20:413
+         | assert "req-L" in kinds("see req-20:413 for the row")
+  L170   path-colon-line  governance/spec.md:78
+         | # quotes it. This is the `governance/spec.md:78` self-exemption.
+  L177   req-L            req-20 L413
+         | "superseded by spec req-20 L413 ...)" + BT
+  L195   path-colon-line  src/decompmoe/safeguards.py:93
+         | line = ("at " + BT + "src/decompmoe/safeguards.py:93-94" + BT
+  L197   path-colon-line  src/decompmoe/safeguards.py:93
+         | + "src/decompmoe/safeguards.py:93" + BT + " again")
+  L217   path-colon-line  x.py:12
+         | # No real path here: `x.py:12` would be a genuine path-colon pointer.
+  L249   path-space-L     wayfinder/spec.md L617
+         | "phase table wayfinder/spec.md L617, req-27:") != []
+
+==============================================================================
+HISTORICAL-EXEMPT (44)
+==============================================================================
+  CLAUDE.md:94  marker='原'  .audit/audit-verification.md` L581
+  CLAUDE.md:94  marker='原'  src/decompmoe/safeguards.py:34
+  openspec/changes/2026-10-03-close-pointer-blindspot-and-full-tree-sweep/specs/decompmoe-skeleton/spec.md:6  marker='before'  src/decompmoe/safeguards.py:211
+  openspec/changes/2026-10-03-close-pointer-blindspot-and-full-tree-sweep/specs/decompmoe-skeleton/spec.md:6  marker='before'  src/decompmoe/safeguards.py:222
+  openspec/changes/2026-10-03-close-pointer-blindspot-and-full-tree-sweep/specs/decompmoe-skeleton/spec.md:6  marker='before'  src/decompmoe/safeguards.py:23
+  openspec/changes/2026-10-03-close-pointer-blindspot-and-full-tree-sweep/specs/decompmoe-skeleton/spec.md:6  marker='before'  src/decompmoe/safeguards.py:54
+  openspec/changes/2026-10-03-close-pointer-blindspot-and-full-tree-sweep/specs/decompmoe-skeleton/spec.md:8  marker='before'  src/decompmoe/safeguards.py:71
+  openspec/changes/2026-10-03-close-pointer-blindspot-and-full-tree-sweep/specs/decompmoe-skeleton/spec.md:164  marker='historical'  A8-2 L70
+  openspec/changes/2026-10-03-close-pointer-blindspot-and-full-tree-sweep/specs/governance/spec.md:70  marker='原'  
+  openspec/changes/2026-10-03-close-pointer-blindspot-and-full-tree-sweep/specs/governance/spec.md:70  marker='原'  .audit/audit-verification/audit-verification.md` L2300 ...
+  openspec/changes/2026-10-03-close-pointer-blindspot-and-full-tree-sweep/specs/governance/spec.md:70  marker='原'  LOOPS.md` L118 ...
+  openspec/changes/2026-10-03-close-pointer-blindspot-and-full-tree-sweep/specs/governance/spec.md:70  marker='原'  LOOPS.md` L178 ...
+  openspec/changes/2026-10-03-close-pointer-blindspot-and-full-tree-sweep/specs/governance/spec.md:70  marker='原'  LOOPS.md` L64 ...
+  openspec/changes/2026-10-03-close-pointer-blindspot-and-full-tree-sweep/specs/governance/spec.md:72  marker='history'  LOOPS.md` line ranges (L64
+  openspec/changes/2026-10-03-close-pointer-blindspot-and-full-tree-sweep/specs/governance/spec.md:81  marker='pre-this-change'  A6b-1 L100
+  openspec/changes/2026-10-03-close-pointer-blindspot-and-full-tree-sweep/specs/governance/spec.md:82  marker='historical'  req-1 L184
+  openspec/changes/2026-10-03-close-pointer-blindspot-and-full-tree-sweep/specs/governance/spec.md:106  marker='history'  src/decompmoe/safeguards.py:34
+  openspec/specs/decompmoe-skeleton/spec.md:259  marker='before'  src/decompmoe/safeguards.py:211
+  openspec/specs/decompmoe-skeleton/spec.md:259  marker='before'  src/decompmoe/safeguards.py:222
+  openspec/specs/decompmoe-skeleton/spec.md:259  marker='before'  src/decompmoe/safeguards.py:23
+  openspec/specs/decompmoe-skeleton/spec.md:259  marker='before'  src/decompmoe/safeguards.py:54
+  openspec/specs/decompmoe-skeleton/spec.md:261  marker='before'  src/decompmoe/safeguards.py:71
+  openspec/specs/decompmoe-skeleton/spec.md:635  marker='historical'  A8-2 L70
+  openspec/specs/governance/spec.md:32  marker='pre-this-change'  openspec/specs/wayfinder/spec.md` req-33 L662 ...
+  openspec/specs/governance/spec.md:133  marker='原'  
+  openspec/specs/governance/spec.md:133  marker='原'  .audit/audit-verification/audit-verification.md` L2300 ...
+  openspec/specs/governance/spec.md:133  marker='原'  LOOPS.md` L118 ...
+  openspec/specs/governance/spec.md:133  marker='原'  LOOPS.md` L178 ...
+  openspec/specs/governance/spec.md:133  marker='原'  LOOPS.md` L64 ...
+  openspec/specs/governance/spec.md:135  marker='history'  LOOPS.md` line ranges (L64
+  openspec/specs/governance/spec.md:144  marker='pre-this-change'  A6b-1 L100
+  openspec/specs/governance/spec.md:145  marker='historical'  req-1 L184
+  openspec/specs/governance/spec.md:168  marker='history'  src/decompmoe/safeguards.py:34
+  openspec/specs/wayfinder/spec.md:288  marker='historically'  A6b-1.md` L100
+  openspec/specs/wayfinder/spec.md:807  marker='history'  src/decompmoe/metrics.py:83
+  openspec/specs/wayfinder/spec.md:898  marker='historical'  openspec/specs/wayfinder/spec.md` L251
+  wayfinder/tickets/A1-1.md:98  marker='historical'  req-11 L204
+  wayfinder/tickets/A4-1.md:59  marker='historical'  req-7 L122
+  wayfinder/tickets/A5-3.md:63  marker='historical'  req-11 L204
+  wayfinder/tickets/A6a-2.md:63  marker='historical'  req-13 L268
+  wayfinder/tickets/A6b-1.md:1  marker='historical'  req-14 L321
+  wayfinder/tickets/A6b-1.md:14  marker='historical'  req-14 L321
+  wayfinder/tickets/A8-2.md:70  marker='historical'  req-20 L453
+  wayfinder/tickets/A8-2.md:74  marker='historical'  req-20 L453

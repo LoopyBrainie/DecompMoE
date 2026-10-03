@@ -247,3 +247,25 @@ def test_detector_is_not_vacuous():
     is exactly how the previous change certified a false green."""
     assert ps.scan_line("t.md", 1,
                         "phase table wayfinder/spec.md L617, req-27:") != []
+
+
+def test_gate_and_census_exclude_the_same_files():
+    """The exclusion list is the single source of truth in
+    `pointer_scan.SELF_EXCLUDE`, and the gate derives its own from it.
+
+    When the two kept separate copies they drifted: the gate's list gained
+    `tests/test_pointer_scan.py` and the detector's did not, so the census
+    counted the detector and its own guard tests as 43 actionable
+    pointers while the gate reported a clean tree. The same drift had
+    already cost this repository one false green.
+    """
+    import importlib
+    sys.path.insert(0, str(_SCRIPTS))
+    lint = importlib.import_module("lint_no_line_pointers")
+    assert tuple(lint.SELF_TEST_PATTERNS) == tuple(ps.SELF_EXCLUDE), \
+        "the gate and the census disagree about which files are exempt"
+
+    for rel in ("scripts/pointer_scan.py", "tests/test_pointer_scan.py",
+                "scripts/lint_no_line_pointers.py"):
+        assert rel in ps.SELF_EXCLUDE, \
+            "%s spells out pointer forms by construction" % rel

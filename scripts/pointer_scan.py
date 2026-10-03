@@ -327,16 +327,26 @@ def scan_line(rel: str, lineno: int, line: str):
 
 #: Files that describe pointer FORMS rather than containing pointers.
 #:
-#: Two families, for the same reason: a file that has to spell out
+#: Three families, for the same reason: a file that has to spell out
 #: ``req-11 L245`` in order to test for it, or a change's own working notes
 #: documenting the defect it is fixing, cannot also be required to be free
 #: of it.
 #:
-#: Under an ACTIVE change, everything except ``specs/`` is a working note.
-#: The ``specs/`` delta IS normative spec text and stays in scope.
+#: - the gate and the detector's own test suites;
+#: - the detector itself and its guard tests;
+#: - under an ACTIVE change, everything except ``specs/`` is a working
+#:   note. The ``specs/`` delta IS normative spec text and stays in scope.
+#:
+#: This tuple is the SINGLE SOURCE OF TRUTH. `lint_no_line_pointers.py`
+#: derives `SELF_TEST_PATTERNS` from it, and
+#: `tests/test_pointer_scan.py` asserts the two agree. The two tools kept
+#: separate copies of this list, they drifted, and the census reported 43
+#: "actionable pointers" that were the detector and its own tests.
 SELF_EXCLUDE = (
     "scripts/lint_no_line_pointers.py",
+    "scripts/pointer_scan.py",
     "tests/test_lint_",
+    "tests/test_pointer_scan.py",
 )
 
 
