@@ -478,8 +478,8 @@ def voronoi_angle(centroids: Tensor) -> float:
     treating the `N_e` cell areas as independent; that is `486×` too large
     and is superseded. `abs=1e-3` (`13.7×` this `5σ`) is therefore a safe
     witness tolerance, not a tight one. Use
-    `test_voronoi_angle_equal_area_witness_crosspolytope` for the equal-area
-    reference point, where the TRUE gap is `6.5e-5°`.
+    `test_voronoi_angle_equal_area_witness_equal_area_configurations` for the
+    equal-area reference point, where the TRUE gap is `6.5e-5°`.
 
     Degenerate input. A cell that captures no probe has `A_i = 0` and
     contributes `G⁻¹(0) = 0` to the mean, biasing `θ̂` DOWN. This is

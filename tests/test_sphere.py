@@ -5,6 +5,7 @@ ST-03 / Req 5 (Steps 2 + 4), Req 11 (Voronoi self-consistency at β = 16).
 
 from __future__ import annotations
 
+import inspect
 import math
 
 import pytest
@@ -166,6 +167,76 @@ def test_voronoi_canonical_N_e_dependence() -> None:
     # Must depend on N_e: (64, 16) strictly less than (16, 16).
     assert theta_64 < theta_16, (
         f"θ_Voronoi(64,16) = {theta_64:.4f} must be < θ_Voronoi(16,16) = {theta_16:.4f}"
+    )
+
+
+def test_canonical_voronoi_angle_not_arctan_shortcut() -> None:
+    """`canonical_voronoi_angle` is the root of its defining equation, not `arctan(pi/sqrt(d_c))`.
+
+    The closed form under test is specified by decompmoe-skeleton Req 6
+    Voronoi Self-Consistency Threshold (`#req-6`); the guard for the forbidden
+    substitution is the Scenario "Voronoi closed form is not the arctan
+    shortcut" in decompmoe-skeleton Req 16 Centroid Driver Semantic Invariants
+    (`#req-16`), which is where Req 15's two grep-scoped invariants were
+    re-homed when they were removed from that Requirement.
+
+    A short-lived token `arctan(pi/sqrt(d_c))` was moved out of grep scope
+    without being replaced by a named guard, so nothing named the forbidden
+    form: the 6dp literal pins discriminate against it (measured `5.078e-01`
+    error at `N_e=16`) but never asserted its absence. This test closes that
+    gap on three independent axes:
+
+      1. the 6dp closed-form literal (float closed form, `abs=1e-6`);
+      2. the defining-equation residual in the impl-internal frame
+         (`x` first into `_betainc_regularized`; a residual near `0.44` means
+         the argument order is wrong, not that the integrator is broken);
+      3. the substitution itself — the shortcut misses by at least `1e5`
+         tolerances, and the implementation's own source contains no
+         inverse-trigonometric call at all.
+
+    Axis 3 is the one that fails if someone edits `canonical_voronoi_angle` to
+    return the shortcut: axes 1 and 2 would both catch it, but only after the
+    value silently changed; the source check catches the substitution itself.
+    """
+    TOL = 1e-6
+    N_E, D_C = 16, 16
+
+    # --- 1. closed-form literal (governance req-gov-1 obl. 3, float closed form)
+    theta = sphere.canonical_voronoi_angle(num_experts=N_E, signature_dim=D_C)
+    assert theta == pytest.approx(1.173547, abs=TOL), f"actual={theta!r}"
+
+    # --- 2. defining-equation residual, impl-internal frame -------------------
+    # `0.5 * I_{sin^2(theta)}((d_c-1)/2, 0.5) == 1/N_e`; `_betainc_regularized`
+    # takes (x, a, b), so the substitution `sin^2(theta)` MUST be first.
+    residual = 0.5 * sphere._betainc_regularized(
+        math.sin(theta) ** 2, (D_C - 1) / 2.0, 0.5
+    ) - 1.0 / N_E
+    assert abs(residual) < 1e-9, f"actual={residual!r} at theta={theta!r}"
+
+    # --- 3. the forbidden substitution --------------------------------------
+    shortcut = math.atan(math.pi / math.sqrt(D_C))
+    assert theta != pytest.approx(shortcut, abs=TOL), (
+        f"arctan(pi/sqrt(d_c)) substitution adopted as the closed form: "
+        f"actual={theta!r} == {shortcut!r}"
+    )
+    error = abs(theta - shortcut)
+    tolerances = error / TOL
+    assert error >= 1e5 * TOL, (
+        f"shortcut must miss by >= 1e5 tolerances of abs={TOL}; "
+        f"actual error={error!r} ({tolerances:.1f} tolerances)"
+    )
+    # Measured, not merely bounded: the margin is ~5.1e5 tolerances at N_e=16.
+    assert tolerances == pytest.approx(507_773.2, rel=1e-3), f"actual={tolerances!r}"
+
+    # --- 3b. the implementation itself must not contain the shortcut ---------
+    # `canonical_voronoi_angle` solves by bisection on the defining equation;
+    # an inverse-trigonometric call anywhere in its body means the bisection
+    # was bypassed, whatever the value happens to be.
+    source = inspect.getsource(sphere.canonical_voronoi_angle)
+    banned = [tok for tok in ("atan", "arctan", "acos", "asin", "sqrt") if tok in source]
+    assert not banned, (
+        f"canonical_voronoi_angle must solve by bisection on the defining "
+        f"equation; found inverse-trig/radical token(s) {banned} in its source"
     )
 
 

@@ -373,7 +373,7 @@ The package SHALL satisfy the following source-level invariants, asserted by **l
 - NO import of `torch.utils.cpp_extension` or `triton` in `experts.py`
 - NO field `kv_cache_c` in `GeometricRouter` Protocol
 
-(The two previously-listed invariants — `.clamp_min(ε)` empty-cell denominator and the literal `arctan(pi / sqrt(d_c))` token — are removed from this Requirement because they cannot be verified by literal grep alone: the former requires data-flow analysis (the `.clamp_min` call result must be checked to be a denominator), and the latter can be circumvented by a syntactically different but semantically equivalent expression. Both invariants are restated under Requirement "Centroid Driver Semantic Invariants" where they are enforced by the corresponding named test scenario.)
+(The two previously-listed invariants — `.clamp_min(ε)` empty-cell denominator and the literal `arctan(pi / sqrt(d_c))` token — are removed from this Requirement because they cannot be verified by literal grep alone: the former requires data-flow analysis (the `.clamp_min` call result must be checked to be a denominator), and the latter can be circumvented by a syntactically different but semantically equivalent expression. Both invariants are restated under decompmoe-skeleton Req 16 Centroid Driver Semantic Invariants (`#req-16`), each with its own named guard: the `.clamp_min(ε)` empty-cell denominator by Scenario "Semantic invariants are enforced by the named test scenarios" via `tests/test_schedule.py::test_empty_cell_preserves_centroid`, and the `arctan(pi / sqrt(d_c))` token by Scenario "Voronoi closed form is not the arctan shortcut" via `tests/test_sphere.py::test_canonical_voronoi_angle_not_arctan_shortcut`.)
 
 #### Scenario: Hard constraints hold
 - **WHEN** the literal-token grep invariants above are evaluated against `src/decompmoe/`
@@ -401,7 +401,7 @@ The package's `CentroidDriver` SHALL enforce four semantic invariants that **can
 #### Scenario: Voronoi closed form is not the arctan shortcut
 
 - **WHEN** `canonical_voronoi_angle(N_e, d_c)` is evaluated at the MVP point `(N_e = 16, d_c = 16)`
-- **THEN** it returns the root of the defining equation `½ · I_{sin²θ}((d_c − 1)/2, 1/2) = 1/N_e`, which is `0.665773750028 rad` **NOT** — the forbidden token `arctan(pi / sqrt(d_c))` evaluates to `0.665773750028 rad` at `d_c = 16`, i.e. `38.146026°`, and MUST NOT be the implementation's closed form
+- **THEN** it returns the root of the defining equation `½ · I_{sin²θ}((d_c − 1)/2, 1/2) = 1/N_e`, which is `1.173547425920 rad` (`67.239315°`) at `d_c = 16` — **NOT** the forbidden token `arctan(pi / sqrt(d_c))`, which evaluates to `0.665773750028 rad` (`38.146026°`) at the same point and MUST NOT be the implementation's closed form
 - **AND** the returned value MUST satisfy `pytest.approx(1.173547, abs=1e-6)` (the 6dp spec literal, per governance req-gov-1 obligation 3) with the actual value embedded in the failure message as `f"actual={...}"`
 - **AND** a substitution of the forbidden token MUST move the result outside that tolerance by at least `1e5` times (measured: `5.078e-01` absolute error at `N_e = 16`, i.e. `507_773×` the `abs=1e-6` tolerance), so the guard discriminates rather than merely passing
 - **AND** the residual frame is named: `|½·I_{sin²θ}(7.5, 1/2) − 1/16| < 1e-9` measured against the implementation-internal reference `src/decompmoe/sphere.py::_betainc_regularized`
