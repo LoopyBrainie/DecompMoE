@@ -1,0 +1,221 @@
+lint_no_line_pointers: 108 violation(s) found
+
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\decompmoe-skeleton\spec.md:273: C1 line-number reference [62] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    - **THEN** the returned tuple is `("skip", 1.0, False)` 鈥?defensive default: when no NaN has been observed yet, the ladder falls back to skip-and-keep-LR (caller is expected to call only when a NaN flag has been raised). For `c 鈭?{1, 3, 10}` and `c > 0` (e.g. `c=2`, `c=5`, `c=9`), the ladder returns the highest-priority tier that has been crossed: `c 鈭?[1, 2] 鈫?("skip", 1.0, False)`; `c 鈭?[3, 9] 鈫?("div_lr_10", 0.1, False)`; `c 鈮?10 鈫?("halt", 1.0, True)` (this matches wayfinder Req 13 'Numerical Safeguards' strict-greater-than ladder tiers (anchor `#req-13`) and is the implementation in `src/decompmoe/safeguards.py:62-72`).
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\decompmoe-skeleton\spec.md:507: C1 line-number reference [7, 130] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    **MVPConfig carries only GEOMETRIC constants** (model shape: `d_model`, `N_e`, `k`, `d_ffn`, `L`, `d_ffn_dense`, `d_c`, `H_kv`, `d_k`, `vocab_size`) **plus the specific initial value `尾_initial 鈮?1.035`** (narrative 4-sig-fig; spec req-7 L130 closed-form anchor). The algorithmic range constants `尾_min = 0.1` and `尾_max = 32` live as module-level `Final[float]` in `decompmoe/beta.py` (NOT in MVPConfig), per `design.md` Decision 1: "Algorithmic constants live with their usage site". MVPConfig does not carry `尾_min` or `尾_max` fields, and the canonical sources for those constants are `decompmoe.beta.BETA_MIN` and `decompmoe.beta.BETA_MAX`.
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\decompmoe-skeleton\spec.md:530: C1 line-number reference [7, 123] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    - **AND** the test does NOT degenerate to a self-referential check (i.e., `MVPConfig().beta_initial 鈮?literal_value`); the closed form MUST be derived from `尾_min + (尾_max鈭捨瞋min)路蟽(纬_init)` per spec req-7 L123 Sigmoid 闂紡
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\decompmoe-skeleton\spec.md:625: C1 line-number reference [413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    The system SHALL NOT modify any `decompmoe-skeleton` spec Requirement as part of cycle-12 finding 1 closure. The cycle-12 finding 1 (ticket A8-2 L70 centered-covariance + L74 CV/convex-hull vs spec L413 uncentered second moment) is **purely a wayfinder spec scope concern** 鈥?but `decompmoe-skeleton` **does** own a verbatim mirror of the wayfinder Req 20 closed-form definitions (see below), so this Requirement serves as an explicit declaration that the existing mirror is already aligned and no new mirror / no new behavior is being introduced by this change.
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\decompmoe-skeleton\spec.md:630: C1 line-number reference [466] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    - L504 enumerates `L_sep`, `R_H`, `S_load`, `UR`, `SP`, `D_chord`, `MCI`, `CG` (all 8 metric names from wayfinder L394-466)
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\decompmoe-skeleton\spec.md:633: C1 line-number reference [452] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    - `decompmoe-skeleton` Requirement `<a id="req-22">` also defines `MCI closed-form on uniform token distribution` (L560-563, abs=1e-12) and `MCI closed-form on rank-1 token distribution` (L565-568, abs=1e-12) Scenarios 鈥?these mirror wayfinder L450-452 + L454-456 Scenarios verbatim
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\decompmoe-skeleton\spec.md:637: C1 line-number reference [568] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    **Source:** `wayfinder/tickets/A8-2.md` (cycle-12 finding 1 evidence 鈥?wayfinder spec.md L413 owns the MCI closed-form; decompmoe-skeleton L502-568 is a verbatim mirror and is already aligned)
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\decompmoe-skeleton\spec.md:643: C1 line-number reference [450] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    - **AND** L560-563 `MCI closed-form on uniform token distribution` and L565-568 `MCI closed-form on rank-1 token distribution` Scenarios use `abs=1e-12` (mirroring wayfinder L450/L454 Scenarios) 鈥?both endpoints of the declared `[1/d_c, 1]` range are guarded
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\governance\spec.md:129: C1 line-number reference [1, 185] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    - **AND** the scenario is verified by retro-application to `.audit/audit-verification/audit-verification.md` cycle-5 finding 1 (verify-18 evidence L1349): `latent_risk=LOW` (spec 宸?supersede) 脳 `trigger_probability=LOW` (ticket 宸?deprecated for forward Phase 0 鈥?**inferred**; source L1349 comparison table has only `finding / 褰撳墠 impact / latent risk / severity 璇勭骇` 4 columns and **no `trigger_probability` column**; inference: cycle-5 stale claim is doc-level 胃_Voronoi drift (52掳 vs 67.24掳) per the table's "浣?(spec 宸?supersede)" annotation, AND cycle-5 ticket has been superseded by spec req-1 L184-L185 verbatim (verify-2 axis-尾 CITE-OK脳4 records this supersede), so trigger_probability meets the LOW criterion "explicitly-archived ticket" from this Requirement's obligation 1 evaluation criteria 鈥?cross-referenced from cycle-13 evidence base showing the same author flagged `trigger_probability` as inferable from spec/ticket state) 鈬?MEDIUM retained (no dormant-bug escalation); cycle-5 is the no-op boundary case
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:24: C1 line-number reference [11, 211] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    The system MUST use formal symbol `危_i` (per-expert covariance), `P_i = 危_i^{-1}` (precision matrix), and the subscript convention `(i 鈭?1..N_e, l 鈭?1..L, h 鈭?1..H_kv, t 鈭?1..S)` for expert / layer / head / token 鈥?where the per-head index `h` enumerates the KV-head axis (per req-5 cross-head mean `z虅_t^l = (1/H_kv) 路 危_h C_t^{l,h}`), which at MVP equals the Q-head count `H` because `H_kv = H = 8` (GQA degenerates to MHA at MVP scale per req-11 L211); when true GQA is later enabled (`H_kv < H`), the convention remains `h 鈭?1..H_kv` (the KV-head axis is the gating-relevant axis). Under per-layer head-aggregation, head subscript `h` MUST be elided and symbols MUST collapse to per-layer `C_t^l`, `c_i^l`, `危_i^l`, `P_i^l`. Code identifiers MUST map to: `GeometricRouter`, `TerritoryHolder`, `territory_volume`, `active_territories`, `coverage_balance_loss`, `territory_seeding`, `territory_collapse`. **Note:** `territory_seeding` is the canonical API contract name for the Phase 0 K-Means initialization pathway. Its implementation is **deferred to the training-time caller** per req-6 Phase 0 sub-clause; the function exists as a thin contract placeholder that raises `NotImplementedError` with a verbatim pointer to req-6 Phase 0 (see the deferred-contract Requirement anchored below this one). Drivers and inference-time callers MUST NOT invoke this function. **Note:** `territory_collapse` (expert territory collapse detection) is likewise **deferred to the training-time caller** at MVP; it is NOT a MUST-level code identifier at MVP, requires NO placeholder function, and is declared spec-only by the deferred-contract Requirement anchored below this one (see also the source Open Question in archive `2026-09-23-07-fix-spec-territory-seeding-phase-0`).
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:100: C1 line-number reference [119] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    - **Phase 0** 鈥?Spherical K-Means seeding (no gradient, no EMA): `c_i^(t+1) = KMeans(C)` initialization. **Phase 0 K-Means implementation is deferred to the training-time caller** (MVP scope per `CLAUDE.md 搂7 "Out of Scope"` 鈥?training execution out-of-scope). The canonical contract name in the codebase is `territory_seeding(C_batch, N_e, *, d_c)` (per req-2 "Formal Symbols And Code Naming" identifier map), which currently raises `NotImplementedError` with a verbatim pointer to this clause. Drivers and inference-time callers MUST NOT call `territory_seeding` at inference time; `CentroidDriver.step` Phase 0 (`Phase.SEEDING`) returns the input centroids detached as a no-op (see `src/decompmoe/extraction.py:119-120`).
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:346: C1 line-number reference [98] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    - **THEN** the call is **deferred** 鈥?it returns `set()` at the rate-limit guard 鈥?**if and only if `螖 < R`**. The window edge is **exclusive**: `螖 = R` is **not** deferred and the call proceeds to the dead-expert trigger. The normative formalization (monotone single-jump predicate, the per-pair window equivalence, and the `R`-aligned counterexample that fixes the edge) is `openspec/specs/decompmoe-skeleton/spec.md` req-12 Scenario "Resurrection rate-limited"; guarded by `tests/test_safeguards.py::test_should_resurrect_rate_limit_boundary`. **Scope correction**: the prior wording 鈥?"two experts meet the dead-expert trigger within the same 1000-step window 鈥?only one resurrection event executes; the second is deferred" 鈥?described a **per-window quota of one resurrection**, which `should_resurrect` does **not** implement: it returns **every** expert satisfying the per-step trigger in the call (`src/decompmoe/safeguards.py:98-102`, no one-per-window clipping). The rate limit is a **per-call deferral gate** only, and this Scenario is restated to match the implemented contract; the superseded reading is recorded here rather than silently dropped.
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:791: C1 line-number reference [88] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    - **WHEN** `resurrection_perturb_distribution(f_per_expert, target_idx=3, eps_std=0.05, dim=16)` is called with `f_per_expert.shape == (B, N, N_e)` (e.g. `(4, 3, 16)` at MVP 鈥?matches `loss.L_lb` hot-path shape per `src/decompmoe/loss.py:88`)
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:902: C1 line-number reference [453] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    **Spec L453 verbatim closed-form (閽夋鐪熺浉婧? unchanged by this change)**:
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:906: C1 line-number reference [416] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    **Spec L416 Source verbatim (3 鍙嶉摼榻? unchanged by this change)**:
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:922: C1 line-number reference [413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    #### Scenario: Spec L413 is the unchanging canonical closed-form for MCI
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:924: C1 line-number reference [413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    - **WHEN** `MCI(token_signatures)` is called from `src/decompmoe/metrics.py` per spec L413 closed form
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:925: C1 line-number reference [413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    - **THEN** the implementation uses `M = (1/|T|) 路 危 C_t C_t岬€` uncentered second moment verbatim (NOT centered covariance, NOT convex hull radius), with eigenvalues `位_j` extracted from `M`, normalized to `位虄_j = 位_j / 危_r 位_r`, and the result is `1 / (d_c 路 危 位虄_j虏)` 鈥?all per spec L413 verbatim (no drift)
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:939: C1 line-number reference [413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    #### Scenario: Ticket L70 + L74 dual annotations jointly cover spec L413 Reason's dual supersede argument
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:942: C1 line-number reference [413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    - **THEN** they jointly cover spec L413 Reason's dual supersede argument verbatim:
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:943: C1 line-number reference [413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    - L70 annotation verbatim cites "centered reading has `(1/d_c, 1]` upper endpoint unreachable at `|T| = d_c`" (matches spec L413 Reason's centered-covariance clause)
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:944: C1 line-number reference [413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    - L74 annotation verbatim cites "CV lower bound `1/d_c` on `S^{d_c-1}` makes original `< 0.05` health target unreachable" (matches spec L413 Reason's CV/convex-hull clause)
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:945: C1 line-number reference [20, 413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    - both annotations reference the **same** supersession target: "spec req-20 L413 uncentered second moment" with the **same** chain of authority: "fix-openspec-doc-bugs design.md Decision 8 + fix-math-consistency-audit-2026-08 design.md Decision 5"
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:946: C1 line-number reference [413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    - **AND** the joint coverage forms a complete reverse-absorption chain: spec L413 Reason (閽夋鐪熺浉) 鈫?ticket L70 + L74 (鍘嗗彶 lineage) 鈫?audit `.audit/spec-math-audit.md` L524 evidence娈?(瀹¤ trail)
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\src\decompmoe\config.py:50: C1 line-number reference [7, 130] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    # Initial inverse-temperature 尾鈧€ 鈮?1.035 鈥?per spec req-7 L130 closed-form
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\src\decompmoe\config.py:95: C1 line-number reference [11, 245] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    total = 452_329_984 (鈮?52.33M, exact per spec req-11 L245)
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\src\decompmoe\config.py:96: C1 line-number reference [11, 245] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    active = 100_008_448 (鈮?00.01M, exact per spec req-11 L245)
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\src\decompmoe\extraction.py:130: C1 line-number reference [153] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    (spec L153) is applied with re-projection
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\src\decompmoe\extraction.py:177: C1 line-number reference [153] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    # Phase-4 closed form (spec L153): when `grad` is supplied,
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\src\decompmoe\metrics.py:203: C1 line-number reference [20, 394] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    """Gradient L2 norm debug metric (offline; per spec Req 20 L394).
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\src\decompmoe\schedule.py:148: C1 line-number reference [507] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    """Operational 尾^eff (spec Req 24 per-phase formulas, wayfinder L491-507).
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\src\decompmoe\schedule.py:151: C1 weak line-number reference [495] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    Phase 1: 尾^eff = 1.0 (fixed, regardless of 纬)              鈥?line 495
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\src\decompmoe\schedule.py:152: C1 weak line-number reference [496] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    Phase 2-3: Clamp(尾^param(纬), 1.0, 尾_max(t))               鈥?line 496
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\src\decompmoe\schedule.py:154: C1 weak line-number reference [497] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    Phase 4:  尾^eff = 1 + 31 路 蟽(纬')                          鈥?line 497
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\src\decompmoe\schedule.py:168: C1 line-number reference [495] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    # Spec line 495: fixed 1.0 (纬-independent exploration phase).
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\src\decompmoe\schedule.py:171: C1 line-number reference [496] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    # Spec line 496: Clamp(尾^param(纬), 1.0, 尾_max(t))
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\src\decompmoe\schedule.py:176: C1 line-number reference [497] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    # Spec line 497: 1 + 31 路 蟽(纬'); the 纬' reset already places this
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_beta.py:38: C1 line-number reference [7, 130] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    """MVPConfig().beta_initial 鈮?1.035 鈥?derived from spec req-7 L130 closed-form 尾_0 = 0.1 + 31.9路蟽(纬_init=鈭?.5).
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_beta.py:56: C1 line-number reference [7, 130] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    """Spec req-7 L130: 蟽'(鈭?.5) 鈮?0.02845 (narrative 4 sig figs).
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_beta.py:59: C1 line-number reference [7, 130] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    ("healthy gradient") per spec req-7 L130 narrative. The mpmath closed form
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_beta.py:86: C1 line-number reference [7, 130] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    # (b) spec req-7 L130 narrative 4-sig-fig disclosure, pinned at its own precision.
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_beta.py:89: C1 line-number reference [7, 130] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    f"(spec req-7 L130 narrative, 4 sig figs)"
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_beta.py:94: C1 line-number reference [578] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    """Spec L578 counterfactual: lowering `尾_min` from `0.1` to `1.0` forces
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_config.py:100: C1 line-number reference [426] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    """Spec L426: `FLOPs_Routing^(l) = 4路d_c路H_kv路d_k + 2路N_e路d_c == 66_048` per layer.
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_config.py:121: C1 line-number reference [426] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    """Spec L426: routing ratio 鈮?0.001968 鈫?鈮?0.20%, within the 0.3% allowance.
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_config.py:128: C1 line-number reference [426] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    core = 33_554_432  # FLOPs_MoE,core^(l) per spec L426
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_extraction.py:404: C1 line-number reference [7, 100] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    Also pins `eps` default value = 1e-6 per spec req-7 L100 (extraction
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_extraction.py:424: C1 line-number reference [7, 100] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    f"extract_C(eps=...) default MUST be 1e-6 per spec req-7 L100; "
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_metrics.py:136: C1 line-number reference [413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    """Principle-form: spec L413 Reason claim 1 鈥?centered-covariance reading has
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_metrics.py:147: C1 line-number reference [413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    which is exactly why spec L413 Reason supersedes it with uncentered second moment.
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_metrics.py:149: C1 line-number reference [413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    Verifier F2 鈥?principle-form guard for spec L413 Reason claim 1.
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_metrics.py:187: C1 line-number reference [413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    Spec L413 Reason claim 2 states the floor as a geometric constraint on the
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_metrics.py:226: C1 line-number reference [413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    f"spec L413 Reason claim 2 (floor 1/d_c = {lower_bound})"
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_metrics.py:231: C1 line-number reference [413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    """Principle-form: spec L413 Reason claim 3 鈥?uncentered second moment allows BOTH
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_metrics.py:247: C1 line-number reference [413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    Verifier F2 鈥?principle-form guard for spec L413 Reason claim 3.
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_metrics.py:255: C1 line-number reference [413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    f"verifies spec L413 Reason claim 3 upper endpoint attainability)"
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_metrics.py:263: C1 line-number reference [413] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    f"verifies spec L413 Reason claim 3 lower endpoint attainability)"
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_metrics.py:286: C1 line-number reference [20, 394] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    """CG(g) = 鈥杇鈥栤倐 per spec Req 20 L394 鈥?closed-form numerical verification.
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:28: C1 line-number reference [206] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    Per skeleton spec L206 (item 1): `clip_global_grad_norm_(params, max_norm: float = 1.0)
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:30: C1 line-number reference [54] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    N6 fix: `src/decompmoe/safeguards.py:54` returns `float(pre_clip_norm.item() ...)`).
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:34: C1 line-number reference [206] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    the three closed-form guards that pin spec L206 word-for-word.
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:62: C1 line-number reference [206] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    # Closed-form #1: Return-type contract (spec L206: "NOT `Tensor`").
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:64: C1 line-number reference [206] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    f"clip_global_grad_norm_ must return Python `float` per spec L206 "
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:69: C1 line-number reference [206] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    # Closed-form #2: Pre-clip norm value (spec L206: "the pre-clip norm"; math
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:75: C1 line-number reference [206] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    # Closed-form #3: Post-clip strict upper bound (spec L206: "all gradients
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:111: C1 line-number reference [31] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    declared at `src/decompmoe/safeguards.py:31`). The test exercises the
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:159: C1 line-number reference [93] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    `src/decompmoe/safeguards.py:93`.
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:330: C1 line-number reference [208] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    f"if retuned, update skeleton spec L208 item (5) + this assertion atomically"
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:343: C1 line-number reference [208] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    Per skeleton spec L208 item (5): `L_task > ratio 路 L_task_ema` (strict
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:458: C1 line-number reference [83] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    `metrics.UR` per `src/decompmoe/metrics.py:83`).
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:578: C1 line-number reference [32, 644] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    """`尾_per_expert.shape[-1] != cfg.N_e` MUST raise ValueError (spec Req 32 L644 contract).
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:671: C1 line-number reference [206] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    f"{offending!r}. Per spec L206, only `decompmoe.safeguards` may expose "
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:686: C1 line-number reference [206] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    The skeleton spec L206 (Five Numerical Safeguard Helpers) + L210 (Centroid Driver reference) reference these `Final[int]` / `Final[float]`
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:705: C1 line-number reference [206] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    f"expected 200 (per spec L206 (Five Numerical Safeguard Helpers) + L210 (Centroid Driver reference))"
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:709: C1 line-number reference [206] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    f"expected 1000 (per spec L206 (Five Numerical Safeguard Helpers) + L210 (Centroid Driver reference))"
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:720: C1 line-number reference [206] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    f"expected 2.5 (per spec L206 item (5))"
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:724: C1 line-number reference [206] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    f"expected 0.8 (per spec L206 item (5))"
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:728: C1 line-number reference [206] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    # Per spec L206 item (4): `BETA_SATURATION_WARN = 0.95 路 BETA_MAX` and
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:745: C1 line-number reference [249] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    # Also assert the MVP-evaluated literal value (per wayfinder L249):
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:814: C1 line-number reference [249] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    """`_dead_expert_threshold(16) == 1/32` 鈥?MVP closed-form (per wayfinder L249).
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:816: C1 line-number reference [249, 206] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    Per wayfinder L249 + skeleton spec L206: `f_threshold = 1/(2路N_e)` and
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:840: C1 line-number reference [206, 249] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    Per skeleton spec L206 / wayfinder L249: the previous hardcoded `1/128`
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:865: C1 line-number reference [249] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    Per wayfinder L249: 'global LR 梅 2 when **more than 50%** of experts
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:873: C1 line-number reference [249] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    "exactly 50% is NOT 'more than 50%' per wayfinder L249"
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:891: C1 line-number reference [249] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    Per wayfinder L249: 'warning at `尾_i > 30.4`' 鈥?strict greater-than.
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:898: C1 line-number reference [249] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    "尾_i == 30.4 (boundary) is NOT '尾_i > 30.4' per wayfinder L249"
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:911: C1 line-number reference [249] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    # (per wayfinder L249 'LR 梅 10' wording).
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:918: C1 line-number reference [249] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    Per wayfinder L249: '3 consecutive NaN trigger LR 梅 10'. The code
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:940: C1 line-number reference [206] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    Per skeleton spec L206: 'for counts (1, 3, 10) respectively' 鈥?
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:996: C1 line-number reference [286] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    f"spec/code semantic decision has been made 鈥?update spec L266-286, "
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:1033: C1 line-number reference [13, 268] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    f"expected 200 per spec req-13 L268"
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_safeguards.py:1101: C1 line-number reference [71] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    - **per-step** (current code at `src/decompmoe/safeguards.py:71-80`):
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_schedule.py:131: C1 line-number reference [59] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    misclassification that made `test_gating.py:59` exempt in this change.
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_sphere.py:114: C1 line-number reference [231] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    # with residual < 1e-9 per spec L231.
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_sphere.py:132: C1 line-number reference [236] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    # Spec L236 4dp display forms: `胃_Voronoi(16, 16) 鈮?67.24掳 (鈮?1.1735 rad)`.
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_sphere.py:157: C1 line-number reference [237] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    # Spec L237 4dp display forms: `胃_Voronoi(64, 16) 鈮?1.0205 rad (鈮?58.47掳)`.
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_sphere.py:185: C1 line-number reference [245] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    # Spec L245 literal: `arccos(15/16) 鈮?20.36掳` (float closed form 鈫?abs=1e-2 deg).
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_sphere.py:192: C1 line-number reference [370] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    """Spec L370 (req-16): Decode SRAM footprint of `C_t` is `16 floats = 64 bytes`
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_sphere.py:790: C1 line-number reference [233] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    MUST NOT be confused with D_chord = 鈭?2(1 鈭?cos 胃)) per spec L233.
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\tests\test_sphere.py:793: C1 line-number reference [237] 鈥?cite a Requirement, `module.py::symbol`, or a test as `file::test_name`
+    (`0.6131` / `0.4771`, spec L236-L237), and the identity assertions on
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\decompmoe-skeleton\spec.md:629: C3 anchor element for id 'req-22' quoted in prose 鈥?a quoted element still occupies the id namespace; reference the target as `#req-22` plus its title instead
+    - `decompmoe-skeleton` Requirement `<a id="req-22">` ("Eight Metrics And Classification 鈥?CG Type Guard", `openspec/spec
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\decompmoe-skeleton\spec.md:633: C3 anchor element for id 'req-22' quoted in prose 鈥?a quoted element still occupies the id namespace; reference the target as `#req-22` plus its title instead
+    - `decompmoe-skeleton` Requirement `<a id="req-22">` also defines `MCI closed-form on uniform token distribution` (L560-
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\decompmoe-skeleton\spec.md:629: C2 duplicate anchor id 'req-22' (first seen at line 534)
+    - `decompmoe-skeleton` Requirement `<a id="req-22">` ("Eight Metrics And Classification 鈥?CG Type Guard", `openspec/spec
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\decompmoe-skeleton\spec.md:633: C2 duplicate anchor id 'req-22' (first seen at line 534)
+    - `decompmoe-skeleton` Requirement `<a id="req-22">` also defines `MCI closed-form on uniform token distribution` (L560-
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:448: C3 anchor element for id 'req-17' quoted in prose 鈥?a quoted element still occupies the id namespace; reference the target as `#req-17` plus its title instead
+    **Cross-req consistency note (vs. Req 17 / `wayfinder/tickets/A7-2.md`)**: Req 17 (anchored `<a id="req-17"></a>`) repor
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:900: C3 anchor element for id 'req-20' quoted in prose 鈥?a quoted element still occupies the id namespace; reference the target as `#req-20` plus its title instead
+    The system SHALL maintain the existing spec Requirement **"Eight Geometric Quantification Metrics"** (`openspec/specs/wa
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:448: C2 duplicate anchor id 'req-17' (first seen at line 395)
+    **Cross-req consistency note (vs. Req 17 / `wayfinder/tickets/A7-2.md`)**: Req 17 (anchored `<a id="req-17"></a>`) repor
+  C:\Users\LamKo\AppData\Local\Temp\decompmoe-pre-1526b98\openspec\specs\wayfinder\spec.md:900: C2 duplicate anchor id 'req-20' (first seen at line 460)
+    The system SHALL maintain the existing spec Requirement **"Eight Geometric Quantification Metrics"** (`openspec/specs/wa
+
+  C4 placeholders skipped: 0 (non-numeric Requirement numbers are notation, not references)
+  C4 unqualified references skipped: 199 (id shared by several capabilities, line names none)

@@ -1,0 +1,11 @@
+lint_no_line_pointers: 3 violation(s) found
+
+  D:\myProject\DecompMoE\openspec\specs\decompmoe-skeleton\spec.md:98: C4 reference 'req-gov-1' does not resolve in capability 'wayfinder'
+    The package SHALL provide `canonical_voronoi_angle(num_experts: int, signature_dim: int) -> float` returning the closed-
+  D:\myProject\DecompMoE\openspec\specs\governance\spec.md:3: C4 reference 'req-34' does not resolve in capability 'governance'
+    OpenSpec governance specs whose design origin is a `CLAUDE.md` amendment (or a commit amending `CLAUDE.md`) rather than 
+  D:\myProject\DecompMoE\openspec\specs\governance\spec.md:134: C4 reference 'req-34' does not resolve in capability 'governance'
+    **Source:** `CLAUDE.md` 搂3 (LOOPS.md is a project-level process doc parallel to `CLAUDE.md`, both governance-origin); `C
+
+  C4 placeholders skipped: 22 (non-numeric Requirement numbers are notation, not references)
+  C4 unqualified references skipped: 263 (id shared by several capabilities, line names none)
