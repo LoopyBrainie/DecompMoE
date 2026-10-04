@@ -581,3 +581,134 @@ def test_empty_baseline_is_not_a_pass():
     assert "baseline scan returned a non-empty population" in body
     assert "checks executed" in body, \
         "the gate does not report how many checks it ran"
+
+
+# ---------------------------------------------------------------------------
+# Round 5: the fourth post-archive recheck returned FAIL, and its central
+# finding was architectural rather than a list.
+#
+# `scripts/lint_no_line_pointers.py` -- the lint that actually gates -- asked
+# `has_historical_marker(line)`, a WHOLE-LINE question, while
+# `classify_pointer` threw `s.historical` away. So the per-locator verdict two
+# rounds of work produced never reached the gate: the detector reported the
+# canonical `superseded by` locators LIVE and the gate reported the same lines
+# clean, in the same run.
+#
+# That is the same "two copies drift" root cause this whole series opened
+# with, one directory over.
+# ---------------------------------------------------------------------------
+
+
+def test_gate_and_detector_agree_on_the_canonical_supersede_form():
+    """The detector says LIVE, the gate must say LIVE.
+
+    If these two ever disagree again, the gate is certifying a clean tree over
+    a population the detector considers dirty.
+    """
+    import importlib
+    sys.path.insert(0, str(_SCRIPTS))
+    lint = importlib.import_module("lint_no_line_pointers")
+    line = ("- " + "\u03bb_j = C \u5206\u5e03\u534f\u65b9\u5dee  "
+            + "*(historical, centered-covariance reading; superseded by spec "
+            "req-20 L453 uncentered second moment via " + BT
+            + "fix-openspec-doc-bugs" + BT + " design.md Decision 8)*")
+    sites = ps.scan_line("a.md", 70, line)
+    assert sites, "not detected at all"
+    detector_live = any(not s.historical for s in sites)
+    hit = lint.classify_pointer(line)
+    assert hit is not None, f"the gate does not even classify it: {hit!r}"
+    nums, weak, all_historical = hit
+    assert detector_live, "the detector stopped reporting this as live"
+    assert all_historical is False, \
+        "the gate still exempts the line the detector reports live"
+
+
+def test_gate_exempts_only_when_every_site_is_historical():
+    """One locator, one verdict -- a line is exempt only if ALL of it is."""
+    import importlib
+    sys.path.insert(0, str(_SCRIPTS))
+    lint = importlib.import_module("lint_no_line_pointers")
+    historical = "the old value was 1/128 per " + BT \
+        + "wayfinder/tickets/A6a-2.md" + BT + " L63 (historical)"
+    hit = lint.classify_pointer(historical)
+    assert hit is not None, f"expected a pointer, actual={hit!r}"
+    assert hit[2] is True, f"a wholly historical line must stay exempt: {hit!r}"
+
+
+def test_colon_variant_of_supersede_lead():
+    """``superseded:`` is one character from the covered grammar."""
+    line = ("*(historical, centered reading; superseded: spec req-20 L453 "
+            "uncentered)*")
+    sites = ps.scan_line("a.md", 70, line)
+    assert sites, "not detected at all"
+    assert all(not s.historical for s in sites), \
+        "the colon form exempts the live locator"
+
+
+def test_quoted_supersede_lead_is_a_quotation_not_an_instance():
+    """Every other marker respects the code-span mask; the lead did not.
+
+    A phrase written down in order to TALK ABOUT the convention is not itself
+    an instance of it.
+    """
+    line = ("the phrase " + BT + "superseded by spec" + BT
+            + " is a convention; the locator is spec.md L453")
+    mask = ps.code_span_mask(line)
+    lead = ps.RE_SUPERSEDE_LEAD.search(line, 0, len(line))
+    assert lead is not None, "probe no longer matches the lead"
+    assert mask[lead.start()] == 1, "the probe's lead is not inside a span"
+
+
+def test_yuan_homographs_are_not_past_state_markers():
+    """原理 (principle), 原子 (atom) and 还原 (restore) all contain 原.
+
+    A one-character marker cannot say which sense it found, and widening the
+    set with 旧 in the same change made the homograph problem worse without
+    addressing it.
+    """
+    for word in ("\u539f\u7406", "\u539f\u5b50", "\u8fd8\u539f"):
+        line = "see src/decompmoe/safeguards.py:40 and the " + word + " unit"
+        sites = ps.scan_line("t.md", 1, line)
+        assert all(not s.historical for s in sites), \
+            "%r exempted a live pointer" % word
+    # ...and the real thing still exempts
+    line = "\u539f\u5b9e\u73b0\u89c1 src/decompmoe/safeguards.py:222"
+    assert any(s.historical for s in ps.scan_line("t.md", 1, line)), \
+        "原实现 is a past-state claim and must still exempt"
+
+
+def test_marker_may_not_reach_across_another_locator():
+    """A marker annotates ONE recorded object.
+
+    Reaching across a different locator on the same line to claim this one is
+    how a ticket's ``historical`` came to exempt a live spec pointer written
+    later on the same line.
+    """
+    line = ("(historical, was " + BT + "1/128" + BT + ") spec.md L100 then "
+            "spec.md L453 is current")
+    sites = ps.scan_line("t.md", 1, line)
+    first = [s for s in sites if s.pos[0] < 40]
+    second = [s for s in sites if s.pos[0] >= 40]
+    assert first and second, f"probe produced {[(s.kind, s.pos) for s in sites]}"
+    assert any(not s.historical for s in second), \
+        "the later locator was exempted by a marker that belongs to the " \
+        "earlier one"
+
+
+def test_census_scope_pins_known_files_in_and_out():
+    """A total cannot catch a subtraction.
+
+    Adding `wayfinder/tickets/` to the exclusion list dropped the census from
+    80 files to 56 and the baseline from 24 to 18, and left the whole gate
+    pipeline green while the sweep it had just done touched six of them.
+    """
+    scope = set(ps.tracked_files(_SCRIPTS.parents[0]))
+    for rel in ("CLAUDE.md", "LOOPS.md",
+                "openspec/specs/wayfinder/spec.md",
+                "openspec/specs/governance/spec.md",
+                "wayfinder/tickets/A1-1.md", "wayfinder/tickets/A8-2.md",
+                "src/decompmoe/safeguards.py"):
+        assert rel in scope, "%s fell out of the census" % rel
+    for rel in ("scripts/pointer_scan.py", "scripts/lint_pointer_detector.py",
+                "tests/test_pointer_scan.py"):
+        assert rel not in scope, "%s entered the census" % rel

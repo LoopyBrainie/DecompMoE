@@ -227,15 +227,34 @@ HISTORICAL_MARKERS = (
     re.compile(r"\bno\s+longer\b", re.IGNORECASE),
     re.compile(r"\bdeprecated\b", re.IGNORECASE),
     re.compile(r"\bobsolete\b", re.IGNORECASE),
-    # Chinese past-state vocabulary. The set carried ``原`` alone, which is an
-    # inconsistency rather than a decision in a Chinese-primary repository:
-    # ``旧实现见 x.py:222`` and ``之前的实现在 x.py:222`` were both reported
-    # as live pointers while ``原值见 x.py:222`` was correctly exempt.
-    re.compile(r"[\u539f\u65e7]"),                       # 原 旧
+    # Chinese past-state vocabulary. The set carried ``原`` alone, which is
+    # an inconsistency rather than a decision in a Chinese-primary
+    # repository: ``旧实现见 x.py:222`` and ``之前的实现在 x.py:222`` were
+    # both reported as live pointers while ``原值见 x.py:222`` was correctly
+    # exempt.
+    #
+    # ``原`` is then a HOMOGRAPH, and a single-character marker has no way
+    # to say which sense it found: 原理 (principle), 原子 (atom) and 还原
+    # (restore) all contain it and each exempted a live pointer. Widening the
+    # set with 旧 in the same change made this worse without addressing it.
+    # So ``原`` is no longer a bare character -- it has to be a PAST-STATE
+    # sense, i.e. carry one of the words it compounds with. This is a lexical
+    # approximation and it is admitted to be one; the alternative was to keep
+    # a one-character match that fires on ordinary technical vocabulary.
+    re.compile(r"[\u539f\u65e7](?=\s*(?:\u503c|\u5b9e\u73b0|\u5b9a\u4e49|"
+               r"\u5148|\u65b9\u6848|\u8bbe\u8ba1|\u6587\u6848|\u7248\u672c|"
+               r"\u53e3\u5f84|\u63a8\u5f8b|\u7ed3\u8bba|\u89c4\u5219))"),
+    re.compile(r"[\u65e7](?=\s*(?:\u5b9e\u73b0|\u503c|\u65b9\u6848|"
+               r"\u8bbe\u8ba1|\u53e3\u5f84))"),
     re.compile(r"\u4e4b\u524d"),                        # 之前
     re.compile(r"\u66fe(?:\u7ecf|\u4e3a)"),              # 曾 / 曾经 / 曾为
-    re.compile(r"\u5f53\u65f6"),                        # 当时
-    re.compile(r"\u5f53\u65f6\u4e3a"),                  # 当时为
+    re.compile(r"\u5f53\u65f6"),                        # 当时 (当时为 is a
+    #                                                        subset; a separate
+    #                                                        longer entry is
+    #                                                        unreachable
+    #                                                        because the
+    #                                                        tuple returns
+    #                                                        the first match)
     re.compile(r"\bwas\s+(?=[`\"'(])", re.IGNORECASE),
     re.compile(r"\bbefore\b", re.IGNORECASE),
 )
@@ -269,7 +288,11 @@ RE_PIN_COMMIT = re.compile(
 #: a blank line -- the sweep replaced fourteen UNMARKED pointers and left
 #: these, because the marker had already claimed them. A locator introduced by
 #: ``superseded by`` is a statement about the present, not the past.
-RE_SUPERSEDE_LEAD = re.compile(r"\bsupersed\w*\s+by\b", re.IGNORECASE)
+#:
+#: The colon form counts too. ``superseded:`` is one character away and
+#: exempts the identical locator.
+RE_SUPERSEDE_LEAD = re.compile(
+    r"\bsupersed\w*\s*(?:by\b|:)", re.IGNORECASE)
 
 
 @dataclass
@@ -407,7 +430,7 @@ def has_marker_anywhere(text: str) -> bool:
     return bool(RE_PIN_COMMIT.search(text))
 
 
-def _exempt(text: str, start: int, end: int):
+def _exempt(text: str, start: int, end: int, others=()):
     """Return the marker that exempts THIS locator, or ``""``.
 
     A marker counts only when it is close to the locator (within
@@ -421,6 +444,12 @@ def _exempt(text: str, start: int, end: int):
     so a marker sitting just outside is still RECOGNISED rather than cut in
     half: truncating first turned ``**pre-edit**`` into ``**pre``, which no
     pattern can match, and silently left the line actionable.
+
+    ``others`` are the spans of the OTHER locators on this line. A marker
+    annotates ONE recorded object, so a marker that has to reach ACROSS
+    another locator on the same line is not annotating this one. Without
+    that, ``L100 (historical, was 1/128) - but see spec.md L453`` exempted
+    the live `L453` with the marker that belongs to `L100`.
     """
     if start < 0:
         start, end = 0, len(text)
@@ -455,13 +484,31 @@ def _exempt(text: str, start: int, end: int):
         The complement of ``superseded by`` is the superseding text, i.e. the
         present. A pointer that sits there is a statement about the current
         spec and no marker on the line may exempt it.
+
+        The lead is skipped when it falls inside a code span or a quoted run:
+        every other marker respects the mask, and a phrase someone wrote down
+        in order to TALK ABOUT the convention is not itself an instance of it.
         """
         for lead in RE_SUPERSEDE_LEAD.finditer(text, lo, end + MARKER_TAIL):
+            if mask[lead.start()]:
+                continue
             if lead.end() <= start:
                 return True            # the locator IS what `by` introduces
         return False
 
     new_target = _in_supersede_complement()
+
+    def _crosses_another_locator(abs_start: int) -> bool:
+        """True when a locator sits between this marker and this one.
+
+        A marker annotates one recorded object. Reaching across a different
+        locator to claim this one is how a ticket's ``historical`` came to
+        exempt a live spec pointer written later on the same line.
+        """
+        for s2, e2 in others:
+            if abs_start < e2 <= start or end <= s2 < abs_start:
+                return True
+        return False
 
     m = RE_PIN_COMMIT.search(window)
     if m and _admissible(lo + m.start()):
@@ -470,7 +517,10 @@ def _exempt(text: str, start: int, end: int):
         return ""
     for rx in HISTORICAL_MARKERS:
         for m in rx.finditer(window):
-            if mask[lo + m.start()] or not _admissible(lo + m.start()):
+            a = lo + m.start()
+            if mask[a] or not _admissible(a):
+                continue
+            if _crosses_another_locator(a):
                 continue
             return m.group(0)
     return ""
@@ -569,8 +619,10 @@ def scan_line(rel: str, lineno: int, line: str):
                      display.strip(), (m.start(), m.end()), weak=True)
             )
 
+    spans = [s.pos for s in sites if s.pos[0] >= 0]
     for s in sites:
-        s.marker = _exempt(line, s.pos[0], s.pos[1])
+        others = [sp for sp in spans if sp != s.pos]
+        s.marker = _exempt(line, s.pos[0], s.pos[1], others)
         s.historical = bool(s.marker)
     return sites
 

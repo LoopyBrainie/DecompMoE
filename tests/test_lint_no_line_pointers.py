@@ -79,9 +79,10 @@ def test_c1_bare_line_word_is_weak_not_silent() -> None:
     """
     hit = L.classify_pointer("fixed 1.0 — line 495")
     assert hit is not None, f"expected a weak pointer, actual={hit!r}"
-    nums, weak = hit
+    nums, weak, all_historical = hit
     assert weak is True, f"expected weak=True, actual={weak!r}"
     assert 495 in nums, f"expected 495 in {nums!r}"
+    assert all_historical is False, f"actual={all_historical!r}"
 
 
 def test_c1_strong_when_reference_is_adjacent_to_locator() -> None:

@@ -384,12 +384,56 @@ yaml_in_scope = [f for f in scope_files if f.endswith((".yaml", ".yml"))]
 check("a tracked .yaml reached the census", bool(yaml_in_scope),
       "no .yaml file reached the census")
 
+# F3: the composition checks above all pass when a WHOLE DIRECTORY is added to
+# the exclusion list. `and not f.startswith("wayfinder/tickets/")` in
+# `in_scope` took the census from 80 files to 56, the baseline from 24 to 18,
+# and left this gate at exit 0 with all 64 checks green and pytest green --
+# while the round-4 sweep had just edited six ticket files, and the zero this
+# gate certifies is computed over exactly that population. A total cannot
+# catch a subtraction; named files can.
+PINNED_IN_SCOPE = (
+    "CLAUDE.md",
+    "openspec/specs/wayfinder/spec.md",
+    "openspec/specs/decompmoe-skeleton/spec.md",
+    "openspec/specs/governance/spec.md",
+    "wayfinder/tickets/A1-1.md",
+    "wayfinder/tickets/A4-1.md",
+    "wayfinder/tickets/A5-3.md",
+    "wayfinder/tickets/A6a-2.md",
+    "wayfinder/tickets/A6b-1.md",
+    "wayfinder/tickets/A8-2.md",
+    "LOOPS.md",
+    "src/decompmoe/safeguards.py",
+    "src/decompmoe/metrics.py",
+    "src/decompmoe/gating.py",
+    "tests/test_safeguards.py",
+)
+pinned_set = set(scope_files)
+for rel in PINNED_IN_SCOPE:
+    check("pinned in scope: %s" % rel, rel in pinned_set,
+          "a file the census is supposed to cover fell out of scope")
+
+# ...and the other direction: the detector and its own guard tests must stay
+# OUT, or the census reports the fixtures it uses as live pointers.
+for rel in ("scripts/pointer_scan.py", "scripts/lint_no_line_pointers.py",
+            "scripts/lint_pointer_detector.py", "tests/test_pointer_scan.py"):
+    check("pinned OUT of scope: %s" % rel, rel not in pinned_set,
+          "a self-referential tool entered the census")
+
 # The run itself must not be short. A gate that silently executes fewer checks
 # than it has -- because a branch went untaken -- is the same class of vacuity
 # as the empty baseline above.
-MIN_CHECKS = 45
+#
+# This bound is a TRIPWIRE, not a proof, and the previous value was not even a
+# tripwire: at 45, deleting the six checks inside `if found:` left 58 and
+# stayed green. At 80 the same deletion leaves 77 and is caught. Losing a whole
+# section (10 checks in section 3, 18 in section 1) is caught comfortably; a
+# single missing check is not, and no count-based bound can catch that. The
+# guard that actually carries the weight is the unbracketed `len(found) > 0`
+# above, which cannot be tuned away from its own purpose.
+MIN_CHECKS = 80
 check("at least %d checks executed" % MIN_CHECKS, CHECKS >= MIN_CHECKS,
-      "only %d checks ran; a branch was skipped" % CHECKS)
+      "only %d checks ran; a section was skipped" % CHECKS)
 
 print()
 print("checks executed: %d" % CHECKS)

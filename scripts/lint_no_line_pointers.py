@@ -197,8 +197,9 @@ def has_historical_marker(text: str) -> bool:
     return _ps.has_marker_anywhere(text)
 
 
-def classify_pointer(line: str) -> tuple[list[int], bool] | None:
-    """Return `(line_numbers, weak)` if `line` carries a line-number reference.
+def classify_pointer(line: str) -> tuple[list[int], bool, bool] | None:
+    """Return `(line_numbers, weak, all_historical)` if `line` carries a
+    line-number reference.
 
     Delegates to `scripts/pointer_scan.py`, which is the same module the
     census uses. The inline regexes this replaced required whitespace
@@ -207,6 +208,19 @@ def classify_pointer(line: str) -> tuple[list[int], bool] | None:
     backtick) never matched -- and the gate reported a clean tree over 75
     live pointers. A gate that carries its own detector will drift from the
     evidence again; a gate that imports one cannot.
+
+    The third element is the per-SITE historicality, and it is the whole
+    point. The caller used to ask ``has_historical_marker(line)`` -- a
+    whole-line question -- while this function threw ``s.historical`` away.
+    So the detector's per-locator verdict, which two rounds of work were
+    spent refining, never reached the gate: C1 exempted the entire line
+    whenever any marker appeared anywhere on it, and the canonical
+    `superseded by spec req-N L###` annotation exempted the live spec
+    pointer the `by` complement names. The detector reported those LIVE and
+    the gate reported the lines clean, at the same time, in the same run.
+
+    One locator, one verdict: a line is exempt only when EVERY site on it
+    is historical.
     """
     sites = _ps.scan_line("<lint>", 1, line)
     if not sites:
@@ -221,7 +235,7 @@ def classify_pointer(line: str) -> tuple[list[int], bool] | None:
             weak = False
     if not nums:
         return None
-    return (sorted(set(nums)), weak)
+    return (sorted(set(nums)), weak, all(s.historical for s in sites))
 
 
 def capability_of_spec(path: Path) -> str | None:
@@ -296,9 +310,12 @@ def check_c1(paths: Iterable[Path]) -> list[tuple[Path, int, str, str]]:
         hit = classify_pointer(line)
         if hit is None:
             continue
-        if has_historical_marker(line):
+        nums, weak, all_historical = hit
+        if all_historical:
+            # Per-SITE, not per line. See classify_pointer's docstring: the
+            # whole-line predicate this replaced exempted every locator on a
+            # line whenever one marker appeared anywhere on it.
             continue
-        nums, weak = hit
         tag = "weak " if weak else ""
         out.append((
             path, line_no, line.strip(),
