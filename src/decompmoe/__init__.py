@@ -10,7 +10,7 @@ Naming convention (Req 1):
     - alias (design prose, docstrings only): "GeoMoE"
 
 The public surface is the de-duplicated union of the 13 submodules' `__all__`
-entries: 75 names, plus the 3 dunders below for 78 in total (req-1).
+entries: 76 names, plus the 3 dunders below for 79 in total (req-1).
 """
 
 from __future__ import annotations
@@ -96,6 +96,7 @@ from decompmoe.safeguards import (  # noqa: F401
 from decompmoe.schedule import (  # noqa: F401
     advisory_signals,
     beta_effective,
+    gamma_reset_for_phase2,
     gamma_reset_for_phase4,
     phase_beta_box,
     phase_beta_max,
@@ -190,6 +191,7 @@ __all__ = [
     "compute_total_and_active",
     "extract_C",
     "flops_per_token",
+    "gamma_reset_for_phase2",
     "gamma_reset_for_phase4",
     "inverse_temperature",
     "local_softmax",

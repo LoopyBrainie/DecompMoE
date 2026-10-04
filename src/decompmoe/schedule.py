@@ -9,6 +9,7 @@ Phase boundaries (Req 14 / A6b-1) for total_steps = 100_000:
 
 Schedule-time β parameterization functions (skeleton "Beta Parameterization
 Operational Domain"):
+    - `gamma_reset_for_phase2()` — γ reset at phase-2 entry (constant 0.0).
     - `gamma_reset_for_phase4(beta_p3)` — γ reset at phase-4 entry.
     - `phase_beta_max(phase, step)` — time-varying operational box hi.
     - `beta_effective(γ_p, phase, step)` — clamped operational β^eff.
@@ -125,6 +126,38 @@ def phase_beta_max(phase: int, step: int, total_steps: int = _DEFAULT_TOTAL) -> 
     return lo + (hi - lo) * progress
 
 
+def gamma_reset_for_phase2() -> float:
+    """γ reset value placed at Phase-2 entry: exactly `0.0`.
+
+    Rationale (Spec Req 24 "Phase-2 entry γ reset places β^param in the
+    cap-saturated region" Scenario, per change
+    `2026-10-04-phase2-gamma-reset-ramp-closure` design.md Decision 3):
+
+        β^param(γ) = 0.1 + 31.9·σ(γ)
+        β^param(0) = 0.1 + 31.9·0.5 = 16.05
+        sup{phase_beta_max(3, step)} = phase_beta_max(3, 55_999) = 15.9996
+
+    so `β^param(0) > cap(t)` across all of Phase 2 ∪ Phase 3 with margin
+    `16.05 − 15.9996 = 5.04e-2`. The upper clamp therefore saturates for
+    the whole of Phases 2–3 and `β^eff(step) ≡ phase_beta_max(phase, step)`
+    pointwise — which is how Req 14's operational ramp `1.0 → 4.0` (Phase 2)
+    and `4.0 → 16.0` (Phase 3) is delivered deterministically, by the
+    schedule cap rather than by the value of `β^param`.
+
+    Why `0.0` and not the smallest γ that saturates (`logit(0.498420) ≈
+    −0.006318`): the latter would leave a margin of only `3.4e-5`, whereas
+    `0.0` leaves `5.04e-2` (`1483×`). `γ = 0` is additionally the fixed point
+    of decoupled weight decay, so in Phase 3 — where `phase_step_frozen_names(3)`
+    is `{"c_i"}` and `beta_i` is therefore unfrozen — the weight-decay term
+    drives an already-zero `γ` to zero and no extra momentum reset is needed.
+
+    Structurally parallel to `gamma_reset_for_phase4`, which returns a
+    closed-form value for the same reason (boundary continuity). This one is
+    a constant because the saturation target is constant.
+    """
+    return 0.0
+
+
 def gamma_reset_for_phase4(beta_p3: float = 16.0) -> float:
     """γ reset value placing β^eff exactly at the phase-3 exit value.
 
@@ -159,6 +192,27 @@ def beta_effective(
     `total_steps` reaches `phase_beta_max` below. There is no dead `cfg` param
     (the constants β_min / β_max / 31 / 31.9 are module-level in
     `decompmoe.beta`).
+
+    Contract (per change `2026-10-04-phase2-gamma-reset-ramp-closure`
+    design.md Decision 2): this is a **schedule-layer helper** and is
+    **non-differentiable by design**. `gamma_p: float` is converted with
+    `torch.as_tensor` and the result is read back through `float(... .item())`,
+    so the returned tensor is always a leaf with `requires_grad=False` and
+    `grad_fn=None` — in every phase, Phase 4 included. A γ gradient path
+    therefore cannot be obtained by calling this function with a Tensor; the
+    differentiable primitives are `inverse_temperature` and
+    `phase4_inverse_temperature` in `decompmoe.beta`, which the caller
+    composes with the box. The caller-γ-free operational path is obtained by
+    composing the same two primitives with the per-phase γ reset, i.e.
+    `beta_effective(gamma_reset_for_phase2(), phase, step)` in Phase 2-3.
+
+    Precision frame: `torch.as_tensor(<python float>)` adopts the torch
+    default floating dtype, so the returned value is rounded to that dtype
+    while `phase_beta_max` below computes in Python-float (float64)
+    precision. The two agree exactly only for caps that are representable in
+    both. Callers comparing against `phase_beta_max` must state which frame
+    they are asserting in (see governance req-gov-1 obligation 4 on residual
+    frame disambiguation).
     """
     from decompmoe.beta import (
         inverse_temperature,
@@ -209,6 +263,7 @@ __all__ = [
     "phase_step_frozen_names",
     "phase_beta_box",
     "phase_beta_max",
+    "gamma_reset_for_phase2",
     "gamma_reset_for_phase4",
     "beta_effective",
     "should_reset_adam",

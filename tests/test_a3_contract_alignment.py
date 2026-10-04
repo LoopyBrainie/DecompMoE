@@ -36,7 +36,7 @@ PKG_DIR = pathlib.Path(decompmoe.__file__).parent
 
 # ===================================================================== AC-78
 def test_all_is_deduplicated_union_of_submodule_alls() -> None:
-    """req-1: the union is 75 names; the naive per-module sum is 76 and is NOT the total."""
+    """req-1: the union is 76 names; the naive per-module sum is 77 and is NOT the total."""
     per_module: dict[str, list[str]] = {}
     for p in sorted(PKG_DIR.glob("*.py")):
         if p.name == "__init__.py":
@@ -53,10 +53,10 @@ def test_all_is_deduplicated_union_of_submodule_alls() -> None:
     total_sum = sum(len(v) for v in per_module.values())
 
     # Integer closed forms -> bare == (governance req-gov-1).
-    assert len(union) == 75, f"actual={len(union)} (expected the de-duplicated union 75)"
-    assert total_sum == 76, f"actual={total_sum} (the per-module sum, MUST NOT be the target)"
-    assert len(decompmoe.__all__) == 78, f"actual={len(decompmoe.__all__)} (75 + 3 dunders)"
-    assert len(set(decompmoe.__all__)) == 78, (
+    assert len(union) == 76, f"actual={len(union)} (expected the de-duplicated union 76)"
+    assert total_sum == 77, f"actual={total_sum} (the per-module sum, MUST NOT be the target)"
+    assert len(decompmoe.__all__) == 79, f"actual={len(decompmoe.__all__)} (76 + 3 dunders)"
+    assert len(set(decompmoe.__all__)) == 79, (
         f"actual={len(set(decompmoe.__all__))} unique names "
         f"(duplicates={sorted({n for n in decompmoe.__all__ if decompmoe.__all__.count(n) > 1})})"
     )
@@ -257,7 +257,9 @@ def test_beta_effective_forwards_total_steps_to_the_cap() -> None:
     assert sig.parameters["total_steps"].default == 100_000, (
         f"actual default={sig.parameters['total_steps'].default!r}"
     )
-    # gamma_p = 0 gives beta_param = 15.5, so the cap binds in both phases.
+    # gamma_p = 0 gives beta_param = 0.1 + 31.9·σ(0) = 16.05, so the cap binds
+    # in both phases. (Both 15.5 and 16.05 exceed the cap, so the assertion is
+    # insensitive to the stale 15.5 figure this comment previously carried.)
     # step 16_000 sits strictly inside Phase 2 for BOTH budgets: the 100K Phase-2
     # window is [6_000, 26_000) and the 50K one is [3_000, 13_000)... note 16_000 is
     # past the 50K window's end, which clamps progress to 1.0. That asymmetry is
@@ -491,12 +493,12 @@ def test_centroid_driver_per_expert_mask_does_not_collapse_territories() -> None
 
 # ===================================================================== AC-41
 def test_ur_window_constant_is_100_and_stays_off_the_public_surface() -> None:
-    """AC-41: req-20 fixes `W = 100`; req-1 fixes the public surface at 75 names.
+    """AC-41: req-20 fixes `W = 100`; req-1 fixes the public surface at 76 names.
 
     Integer closed form -> bare `==`, never `pytest.approx(..., abs=0)`.
-    The package-level count is 78 = the 75-name union plus the 3 dunder
+    The package-level count is 79 = the 76-name union plus the 3 dunder
     entries `__version__` / `__canonical_name__` / `__alias__`; req-1 pins all
-    three numbers and forbids the naive per-module sum of 76.
+    three numbers and forbids the naive per-module sum of 77.
     """
     assert metrics._UR_WINDOW_STEPS == 100, (
         f"actual=W {metrics._UR_WINDOW_STEPS!r} expected 100 (spec wayfinder req-20)"
@@ -505,9 +507,9 @@ def test_ur_window_constant_is_100_and_stays_off_the_public_surface() -> None:
         "actual=_UR_WINDOW_STEPS is exported from metrics.__all__"
     )
     assert "_UR_WINDOW_STEPS" not in decompmoe.__all__, (
-        "actual=_UR_WINDOW_STEPS leaked into the package __all__; req-1 pins 75"
+        "actual=_UR_WINDOW_STEPS leaked into the package __all__; req-1 pins 76"
     )
-    assert len(decompmoe.__all__) == 78, f"actual={len(decompmoe.__all__)}"
+    assert len(decompmoe.__all__) == 79, f"actual={len(decompmoe.__all__)}"
 
 
 def test_ur_truncates_to_the_most_recent_100_steps() -> None:

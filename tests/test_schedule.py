@@ -293,3 +293,159 @@ def test_beta_effective_phase_2_3_cap_binding() -> None:
     assert v == pytest.approx(float(cap), abs=1e-6), (
         f"γ=0 phase=3 step=41k: β^eff={v}, expected cap={cap}"
     )
+
+
+# =====================================================================
+# Req 24 γ-reset contract — change 2026-10-04-phase2-gamma-reset-ramp-closure
+# =====================================================================
+
+
+def test_gamma_reset_for_phase2_is_zero() -> None:
+    """`gamma_reset_for_phase2()` is exactly `0.0`.
+
+    Float closed form -> `pytest.approx(..., abs=...)` per governance req-gov-1
+    §2; `abs=0` is forbidden. `1e-12` is the established tolerance for an
+    exactly-representable constant in this repo (see the AC-44 default-budget
+    assertions), not a widened one.
+    """
+    g = schedule.gamma_reset_for_phase2()
+    assert g == pytest.approx(0.0, abs=1e-12), (
+        f"actual={g!r}; gamma_reset_for_phase2() must be 0.0 "
+        "(Req 24 Phase-2 entry gamma reset Scenario)"
+    )
+
+
+def test_saturation_margin_holds_in_float32_frame() -> None:
+    """`β^param(0) > phase_beta_max(3, 55_999)` in the float32 operational frame.
+
+    This is the non-vacuous half of the ramp contract: the bit-exactness test
+    below compares `beta_effective` against a float32-rendered cap, which
+    would also hold if the clamp were absent. Only this inequality proves the
+    clamp's UPPER bound is what `β^eff` returns.
+
+        exact arithmetic:  β^param(0) = 0.1 + 31.9·σ(0) = 16.05
+                          cap supremum  = phase_beta_max(3, 55_999) = 15.9996
+                          margin         = 16.05 − 15.9996 = 0.0504
+        float32 frame:    16.0499992      >   15.9995995    (margin 0.0503998)
+
+    Both the strict inequality and the saturation identity are asserted with NO
+    tolerance, in the frame the implementation actually runs in —
+    `torch.as_tensor(<python float>)` adopts the torch default float dtype,
+    so the clamp's `max` scalar is cast to float32 before it saturates. The
+    float64 spec frame's 0.0504 is stated above as documentation; the
+    representation offset between frames is measured in the Req 24 Scenario
+    and is explicitly NOT used as a test tolerance.
+    """
+    import torch as _t
+
+    _t.manual_seed(0)
+    beta_param_f32 = beta.inverse_temperature(_t.as_tensor(0.0))
+    cap_sup_f64 = schedule.phase_beta_max(3, 55_999)
+    cap_sup_f32 = _t.tensor(cap_sup_f64, dtype=_t.float32)
+
+    # Strict inequality, float32 frame, no tolerance.
+    assert float(beta_param_f32) > float(cap_sup_f32), (
+        f"actual β^param={float(beta_param_f32)} vs cap={float(cap_sup_f32)}; "
+        "the upper clamp must saturate for the whole of Phase 3"
+    )
+    # The cap is computed in float64, so ITS 4-decimal display literal is pinned
+    # by exact rounding at its own precision (governance req-gov-1 §2 exception;
+    # the same pinning the Phase-4 continuity test already uses for this value).
+    assert round(cap_sup_f64, 4) == 15.9996, (
+        f"actual={cap_sup_f64}; round(phase_beta_max(3, 55_999), 4) must equal 15.9996"
+    )
+    # The float32 margin is not a knife-edge either. Documented magnitude, not a
+    # pinned literal: a bare comparison, no tolerance.
+    margin_f32 = float(beta_param_f32) - float(cap_sup_f32)
+    assert margin_f32 > 0.05, (
+        f"actual={margin_f32}; the float32 saturation margin should stay "
+        "comfortably above 5e-2 (exact-arithmetic value 0.0504)"
+    )
+
+
+def test_beta_effective_saturated_branch_is_bit_exact_with_float32_cap() -> None:
+    """Req 24: at the Phase-2 entry γ reset, `β^eff` is bit-identical to the
+    float32 rendering of `phase_beta_max`, over the pinned phase grid.
+
+    Guard form is `torch.equal` — bit-exact, **no tolerance, cannot be flaky**.
+    `beta_effective` computes `Clamp(β^param_f32, 1.0, cap)`, and the clamp's
+    `max` scalar is cast to float32, so the saturated branch returns exactly
+    `float32(cap)`. The exact-arithmetic identity `β^eff ≡ phase_beta_max`
+    holds by construction; this assertion pins its float32 realisation.
+
+    A `pytest.approx(phase_beta_max(...), abs=1e-9)` in the float64 frame would
+    be unsatisfiable by construction (the impl is float32) and would look
+    stricter while being weaker. See the Req 24 Scenario for the frame
+    declaration and the measured float64 offset.
+    """
+    import torch as _t
+
+    _t.manual_seed(0)
+    gamma_reset = schedule.gamma_reset_for_phase2()
+    for phase, step in (
+        (2, 6_000),
+        (2, 13_000),
+        (2, 25_999),
+        (3, 26_000),
+        (3, 41_000),
+        (3, 55_999),
+    ):
+        got = schedule.beta_effective(gamma_reset, phase=phase, step=step)
+        cap_f32 = _t.tensor(schedule.phase_beta_max(phase, step), dtype=_t.float32)
+        assert _t.equal(got, cap_f32), (
+            f"actual={float(got)} float32_cap={float(cap_f32)} "
+            f"(phase={phase}, step={step}); the saturated branch must be bit-exact"
+        )
+
+
+def test_gamma_gradient_exists_only_from_phase_4() -> None:
+    """Req 24: the gamma gradient path opens at Phase 4, not before.
+
+    Composition is inlined here on purpose — no new production API. The
+    primitives are `beta.inverse_temperature` (parameterisation space) and
+    `beta.phase4_inverse_temperature` (Phase-4 operational domain); the
+    schedule layer only supplies the box.
+
+    Phase 2-3 (evaluated at the reset gamma, where the clamp saturates):
+        ∂β^eff/∂γ = 0   (integer closed form -> bare `==`)
+    Phase 4 (at the reset point gamma' = ln(15/16), no clamp):
+        ∂β^eff/∂γ' = 31·σ'(γ') and σ(γ') = 15/31, so
+        σ'(γ') = (15/31)(16/31) = 240/961 and
+        ∂β^eff/∂γ' = 31·240/961 = 240/31 = 7.7419354838709677...
+
+    Do NOT conflate with `7.75` (= 31·σ'(0), the γ' = 0 upper bound) or with
+    `0.9077` (= 31.9·σ'(−3.5), a parameterisation-space quantity at γ_init).
+    """
+    import torch as _t
+
+    _t.manual_seed(0)
+
+    # --- Phase 2 / 3: upper-clamp saturation -> exactly zero gradient -------
+    for phase, step in ((2, 6_000), (2, 25_999), (3, 26_000), (3, 55_999)):
+        g = _t.tensor(schedule.gamma_reset_for_phase2(), requires_grad=True)
+        beta_eff = beta.inverse_temperature(g).clamp(
+            min=1.0, max=schedule.phase_beta_max(phase, step)
+        )
+        assert beta_eff.grad_fn is not None, (
+            f"phase={phase} step={step}: composition severed the autograd graph"
+        )
+        beta_eff.backward()
+        assert g.grad == 0, (
+            f"actual={g.grad} (phase={phase}, step={step}); "
+            "Req 24 requires ∂β^eff/∂γ ≡ 0 while the upper clamp saturates"
+        )
+
+    # --- Phase 4: no clamp -> the path exists and has the closed-form slope --
+    g4 = _t.tensor(schedule.gamma_reset_for_phase4(16.0), requires_grad=True)
+    beta_eff4 = beta.phase4_inverse_temperature(g4)
+    assert beta_eff4.grad_fn is not None, (
+        "Phase-4 path must be differentiable (no clamp applies)"
+    )
+    beta_eff4.backward()
+    assert g4.grad == pytest.approx(240 / 31, abs=1e-6), (
+        f"actual={g4.grad}; ∂β^eff/∂γ' at γ'=ln(15/16) is 31·σ'(γ') = 240/31"
+    )
+    # 240/31 = 7.7419355...; the γ'=0 upper bound is a DIFFERENT quantity.
+    assert g4.grad != pytest.approx(7.75, abs=1e-3), (
+        f"actual={g4.grad}; the reset-point slope must not be the γ'=0 bound 7.75"
+    )

@@ -88,6 +88,34 @@ def phase4_inverse_temperature(gamma_p: Tensor | float) -> Tensor:
     return 1.0 + 31.0 * torch.sigmoid(torch.as_tensor(gamma_p))
 
 
+# Phase 2–3 operational-domain gradient, derivation only — deliberately NOT
+# exported (change `2026-10-04-phase2-gamma-reset-ramp-closure` design.md
+# Decision 4: no new bound is introduced by this change).
+#
+# Where the clamp is NOT saturated, the schedule-layer formula
+#     β^eff = Clamp(β^param(γ), 1.0, β_max(t)),  β^param(γ) = 0.1 + 31.9·σ(γ)
+# gives
+#     |∂β^eff/∂γ| = 31.9 · σ'(γ) ≤ 31.9 · σ'(0) = 31.9 · 0.25 = 7.975
+# and, on the logit side, multiplying by the inner-product worst case
+# |Cᵀc − 1|_max = 2 returns
+#     |∂logit/∂γ| ≤ 2 · 7.975 = 15.95
+# which is exactly the bound Req 7 already pins as MAX_GRAD_PER_GAMMA. So the
+# Phase 2–3 non-saturated segment introduces NO new gradient ceiling; it
+# reuses the existing parameterization-space bound.
+#
+# Under the Req 24 γ-reset contract this segment is never reached in the
+# operational path: `gamma_reset_for_phase2()` places β^param above every
+# Phase-2/3 cap, so the upper clamp saturates and ∂β^eff/∂γ ≡ 0 there. The
+# bound above documents the segment for callers that evaluate the formula at
+# a caller-chosen γ (i.e. `beta_effective`, whose semantics this change
+# leaves untouched).
+#
+# Do not conflate the three Phase-4/parameterization-space quantities:
+#   7.75  = 31·σ'(0)      upper bound at γ' = 0        (exported, MAX_GRAD_PER_GAMMA_PHASE4 / 2)
+#   240/31 ≈ 7.7419355    slope at the reset point γ' = ln(15/16)
+#   0.9077 = 31.9·σ'(−3.5) parameterization-space slope at γ_init (not operational)
+
+
 __all__ = [
     "BETA_MIN",
     "BETA_MAX",

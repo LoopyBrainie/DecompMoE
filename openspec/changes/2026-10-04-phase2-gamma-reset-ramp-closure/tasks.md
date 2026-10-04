@@ -1,0 +1,36 @@
+# Tasks
+
+## 1. Phase-2 入口 γ reset 原语
+
+- [x] 1.1 在 `src/decompmoe/schedule.py` 新增 `gamma_reset_for_phase2() -> float`，返回 `0.0`，形状对齐既有的 `gamma_reset_for_phase4`；docstring 写明取值理由（`β^param(0) = 16.05` 落在 Phase-2/3 cap 饱和区裕量 `5.04e-2`，且 `γ = 0` 是 decoupled weight decay 的不动点故自稳定）。验证：`tests/test_schedule.py` 新增 `test_gamma_reset_for_phase2_is_zero` 通过（浮点闭式用 `pytest.approx`，**禁用** `approx(abs=0)`）。
+- [x] 1.2 新增 `test_saturation_margin_holds_in_float32_frame`（**替代原 1.3，原 1.2 的 operational 读取路径已按 `design.md` D2 撤销**）：`β^param(0) > phase_beta_max(3, 55_999)` 的严格 `>` 断言在 **float32 操作帧**内成立（`16.0499992 > 15.9995995`），**无容差**——因为 `beta_effective` 的 `torch.as_tensor(<python float>)` 采纳 torch 默认浮点 dtype，clamp 的 `max` 标量先被舍入到 float32 才饱和。另钉 `round(phase_beta_max(3, 55_999), 4) == 15.9996`（**沿用 `test_beta_effective_phase_4_continuity` 的 4-dp 精确舍入钉法，容差不得宽于其自身精度**）与裕量 `> 0.05`。此测试是 ramp 契约的**非平凡半边**：1.3 的 bit-exact 断言在 clamp 缺席时也会通过，只有本条的严格不等式能证明 saturate 的是 clamp 的**上界**。验证：该测试通过，且 `phase_beta_max(3, 55_999)` 实测仍为 `15.9996`。
+- [x] 1.3 新增 `test_beta_effective_saturated_branch_is_bit_exact_with_float32_cap`：在 pinned phase grid（`(2,6_000)` / `(2,13_000)` / `(2,25_999)` / `(3,26_000)` / `(3,41_000)` / `(3,55_999)`）上逐点断言 `torch.equal(beta_effective(gamma_reset_for_phase2(), phase, step), torch.tensor(phase_beta_max(phase, step), dtype=torch.float32))`。守护形态是 `torch.equal`——**bit-exact、无容差、结构上不可能 flaky**。`pytest.approx(phase_beta_max(...), abs=1e-9)` 在 float64 帧内**不可满足**（实现是 float32），看似更严实则更弱，已否决。float64 规格帧偏移 `4.10e-7` 只作 Scenario 文档，**不作为测试容差**。验证：该测试通过。
+- [x] 1.4 把 `gamma_reset_for_phase2` 登记进 `schedule.py` 的 `__all__`（+ 模块 docstring 的符号清单），并补 `src/decompmoe/__init__.py` 的再导出 + 包级 `__all__` + 模块 docstring 计数。验证：`from decompmoe import gamma_reset_for_phase2` 成功；`decompmoe.__all__` 长度 `78 → 79`。**实测输出**：`import OK -> 0.0` / `decompmoe.__all__ len = 79` / `schedule.__all__ has it: True`。
+- [x] 1.5 因 1.4 新增 1 个公开符号，按 `decompmoe-skeleton` req-1 的**规范性契约**（非描述性统计）bump 三个计数：去重 union `75 → 76`、未去重 per-module sum `76 → 77`、包级 `__all__` `78 → 79`；新建 `specs/decompmoe-skeleton/spec.md` delta 记录 bump + 1 条新 Scenario（「公开符号 MUST 在 `__all__` 上」+「计数 MUST 被任何增减公开符号的 change 重新钉定」）。同步 `tests/test_a3_contract_alignment.py` 的 **5 处 bare `==`**（`union` / `total_sum` / `decompmoe.__all__` ×2 / AC-41）与其 docstring/失败消息文字。验证：delta 内 3 个数字与实现实测一致（`76/77/79`，见 1.4 的实测输出）；该文件测试全绿（`uv run pytest -q` → `464 passed, 1 skipped`）。
+
+## 2. γ 梯度相位的存在性断言
+
+- [x] 2.1 在 `tests/test_schedule.py` 新增 `test_gamma_gradient_exists_only_from_phase_4`：**在测试内联组合原语**（Phase 2–3 = `inverse_temperature(γ_t)` + `.clamp(1.0, phase_beta_max(...))`；Phase 4 = `phase4_inverse_temperature(γ_t)`），**不新增任何生产 API**。Phase 2–3 断言 `∂β^eff/∂γ == 0`（整数闭式 **bare `==`**）**且** `grad_fn is not None`（证明零梯度来自 clamp 饱和，而非 autograd 图被切断）；Phase 4 断言 `grad_fn is not None` **且** `∂β^eff/∂γ' ≈ 240/31 ≈ 7.7419355`（`pytest.approx`，`abs=1e-6`）**且** `≠ 7.75`。**`240/31` 才是 β 侧斜率**（`∂β/∂γ' = 31·σ'(γ')`，在 `γ' = ln(15/16)` 处 `σ' = 240/961`）；`240/961` 是 σ 侧的中间量，`7.75 = 31·σ'(0)` 是 `γ' = 0` 处的上界——三者互不相等，本测试第 4、5 条断言即为此而设。首行 `torch.manual_seed(0)`；失败信息带 `f"actual={...}"`。验证：该测试通过，且**故意把 Phase 4 路径改成 `beta_effective(γ_t, ...)` 后该测试必须变红**（反证断言真的在守护 API 边界，而不是恒真）。**实测**：负向探针在**仓库外**的临时副本上执行（不扰动共享工作树），把 `beta.phase4_inverse_temperature(g4)` 换成 `schedule.beta_effective(float(g4), phase=4, step=88_000)`，pytest 退出码 `1`（报红），红点精确落在预期断言上——`AssertionError: Phase-4 path must be differentiable (no clamp applies)` / `assert None is not None` / `+ where None = tensor(16.).grad_fn`。这正是 `beta_effective` 四个分支全部 `as_tensor(float)` → `.item()` → `torch.tensor(float)` 所致（`requires_grad=False`），与 `design.md` D5 记录的「可微原语的导数存活 ≠ API 面通路存在」一致。探针文件已删除。
+- [x] 2.2 确认 `240/31`、`240/961` 与 `7.75` 未被混用：`7.75 = 31·σ'(0)` 是 `γ' = 0` 处的上界（由既有 `tests/test_beta.py` 钉住），`240/961 = σ'(ln(15/16))` 是 σ 侧斜率，`240/31 ≈ 7.7419355` 才是 β 侧斜率。验证：`grep -rn "7.7419\|240/31\|240/961" tests/` 的每一处命中都归属明确，`tests/test_beta.py` 内的 `7.75` 断言未被改动（`git diff tests/test_beta.py` 为空）。**实测归属**：`7.75` 的 3 处命中全在 `test_beta.py:340/344` 与 `test_safeguards.py:773`（**两文件 `git diff` 均为空**）；`240/961` / `240/31` / `!= 7.75` 的 5 处命中全在 `test_schedule.py:413/414/416/446/448/449/450`（本 change 新增）。
+
+## 3. `beta_effective` 的契约文档化（不改语义）
+
+- [x] 3.1 在 `src/decompmoe/schedule.py::beta_effective` 的 docstring 补契约声明：本函数是**排程/配置层 helper**，`gamma_p: float` 入参 + 叶子张量出参，**non-differentiable by design**；Phase 2/3 在 `γ = 0` 契约下恒为上界饱和；可微原语是 `decompmoe.beta` 的 `inverse_temperature` / `phase4_inverse_temperature`。**签名与函数体一行不改。** 验证：`git diff src/decompmoe/schedule.py` 中 `beta_effective` 的 diff 只落在 docstring 块内。
+- [x] 3.2 运行既有 6 条 `beta_effective` 断言（`test_schedule.py` 的 phase-1 / phase-2-3-use-inverse / phase-2-3-cap-binding / phase-4-continuity + `test_a3_contract_alignment.py` 的 forwards-total-steps / at-100k-unchanged），确认**0 条被破坏**。验证：`uv run pytest tests/test_schedule.py tests/test_a3_contract_alignment.py -q` 全绿。
+
+## 4. 饱和区梯度推导注释
+
+- [x] 4.1 在 `src/decompmoe/beta.py` 补推导注释：非饱和段 `|∂β^eff/∂γ| = 31.9·σ′(γ) ≤ 31.9·0.25 = 7.975`，logit 侧乘 inner-product 因子 `2` 回到 `req-7` 已钉的 `15.95`。**不新增导出常量**（`__all__` 不变）。验证：`git diff src/decompmoe/beta.py` 的 diff 全部是注释行；`python -c "import decompmoe.beta as b; print(sorted(b.__all__))"` 与改动前一致。
+
+## 5. 既有测试的陈旧注释修正
+
+- [x] 5.1 修正 `tests/test_a3_contract_alignment.py` 中 `gamma_p = 0 gives beta_param = 15.5` 的注释为 `16.05`（`0.1 + 31.9·σ(0) = 16.05`）。**断言与容差一行不得改动**——原断言成立与 `15.5`/`16.05` 的取值无关（两者都 > cap）。验证：`git diff tests/test_a3_contract_alignment.py` 的 diff 只含该行注释；该文件测试全绿。
+
+## 6. 门禁与提交
+
+- [x] 6.1 先在主工作树采样 `git status --porcelain -uall`，确认本 change 的两个制品目录未被并行 session 移动，且 `openspec/specs/decompmoe-skeleton/spec.md` 与 `src/decompmoe/gating.py` 的并行改动**不在**本 change 的写入面。验证：记录采样输出。
+- [ ] 6.2 提交本 change 的改动到 dev（**禁止 `git commit --amend`**——并行 session 共用同一 index；选择性暂存的校验必须与 `git commit` 紧邻执行，中间不留时间窗）。验证：`git log --oneline -1` 显示本 change 的新 commit。
+- [ ] 6.3 `git worktree add --detach <tmp> <my-commit>`，在该 worktree 内用主仓解释器跑 `python scripts/run_gates.py --change 2026-10-04-phase2-gamma-reset-ramp-closure`（新 worktree 无 `.venv`；`run_gates.py` 从 `__file__` 推导 repo root，故解释器来自主仓、扫描的仍是 worktree）。判据是 **`exit 0`**；`exit 1` = 报红，`exit 2` = `GATE RESULT INVALID`（判定无效，结果不可引用）。**不要在主工作树重跑碰运气。** 验证：记录退出码与 finding 数。
+- [x] 6.4 `openspec validate 2026-10-04-phase2-gamma-reset-ramp-closure --type change --strict` 与 `openspec validate --specs --strict` 均 `exit 0`。验证：记录退出码。**实测**：`Change '2026-10-04-phase2-gamma-reset-ramp-closure' is valid` / `exit=0`；`Totals: 3 passed, 0 failed (3 items)` / `exit_specs=0`（`>500 characters` 的 INFO 为既有长文本提示，非错误）。另 `lint_no_line_pointers.py` → `OK (35 file(s) scanned, 3 capability spec(s), no violations)` / `exit=0`。
+- [ ] 6.5 `git worktree remove <tmp>`。验证：`git worktree list` 中该条目消失。
+- [ ] 6.6 报告 6.3/6.4 的实测结果，**在结果产出之后**才勾选 6.3/6.4。**禁止预先勾选**——已有前例：门禁判定作废（exit 2）后制品却已打勾。
