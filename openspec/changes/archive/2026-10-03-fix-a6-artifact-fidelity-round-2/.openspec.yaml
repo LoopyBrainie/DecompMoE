@@ -1,0 +1,14 @@
+schema: spec-driven
+created: 2026-10-03
+# This change fixes fidelity defects in the artifacts produced by the archived
+# change 2026-10-03-fix-a6-audit-ledger-accuracy-and-rebaseline (plus its live
+# generator). It touches only .audit/ (gitignored, non-capability artifacts) and
+# this change's own evidence/. No requirement changes, so it declares no spec
+# delta -- which also makes it structurally incapable of the archive-time
+# anchor loss that affects delta-carrying changes.
+#
+# It deliberately does NOT edit anything under openspec/changes/archive/.
+# Corrections to the archived change are recorded as an Errata section in the
+# audit list, per CLAUDE.md section 3 (never re-run archive to fix a consumed
+# artifact).
+skip_specs: true

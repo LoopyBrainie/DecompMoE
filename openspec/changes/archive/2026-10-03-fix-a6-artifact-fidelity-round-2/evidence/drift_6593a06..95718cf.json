@@ -1,0 +1,5879 @@
+{
+ "commits": [
+  "95718cf",
+  "628d5c5",
+  "ea802c8",
+  "1612778",
+  "850ed8a",
+  "940b27c",
+  "a1f0caa",
+  "1526b98",
+  "2510ea5",
+  "16b2f46",
+  "473072e",
+  "8bd684d",
+  "fd30f5b",
+  "b05c727",
+  "a97e3a7",
+  "ccc21ab",
+  "557a54e",
+  "1afac58",
+  "c08d50f",
+  "8ba7d6f",
+  "f6461d7",
+  "188b9fb",
+  "4f3e752",
+  "969b17c",
+  "5a7e48d",
+  "315065e",
+  "2dc340d",
+  "c0ec330",
+  "e50cc02",
+  "e8771b9"
+ ],
+ "drift": {
+  "CLAUDE.md": [
+   [
+    32,
+    32
+   ]
+  ],
+  "openspec/changes/2026-09-26-followup-spec-wording-bugs-after-precision-disclosure/proposal.md": [
+   [
+    0,
+    0
+   ]
+  ],
+  "openspec/changes/2026-09-26-followup-spec-wording-bugs-after-precision-disclosure/tasks.md": [
+   [
+    0,
+    0
+   ]
+  ],
+  "openspec/changes/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/.openspec.yaml": [],
+  "openspec/changes/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/design.md": [],
+  "openspec/changes/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/proposal.md": [],
+  "openspec/changes/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/tasks.md": [],
+  "openspec/changes/2026-09-29-fix-b15-test-loss-actual-embedding/.openspec.yaml": [],
+  "openspec/changes/2026-09-29-fix-b15-test-loss-actual-embedding/design.md": [],
+  "openspec/changes/2026-09-29-fix-b15-test-loss-actual-embedding/proposal.md": [],
+  "openspec/changes/2026-09-29-fix-b15-test-loss-actual-embedding/tasks.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/.openspec.yaml": [],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/design.md": [
+   [
+    1,
+    153
+   ]
+  ],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/proposal.md": [
+   [
+    1,
+    77
+   ]
+  ],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/specs/decompmoe-skeleton/spec.md": [
+   [
+    1,
+    97
+   ]
+  ],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/specs/governance/spec.md": [
+   [
+    1,
+    62
+   ]
+  ],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/specs/wayfinder/spec.md": [
+   [
+    1,
+    27
+   ]
+  ],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/tasks.md": [
+   [
+    1,
+    159
+   ]
+  ],
+  "openspec/changes/archive/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/.openspec.yaml": [],
+  "openspec/changes/archive/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/design.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/proposal.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/tasks.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b15-test-loss-actual-embedding/.openspec.yaml": [],
+  "openspec/changes/archive/2026-09-29-fix-b15-test-loss-actual-embedding/design.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b15-test-loss-actual-embedding/proposal.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b15-test-loss-actual-embedding/tasks.md": [],
+  "openspec/changes/archive/2026-09-30-fix-config-docstring-beta-line-drift/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-09-30-fix-config-docstring-beta-line-drift/design.md": [],
+  "openspec/changes/archive/2026-09-30-fix-config-docstring-beta-line-drift/proposal.md": [],
+  "openspec/changes/archive/2026-09-30-fix-config-docstring-beta-line-drift/specs/decompmoe-skeleton/spec.md": [],
+  "openspec/changes/archive/2026-09-30-fix-config-docstring-beta-line-drift/tasks.md": [
+   [
+    1,
+    118
+   ]
+  ],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/.openspec.yaml": [
+   [
+    1,
+    4
+   ]
+  ],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/design.md": [
+   [
+    1,
+    171
+   ]
+  ],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/proposal.md": [
+   [
+    1,
+    109
+   ]
+  ],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/specs/decompmoe-skeleton/spec.md": [
+   [
+    1,
+    42
+   ]
+  ],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/specs/governance/spec.md": [
+   [
+    1,
+    60
+   ]
+  ],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/specs/wayfinder/spec.md": [
+   [
+    1,
+    57
+   ]
+  ],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/tasks.md": [
+   [
+    1,
+    81
+   ]
+  ],
+  "openspec/changes/archive/2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift/design.md": [
+   [
+    1,
+    61
+   ]
+  ],
+  "openspec/changes/archive/2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift/proposal.md": [
+   [
+    1,
+    79
+   ]
+  ],
+  "openspec/changes/archive/2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift/specs/wayfinder/spec.md": [
+   [
+    1,
+    111
+   ]
+  ],
+  "openspec/changes/archive/2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift/tasks.md": [
+   [
+    1,
+    93
+   ]
+  ],
+  "openspec/changes/archive/2026-10-01-fix-f4-f5-f6-f7-loss-guard-fidelity/.openspec.yaml": [
+   [
+    1,
+    3
+   ]
+  ],
+  "openspec/changes/archive/2026-10-01-fix-f4-f5-f6-f7-loss-guard-fidelity/design.md": [
+   [
+    1,
+    58
+   ]
+  ],
+  "openspec/changes/archive/2026-10-01-fix-f4-f5-f6-f7-loss-guard-fidelity/proposal.md": [
+   [
+    1,
+    62
+   ]
+  ],
+  "openspec/changes/archive/2026-10-01-fix-f4-f5-f6-f7-loss-guard-fidelity/tasks.md": [
+   [
+    1,
+    51
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/design.md": [
+   [
+    1,
+    187
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/proposal.md": [
+   [
+    1,
+    35
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/specs/decompmoe-skeleton/spec.md": [
+   [
+    1,
+    71
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/specs/governance/spec.md": [
+   [
+    1,
+    62
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/specs/wayfinder/spec.md": [
+   [
+    1,
+    124
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/tasks.md": [
+   [
+    1,
+    44
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-code-align-low-risk/.openspec.yaml": [
+   [
+    1,
+    3
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-code-align-low-risk/design.md": [
+   [
+    1,
+    67
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-code-align-low-risk/proposal.md": [
+   [
+    1,
+    73
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-code-align-low-risk/tasks.md": [
+   [
+    1,
+    13
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/design.md": [
+   [
+    1,
+    128
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/proposal.md": [
+   [
+    1,
+    89
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/specs/decompmoe-skeleton/spec.md": [
+   [
+    1,
+    24
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/specs/governance/spec.md": [
+   [
+    1,
+    62
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/specs/wayfinder/spec.md": [
+   [
+    1,
+    164
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/tasks.md": [
+   [
+    1,
+    25
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-resurrection-clone-and-phase0-mask/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-resurrection-clone-and-phase0-mask/design.md": [
+   [
+    1,
+    134
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-resurrection-clone-and-phase0-mask/proposal.md": [
+   [
+    1,
+    77
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-resurrection-clone-and-phase0-mask/specs/wayfinder/spec.md": [
+   [
+    1,
+    49
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-resurrection-clone-and-phase0-mask/tasks.md": [
+   [
+    1,
+    14
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-skeleton-phase0-mask-and-totality/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-skeleton-phase0-mask-and-totality/design.md": [
+   [
+    1,
+    66
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-skeleton-phase0-mask-and-totality/proposal.md": [
+   [
+    1,
+    74
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-skeleton-phase0-mask-and-totality/specs/decompmoe-skeleton/spec.md": [
+   [
+    1,
+    77
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-skeleton-phase0-mask-and-totality/tasks.md": [
+   [
+    1,
+    16
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-wayfinder-phase0-territory-and-wb/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-wayfinder-phase0-territory-and-wb/design.md": [
+   [
+    1,
+    72
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-wayfinder-phase0-territory-and-wb/proposal.md": [
+   [
+    1,
+    72
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-wayfinder-phase0-territory-and-wb/specs/wayfinder/spec.md": [
+   [
+    1,
+    65
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-wayfinder-phase0-territory-and-wb/tasks.md": [
+   [
+    1,
+    10
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-audit-a2-errata-and-spec-math-fixes/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-audit-a2-errata-and-spec-math-fixes/design.md": [
+   [
+    1,
+    203
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-audit-a2-errata-and-spec-math-fixes/proposal.md": [
+   [
+    1,
+    62
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-audit-a2-errata-and-spec-math-fixes/specs/decompmoe-skeleton/spec.md": [
+   [
+    1,
+    111
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-audit-a2-errata-and-spec-math-fixes/specs/wayfinder/spec.md": [
+   [
+    1,
+    124
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-audit-a2-errata-and-spec-math-fixes/tasks.md": [
+   [
+    1,
+    69
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/README.md": [
+   [
+    1,
+    3
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/design.md": [
+   [
+    1,
+    56
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/evidence/check_base_drift.py": [
+   [
+    1,
+    81
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/evidence/gen_delta.py": [
+   [
+    1,
+    235
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/evidence/pytest_approx_semantics.py": [
+   [
+    1,
+    83
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/evidence/tools/diff_delta_block.py": [
+   [
+    1,
+    78
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/evidence/tools/verify_approx_claims.py": [
+   [
+    1,
+    56
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/evidence/tools/verify_beta_is_superset.py": [
+   [
+    1,
+    127
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/proposal.md": [
+   [
+    1,
+    71
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/specs/governance/spec.md": [
+   [
+    1,
+    61
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/tasks.md": [
+   [
+    1,
+    27
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/design.md": [
+   [
+    1,
+    119
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/anchor_fingerprint.json": [
+   [
+    1,
+    23
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/anchor_survey_pre_archive.json": [
+   [
+    1,
+    35
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/concurrent_files_hash_manifest.json": [
+   [
+    1,
+    39
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/dc2_conditioning.json": [
+   [
+    1,
+    62
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/docstring_numbers.json": [
+   [
+    1,
+    184
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/new_actuals.json": [
+   [
+    1,
+    250
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/new_actuals_exact.json": [
+   [
+    1,
+    125
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/oracle.py": [
+   [
+    1,
+    126
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/pre_apply_status.json": [
+   [
+    1,
+    70
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/pre_archive_baseline.json": [
+   [
+    1,
+    87
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/red_green_witness.json": [
+   [
+    1,
+    14
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/wayfinder_numbers.json": [
+   [
+    1,
+    45
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/proposal.md": [
+   [
+    1,
+    56
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/specs/decompmoe-skeleton/spec.md": [
+   [
+    1,
+    51
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/specs/governance/spec.md": [
+   [
+    1,
+    62
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/specs/wayfinder/spec.md": [
+   [
+    1,
+    59
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/tasks.md": [
+   [
+    1,
+    46
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/.openspec.yaml": [
+   [
+    1,
+    3
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/design.md": [
+   [
+    1,
+    237
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/SUPERSEDED_quad_chain_scan_freetext.json": [
+   [
+    1,
+    1211
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/anchor_loss_report.json": [
+   [
+    1,
+    92
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/audit_findings.json": [
+   [
+    1,
+    1870
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/audit_index.json": [
+   [
+    1,
+    621
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/baseline.json": [
+   [
+    1,
+    648
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/errata_index.json": [
+   [
+    1,
+    525
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/excluded.json": [
+   [
+    1,
+    133
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/ledger.json": [
+   [
+    1,
+    3395
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/ledger.json.pre-xbucket": [
+   [
+    1,
+    3395
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/lineage_recheck.json": [
+   [
+    1,
+    114
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/oracle_recheck.json": [
+   [
+    1,
+    162
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_alpha_forensics.py": [
+   [
+    1,
+    99
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_anchor_37_forensics.py": [
+   [
+    1,
+    109
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_decisive_h1_h2.py": [
+   [
+    1,
+    136
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_gen_alpha_delta.py": [
+   [
+    1,
+    135
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_m8_negative_test.py": [
+   [
+    1,
+    106
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_patch_x_bucket.py": [
+   [
+    1,
+    91
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_postmortem_probe.py": [
+   [
+    1,
+    110
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_pytest_approx_semantics.py": [
+   [
+    1,
+    83
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_verify_review3_claims.py": [
+   [
+    1,
+    174
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_0.2.txt": [
+   [
+    1,
+    4
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_0.3.txt": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_0.4.txt": [
+   [
+    1,
+    6
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_0.5.txt": [
+   [
+    1,
+    1
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_1.txt": [
+   [
+    1,
+    11
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_2.txt": [
+   [
+    1,
+    13
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_3.txt": [
+   [
+    1,
+    11
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_4.txt": [
+   [
+    1,
+    12
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_5.txt": [
+   [
+    1,
+    12
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_7.txt": [
+   [
+    1,
+    6
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_audit_index.py": [
+   [
+    1,
+    115
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_baseline.py": [
+   [
+    1,
+    312
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_errata_index.py": [
+   [
+    1,
+    277
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_excluded_index.py": [
+   [
+    1,
+    151
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_ledger.py": [
+   [
+    1,
+    354
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/check_ledger.py": [
+   [
+    1,
+    591
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/crlf_discriminator.py": [
+   [
+    1,
+    94
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/diff_anchor_inventory.py": [
+   [
+    1,
+    69
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/measure_worktree_state.py": [
+   [
+    1,
+    155
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/oracle_recheck.py": [
+   [
+    1,
+    167
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/parse_findings.py": [
+   [
+    1,
+    134
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/patch_tasks_line.py": [
+   [
+    1,
+    43
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/probe_self_diagnosis.py": [
+   [
+    1,
+    71
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/raw_git_show_sphere_HEAD.py.txt": [
+   [
+    1,
+    537
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/raw_git_show_wayfinder_HEAD.txt": [
+   [
+    1,
+    895
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/recheck_lineage_adjudication.py": [
+   [
+    1,
+    186
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/relocate_tools.py": [
+   [
+    1,
+    72
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/repoint_root_lines.py": [
+   [
+    1,
+    66
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/snapshot_truth_source.py": [
+   [
+    1,
+    94
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/spec_shape_probe.py": [
+   [
+    1,
+    57
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/superseded_freetext_scan.py": [
+   [
+    1,
+    116
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/verify_anchor_three_ways.py": [
+   [
+    1,
+    171
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/verify_toolchain.py": [
+   [
+    1,
+    133
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/truth_source_snapshot.json": [
+   [
+    1,
+    376
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/truth_source_snapshot.pre-alpha-apply.json": [
+   [
+    1,
+    371
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/truth_source_snapshot.pre-beta-apply.json": [
+   [
+    1,
+    376
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/worktree_state.json": [
+   [
+    1,
+    53
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/proposal.md": [
+   [
+    1,
+    39
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/tasks.md": [
+   [
+    1,
+    120
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/README.md": [
+   [
+    1,
+    3
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/design.md": [
+   [
+    1,
+    62
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/evidence/check_delta_structure.py": [
+   [
+    1,
+    104
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/evidence/delta_apply_plan.json": [
+   [
+    1,
+    12
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/evidence/gen_deltas.py": [
+   [
+    1,
+    96
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/evidence/req_gov_5.md": [
+   [
+    1,
+    51
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/proposal.md": [
+   [
+    1,
+    50
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/specs/decompmoe-skeleton/spec.md": [
+   [
+    1,
+    49
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/specs/governance/spec.md": [
+   [
+    1,
+    112
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/tasks.md": [
+   [
+    1,
+    26
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/design.md": [
+   [
+    1,
+    116
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/anchor-ledger-before.json": [
+   [
+    1,
+    85
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/anchor-ledger-post.json": [
+   [
+    1,
+    85
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/gen_deltas.py": [
+   [
+    1,
+    324
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/incident.md": [
+   [
+    1,
+    64
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/verify_deltas.py": [
+   [
+    1,
+    237
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/proposal.md": [
+   [
+    1,
+    91
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/specs/governance/spec.md": [
+   [
+    1,
+    104
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/specs/wayfinder/spec.md": [
+   [
+    1,
+    84
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/tasks.md": [
+   [
+    1,
+    80
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/design.md": [
+   [
+    1,
+    328
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/_repo.py": [
+   [
+    1,
+    40
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/ac63_numeric_verification.py": [
+   [
+    1,
+    116
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/anchor-ledger-before.json": [
+   [
+    1,
+    84
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/append_a4_errata.py": [
+   [
+    1,
+    168
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/apply_deltas.py": [
+   [
+    1,
+    244
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/audit_exemptions.py": [
+   [
+    1,
+    44
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/baseline_head.txt": [
+   [
+    1,
+    1
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/derive_a4_errata.py": [
+   [
+    1,
+    73
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/diag_anchors.py": [
+   [
+    1,
+    73
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/extract_a4_fields.py": [
+   [
+    1,
+    46
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/fix_final_sites.py": [
+   [
+    1,
+    132
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/fix_flipped_sites.py": [
+   [
+    1,
+    108
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/fix_req15_delta_block.py": [
+   [
+    1,
+    98
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/fix_req15_handoff.py": [
+   [
+    1,
+    114
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/fix_root_value_corruption.py": [
+   [
+    1,
+    85
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/gen_deltas.py": [
+   [
+    1,
+    761
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/lint_prechange.txt": [
+   [
+    1,
+    221
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/lint_run.txt": [
+   [
+    1,
+    11
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/locate_flipped.py": [
+   [
+    1,
+    57
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/measure_marker_tightening.py": [
+   [
+    1,
+    61
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/pointer_census.json": [
+   [
+    1,
+    31
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/pointer_census.py": [
+   [
+    1,
+    400
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/probe_c4.py": [
+   [
+    1,
+    47
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/probe_spec.py": [
+   [
+    1,
+    53
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/repoint_evidence_roots.py": [
+   [
+    1,
+    131
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/rewrite_pointers.py": [
+   [
+    1,
+    181
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/show_census.py": [
+   [
+    1,
+    25
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/strip_anchor_prose.py": [
+   [
+    1,
+    138
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/summarize_lint.py": [
+   [
+    1,
+    40
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/target_decisions.py": [
+   [
+    1,
+    108
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/verify_ac63_guard.py": [
+   [
+    1,
+    80
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/verify_apply.py": [
+   [
+    1,
+    163
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/verify_deltas.py": [
+   [
+    1,
+    168
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/worklist.py": [
+   [
+    1,
+    101
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/worklist.txt": [
+   [
+    1,
+    306
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/proposal.md": [
+   [
+    1,
+    44
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/specs/decompmoe-skeleton/spec.md": [
+   [
+    1,
+    150
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/specs/governance/spec.md": [
+   [
+    1,
+    164
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/specs/wayfinder/spec.md": [
+   [
+    1,
+    275
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/tasks.md": [
+   [
+    1,
+    107
+   ]
+  ],
+  "openspec/changes/fix-config-docstring-beta-line-drift/.openspec.yaml": [],
+  "openspec/changes/fix-config-docstring-beta-line-drift/design.md": [],
+  "openspec/changes/fix-config-docstring-beta-line-drift/proposal.md": [],
+  "openspec/changes/fix-config-docstring-beta-line-drift/specs/decompmoe-skeleton/spec.md": [],
+  "openspec/changes/fix-config-docstring-beta-line-drift/tasks.md": [
+   [
+    0,
+    0
+   ]
+  ],
+  "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/proposal.md": [
+   [
+    0,
+    0
+   ]
+  ],
+  "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/tasks.md": [
+   [
+    0,
+    0
+   ]
+  ],
+  "openspec/specs/decompmoe-skeleton/spec.md": [
+   [
+    12,
+    12
+   ],
+   [
+    34,
+    34
+   ],
+   [
+    98,
+    98
+   ],
+   [
+    113,
+    116
+   ],
+   [
+    132,
+    132
+   ],
+   [
+    135,
+    141
+   ],
+   [
+    150,
+    150
+   ],
+   [
+    158,
+    158
+   ],
+   [
+    162,
+    162
+   ],
+   [
+    261,
+    261
+   ],
+   [
+    273,
+    273
+   ],
+   [
+    276,
+    277
+   ],
+   [
+    332,
+    335
+   ],
+   [
+    346,
+    346
+   ],
+   [
+    376,
+    376
+   ],
+   [
+    382,
+    382
+   ],
+   [
+    385,
+    386
+   ],
+   [
+    400,
+    409
+   ],
+   [
+    430,
+    430
+   ],
+   [
+    432,
+    432
+   ],
+   [
+    434,
+    436
+   ],
+   [
+    444,
+    444
+   ],
+   [
+    475,
+    475
+   ],
+   [
+    511,
+    511
+   ],
+   [
+    513,
+    513
+   ],
+   [
+    515,
+    517
+   ],
+   [
+    540,
+    540
+   ],
+   [
+    631,
+    631
+   ],
+   [
+    634,
+    635
+   ],
+   [
+    639,
+    641
+   ],
+   [
+    643,
+    643
+   ],
+   [
+    647,
+    647
+   ],
+   [
+    653,
+    653
+   ],
+   [
+    656,
+    656
+   ]
+  ],
+  "openspec/specs/governance/spec.md": [
+   [
+    13,
+    13
+   ],
+   [
+    15,
+    15
+   ],
+   [
+    17,
+    17
+   ],
+   [
+    20,
+    22
+   ],
+   [
+    26,
+    26
+   ],
+   [
+    28,
+    28
+   ],
+   [
+    30,
+    30
+   ],
+   [
+    32,
+    32
+   ],
+   [
+    37,
+    37
+   ],
+   [
+    42,
+    42
+   ],
+   [
+    46,
+    47
+   ],
+   [
+    52,
+    52
+   ],
+   [
+    56,
+    57
+   ],
+   [
+    62,
+    64
+   ],
+   [
+    70,
+    70
+   ],
+   [
+    79,
+    79
+   ],
+   [
+    84,
+    99
+   ],
+   [
+    145,
+    145
+   ],
+   [
+    172,
+    172
+   ],
+   [
+    190,
+    440
+   ]
+  ],
+  "openspec/specs/wayfinder/spec.md": [
+   [
+    24,
+    24
+   ],
+   [
+    32,
+    48
+   ],
+   [
+    100,
+    100
+   ],
+   [
+    147,
+    147
+   ],
+   [
+    163,
+    163
+   ],
+   [
+    172,
+    174
+   ],
+   [
+    251,
+    251
+   ],
+   [
+    253,
+    253
+   ],
+   [
+    258,
+    259
+   ],
+   [
+    263,
+    263
+   ],
+   [
+    266,
+    266
+   ],
+   [
+    269,
+    269
+   ],
+   [
+    273,
+    273
+   ],
+   [
+    294,
+    295
+   ],
+   [
+    300,
+    300
+   ],
+   [
+    335,
+    335
+   ],
+   [
+    346,
+    347
+   ],
+   [
+    377,
+    377
+   ],
+   [
+    401,
+    401
+   ],
+   [
+    403,
+    403
+   ],
+   [
+    417,
+    417
+   ],
+   [
+    419,
+    419
+   ],
+   [
+    435,
+    436
+   ],
+   [
+    450,
+    450
+   ],
+   [
+    452,
+    452
+   ],
+   [
+    456,
+    456
+   ],
+   [
+    472,
+    474
+   ],
+   [
+    481,
+    481
+   ],
+   [
+    485,
+    485
+   ],
+   [
+    536,
+    573
+   ],
+   [
+    630,
+    630
+   ],
+   [
+    634,
+    635
+   ],
+   [
+    646,
+    646
+   ],
+   [
+    702,
+    702
+   ],
+   [
+    735,
+    735
+   ],
+   [
+    737,
+    737
+   ],
+   [
+    741,
+    741
+   ],
+   [
+    794,
+    794
+   ],
+   [
+    796,
+    796
+   ],
+   [
+    803,
+    803
+   ],
+   [
+    815,
+    815
+   ],
+   [
+    819,
+    820
+   ],
+   [
+    824,
+    825
+   ],
+   [
+    828,
+    832
+   ],
+   [
+    848,
+    848
+   ],
+   [
+    859,
+    859
+   ],
+   [
+    878,
+    878
+   ],
+   [
+    909,
+    909
+   ],
+   [
+    911,
+    915
+   ]
+  ],
+  "scripts/lint_no_line_pointers.py": [
+   [
+    1,
+    561
+   ]
+  ],
+  "scripts/lint_no_source_field_drift.py": [
+   [
+    106,
+    133
+   ],
+   [
+    266,
+    309
+   ],
+   [
+    351,
+    351
+   ],
+   [
+    353,
+    353
+   ],
+   [
+    356,
+    363
+   ],
+   [
+    373,
+    376
+   ],
+   [
+    381,
+    381
+   ],
+   [
+    383,
+    386
+   ],
+   [
+    393,
+    393
+   ],
+   [
+    396,
+    396
+   ],
+   [
+    399,
+    405
+   ]
+  ],
+  "scripts/run_gates.py": [
+   [
+    1,
+    544
+   ]
+  ],
+  "src/decompmoe/__init__.py": [
+   [
+    12,
+    13
+   ],
+   [
+    15,
+    15
+   ],
+   [
+    18,
+    122
+   ],
+   [
+    127,
+    134
+   ],
+   [
+    139,
+    214
+   ]
+  ],
+  "src/decompmoe/config.py": [
+   [
+    50,
+    50
+   ],
+   [
+    95,
+    96
+   ]
+  ],
+  "src/decompmoe/extraction.py": [
+   [
+    35,
+    37
+   ],
+   [
+    51,
+    55
+   ],
+   [
+    59,
+    63
+   ],
+   [
+    108,
+    108
+   ],
+   [
+    115,
+    124
+   ],
+   [
+    130,
+    130
+   ],
+   [
+    137,
+    144
+   ],
+   [
+    150,
+    164
+   ],
+   [
+    177,
+    177
+   ]
+  ],
+  "src/decompmoe/gating.py": [
+   [
+    63,
+    63
+   ]
+  ],
+  "src/decompmoe/loss.py": [
+   [
+    27,
+    28
+   ],
+   [
+    32,
+    32
+   ],
+   [
+    58,
+    64
+   ],
+   [
+    68,
+    70
+   ],
+   [
+    88,
+    88
+   ],
+   [
+    103,
+    111
+   ],
+   [
+    128,
+    132
+   ],
+   [
+    136,
+    136
+   ]
+  ],
+  "src/decompmoe/metrics.py": [
+   [
+    73,
+    78
+   ],
+   [
+    80,
+    80
+   ],
+   [
+    83,
+    99
+   ],
+   [
+    104,
+    104
+   ],
+   [
+    107,
+    123
+   ],
+   [
+    125,
+    126
+   ],
+   [
+    203,
+    203
+   ]
+  ],
+  "src/decompmoe/safeguards.py": [
+   [
+    22,
+    22
+   ],
+   [
+    58,
+    63
+   ],
+   [
+    198,
+    198
+   ],
+   [
+    203,
+    203
+   ],
+   [
+    205,
+    205
+   ],
+   [
+    214,
+    222
+   ],
+   [
+    227,
+    243
+   ],
+   [
+    245,
+    246
+   ],
+   [
+    278,
+    286
+   ],
+   [
+    294,
+    294
+   ],
+   [
+    297,
+    301
+   ]
+  ],
+  "src/decompmoe/schedule.py": [
+   [
+    146,
+    146
+   ],
+   [
+    148,
+    149
+   ],
+   [
+    152,
+    153
+   ],
+   [
+    155,
+    155
+   ],
+   [
+    158,
+    161
+   ],
+   [
+    169,
+    169
+   ],
+   [
+    172,
+    172
+   ],
+   [
+    174,
+    174
+   ],
+   [
+    177,
+    177
+   ]
+  ],
+  "src/decompmoe/sphere.py": [
+   [
+    66,
+    139
+   ],
+   [
+    142,
+    142
+   ],
+   [
+    145,
+    190
+   ],
+   [
+    201,
+    236
+   ],
+   [
+    248,
+    256
+   ],
+   [
+    262,
+    271
+   ],
+   [
+    333,
+    347
+   ],
+   [
+    350,
+    393
+   ],
+   [
+    424,
+    434
+   ],
+   [
+    438,
+    442
+   ],
+   [
+    445,
+    452
+   ],
+   [
+    460,
+    460
+   ],
+   [
+    467,
+    481
+   ],
+   [
+    483,
+    497
+   ],
+   [
+    509,
+    517
+   ],
+   [
+    519,
+    525
+   ],
+   [
+    527,
+    535
+   ]
+  ],
+  "tests/test_a3_contract_alignment.py": [
+   [
+    1,
+    653
+   ]
+  ],
+  "tests/test_beta.py": [
+   [
+    38,
+    38
+   ],
+   [
+    56,
+    56
+   ],
+   [
+    59,
+    75
+   ],
+   [
+    80,
+    84
+   ],
+   [
+    86,
+    89
+   ],
+   [
+    94,
+    94
+   ]
+  ],
+  "tests/test_config.py": [
+   [
+    100,
+    100
+   ],
+   [
+    121,
+    121
+   ],
+   [
+    128,
+    128
+   ],
+   [
+    135,
+    136
+   ],
+   [
+    139,
+    151
+   ],
+   [
+    156,
+    160
+   ],
+   [
+    163,
+    166
+   ],
+   [
+    246,
+    365
+   ]
+  ],
+  "tests/test_extraction.py": [
+   [
+    38,
+    38
+   ],
+   [
+    186,
+    186
+   ],
+   [
+    190,
+    190
+   ],
+   [
+    194,
+    194
+   ],
+   [
+    203,
+    205
+   ],
+   [
+    213,
+    224
+   ],
+   [
+    230,
+    237
+   ],
+   [
+    252,
+    252
+   ],
+   [
+    254,
+    254
+   ],
+   [
+    256,
+    290
+   ],
+   [
+    397,
+    397
+   ],
+   [
+    399,
+    404
+   ],
+   [
+    411,
+    419
+   ],
+   [
+    424,
+    424
+   ],
+   [
+    562,
+    563
+   ],
+   [
+    605,
+    605
+   ],
+   [
+    634,
+    634
+   ],
+   [
+    670,
+    673
+   ]
+  ],
+  "tests/test_extraction_phase.py": [
+   [
+    12,
+    28
+   ],
+   [
+    42,
+    44
+   ],
+   [
+    62,
+    76
+   ],
+   [
+    77,
+    77
+   ],
+   [
+    79,
+    197
+   ],
+   [
+    205,
+    211
+   ],
+   [
+    222,
+    224
+   ],
+   [
+    236,
+    240
+   ],
+   [
+    242,
+    243
+   ]
+  ],
+  "tests/test_lint_no_line_pointers.py": [
+   [
+    1,
+    388
+   ]
+  ],
+  "tests/test_lint_no_source_field_drift.py": [
+   [
+    324,
+    326
+   ],
+   [
+    332,
+    338
+   ],
+   [
+    350,
+    355
+   ],
+   [
+    363,
+    363
+   ],
+   [
+    365,
+    365
+   ],
+   [
+    394,
+    512
+   ]
+  ],
+  "tests/test_loss.py": [
+   [
+    166,
+    167
+   ],
+   [
+    168,
+    168
+   ],
+   [
+    194,
+    290
+   ]
+  ],
+  "tests/test_metrics.py": [
+   [
+    8,
+    8
+   ],
+   [
+    10,
+    10
+   ],
+   [
+    15,
+    15
+   ],
+   [
+    136,
+    136
+   ],
+   [
+    147,
+    147
+   ],
+   [
+    149,
+    149
+   ],
+   [
+    187,
+    187
+   ],
+   [
+    226,
+    226
+   ],
+   [
+    231,
+    231
+   ],
+   [
+    247,
+    247
+   ],
+   [
+    255,
+    255
+   ],
+   [
+    263,
+    263
+   ],
+   [
+    286,
+    286
+   ],
+   [
+    555,
+    668
+   ]
+  ],
+  "tests/test_run_gates.py": [
+   [
+    1,
+    421
+   ]
+  ],
+  "tests/test_safeguards.py": [
+   [
+    28,
+    28
+   ],
+   [
+    30,
+    30
+   ],
+   [
+    34,
+    34
+   ],
+   [
+    62,
+    62
+   ],
+   [
+    64,
+    64
+   ],
+   [
+    69,
+    69
+   ],
+   [
+    75,
+    75
+   ],
+   [
+    111,
+    112
+   ],
+   [
+    115,
+    121
+   ],
+   [
+    144,
+    144
+   ],
+   [
+    149,
+    194
+   ],
+   [
+    330,
+    330
+   ],
+   [
+    343,
+    343
+   ],
+   [
+    458,
+    458
+   ],
+   [
+    518,
+    523
+   ],
+   [
+    537,
+    537
+   ],
+   [
+    540,
+    542
+   ],
+   [
+    547,
+    560
+   ],
+   [
+    578,
+    578
+   ],
+   [
+    598,
+    599
+   ],
+   [
+    604,
+    604
+   ],
+   [
+    608,
+    608
+   ],
+   [
+    631,
+    635
+   ],
+   [
+    651,
+    651
+   ],
+   [
+    653,
+    653
+   ],
+   [
+    659,
+    666
+   ],
+   [
+    670,
+    671
+   ],
+   [
+    675,
+    680
+   ],
+   [
+    686,
+    686
+   ],
+   [
+    705,
+    705
+   ],
+   [
+    709,
+    709
+   ],
+   [
+    720,
+    720
+   ],
+   [
+    724,
+    724
+   ],
+   [
+    728,
+    728
+   ],
+   [
+    745,
+    745
+   ],
+   [
+    814,
+    814
+   ],
+   [
+    816,
+    816
+   ],
+   [
+    840,
+    840
+   ],
+   [
+    865,
+    865
+   ],
+   [
+    873,
+    873
+   ],
+   [
+    891,
+    891
+   ],
+   [
+    898,
+    898
+   ],
+   [
+    911,
+    911
+   ],
+   [
+    918,
+    918
+   ],
+   [
+    940,
+    940
+   ],
+   [
+    996,
+    996
+   ],
+   [
+    1033,
+    1033
+   ],
+   [
+    1101,
+    1101
+   ]
+  ],
+  "tests/test_schedule.py": [
+   [
+    62,
+    77
+   ],
+   [
+    82,
+    84
+   ],
+   [
+    87,
+    88
+   ],
+   [
+    131,
+    131
+   ],
+   [
+    195,
+    210
+   ],
+   [
+    227,
+    236
+   ],
+   [
+    243,
+    246
+   ],
+   [
+    250,
+    251
+   ],
+   [
+    256,
+    256
+   ]
+  ],
+  "tests/test_sphere.py": [
+   [
+    8,
+    8
+   ],
+   [
+    89,
+    90
+   ],
+   [
+    95,
+    113
+   ],
+   [
+    115,
+    115
+   ],
+   [
+    133,
+    133
+   ],
+   [
+    158,
+    158
+   ],
+   [
+    173,
+    242
+   ],
+   [
+    256,
+    256
+   ],
+   [
+    263,
+    263
+   ],
+   [
+    326,
+    326
+   ],
+   [
+    328,
+    346
+   ],
+   [
+    394,
+    397
+   ],
+   [
+    399,
+    400
+   ],
+   [
+    402,
+    416
+   ],
+   [
+    436,
+    444
+   ],
+   [
+    471,
+    476
+   ],
+   [
+    479,
+    479
+   ],
+   [
+    547,
+    550
+   ],
+   [
+    584,
+    584
+   ],
+   [
+    607,
+    613
+   ],
+   [
+    615,
+    615
+   ],
+   [
+    617,
+    619
+   ],
+   [
+    639,
+    640
+   ],
+   [
+    642,
+    650
+   ],
+   [
+    652,
+    680
+   ],
+   [
+    682,
+    683
+   ],
+   [
+    685,
+    687
+   ],
+   [
+    691,
+    746
+   ],
+   [
+    757,
+    762
+   ],
+   [
+    786,
+    804
+   ],
+   [
+    806,
+    811
+   ],
+   [
+    861,
+    861
+   ],
+   [
+    864,
+    864
+   ],
+   [
+    883,
+    910
+   ],
+   [
+    983,
+    1442
+   ]
+  ],
+  "wayfinder/tickets/A8-2.md": [
+   [
+    38,
+    38
+   ],
+   [
+    93,
+    93
+   ]
+  ]
+ },
+ "head": "95718cfa0b7e417935d2fbdd873eb7fec06ebb9b",
+ "inserted": {
+  "CLAUDE.md": [],
+  "openspec/changes/2026-09-26-followup-spec-wording-bugs-after-precision-disclosure/proposal.md": [],
+  "openspec/changes/2026-09-26-followup-spec-wording-bugs-after-precision-disclosure/tasks.md": [],
+  "openspec/changes/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/.openspec.yaml": [],
+  "openspec/changes/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/design.md": [],
+  "openspec/changes/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/proposal.md": [],
+  "openspec/changes/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/tasks.md": [],
+  "openspec/changes/2026-09-29-fix-b15-test-loss-actual-embedding/.openspec.yaml": [],
+  "openspec/changes/2026-09-29-fix-b15-test-loss-actual-embedding/design.md": [],
+  "openspec/changes/2026-09-29-fix-b15-test-loss-actual-embedding/proposal.md": [],
+  "openspec/changes/2026-09-29-fix-b15-test-loss-actual-embedding/tasks.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/.openspec.yaml": [],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/design.md": [
+   [
+    1,
+    153
+   ]
+  ],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/proposal.md": [
+   [
+    1,
+    77
+   ]
+  ],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/specs/decompmoe-skeleton/spec.md": [
+   [
+    1,
+    97
+   ]
+  ],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/specs/governance/spec.md": [
+   [
+    1,
+    62
+   ]
+  ],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/specs/wayfinder/spec.md": [
+   [
+    1,
+    27
+   ]
+  ],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/tasks.md": [
+   [
+    1,
+    159
+   ]
+  ],
+  "openspec/changes/archive/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/.openspec.yaml": [],
+  "openspec/changes/archive/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/design.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/proposal.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/tasks.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b15-test-loss-actual-embedding/.openspec.yaml": [],
+  "openspec/changes/archive/2026-09-29-fix-b15-test-loss-actual-embedding/design.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b15-test-loss-actual-embedding/proposal.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b15-test-loss-actual-embedding/tasks.md": [],
+  "openspec/changes/archive/2026-09-30-fix-config-docstring-beta-line-drift/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-09-30-fix-config-docstring-beta-line-drift/design.md": [],
+  "openspec/changes/archive/2026-09-30-fix-config-docstring-beta-line-drift/proposal.md": [],
+  "openspec/changes/archive/2026-09-30-fix-config-docstring-beta-line-drift/specs/decompmoe-skeleton/spec.md": [],
+  "openspec/changes/archive/2026-09-30-fix-config-docstring-beta-line-drift/tasks.md": [
+   [
+    1,
+    118
+   ]
+  ],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/.openspec.yaml": [
+   [
+    1,
+    4
+   ]
+  ],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/design.md": [
+   [
+    1,
+    171
+   ]
+  ],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/proposal.md": [
+   [
+    1,
+    109
+   ]
+  ],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/specs/decompmoe-skeleton/spec.md": [
+   [
+    1,
+    42
+   ]
+  ],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/specs/governance/spec.md": [
+   [
+    1,
+    60
+   ]
+  ],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/specs/wayfinder/spec.md": [
+   [
+    1,
+    57
+   ]
+  ],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/tasks.md": [
+   [
+    1,
+    81
+   ]
+  ],
+  "openspec/changes/archive/2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift/design.md": [
+   [
+    1,
+    61
+   ]
+  ],
+  "openspec/changes/archive/2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift/proposal.md": [
+   [
+    1,
+    79
+   ]
+  ],
+  "openspec/changes/archive/2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift/specs/wayfinder/spec.md": [
+   [
+    1,
+    111
+   ]
+  ],
+  "openspec/changes/archive/2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift/tasks.md": [
+   [
+    1,
+    93
+   ]
+  ],
+  "openspec/changes/archive/2026-10-01-fix-f4-f5-f6-f7-loss-guard-fidelity/.openspec.yaml": [
+   [
+    1,
+    3
+   ]
+  ],
+  "openspec/changes/archive/2026-10-01-fix-f4-f5-f6-f7-loss-guard-fidelity/design.md": [
+   [
+    1,
+    58
+   ]
+  ],
+  "openspec/changes/archive/2026-10-01-fix-f4-f5-f6-f7-loss-guard-fidelity/proposal.md": [
+   [
+    1,
+    62
+   ]
+  ],
+  "openspec/changes/archive/2026-10-01-fix-f4-f5-f6-f7-loss-guard-fidelity/tasks.md": [
+   [
+    1,
+    51
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/design.md": [
+   [
+    1,
+    187
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/proposal.md": [
+   [
+    1,
+    35
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/specs/decompmoe-skeleton/spec.md": [
+   [
+    1,
+    71
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/specs/governance/spec.md": [
+   [
+    1,
+    62
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/specs/wayfinder/spec.md": [
+   [
+    1,
+    124
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/tasks.md": [
+   [
+    1,
+    44
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-code-align-low-risk/.openspec.yaml": [
+   [
+    1,
+    3
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-code-align-low-risk/design.md": [
+   [
+    1,
+    67
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-code-align-low-risk/proposal.md": [
+   [
+    1,
+    73
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-code-align-low-risk/tasks.md": [
+   [
+    1,
+    13
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/design.md": [
+   [
+    1,
+    128
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/proposal.md": [
+   [
+    1,
+    89
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/specs/decompmoe-skeleton/spec.md": [
+   [
+    1,
+    24
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/specs/governance/spec.md": [
+   [
+    1,
+    62
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/specs/wayfinder/spec.md": [
+   [
+    1,
+    164
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/tasks.md": [
+   [
+    1,
+    25
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-resurrection-clone-and-phase0-mask/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-resurrection-clone-and-phase0-mask/design.md": [
+   [
+    1,
+    134
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-resurrection-clone-and-phase0-mask/proposal.md": [
+   [
+    1,
+    77
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-resurrection-clone-and-phase0-mask/specs/wayfinder/spec.md": [
+   [
+    1,
+    49
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-resurrection-clone-and-phase0-mask/tasks.md": [
+   [
+    1,
+    14
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-skeleton-phase0-mask-and-totality/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-skeleton-phase0-mask-and-totality/design.md": [
+   [
+    1,
+    66
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-skeleton-phase0-mask-and-totality/proposal.md": [
+   [
+    1,
+    74
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-skeleton-phase0-mask-and-totality/specs/decompmoe-skeleton/spec.md": [
+   [
+    1,
+    77
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-skeleton-phase0-mask-and-totality/tasks.md": [
+   [
+    1,
+    16
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-wayfinder-phase0-territory-and-wb/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-wayfinder-phase0-territory-and-wb/design.md": [
+   [
+    1,
+    72
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-wayfinder-phase0-territory-and-wb/proposal.md": [
+   [
+    1,
+    72
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-wayfinder-phase0-territory-and-wb/specs/wayfinder/spec.md": [
+   [
+    1,
+    65
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-a3-wayfinder-phase0-territory-and-wb/tasks.md": [
+   [
+    1,
+    10
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-audit-a2-errata-and-spec-math-fixes/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-audit-a2-errata-and-spec-math-fixes/design.md": [
+   [
+    1,
+    203
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-audit-a2-errata-and-spec-math-fixes/proposal.md": [
+   [
+    1,
+    62
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-audit-a2-errata-and-spec-math-fixes/specs/decompmoe-skeleton/spec.md": [
+   [
+    1,
+    111
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-audit-a2-errata-and-spec-math-fixes/specs/wayfinder/spec.md": [
+   [
+    1,
+    124
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-audit-a2-errata-and-spec-math-fixes/tasks.md": [
+   [
+    1,
+    69
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/README.md": [
+   [
+    1,
+    3
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/design.md": [
+   [
+    1,
+    56
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/evidence/check_base_drift.py": [
+   [
+    1,
+    81
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/evidence/gen_delta.py": [
+   [
+    1,
+    235
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/evidence/pytest_approx_semantics.py": [
+   [
+    1,
+    83
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/evidence/tools/diff_delta_block.py": [
+   [
+    1,
+    78
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/evidence/tools/verify_approx_claims.py": [
+   [
+    1,
+    56
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/evidence/tools/verify_beta_is_superset.py": [
+   [
+    1,
+    127
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/proposal.md": [
+   [
+    1,
+    71
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/specs/governance/spec.md": [
+   [
+    1,
+    61
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/tasks.md": [
+   [
+    1,
+    27
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/design.md": [
+   [
+    1,
+    119
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/anchor_fingerprint.json": [
+   [
+    1,
+    23
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/anchor_survey_pre_archive.json": [
+   [
+    1,
+    35
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/concurrent_files_hash_manifest.json": [
+   [
+    1,
+    39
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/dc2_conditioning.json": [
+   [
+    1,
+    62
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/docstring_numbers.json": [
+   [
+    1,
+    184
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/new_actuals.json": [
+   [
+    1,
+    250
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/new_actuals_exact.json": [
+   [
+    1,
+    125
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/oracle.py": [
+   [
+    1,
+    126
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/pre_apply_status.json": [
+   [
+    1,
+    70
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/pre_archive_baseline.json": [
+   [
+    1,
+    87
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/red_green_witness.json": [
+   [
+    1,
+    14
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/wayfinder_numbers.json": [
+   [
+    1,
+    45
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/proposal.md": [
+   [
+    1,
+    56
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/specs/decompmoe-skeleton/spec.md": [
+   [
+    1,
+    51
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/specs/governance/spec.md": [
+   [
+    1,
+    62
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/specs/wayfinder/spec.md": [
+   [
+    1,
+    59
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/tasks.md": [
+   [
+    1,
+    46
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/.openspec.yaml": [
+   [
+    1,
+    3
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/design.md": [
+   [
+    1,
+    237
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/SUPERSEDED_quad_chain_scan_freetext.json": [
+   [
+    1,
+    1211
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/anchor_loss_report.json": [
+   [
+    1,
+    92
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/audit_findings.json": [
+   [
+    1,
+    1870
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/audit_index.json": [
+   [
+    1,
+    621
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/baseline.json": [
+   [
+    1,
+    648
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/errata_index.json": [
+   [
+    1,
+    525
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/excluded.json": [
+   [
+    1,
+    133
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/ledger.json": [
+   [
+    1,
+    3395
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/ledger.json.pre-xbucket": [
+   [
+    1,
+    3395
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/lineage_recheck.json": [
+   [
+    1,
+    114
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/oracle_recheck.json": [
+   [
+    1,
+    162
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_alpha_forensics.py": [
+   [
+    1,
+    99
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_anchor_37_forensics.py": [
+   [
+    1,
+    109
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_decisive_h1_h2.py": [
+   [
+    1,
+    136
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_gen_alpha_delta.py": [
+   [
+    1,
+    135
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_m8_negative_test.py": [
+   [
+    1,
+    106
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_patch_x_bucket.py": [
+   [
+    1,
+    91
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_postmortem_probe.py": [
+   [
+    1,
+    110
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_pytest_approx_semantics.py": [
+   [
+    1,
+    83
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_verify_review3_claims.py": [
+   [
+    1,
+    174
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_0.2.txt": [
+   [
+    1,
+    4
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_0.3.txt": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_0.4.txt": [
+   [
+    1,
+    6
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_0.5.txt": [
+   [
+    1,
+    1
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_1.txt": [
+   [
+    1,
+    11
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_2.txt": [
+   [
+    1,
+    13
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_3.txt": [
+   [
+    1,
+    11
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_4.txt": [
+   [
+    1,
+    12
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_5.txt": [
+   [
+    1,
+    12
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_7.txt": [
+   [
+    1,
+    6
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_audit_index.py": [
+   [
+    1,
+    115
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_baseline.py": [
+   [
+    1,
+    312
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_errata_index.py": [
+   [
+    1,
+    277
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_excluded_index.py": [
+   [
+    1,
+    151
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_ledger.py": [
+   [
+    1,
+    354
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/check_ledger.py": [
+   [
+    1,
+    591
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/crlf_discriminator.py": [
+   [
+    1,
+    94
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/diff_anchor_inventory.py": [
+   [
+    1,
+    69
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/measure_worktree_state.py": [
+   [
+    1,
+    155
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/oracle_recheck.py": [
+   [
+    1,
+    167
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/parse_findings.py": [
+   [
+    1,
+    134
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/patch_tasks_line.py": [
+   [
+    1,
+    43
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/probe_self_diagnosis.py": [
+   [
+    1,
+    71
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/raw_git_show_sphere_HEAD.py.txt": [
+   [
+    1,
+    537
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/raw_git_show_wayfinder_HEAD.txt": [
+   [
+    1,
+    895
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/recheck_lineage_adjudication.py": [
+   [
+    1,
+    186
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/relocate_tools.py": [
+   [
+    1,
+    72
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/repoint_root_lines.py": [
+   [
+    1,
+    66
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/snapshot_truth_source.py": [
+   [
+    1,
+    94
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/spec_shape_probe.py": [
+   [
+    1,
+    57
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/superseded_freetext_scan.py": [
+   [
+    1,
+    116
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/verify_anchor_three_ways.py": [
+   [
+    1,
+    171
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/verify_toolchain.py": [
+   [
+    1,
+    133
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/truth_source_snapshot.json": [
+   [
+    1,
+    376
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/truth_source_snapshot.pre-alpha-apply.json": [
+   [
+    1,
+    371
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/truth_source_snapshot.pre-beta-apply.json": [
+   [
+    1,
+    376
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/worktree_state.json": [
+   [
+    1,
+    53
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/proposal.md": [
+   [
+    1,
+    39
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/tasks.md": [
+   [
+    1,
+    120
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/README.md": [
+   [
+    1,
+    3
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/design.md": [
+   [
+    1,
+    62
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/evidence/check_delta_structure.py": [
+   [
+    1,
+    104
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/evidence/delta_apply_plan.json": [
+   [
+    1,
+    12
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/evidence/gen_deltas.py": [
+   [
+    1,
+    96
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/evidence/req_gov_5.md": [
+   [
+    1,
+    51
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/proposal.md": [
+   [
+    1,
+    50
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/specs/decompmoe-skeleton/spec.md": [
+   [
+    1,
+    49
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/specs/governance/spec.md": [
+   [
+    1,
+    112
+   ]
+  ],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/tasks.md": [
+   [
+    1,
+    26
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/design.md": [
+   [
+    1,
+    116
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/anchor-ledger-before.json": [
+   [
+    1,
+    85
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/anchor-ledger-post.json": [
+   [
+    1,
+    85
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/gen_deltas.py": [
+   [
+    1,
+    324
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/incident.md": [
+   [
+    1,
+    64
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/verify_deltas.py": [
+   [
+    1,
+    237
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/proposal.md": [
+   [
+    1,
+    91
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/specs/governance/spec.md": [
+   [
+    1,
+    104
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/specs/wayfinder/spec.md": [
+   [
+    1,
+    84
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/tasks.md": [
+   [
+    1,
+    80
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/.openspec.yaml": [
+   [
+    1,
+    2
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/design.md": [
+   [
+    1,
+    328
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/_repo.py": [
+   [
+    1,
+    40
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/ac63_numeric_verification.py": [
+   [
+    1,
+    116
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/anchor-ledger-before.json": [
+   [
+    1,
+    84
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/append_a4_errata.py": [
+   [
+    1,
+    168
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/apply_deltas.py": [
+   [
+    1,
+    244
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/audit_exemptions.py": [
+   [
+    1,
+    44
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/baseline_head.txt": [
+   [
+    1,
+    1
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/derive_a4_errata.py": [
+   [
+    1,
+    73
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/diag_anchors.py": [
+   [
+    1,
+    73
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/extract_a4_fields.py": [
+   [
+    1,
+    46
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/fix_final_sites.py": [
+   [
+    1,
+    132
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/fix_flipped_sites.py": [
+   [
+    1,
+    108
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/fix_req15_delta_block.py": [
+   [
+    1,
+    98
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/fix_req15_handoff.py": [
+   [
+    1,
+    114
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/fix_root_value_corruption.py": [
+   [
+    1,
+    85
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/gen_deltas.py": [
+   [
+    1,
+    761
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/lint_prechange.txt": [
+   [
+    1,
+    221
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/lint_run.txt": [
+   [
+    1,
+    11
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/locate_flipped.py": [
+   [
+    1,
+    57
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/measure_marker_tightening.py": [
+   [
+    1,
+    61
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/pointer_census.json": [
+   [
+    1,
+    31
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/pointer_census.py": [
+   [
+    1,
+    400
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/probe_c4.py": [
+   [
+    1,
+    47
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/probe_spec.py": [
+   [
+    1,
+    53
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/repoint_evidence_roots.py": [
+   [
+    1,
+    131
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/rewrite_pointers.py": [
+   [
+    1,
+    181
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/show_census.py": [
+   [
+    1,
+    25
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/strip_anchor_prose.py": [
+   [
+    1,
+    138
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/summarize_lint.py": [
+   [
+    1,
+    40
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/target_decisions.py": [
+   [
+    1,
+    108
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/verify_ac63_guard.py": [
+   [
+    1,
+    80
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/verify_apply.py": [
+   [
+    1,
+    163
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/verify_deltas.py": [
+   [
+    1,
+    168
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/worklist.py": [
+   [
+    1,
+    101
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/worklist.txt": [
+   [
+    1,
+    306
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/proposal.md": [
+   [
+    1,
+    44
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/specs/decompmoe-skeleton/spec.md": [
+   [
+    1,
+    150
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/specs/governance/spec.md": [
+   [
+    1,
+    164
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/specs/wayfinder/spec.md": [
+   [
+    1,
+    275
+   ]
+  ],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/tasks.md": [
+   [
+    1,
+    107
+   ]
+  ],
+  "openspec/changes/fix-config-docstring-beta-line-drift/.openspec.yaml": [],
+  "openspec/changes/fix-config-docstring-beta-line-drift/design.md": [],
+  "openspec/changes/fix-config-docstring-beta-line-drift/proposal.md": [],
+  "openspec/changes/fix-config-docstring-beta-line-drift/specs/decompmoe-skeleton/spec.md": [],
+  "openspec/changes/fix-config-docstring-beta-line-drift/tasks.md": [],
+  "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/proposal.md": [],
+  "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/tasks.md": [],
+  "openspec/specs/decompmoe-skeleton/spec.md": [
+   [
+    135,
+    141
+   ],
+   [
+    332,
+    335
+   ],
+   [
+    400,
+    409
+   ],
+   [
+    656,
+    656
+   ]
+  ],
+  "openspec/specs/governance/spec.md": [
+   [
+    84,
+    99
+   ],
+   [
+    190,
+    440
+   ]
+  ],
+  "openspec/specs/wayfinder/spec.md": [
+   [
+    32,
+    48
+   ],
+   [
+    435,
+    436
+   ],
+   [
+    481,
+    481
+   ],
+   [
+    485,
+    485
+   ],
+   [
+    536,
+    573
+   ],
+   [
+    824,
+    825
+   ],
+   [
+    828,
+    832
+   ],
+   [
+    909,
+    909
+   ]
+  ],
+  "scripts/lint_no_line_pointers.py": [
+   [
+    1,
+    561
+   ]
+  ],
+  "scripts/lint_no_source_field_drift.py": [
+   [
+    106,
+    133
+   ],
+   [
+    266,
+    309
+   ],
+   [
+    356,
+    363
+   ],
+   [
+    373,
+    376
+   ],
+   [
+    381,
+    381
+   ],
+   [
+    383,
+    386
+   ],
+   [
+    399,
+    405
+   ]
+  ],
+  "scripts/run_gates.py": [
+   [
+    1,
+    544
+   ]
+  ],
+  "src/decompmoe/__init__.py": [
+   [
+    15,
+    15
+   ],
+   [
+    18,
+    122
+   ]
+  ],
+  "src/decompmoe/config.py": [],
+  "src/decompmoe/extraction.py": [
+   [
+    51,
+    55
+   ],
+   [
+    115,
+    124
+   ],
+   [
+    137,
+    144
+   ]
+  ],
+  "src/decompmoe/gating.py": [],
+  "src/decompmoe/loss.py": [
+   [
+    27,
+    28
+   ],
+   [
+    88,
+    88
+   ]
+  ],
+  "src/decompmoe/metrics.py": [
+   [
+    73,
+    78
+   ]
+  ],
+  "src/decompmoe/safeguards.py": [
+   [
+    22,
+    22
+   ],
+   [
+    198,
+    198
+   ],
+   [
+    227,
+    243
+   ],
+   [
+    278,
+    286
+   ],
+   [
+    297,
+    301
+   ]
+  ],
+  "src/decompmoe/schedule.py": [
+   [
+    146,
+    146
+   ]
+  ],
+  "src/decompmoe/sphere.py": [
+   [
+    66,
+    139
+   ],
+   [
+    445,
+    452
+   ],
+   [
+    483,
+    497
+   ],
+   [
+    509,
+    517
+   ],
+   [
+    527,
+    535
+   ]
+  ],
+  "tests/test_a3_contract_alignment.py": [
+   [
+    1,
+    653
+   ]
+  ],
+  "tests/test_beta.py": [],
+  "tests/test_config.py": [
+   [
+    246,
+    365
+   ]
+  ],
+  "tests/test_extraction.py": [],
+  "tests/test_extraction_phase.py": [
+   [
+    12,
+    28
+   ]
+  ],
+  "tests/test_lint_no_line_pointers.py": [
+   [
+    1,
+    388
+   ]
+  ],
+  "tests/test_lint_no_source_field_drift.py": [
+   [
+    394,
+    512
+   ]
+  ],
+  "tests/test_loss.py": [],
+  "tests/test_metrics.py": [
+   [
+    8,
+    8
+   ],
+   [
+    10,
+    10
+   ],
+   [
+    15,
+    15
+   ],
+   [
+    555,
+    668
+   ]
+  ],
+  "tests/test_run_gates.py": [
+   [
+    1,
+    421
+   ]
+  ],
+  "tests/test_safeguards.py": [
+   [
+    149,
+    194
+   ],
+   [
+    537,
+    537
+   ],
+   [
+    547,
+    560
+   ],
+   [
+    598,
+    599
+   ],
+   [
+    651,
+    651
+   ],
+   [
+    653,
+    653
+   ],
+   [
+    675,
+    680
+   ]
+  ],
+  "tests/test_schedule.py": [],
+  "tests/test_sphere.py": [
+   [
+    8,
+    8
+   ],
+   [
+    173,
+    242
+   ],
+   [
+    399,
+    400
+   ],
+   [
+    691,
+    746
+   ],
+   [
+    806,
+    811
+   ],
+   [
+    983,
+    1442
+   ]
+  ],
+  "wayfinder/tickets/A8-2.md": []
+ },
+ "modified": {
+  "CLAUDE.md": [
+   [
+    32,
+    32
+   ]
+  ],
+  "openspec/changes/2026-09-26-followup-spec-wording-bugs-after-precision-disclosure/proposal.md": [],
+  "openspec/changes/2026-09-26-followup-spec-wording-bugs-after-precision-disclosure/tasks.md": [],
+  "openspec/changes/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/.openspec.yaml": [],
+  "openspec/changes/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/design.md": [],
+  "openspec/changes/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/proposal.md": [],
+  "openspec/changes/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/tasks.md": [],
+  "openspec/changes/2026-09-29-fix-b15-test-loss-actual-embedding/.openspec.yaml": [],
+  "openspec/changes/2026-09-29-fix-b15-test-loss-actual-embedding/design.md": [],
+  "openspec/changes/2026-09-29-fix-b15-test-loss-actual-embedding/proposal.md": [],
+  "openspec/changes/2026-09-29-fix-b15-test-loss-actual-embedding/tasks.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/.openspec.yaml": [],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/design.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/proposal.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/specs/decompmoe-skeleton/spec.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/specs/governance/spec.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/specs/wayfinder/spec.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/tasks.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/.openspec.yaml": [],
+  "openspec/changes/archive/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/design.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/proposal.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/tasks.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b15-test-loss-actual-embedding/.openspec.yaml": [],
+  "openspec/changes/archive/2026-09-29-fix-b15-test-loss-actual-embedding/design.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b15-test-loss-actual-embedding/proposal.md": [],
+  "openspec/changes/archive/2026-09-29-fix-b15-test-loss-actual-embedding/tasks.md": [],
+  "openspec/changes/archive/2026-09-30-fix-config-docstring-beta-line-drift/.openspec.yaml": [],
+  "openspec/changes/archive/2026-09-30-fix-config-docstring-beta-line-drift/design.md": [],
+  "openspec/changes/archive/2026-09-30-fix-config-docstring-beta-line-drift/proposal.md": [],
+  "openspec/changes/archive/2026-09-30-fix-config-docstring-beta-line-drift/specs/decompmoe-skeleton/spec.md": [],
+  "openspec/changes/archive/2026-09-30-fix-config-docstring-beta-line-drift/tasks.md": [],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/.openspec.yaml": [],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/design.md": [],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/proposal.md": [],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/specs/decompmoe-skeleton/spec.md": [],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/specs/governance/spec.md": [],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/specs/wayfinder/spec.md": [],
+  "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/tasks.md": [],
+  "openspec/changes/archive/2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift/.openspec.yaml": [],
+  "openspec/changes/archive/2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift/design.md": [],
+  "openspec/changes/archive/2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift/proposal.md": [],
+  "openspec/changes/archive/2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift/specs/wayfinder/spec.md": [],
+  "openspec/changes/archive/2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift/tasks.md": [],
+  "openspec/changes/archive/2026-10-01-fix-f4-f5-f6-f7-loss-guard-fidelity/.openspec.yaml": [],
+  "openspec/changes/archive/2026-10-01-fix-f4-f5-f6-f7-loss-guard-fidelity/design.md": [],
+  "openspec/changes/archive/2026-10-01-fix-f4-f5-f6-f7-loss-guard-fidelity/proposal.md": [],
+  "openspec/changes/archive/2026-10-01-fix-f4-f5-f6-f7-loss-guard-fidelity/tasks.md": [],
+  "openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/design.md": [],
+  "openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/proposal.md": [],
+  "openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/specs/decompmoe-skeleton/spec.md": [],
+  "openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/specs/governance/spec.md": [],
+  "openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/specs/wayfinder/spec.md": [],
+  "openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/tasks.md": [],
+  "openspec/changes/archive/2026-10-02-a3-code-align-low-risk/.openspec.yaml": [],
+  "openspec/changes/archive/2026-10-02-a3-code-align-low-risk/design.md": [],
+  "openspec/changes/archive/2026-10-02-a3-code-align-low-risk/proposal.md": [],
+  "openspec/changes/archive/2026-10-02-a3-code-align-low-risk/tasks.md": [],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/.openspec.yaml": [],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/design.md": [],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/proposal.md": [],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/specs/decompmoe-skeleton/spec.md": [],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/specs/governance/spec.md": [],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/specs/wayfinder/spec.md": [],
+  "openspec/changes/archive/2026-10-02-a3-r1-review-remediation/tasks.md": [],
+  "openspec/changes/archive/2026-10-02-a3-resurrection-clone-and-phase0-mask/.openspec.yaml": [],
+  "openspec/changes/archive/2026-10-02-a3-resurrection-clone-and-phase0-mask/design.md": [],
+  "openspec/changes/archive/2026-10-02-a3-resurrection-clone-and-phase0-mask/proposal.md": [],
+  "openspec/changes/archive/2026-10-02-a3-resurrection-clone-and-phase0-mask/specs/wayfinder/spec.md": [],
+  "openspec/changes/archive/2026-10-02-a3-resurrection-clone-and-phase0-mask/tasks.md": [],
+  "openspec/changes/archive/2026-10-02-a3-skeleton-phase0-mask-and-totality/.openspec.yaml": [],
+  "openspec/changes/archive/2026-10-02-a3-skeleton-phase0-mask-and-totality/design.md": [],
+  "openspec/changes/archive/2026-10-02-a3-skeleton-phase0-mask-and-totality/proposal.md": [],
+  "openspec/changes/archive/2026-10-02-a3-skeleton-phase0-mask-and-totality/specs/decompmoe-skeleton/spec.md": [],
+  "openspec/changes/archive/2026-10-02-a3-skeleton-phase0-mask-and-totality/tasks.md": [],
+  "openspec/changes/archive/2026-10-02-a3-wayfinder-phase0-territory-and-wb/.openspec.yaml": [],
+  "openspec/changes/archive/2026-10-02-a3-wayfinder-phase0-territory-and-wb/design.md": [],
+  "openspec/changes/archive/2026-10-02-a3-wayfinder-phase0-territory-and-wb/proposal.md": [],
+  "openspec/changes/archive/2026-10-02-a3-wayfinder-phase0-territory-and-wb/specs/wayfinder/spec.md": [],
+  "openspec/changes/archive/2026-10-02-a3-wayfinder-phase0-territory-and-wb/tasks.md": [],
+  "openspec/changes/archive/2026-10-02-audit-a2-errata-and-spec-math-fixes/.openspec.yaml": [],
+  "openspec/changes/archive/2026-10-02-audit-a2-errata-and-spec-math-fixes/design.md": [],
+  "openspec/changes/archive/2026-10-02-audit-a2-errata-and-spec-math-fixes/proposal.md": [],
+  "openspec/changes/archive/2026-10-02-audit-a2-errata-and-spec-math-fixes/specs/decompmoe-skeleton/spec.md": [],
+  "openspec/changes/archive/2026-10-02-audit-a2-errata-and-spec-math-fixes/specs/wayfinder/spec.md": [],
+  "openspec/changes/archive/2026-10-02-audit-a2-errata-and-spec-math-fixes/tasks.md": [],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/.openspec.yaml": [],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/README.md": [],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/design.md": [],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/evidence/check_base_drift.py": [],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/evidence/gen_delta.py": [],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/evidence/pytest_approx_semantics.py": [],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/evidence/tools/diff_delta_block.py": [],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/evidence/tools/verify_approx_claims.py": [],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/evidence/tools/verify_beta_is_superset.py": [],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/proposal.md": [],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/specs/governance/spec.md": [],
+  "openspec/changes/archive/2026-10-02-corr-pytest-approx-abs-semantics/tasks.md": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/.openspec.yaml": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/design.md": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/anchor_fingerprint.json": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/anchor_survey_pre_archive.json": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/concurrent_files_hash_manifest.json": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/dc2_conditioning.json": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/docstring_numbers.json": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/new_actuals.json": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/new_actuals_exact.json": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/oracle.py": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/pre_apply_status.json": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/pre_archive_baseline.json": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/red_green_witness.json": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/evidence/wayfinder_numbers.json": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/proposal.md": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/specs/decompmoe-skeleton/spec.md": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/specs/governance/spec.md": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/specs/wayfinder/spec.md": [],
+  "openspec/changes/archive/2026-10-02-fix-canonical-literal-residual-frame-and-dead-guard/tasks.md": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/.openspec.yaml": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/design.md": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/SUPERSEDED_quad_chain_scan_freetext.json": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/anchor_loss_report.json": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/audit_findings.json": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/audit_index.json": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/baseline.json": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/errata_index.json": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/excluded.json": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/ledger.json": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/ledger.json.pre-xbucket": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/lineage_recheck.json": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/oracle_recheck.json": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_alpha_forensics.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_anchor_37_forensics.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_decisive_h1_h2.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_gen_alpha_delta.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_m8_negative_test.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_patch_x_bucket.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_postmortem_probe.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_pytest_approx_semantics.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/_verify_review3_claims.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_0.2.txt": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_0.3.txt": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_0.4.txt": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_0.5.txt": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_1.txt": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_2.txt": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_3.txt": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_4.txt": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_5.txt": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/applied_text_7.txt": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_audit_index.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_baseline.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_errata_index.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_excluded_index.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/build_ledger.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/check_ledger.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/crlf_discriminator.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/diff_anchor_inventory.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/measure_worktree_state.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/oracle_recheck.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/parse_findings.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/patch_tasks_line.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/probe_self_diagnosis.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/raw_git_show_sphere_HEAD.py.txt": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/raw_git_show_wayfinder_HEAD.txt": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/recheck_lineage_adjudication.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/relocate_tools.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/repoint_root_lines.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/snapshot_truth_source.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/spec_shape_probe.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/superseded_freetext_scan.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/verify_anchor_three_ways.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/verify_toolchain.py": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/truth_source_snapshot.json": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/truth_source_snapshot.pre-alpha-apply.json": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/truth_source_snapshot.pre-beta-apply.json": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/worktree_state.json": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/proposal.md": [],
+  "openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/tasks.md": [],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/.openspec.yaml": [],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/README.md": [],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/design.md": [],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/evidence/check_delta_structure.py": [],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/evidence/delta_apply_plan.json": [],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/evidence/gen_deltas.py": [],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/evidence/req_gov_5.md": [],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/proposal.md": [],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/specs/decompmoe-skeleton/spec.md": [],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/specs/governance/spec.md": [],
+  "openspec/changes/archive/2026-10-02-repair-spell-numeric-literal-provenance/tasks.md": [],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/.openspec.yaml": [],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/design.md": [],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/anchor-ledger-before.json": [],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/anchor-ledger-post.json": [],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/gen_deltas.py": [],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/incident.md": [],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/verify_deltas.py": [],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/proposal.md": [],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/specs/governance/spec.md": [],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/specs/wayfinder/spec.md": [],
+  "openspec/changes/archive/2026-10-03-a5-archive-gate-executability/tasks.md": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/.openspec.yaml": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/design.md": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/_repo.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/ac63_numeric_verification.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/anchor-ledger-before.json": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/append_a4_errata.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/apply_deltas.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/audit_exemptions.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/baseline_head.txt": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/derive_a4_errata.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/diag_anchors.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/extract_a4_fields.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/fix_final_sites.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/fix_flipped_sites.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/fix_req15_delta_block.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/fix_req15_handoff.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/fix_root_value_corruption.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/gen_deltas.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/lint_prechange.txt": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/lint_run.txt": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/locate_flipped.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/measure_marker_tightening.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/pointer_census.json": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/pointer_census.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/probe_c4.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/probe_spec.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/repoint_evidence_roots.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/rewrite_pointers.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/show_census.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/strip_anchor_prose.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/summarize_lint.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/target_decisions.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/verify_ac63_guard.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/verify_apply.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/verify_deltas.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/worklist.py": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/worklist.txt": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/proposal.md": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/specs/decompmoe-skeleton/spec.md": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/specs/governance/spec.md": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/specs/wayfinder/spec.md": [],
+  "openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/tasks.md": [],
+  "openspec/changes/fix-config-docstring-beta-line-drift/.openspec.yaml": [],
+  "openspec/changes/fix-config-docstring-beta-line-drift/design.md": [],
+  "openspec/changes/fix-config-docstring-beta-line-drift/proposal.md": [],
+  "openspec/changes/fix-config-docstring-beta-line-drift/specs/decompmoe-skeleton/spec.md": [],
+  "openspec/changes/fix-config-docstring-beta-line-drift/tasks.md": [],
+  "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/proposal.md": [],
+  "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/tasks.md": [],
+  "openspec/specs/decompmoe-skeleton/spec.md": [
+   [
+    12,
+    12
+   ],
+   [
+    34,
+    34
+   ],
+   [
+    98,
+    98
+   ],
+   [
+    113,
+    116
+   ],
+   [
+    132,
+    132
+   ],
+   [
+    150,
+    150
+   ],
+   [
+    158,
+    158
+   ],
+   [
+    261,
+    261
+   ],
+   [
+    273,
+    273
+   ],
+   [
+    276,
+    277
+   ],
+   [
+    376,
+    376
+   ],
+   [
+    385,
+    386
+   ],
+   [
+    434,
+    436
+   ],
+   [
+    444,
+    444
+   ],
+   [
+    475,
+    475
+   ],
+   [
+    515,
+    517
+   ],
+   [
+    540,
+    540
+   ],
+   [
+    634,
+    635
+   ],
+   [
+    639,
+    641
+   ],
+   [
+    643,
+    643
+   ],
+   [
+    647,
+    647
+   ],
+   [
+    653,
+    653
+   ]
+  ],
+  "openspec/specs/governance/spec.md": [
+   [
+    13,
+    13
+   ],
+   [
+    15,
+    15
+   ],
+   [
+    17,
+    17
+   ],
+   [
+    20,
+    22
+   ],
+   [
+    26,
+    26
+   ],
+   [
+    28,
+    28
+   ],
+   [
+    30,
+    30
+   ],
+   [
+    32,
+    32
+   ],
+   [
+    37,
+    37
+   ],
+   [
+    42,
+    42
+   ],
+   [
+    46,
+    47
+   ],
+   [
+    52,
+    52
+   ],
+   [
+    56,
+    57
+   ],
+   [
+    62,
+    64
+   ],
+   [
+    70,
+    70
+   ],
+   [
+    79,
+    79
+   ],
+   [
+    145,
+    145
+   ],
+   [
+    172,
+    172
+   ]
+  ],
+  "openspec/specs/wayfinder/spec.md": [
+   [
+    24,
+    24
+   ],
+   [
+    100,
+    100
+   ],
+   [
+    147,
+    147
+   ],
+   [
+    163,
+    163
+   ],
+   [
+    172,
+    174
+   ],
+   [
+    251,
+    251
+   ],
+   [
+    253,
+    253
+   ],
+   [
+    258,
+    259
+   ],
+   [
+    263,
+    263
+   ],
+   [
+    266,
+    266
+   ],
+   [
+    269,
+    269
+   ],
+   [
+    273,
+    273
+   ],
+   [
+    294,
+    295
+   ],
+   [
+    300,
+    300
+   ],
+   [
+    335,
+    335
+   ],
+   [
+    346,
+    347
+   ],
+   [
+    377,
+    377
+   ],
+   [
+    401,
+    401
+   ],
+   [
+    403,
+    403
+   ],
+   [
+    417,
+    417
+   ],
+   [
+    419,
+    419
+   ],
+   [
+    450,
+    450
+   ],
+   [
+    452,
+    452
+   ],
+   [
+    456,
+    456
+   ],
+   [
+    472,
+    474
+   ],
+   [
+    630,
+    630
+   ],
+   [
+    634,
+    635
+   ],
+   [
+    646,
+    646
+   ],
+   [
+    702,
+    702
+   ],
+   [
+    735,
+    735
+   ],
+   [
+    737,
+    737
+   ],
+   [
+    794,
+    794
+   ],
+   [
+    796,
+    796
+   ],
+   [
+    803,
+    803
+   ],
+   [
+    815,
+    815
+   ],
+   [
+    819,
+    820
+   ],
+   [
+    848,
+    848
+   ],
+   [
+    859,
+    859
+   ],
+   [
+    878,
+    878
+   ],
+   [
+    911,
+    915
+   ]
+  ],
+  "scripts/lint_no_line_pointers.py": [],
+  "scripts/lint_no_source_field_drift.py": [
+   [
+    351,
+    351
+   ],
+   [
+    353,
+    353
+   ],
+   [
+    393,
+    393
+   ],
+   [
+    396,
+    396
+   ]
+  ],
+  "scripts/run_gates.py": [],
+  "src/decompmoe/__init__.py": [
+   [
+    12,
+    13
+   ],
+   [
+    127,
+    134
+   ],
+   [
+    139,
+    214
+   ]
+  ],
+  "src/decompmoe/config.py": [
+   [
+    50,
+    50
+   ],
+   [
+    95,
+    96
+   ]
+  ],
+  "src/decompmoe/extraction.py": [
+   [
+    35,
+    37
+   ],
+   [
+    59,
+    63
+   ],
+   [
+    108,
+    108
+   ],
+   [
+    130,
+    130
+   ],
+   [
+    150,
+    164
+   ],
+   [
+    177,
+    177
+   ]
+  ],
+  "src/decompmoe/gating.py": [
+   [
+    63,
+    63
+   ]
+  ],
+  "src/decompmoe/loss.py": [
+   [
+    58,
+    64
+   ],
+   [
+    68,
+    70
+   ],
+   [
+    103,
+    111
+   ],
+   [
+    128,
+    132
+   ],
+   [
+    136,
+    136
+   ]
+  ],
+  "src/decompmoe/metrics.py": [
+   [
+    80,
+    80
+   ],
+   [
+    83,
+    99
+   ],
+   [
+    104,
+    104
+   ],
+   [
+    107,
+    123
+   ],
+   [
+    125,
+    126
+   ],
+   [
+    203,
+    203
+   ]
+  ],
+  "src/decompmoe/safeguards.py": [
+   [
+    58,
+    63
+   ],
+   [
+    203,
+    203
+   ],
+   [
+    205,
+    205
+   ],
+   [
+    214,
+    222
+   ],
+   [
+    245,
+    246
+   ],
+   [
+    294,
+    294
+   ]
+  ],
+  "src/decompmoe/schedule.py": [
+   [
+    148,
+    149
+   ],
+   [
+    152,
+    153
+   ],
+   [
+    155,
+    155
+   ],
+   [
+    158,
+    161
+   ],
+   [
+    169,
+    169
+   ],
+   [
+    172,
+    172
+   ],
+   [
+    174,
+    174
+   ],
+   [
+    177,
+    177
+   ]
+  ],
+  "src/decompmoe/sphere.py": [
+   [
+    142,
+    142
+   ],
+   [
+    145,
+    190
+   ],
+   [
+    201,
+    236
+   ],
+   [
+    248,
+    256
+   ],
+   [
+    262,
+    271
+   ],
+   [
+    333,
+    347
+   ],
+   [
+    350,
+    393
+   ],
+   [
+    424,
+    434
+   ],
+   [
+    438,
+    442
+   ],
+   [
+    460,
+    460
+   ],
+   [
+    467,
+    481
+   ],
+   [
+    519,
+    525
+   ]
+  ],
+  "tests/test_a3_contract_alignment.py": [],
+  "tests/test_beta.py": [
+   [
+    38,
+    38
+   ],
+   [
+    56,
+    56
+   ],
+   [
+    59,
+    75
+   ],
+   [
+    80,
+    84
+   ],
+   [
+    86,
+    89
+   ],
+   [
+    94,
+    94
+   ]
+  ],
+  "tests/test_config.py": [
+   [
+    100,
+    100
+   ],
+   [
+    121,
+    121
+   ],
+   [
+    128,
+    128
+   ],
+   [
+    135,
+    136
+   ],
+   [
+    139,
+    151
+   ],
+   [
+    156,
+    160
+   ],
+   [
+    163,
+    166
+   ]
+  ],
+  "tests/test_extraction.py": [
+   [
+    38,
+    38
+   ],
+   [
+    186,
+    186
+   ],
+   [
+    190,
+    190
+   ],
+   [
+    194,
+    194
+   ],
+   [
+    203,
+    205
+   ],
+   [
+    213,
+    224
+   ],
+   [
+    230,
+    237
+   ],
+   [
+    252,
+    252
+   ],
+   [
+    254,
+    254
+   ],
+   [
+    256,
+    290
+   ],
+   [
+    397,
+    397
+   ],
+   [
+    399,
+    404
+   ],
+   [
+    411,
+    419
+   ],
+   [
+    424,
+    424
+   ],
+   [
+    562,
+    563
+   ],
+   [
+    605,
+    605
+   ],
+   [
+    634,
+    634
+   ],
+   [
+    670,
+    673
+   ]
+  ],
+  "tests/test_extraction_phase.py": [
+   [
+    42,
+    44
+   ],
+   [
+    62,
+    76
+   ],
+   [
+    79,
+    197
+   ],
+   [
+    205,
+    211
+   ],
+   [
+    222,
+    224
+   ],
+   [
+    236,
+    240
+   ],
+   [
+    242,
+    243
+   ]
+  ],
+  "tests/test_lint_no_line_pointers.py": [],
+  "tests/test_lint_no_source_field_drift.py": [
+   [
+    324,
+    326
+   ],
+   [
+    332,
+    338
+   ],
+   [
+    350,
+    355
+   ],
+   [
+    363,
+    363
+   ],
+   [
+    365,
+    365
+   ]
+  ],
+  "tests/test_loss.py": [
+   [
+    166,
+    167
+   ],
+   [
+    194,
+    290
+   ]
+  ],
+  "tests/test_metrics.py": [
+   [
+    136,
+    136
+   ],
+   [
+    147,
+    147
+   ],
+   [
+    149,
+    149
+   ],
+   [
+    187,
+    187
+   ],
+   [
+    226,
+    226
+   ],
+   [
+    231,
+    231
+   ],
+   [
+    247,
+    247
+   ],
+   [
+    255,
+    255
+   ],
+   [
+    263,
+    263
+   ],
+   [
+    286,
+    286
+   ]
+  ],
+  "tests/test_run_gates.py": [],
+  "tests/test_safeguards.py": [
+   [
+    28,
+    28
+   ],
+   [
+    30,
+    30
+   ],
+   [
+    34,
+    34
+   ],
+   [
+    62,
+    62
+   ],
+   [
+    64,
+    64
+   ],
+   [
+    69,
+    69
+   ],
+   [
+    75,
+    75
+   ],
+   [
+    111,
+    112
+   ],
+   [
+    115,
+    121
+   ],
+   [
+    330,
+    330
+   ],
+   [
+    343,
+    343
+   ],
+   [
+    458,
+    458
+   ],
+   [
+    518,
+    523
+   ],
+   [
+    540,
+    542
+   ],
+   [
+    578,
+    578
+   ],
+   [
+    604,
+    604
+   ],
+   [
+    608,
+    608
+   ],
+   [
+    631,
+    635
+   ],
+   [
+    659,
+    666
+   ],
+   [
+    670,
+    671
+   ],
+   [
+    686,
+    686
+   ],
+   [
+    705,
+    705
+   ],
+   [
+    709,
+    709
+   ],
+   [
+    720,
+    720
+   ],
+   [
+    724,
+    724
+   ],
+   [
+    728,
+    728
+   ],
+   [
+    745,
+    745
+   ],
+   [
+    814,
+    814
+   ],
+   [
+    816,
+    816
+   ],
+   [
+    840,
+    840
+   ],
+   [
+    865,
+    865
+   ],
+   [
+    873,
+    873
+   ],
+   [
+    891,
+    891
+   ],
+   [
+    898,
+    898
+   ],
+   [
+    911,
+    911
+   ],
+   [
+    918,
+    918
+   ],
+   [
+    940,
+    940
+   ],
+   [
+    996,
+    996
+   ],
+   [
+    1033,
+    1033
+   ],
+   [
+    1101,
+    1101
+   ]
+  ],
+  "tests/test_schedule.py": [
+   [
+    62,
+    77
+   ],
+   [
+    82,
+    84
+   ],
+   [
+    87,
+    88
+   ],
+   [
+    131,
+    131
+   ],
+   [
+    195,
+    210
+   ],
+   [
+    227,
+    236
+   ],
+   [
+    243,
+    246
+   ],
+   [
+    250,
+    251
+   ],
+   [
+    256,
+    256
+   ]
+  ],
+  "tests/test_sphere.py": [
+   [
+    89,
+    90
+   ],
+   [
+    95,
+    113
+   ],
+   [
+    115,
+    115
+   ],
+   [
+    133,
+    133
+   ],
+   [
+    158,
+    158
+   ],
+   [
+    256,
+    256
+   ],
+   [
+    263,
+    263
+   ],
+   [
+    326,
+    326
+   ],
+   [
+    328,
+    346
+   ],
+   [
+    394,
+    397
+   ],
+   [
+    402,
+    416
+   ],
+   [
+    436,
+    444
+   ],
+   [
+    471,
+    476
+   ],
+   [
+    479,
+    479
+   ],
+   [
+    547,
+    550
+   ],
+   [
+    584,
+    584
+   ],
+   [
+    607,
+    613
+   ],
+   [
+    615,
+    615
+   ],
+   [
+    617,
+    619
+   ],
+   [
+    639,
+    640
+   ],
+   [
+    642,
+    650
+   ],
+   [
+    652,
+    680
+   ],
+   [
+    682,
+    683
+   ],
+   [
+    685,
+    687
+   ],
+   [
+    757,
+    762
+   ],
+   [
+    786,
+    804
+   ],
+   [
+    861,
+    861
+   ],
+   [
+    864,
+    864
+   ],
+   [
+    883,
+    910
+   ]
+  ],
+  "wayfinder/tickets/A8-2.md": [
+   [
+    38,
+    38
+   ],
+   [
+    93,
+    93
+   ]
+  ]
+ },
+ "pin": "6593a06"
+}
