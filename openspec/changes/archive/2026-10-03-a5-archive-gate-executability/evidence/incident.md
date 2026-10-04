@@ -62,33 +62,3 @@ known of it is recorded here and in the `.audit` Errata: head `940b27c`, 65
 anchors (wayfinder 36 / decompmoe-skeleton 23 / governance 6), `expect_new: []`.
 This was an avoidable loss — the fix was applied in place instead of writing a
 fresh baseline under a new name.
-
-## Errata (2026-10-04, task 9.4 independent review)
-
-Independently re-derived from git by a non-implementer `verifier` agent. The
-numbers below are its findings, not a re-assertion of the above.
-
-**What checked out.** `940b27c` does reconstruct to 65 anchors split 36 / 23 / 6,
-and `ea802c8` to governance 9 and a repository total of 68. The self-admission
-above is accurate and complete on its central point: the pre-archive snapshot is
-gone, and both surviving JSONs really are post-repair (identical 68-anchor
-ledger, identical `written_at_head`).
-
-**Correction — the provenance is half-stated.** The surviving JSONs record
-`"written_at_head": "850ed8a2e4b90039b9673b533b815877d5abe737"`, i.e.
-`feat(lint): add the cross-reference gate, C1-C4` — two commits *after* the
-`940b27c` discussed in the caveat above. `git diff --stat 940b27c 1612778 --
-openspec/specs/` is empty, so the 65 figure is valid for both revisions; the
-number is right, but the caveat names only one of the two heads involved.
-
-**Not reconstructible from git.** Two statements in this file and in the
-successor change's design record facts about a working tree that was never
-committed, and they carry no revision:
-
-- the `65 -> 67` ledger transition above — no commit holds a governance
-  8-anchor state, so the intermediate value survives only in this prose;
-- the successor change's "48 dirty entries at delivery time".
-
-The arithmetic is self-consistent (65 + 3 = 68, 68 - 1 = 67), but self-consistency
-is not evidence. Both are recorded here as **not verifiable** so a later reader
-can tell them apart from the figures that do reconstruct.

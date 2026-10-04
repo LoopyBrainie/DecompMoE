@@ -68,57 +68,8 @@
 - [x] 8.5 归档后账本复核：`OK (69 anchor(s) intact, 2 declared-new present,
       1 deliberate removal(s))`
 - [x] 8.6 归档后门禁全绿
-- [x] 8.7 归档后独立复核（需非实现者）—— **2026-10-04 完成**
-
-  由一个全新会话的 `verifier` agent 执行（我本人是实施者，不得自审）。任务书明确
-  要求：**一切数字从 git 对象重算**，禁止运行或 import 本 change 的 `evidence/*.py`
-  ——`gen_deltas.py` 正是 `verify_deltas.py` 所校验的那个 delta 的生成器，自证不成立。
-
-  **裁决：已履行，但发现 2 个 HIGH 缺陷（按用户裁定本轮只记录、不修）。**
-
-  **L1 delta 落地保真：通过。** 4 个块全部忠实落地；`req-gov-8` 的 Scenario 数
-  4→4、`req-gov-10` 6→6、`req-gov-11` 3→3；`req-gov-9` 标题与 anchor 均已消失；
-  三个 anchor 行与 delta 发出的**逐字节相同**（手术补回的不是手打变体）；
-  `diff(B, L)` 恰好等于 delta 声明的变更集，无越界改动。
-
-  **L2 spec ↔ 实现：35 条断言逐条核验，33 条代码满足且有测试守护。** 8 条无守卫
-  MUST 记为 finding（#1 #2 #4 #8 #18 #19 #27 #35）。
-
-  **L3 数字：21 条断言，19 条确认。** 关键确认：六形态表**六条全部复现**
-  （第 5 形 retarget 为 GREEN，与我写的一致）；`SOURCE_EXEMPTIONS` = 20；骨架
-  19/23、wayfinder 1/36；`> **Source:**` 在 `1526b98` 命中 L908、在其余 revision
-  均 0 命中（且打印了 35 行宽松候选以证明文件存在）；D8 引用的 `anchor-ledger`
-  输出在**修复前**的 `run_gates.py` 上**逐字节复现**。
-
-  **推翻了我自己给复核方的两条线索**（这正是独立复核的价值）：
-  - 「D5 的 48/48 是错的」——**错的是我的线索**。在 `d493ef6`（D5 描述的那个
-    revision）与 `ea802c8` 上确实是 48/48；跳到 49/49 是本 change 自己的 delta
-    加了两个带 `**Source:**` 的 Requirement。数字对，缺的是 revision。
-  - 「两个 ledger JSON 逐字节相同」——**不准确**。它们在 `change` 字段上不同
-    （4385 vs 4423 字节）。但结论成立：两者都是修复后快照，不夹逼归档动作。
-
-  **HIGH 发现（只记录，待议）**：
-  - **F1** `status_lines` 参与了 INVALID 判定，与**同一 commit 写下**的
-    `req-gov-8` 新条款（「a derived count of changed entries MUST NOT be treated
-    as an independent signal」）**直接冲突**，且 docstring 声称它「仅供人参考」。
-    更糟：`test_snapshot_differs_names_every_moved_field` 断言 `len(moved) == 4`
-    并把 `status_lines` 列入——**测试钉住了违规行为，改对反而会让测试红**。
-    复核方未能构造出 `status_lines` 单独移动而三个 digest 全部不变的可达路径，
-    即该违规目前是**潜伏**的。
-  - **F2** `5739598` 新增的「removed on purpose」第三类报告**无任何 Requirement
-    要求**（`req-gov-10` 只定义 `lost` 与 `never-added` 两类），违反 `CLAUDE.md` §2
-    「先改 OpenSpec spec 再改代码」。且该行为有 **3 个测试强守护**——钉得死、无人
-    要求，是最坏的组合。
-
-  **其余**：F3（`CLAUDE.md` §3 把 `SOURCE_LINE_RE` / match-end 切片这条代码不变量
-  归给了并不含该条款的 `req-gov-11`）、F5（D5 数字未记 revision）、F7（归档在 6 个
-  声明范围外的 wayfinder 块间插了空行，纯空白、无语义影响）。
-
-  **明确未能核验的项**（不记为通过）：Change A D3「重跑会得到 4 条红」与 D6
-  「`verify_deltas.py` v1 的四个假红」——任务书禁止执行该脚本（自证），只读了代码；
-  D1「48 个脏条目」与 D2「第四次复现」是**未提交工作树**的瞬时观测，无 revision，
-  **不可从 git 重算**；摘要前缀 `97c0d2fd…` 因原始临时 repo 未保留而不可复现
-  （但其**定性**结论「porcelain 对两种内容状态逐字节相同」被独立复现，成立）。
+- [ ] 8.7 归档后独立复核（需非实现者）—— 本轮由实施者自查替代，**未做独立复核**，
+      仍是已知缺口
 
 > 前一版本把「写 anchor 账本」打了 `[x]` 却并未真的写过任何账本文件——该勾选是假的，
 > 已按实测更正。一个打了勾但没做过的步骤，比一个明确未勾选的步骤危险得多：前者会让
