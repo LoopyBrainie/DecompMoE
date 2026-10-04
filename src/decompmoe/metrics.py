@@ -31,7 +31,7 @@ def _log_int(n: int) -> float:
     """Cached `log(float(n))` over the lifetime of the metrics module."""
     cached = _LOG_CACHE.get(n)
     if cached is None:
-        cached = float(torch.log(torch.tensor(float(n))))
+        cached = float(torch.log(torch.tensor(float(n), dtype=torch.float64)))
         _LOG_CACHE[n] = cached
     return cached
 

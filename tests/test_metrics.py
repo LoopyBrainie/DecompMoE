@@ -452,17 +452,23 @@ def test_log_int_cache_matches_runtime_and_amortizes() -> None:
     """`_log_int(n)` cached value must equal runtime log(float(n)) (Pi finding M2).
 
     Spec: R_H divides by `log(N_e)` (frozen N_e=16 in MVP). The cache
-    amortizes the per-call `torch.tensor(float(n))` allocation while
-    preserving the closed-form value exactly. Verifies:
-    1. `_log_int(16)` equals runtime `float(torch.log(torch.tensor(16.0)))`.
+    amortizes the per-call tensor allocation while preserving the
+    closed-form value exactly. Verifies:
+    1. `_log_int(16)` equals the runtime computation AND equals `math.log(16)`
+       exactly — the reference is computed in **float64** because
+       `torch.tensor(float(n))` defaults to float32, which silently cost the
+       normalisation constant ~2.7e-9 of relative precision.
     2. Repeated `_log_int(16)` does NOT grow `_LOG_CACHE` (cache hit).
-    3. `R_H` numerical output is unchanged after the optimization.
+    3. `R_H` numerical output matches the closed form with the same divisor.
     """
-    # 1. Closed-form match: cache value == runtime value
-    runtime = float(torch.log(torch.tensor(16.0)))
+    # 1. Closed-form match: cache value == runtime value == math.log(n)
+    runtime = float(torch.log(torch.tensor(16.0, dtype=torch.float64)))
     cached = metrics._log_int(16)
     assert cached == pytest.approx(runtime, abs=1e-12), (
-        f"_log_int(16) = {cached} ≠ runtime {runtime}"
+        f"actual={cached}, expected runtime {runtime}"
+    )
+    assert cached == pytest.approx(math.log(16.0), abs=1e-12), (
+        f"actual={cached}, expected math.log(16)={math.log(16.0)}"
     )
 
     # 2. Cache hit: repeated call does not grow the cache
@@ -472,15 +478,14 @@ def test_log_int_cache_matches_runtime_and_amortizes() -> None:
         "_log_int must hit cache on repeat (no growth)"
     )
 
-    # 3. R_H numerical output unchanged after the optimization
+    # 3. R_H numerical output matches the closed form with the same divisor
     torch.manual_seed(0)
     p = torch.softmax(torch.randn(8, 16), dim=-1)
     r_h_optimized = metrics.R_H(p)
     p_safe = p.clamp_min(1e-12)
     expected = -(p_safe * p_safe.log()).sum(dim=-1) / runtime
     assert torch.allclose(r_h_optimized, expected, atol=1e-6), (
-        f"R_H after cache optimization diverged from runtime: "
-        f"{r_h_optimized} vs {expected}"
+        f"actual={r_h_optimized}, expected {expected}"
     )
 
 

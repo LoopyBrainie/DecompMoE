@@ -18,14 +18,26 @@ def test_k_equals_two() -> None:
 
 
 def test_neg_inf_sentinel_used() -> None:
-    """Non-top-k entries are exactly `-float('inf')`, NOT a large finite negative."""
+    """Non-top-k entries are exactly `-float('inf')`, NOT a large finite negative.
+
+    The arity is pinned as an integer closed form: `(B, N_e)` at `k` MUST mask
+    exactly `B·(N_e − k)` entries. A `k → k+1` off-by-one (e.g. a
+    `torch.topk(k + 1)` slip) would leave the remaining ones finite and finite
+    enough to pass the partition-of-unity and non-top-k-zero checks, silently
+    widening the active set and the FLOPs budget.
+    """
     torch.manual_seed(0)
-    logits = torch.randn(8, 16)
-    masked = gating.topk_mask_with_neg_inf(logits, k=2)
+    B, n_e, k = 8, 16, 2
+    logits = torch.randn(B, n_e)
+    masked = gating.topk_mask_with_neg_inf(logits, k=k)
     neg_inf_mask = torch.isinf(masked) & (masked < 0)
-    assert neg_inf_mask.any(), "non-top-k entries must be -inf"
+    n_neg_inf = int(neg_inf_mask.sum())
+    assert n_neg_inf == B * (n_e - k), (
+        f"actual={n_neg_inf}, expected B·(N_e−k)={B * (n_e - k)} for "
+        f"B={B}, N_e={n_e}, k={k}"
+    )
     top_k_mask = torch.zeros_like(masked, dtype=torch.bool)
-    _, idx = logits.topk(2, dim=-1)
+    _, idx = logits.topk(k, dim=-1)
     top_k_mask.scatter_(1, idx, True)
     kept = masked[top_k_mask]
     assert torch.isfinite(kept).all()

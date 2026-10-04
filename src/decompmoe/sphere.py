@@ -333,17 +333,21 @@ def canonical_voronoi_angle(num_experts: int, signature_dim: int) -> float:
     Accuracy: the returned angle is the root of the impl-internal equation to
     within the bisection's own `break < 1e-13` bracket, and because the
     quadrature underneath is now uniformly accurate, that carries over to the
-    TRUE closed form. Measured at `N_e = 16` against exact `G` at 50 decimal
-    digits, the absolute residual is
+    TRUE closed form. Measured at `N_e = 16`, the ANGLE-domain deviation
+    `|θ_impl − θ_exact_root|` in **radians** (exact root taken at 50 decimal
+    digits) is
 
         d_c=2  4.46e-14   d_c=4  4.13e-14   d_c=6  2.45e-14
         d_c=8  3.74e-14   d_c=16 3.54e-14   d_c=32 6.10e-16
 
-    i.e. below the spec's `< 1e-9` claim for EVERY `signature_dim >= 2`
-    measured here, not merely at the frozen MVP `d_c = 16`. The pre-fix
-    residuals for the same six points ran from `7.39e-09` to `4.29e-05`, and
-    that spread is why this note used to warn that the `< 1e-9` claim held
-    only at `d_c = 16`. That warning no longer applies and MUST NOT be
+    These are NOT the `G` residuals at the returned `θ` — those are smaller by
+    a factor of 1.5–3.9 (e.g. `1.73e-14` vs `3.54e-14` at `d_c=16`), because
+    `d(ln G)/dθ` is O(1) near the root. Both quantities are below the spec's
+    `< 1e-9` claim for EVERY `signature_dim >= 2` measured here, not merely at
+    the frozen MVP `d_c = 16`. The pre-fix values for the same six points ran
+    from `7.39e-09` to `4.29e-05`, and that spread is why this note used to
+    warn that the `< 1e-9` claim held only at `d_c = 16`. That warning no
+    longer applies and MUST NOT be
     reintroduced without re-measuring.
 
     The body delegates to `_cap_radius(1 / N_e, d_c)`, which solves the same

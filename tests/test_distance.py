@@ -7,6 +7,7 @@ from __future__ import annotations
 import inspect
 from pathlib import Path
 
+import pytest
 import torch
 
 from decompmoe import distance
@@ -22,8 +23,8 @@ def test_distance_range() -> None:
     C_unit = torch.nn.functional.normalize(C, dim=-1)
     c_unit = torch.nn.functional.normalize(c, dim=-1)
     d = distance.squared_chord(C_unit, c_unit)
-    assert d.min().item() >= -1e-5, f"d_min = {d.min().item()} < 0"
-    assert d.max().item() <= 2.0 + 1e-5, f"d_max = {d.max().item()} > 2"
+    assert d.min().item() >= -1e-5, f"actual={d.min().item()} < 0"
+    assert d.max().item() <= 2.0 + 1e-5, f"actual={d.max().item()} > 2"
 
 
 def test_distance_zero_at_align() -> None:
@@ -31,7 +32,7 @@ def test_distance_zero_at_align() -> None:
     torch.manual_seed(0)
     c = torch.nn.functional.normalize(torch.randn(16), dim=-1)
     d = distance.squared_chord(c, c)
-    assert abs(d.item()) < 1e-5, f"d(c, c) = {d.item()} ≠ 0"
+    assert d.item() == pytest.approx(0.0, abs=1e-5), f"actual={d.item()}"
 
 
 def test_distance_two_at_antipode() -> None:
@@ -39,7 +40,7 @@ def test_distance_two_at_antipode() -> None:
     c = torch.tensor([1.0, 0.0])
     c_neg = torch.tensor([-1.0, 0.0])
     d = distance.squared_chord(c, c_neg)
-    assert abs(d.item() - 2.0) < 1e-5, f"d(c, -c) = {d.item()} ≠ 2"
+    assert d.item() == pytest.approx(2.0, abs=1e-5), f"actual={d.item()}"
 
 
 def test_logit_zero_at_aligned() -> None:
@@ -47,7 +48,7 @@ def test_logit_zero_at_aligned() -> None:
     torch.manual_seed(0)
     c = torch.nn.functional.normalize(torch.randn(16), dim=-1)
     out = distance.logit(c, c, beta=4.0)
-    assert abs(out.item()) < 1e-5, f"logit(c, c) = {out.item()} ≠ 0"
+    assert out.item() == pytest.approx(0.0, abs=1e-5), f"actual={out.item()}"
 
 
 def test_logit_no_w_i() -> None:
@@ -74,16 +75,35 @@ def test_logit_no_w_i() -> None:
             )
 
 
-def test_logit_grad_safe() -> None:
-    """‖∂logit/∂C‖₂ ≤ β_max (gradient bound per Req 7 / A4-1)."""
+def test_logit_grad_norm_equals_beta_on_the_sphere() -> None:
+    """‖∂logit/∂C‖₂ == β for unit C and unit c — the bound is attained, not slack.
+
+    Closed form: `logit = β·(Cᵀc − 1)` is linear in `C`, so `∂logit/∂C = βc`
+    exactly and `‖∂logit/∂C‖₂ = β·‖c‖₂ = β`. `C` enters the chain directly, so
+    the differentiation MUST be taken on the sphere point itself — feeding
+    `C / ‖C‖` into `logit` would differentiate the *composition* with the
+    projection (whose Jacobian is `β·(I − ûûᵀ)·c`, norm ≤ β but typically
+    ~β/3), which is a different quantity from the one the spec bounds.
+
+    The declared worst case (`β = β_max`, orthogonal unit `C` and `c`) is
+    pinned separately with the orthogonal construction in
+    `tests/test_beta.py::test_grad_C_bound`; this test covers the *general*
+    unit-sphere case that the Scenario only samples at one point. Tolerance is
+    the spec Scenario's own `abs=1e-4` (float32 autograd round-off on the
+    32-magnitude product measures ~3.8e-6).
+    """
     from decompmoe.beta import MAX_GRAD_PER_C
 
     torch.manual_seed(0)
     d_c = 16
-    C = torch.nn.Parameter(torch.randn(d_c))
-    c = torch.nn.functional.normalize(torch.randn(d_c), dim=-1)
-    out = distance.logit(C / C.norm(), c, beta=MAX_GRAD_PER_C)
-    grad = torch.autograd.grad(out, C, create_graph=False)[0]
-    assert grad.norm().item() <= MAX_GRAD_PER_C + 1e-3, (
-        f"actual={grad.norm().item()} exceeds MAX_GRAD_PER_C={MAX_GRAD_PER_C} + 1e-3"
-    )
+    for _ in range(5):
+        C = torch.nn.Parameter(
+            torch.nn.functional.normalize(torch.randn(d_c), dim=-1)
+        )
+        c = torch.nn.functional.normalize(torch.randn(d_c), dim=-1)
+        out = distance.logit(C, c, beta=MAX_GRAD_PER_C)
+        grad_norm = torch.autograd.grad(out, C, create_graph=False)[0].norm().item()
+        assert grad_norm == pytest.approx(MAX_GRAD_PER_C, abs=1e-4), (
+            f"actual={grad_norm}, expected β=MAX_GRAD_PER_C={MAX_GRAD_PER_C} "
+            f"for unit C and unit c"
+        )
