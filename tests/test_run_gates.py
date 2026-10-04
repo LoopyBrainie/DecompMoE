@@ -32,14 +32,35 @@ del _spec
 
 
 def test_snapshot_differs_names_every_moved_field() -> None:
-    """A changed HEAD, a changed tracked digest, a changed untracked digest, or
-    a changed line count must each be reported — not collapsed into one boolean."""
+    """A changed HEAD, a changed tracked digest, or a changed untracked digest
+    must each be reported — not collapsed into one boolean.
+
+    The derived `status_lines` count is deliberately absent. `req-gov-8` forbids
+    treating a coarser function of the same porcelain string as an independent
+    signal, so the count is recorded but never compared. See the next test.
+    """
     before = {"head": "aaaa", "tracked_digest": "t1", "untracked_digest": "u1", "status_lines": 3}
     after = {"head": "bbbb", "tracked_digest": "t2", "untracked_digest": "u2", "status_lines": 4}
     moved = G._snapshot_differs(before, after)
-    assert len(moved) == 4, f"Expected all 4 fields reported, got {moved}"
-    for key in ("head", "tracked_digest", "untracked_digest", "status_lines"):
+    assert len(moved) == 3, f"Expected all 3 compared fields reported, got {moved}"
+    for key in ("head", "tracked_digest", "untracked_digest"):
         assert any(key in m for m in moved), f"{key} not reported: {moved}"
+
+
+def test_derived_entry_count_alone_does_not_invalidate_the_run() -> None:
+    """A moved `status_lines` with all three compared signals fixed MUST NOT report INVALID.
+
+    This is the regression for the F1 finding: `status_lines` sat in the compared
+    tuple, so a derived count of changed entries acted as an independent signal --
+    which `req-gov-8` forbids and which `worktree_snapshot`'s own docstring denies.
+    The field is still recorded, so this asserts the contract directly (a derived
+    count never trips INVALID), not the absence of a hypothetical counterexample.
+    """
+    before = {"head": "aaaa", "tracked_digest": "t1", "untracked_digest": "u1", "status_lines": 3}
+    after = {"head": "aaaa", "tracked_digest": "t1", "untracked_digest": "u1", "status_lines": 99}
+    assert G._snapshot_differs(before, after) == [], (
+        f"a derived count must not act as an independent signal: {before} {after}"
+    )
 
 
 def test_snapshot_differs_reports_digests_as_changed_not_as_hex() -> None:
@@ -197,6 +218,36 @@ def test_gates_exit_2_when_worktree_changes_during_run(monkeypatch, capsys) -> N
     assert rc == G.EXIT_INVALID, f"Expected exit 2, got {rc}. Output:\n{out}"
     assert "GATE RESULT INVALID" in out, out
     assert "do not read this as a pass" in out, out
+
+
+def test_gates_stay_valid_when_only_the_derived_count_moves(monkeypatch, capsys) -> None:
+    """A moved `status_lines` alone MUST NOT turn a green run into INVALID.
+
+    The call-level counterpart to the unit guard. That one drives
+    `_snapshot_differs` with synthetic dicts, so it cannot see a broken
+    end-to-end verdict; this one goes through `cmd_gates`, which is where the
+    snapshot is sampled twice and exit 2 is actually decided. The companion test
+    above proves the tree moved; this proves a *derived count* moving is not
+    treated as the tree moving, at the level where that decision is made.
+    """
+    calls = {"n": 0}
+
+    def fake_snapshot() -> dict[str, object]:
+        calls["n"] += 1
+        base = {"head": "a" * 40, "tracked_digest": "t1", "untracked_digest": "u1"}
+        return {**base, "status_lines": 1 if calls["n"] == 1 else 99}
+
+    monkeypatch.setattr(G, "worktree_snapshot", fake_snapshot)
+    monkeypatch.setattr(G, "discover_lints", lambda: [Path("fake_lint.py")])
+    monkeypatch.setattr(G, "_run", lambda cmd: (0, "ok"))
+    monkeypatch.setattr(G, "check_anchor_coverage", lambda: [])
+
+    rc = G.main(["--skip-pytest"])
+    out = capsys.readouterr().out
+    assert rc == G.EXIT_OK, f"a derived count must not invalidate the run, got {rc}:\n{out}"
+    assert "GATE RESULT INVALID" not in out, out
+    # The count is still surfaced for a human reading the result.
+    assert "dirty_entries=1" in out, out
 
 
 def test_gates_exit_0_on_stable_worktree(monkeypatch, capsys) -> None:
@@ -454,6 +505,22 @@ def test_genuine_loss_is_still_reported_when_a_removal_is_also_declared(
     assert "req-a" in out, f"the deliberate removal should still be disclosed: {out}"
     lost_line = [l for l in out.splitlines() if l.strip().startswith("lost")][0]
     assert "req-c" in lost_line, f"req-a must not be in the lost list: {lost_line!r}"
+    # `req-gov-10` requires the report to state how many classes counts cannot
+    # separate, so this wording is normative, not incidental. Note it names the
+    # code's class *vocabulary* (three), not how many lists this run printed --
+    # only two print here, because the change declares no added anchor.
+    assert "three classes" in out, f"the summary must state three classes: {out}"
+    # ...and that "three" must equal the number of distinct class labels the code
+    # can actually emit, so adding or dropping a class turns this red instead of
+    # leaving the prose quietly stale.
+    src = Path(G.__file__).read_text(encoding="utf-8")
+    vocabulary = sum(
+        h in src
+        for h in ("LOST anchor(s)", "removed on purpose", "NEVER-ADDED anchor(s)")
+    )
+    assert f"these {('two', 'three', 'four')[vocabulary - 2]} classes" in out, (
+        f"the prose must track the code's class vocabulary ({vocabulary}): {out}"
+    )
 
 
 def test_removed_anchor_lookup_is_scoped_per_capability(

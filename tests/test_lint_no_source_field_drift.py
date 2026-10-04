@@ -577,6 +577,49 @@ def test_prefixed_but_canonical_source_line_is_accepted() -> None:
         p.unlink()
 
 
+def test_lint_reports_a_source_line_yielded_without_matching_the_pattern(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The `internal:` guard is reachable and MUST be driven, not merely present.
+
+    `req-gov-11` requires that a line handed to the body-slicer by
+    `iter_source_lines` but not matched by `SOURCE_LINE_RE` be reported as an
+    internal inconsistency rather than silently skipped. Without a test, that
+    MUST is unfalsifiable: the branch is currently unreachable through the real
+    generator, so the clause could be deleted from the spec, or the branch
+    deleted from the lint, and the suite would stay green either way.
+
+    Here the generator is stubbed to yield exactly that state, which is the only
+    way to reach the branch. This pins the *behaviour* (an unmatchable yielded
+    line is reported, not dropped), not the existence of a comment.
+    """
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".md", delete=False, encoding="utf-8"
+    ) as f:
+        f.write("# Test spec\n\nplain prose that is not a Source field\n")
+        spec = Path(f.name)
+
+    def _bad_generator(paths):
+        # Yields a line the pattern will NOT match -- the exact inconsistency
+        # the guard exists to catch.
+        for p in paths:
+            yield p, 3, "plain prose that is not a Source field"
+
+    monkeypatch.setattr(L, "iter_source_lines", _bad_generator)
+    try:
+        violations = L.lint_file(spec)
+        assert any("internal:" in reason for _, _, reason in violations), (
+            f"an unmatchable yielded line must be reported, not skipped: {violations!r}"
+        )
+        assert any(
+            "without matching SOURCE_LINE_RE" in reason for _, _, reason in violations
+        ), f"the reason must name the inconsistency: {violations!r}"
+    finally:
+        spec.unlink()
+
+
 def test_source_body_is_sliced_at_the_match_end_not_a_fixed_length() -> None:
     """Pin the coupling directly, so the invariant survives a future refactor.
 

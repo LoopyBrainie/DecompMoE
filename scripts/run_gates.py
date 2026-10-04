@@ -159,10 +159,17 @@ def worktree_snapshot() -> dict[str, object]:
     * `untracked_digest` — a digest of every untracked file's bytes, enumerated
       individually so that a new file inside an untracked directory counts.
 
-    `status_lines` is deliberately *not* among them: it is a strictly coarser
-    function of the same porcelain string, so counting it as an independent
-    signal would overstate how much the fingerprint discriminates. It is kept
-    only so a human reading an INVALID result can see how busy the tree was.
+    `status_lines` is deliberately *not* among them. The rule being implemented is
+    `req-gov-8`'s: a derived count of changed entries must not be treated as an
+    independent signal. The reason is NOT that it is a coarser function of the same
+    string — the two digests above hash `git diff HEAD` and individually enumerated
+    untracked bytes, neither of which is a function of the porcelain output. The
+    claim that does hold is the surjectivity one: every porcelain line denotes a
+    change event that at least one compared digest already reflects, so the line
+    count is determined by a multiset the digests already determine. That is an
+    empirical property of those three git commands, not a theorem; see the note at
+    the comparison site and `design.md` D3. The field is kept only so a human
+    reading an INVALID result can see how busy the tree was.
     """
     rc_head, head = _git("rev-parse", "HEAD")
     if rc_head != 0:
@@ -186,7 +193,21 @@ def _snapshot_differs(before: dict[str, object], after: dict[str, object]) -> li
     is *which* signal tripped.
     """
     moved: list[str] = []
-    for key in ("head", "tracked_digest", "untracked_digest", "status_lines"):
+    # `status_lines` is recorded but deliberately NOT compared, per req-gov-8: a
+    # derived count of changed entries must not act as an independent signal.
+    #
+    # The justification is surjectivity, NOT coarseness. It is tempting to say the
+    # count "is a coarser function of the same porcelain string", but that is
+    # vacuous -- it is the length of that very string -- and it would be false if
+    # the referent were the compared digests, since those hash `git diff HEAD` and
+    # individually enumerated untracked bytes, neither of which is a function of
+    # the porcelain output. What actually holds: every porcelain line denotes a
+    # change event at least one compared digest already reflects, so the count is
+    # a function of a multiset the digests determine. Measured across 11 state
+    # transitions (including --assume-unchanged and --skip-worktree on a dirty
+    # file) with zero counterexamples; still an empirical property of those three
+    # git commands, not a proof. See design.md D3.
+    for key in ("head", "tracked_digest", "untracked_digest"):
         if before.get(key) == after.get(key):
             continue
         if key.endswith("_digest"):
@@ -520,7 +541,7 @@ def cmd_anchor_ledger(args: argparse.Namespace) -> int:
             for item in never_added:
                 print(f"  never-added   {item}")
         print()
-        print("Counts alone cannot separate these two classes; compare the per-anchor lists above.")
+        print("Counts alone cannot separate these three classes; compare the per-anchor lists above.")
         return EXIT_FAIL
 
     raise ValueError("anchor-ledger needs either --write or --verify")
