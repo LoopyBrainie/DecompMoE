@@ -391,23 +391,12 @@ check("a tracked .yaml reached the census", bool(yaml_in_scope),
 # while the round-4 sweep had just edited six ticket files, and the zero this
 # gate certifies is computed over exactly that population. A total cannot
 # catch a subtraction; named files can.
-PINNED_IN_SCOPE = (
-    "CLAUDE.md",
-    "openspec/specs/wayfinder/spec.md",
-    "openspec/specs/decompmoe-skeleton/spec.md",
-    "openspec/specs/governance/spec.md",
-    "wayfinder/tickets/A1-1.md",
-    "wayfinder/tickets/A4-1.md",
-    "wayfinder/tickets/A5-3.md",
-    "wayfinder/tickets/A6a-2.md",
-    "wayfinder/tickets/A6b-1.md",
-    "wayfinder/tickets/A8-2.md",
-    "LOOPS.md",
-    "src/decompmoe/safeguards.py",
-    "src/decompmoe/metrics.py",
-    "src/decompmoe/gating.py",
-    "tests/test_safeguards.py",
-)
+# Derived from the detector rather than restated. The guard test used to pin a
+# 7-in/3-out SUBSET of this 15-in/4-out list: the stronger pin had no test-side
+# mirror, and a subset cannot detect drift in the superset it shadows. One
+# definition, in `pointer_scan.py`, next to `SELF_EXCLUDE`.
+PINNED_IN_SCOPE = ps.PINNED_IN_SCOPE
+PINNED_OUT_OF_SCOPE = ps.PINNED_OUT_OF_SCOPE
 pinned_set = set(scope_files)
 for rel in PINNED_IN_SCOPE:
     check("pinned in scope: %s" % rel, rel in pinned_set,
@@ -415,8 +404,7 @@ for rel in PINNED_IN_SCOPE:
 
 # ...and the other direction: the detector and its own guard tests must stay
 # OUT, or the census reports the fixtures it uses as live pointers.
-for rel in ("scripts/pointer_scan.py", "scripts/lint_no_line_pointers.py",
-            "scripts/lint_pointer_detector.py", "tests/test_pointer_scan.py"):
+for rel in PINNED_OUT_OF_SCOPE:
     check("pinned OUT of scope: %s" % rel, rel not in pinned_set,
           "a self-referential tool entered the census")
 

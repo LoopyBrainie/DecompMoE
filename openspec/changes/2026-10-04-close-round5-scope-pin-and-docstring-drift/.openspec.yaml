@@ -1,0 +1,9 @@
+schema: spec-driven
+created: 2026-10-04
+# This change modifies no Requirement. B-3 brings `in_scope` in line with the
+# semantics its own comment already declared, B-4 corrects a docstring that
+# claimed a fix it did not perform, B-5 collapses two literal copies of one
+# list into a single definition, and B-6 adds a test for an existing branch.
+# B-1 and B-2 are factual corrections to an ARCHIVED change, which is
+# immutable -- they are recorded in proposal.md rather than written back.
+skip_specs: true

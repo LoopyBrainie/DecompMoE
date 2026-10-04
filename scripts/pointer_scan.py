@@ -448,8 +448,23 @@ def _exempt(text: str, start: int, end: int, others=()):
     ``others`` are the spans of the OTHER locators on this line. A marker
     annotates ONE recorded object, so a marker that has to reach ACROSS
     another locator on the same line is not annotating this one. Without
-    that, ``L100 (historical, was 1/128) - but see spec.md L453`` exempted
-    the live `L453` with the marker that belongs to `L100`.
+    that, ``(historical, was 1/128) spec.md L100 then spec.md L453 is
+    current`` exempted the live `L453` with the marker that belongs to
+    `L100`.
+
+    The test is symmetric -- a locator between this one and a marker on its
+    far side blocks the exemption just as one on its near side does.
+
+    A crossing needs a tracked locator strictly BETWEEN the marker and the
+    target, which means the marker has to come first:
+    ``marker ... A ... B``. In the mirror order ``A (marker) ... B`` there is
+    nothing between them, so ``others`` cannot fire and `B` is decided by
+    ``EXEMPT_WINDOW`` and the sentence break alone. The older version of this
+    docstring cited ``L100 (historical, was 1/128) - but see spec.md L453``
+    as the defect ``others`` fixed; it does not, and it cannot -- a bare
+    ``L100`` with no path or capability word in front of it is not a tracked
+    locator, so the line offers nothing to reach across. That shape is
+    recorded as a known residual in the round-5 change, not claimed as fixed.
     """
     if start < 0:
         start, end = 0, len(text)
@@ -647,10 +662,54 @@ def scan_line(rel: str, lineno: int, line: str):
 #:
 #: The lint entries are PREFIXES, so a lint added later is covered without
 #: anyone remembering to add it here -- the same drift, one directory over.
+#: `in_scope` matches them with ``str.startswith``, which is what "prefix"
+#: means; a substring test also swallowed `docs/scripts/lint_notes.md`.
 SELF_EXCLUDE = (
     "scripts/lint_",
     "scripts/pointer_scan.py",
     "tests/test_lint_",
+    "tests/test_pointer_scan.py",
+)
+
+#: The files the census MUST cover, named one by one.
+#:
+#: A total cannot catch a subtraction. Adding `wayfinder/tickets/` to the
+#: exclusion list took the census from 80 files to 56, the baseline from 24 to
+#: 18, and left every gate green and pytest green -- while the round-4 sweep it
+#: had just performed had edited six of those tickets, and the zero this gate
+#: certifies is computed over exactly that population. ``MIN_CHECKS`` and the
+#: non-md/py count all stayed on the green side of their bounds.
+#:
+#: Single source of truth: `scripts/lint_pointer_detector.py` derives its checks
+#: from here, and `tests/test_pointer_scan.py` asserts the same names against
+#: the same `in_scope`. They used to be two literal lists -- the guard test
+#: pinned 7 in / 3 out while the gate pinned 15 in / 4 out -- and a subset
+#: cannot detect drift in the superset it shadows.
+PINNED_IN_SCOPE = (
+    "CLAUDE.md",
+    "openspec/specs/wayfinder/spec.md",
+    "openspec/specs/decompmoe-skeleton/spec.md",
+    "openspec/specs/governance/spec.md",
+    "wayfinder/tickets/A1-1.md",
+    "wayfinder/tickets/A4-1.md",
+    "wayfinder/tickets/A5-3.md",
+    "wayfinder/tickets/A6a-2.md",
+    "wayfinder/tickets/A6b-1.md",
+    "wayfinder/tickets/A8-2.md",
+    "LOOPS.md",
+    "src/decompmoe/safeguards.py",
+    "src/decompmoe/metrics.py",
+    "src/decompmoe/gating.py",
+    "tests/test_safeguards.py",
+)
+
+#: ...and the other direction. The detector and its own guard tests spell out
+#: pointer forms by construction; if the census covered them it would report
+#: its own fixtures as live pointers.
+PINNED_OUT_OF_SCOPE = (
+    "scripts/pointer_scan.py",
+    "scripts/lint_no_line_pointers.py",
+    "scripts/lint_pointer_detector.py",
     "tests/test_pointer_scan.py",
 )
 
@@ -727,11 +786,20 @@ def in_scope(paths):
     The single filter used by every entry point -- the worktree scan and the
     historical-commit scan alike -- so the two can never disagree about the
     population.
+
+    ``SELF_EXCLUDE`` entries are tested as PREFIXES. A substring test looked
+    equivalent and was not: it also matched ``docs/scripts/lint_notes.md`` and,
+    worse, ``openspec/specs/wayfinder/scripts/lint_x.md`` -- a spec would have
+    been dropped from the census because its path happened to contain a
+    directory named after a lint. No tracked file diverges today (the entries
+    all sit at the root of their directory), so this was a latent hazard, not
+    a live miscount; it is pinned by
+    ``tests/test_pointer_scan.py::test_self_exclude_is_a_prefix_not_a_substring``.
     """
     return [
         f for f in paths
         if "openspec/changes/archive/" not in f
-        and not any(x in f for x in SELF_EXCLUDE)
+        and not any(f.startswith(x) for x in SELF_EXCLUDE)
         and not _is_working_note(f)
     ]
 

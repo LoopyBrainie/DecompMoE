@@ -277,6 +277,58 @@ def test_gate_and_census_exclude_the_same_files():
     assert "scripts/lint_" in ps.SELF_EXCLUDE
 
 
+def test_self_exclude_is_a_prefix_not_a_substring():
+    """`SELF_EXCLUDE` entries are prefixes, and `in_scope` must test them that way.
+
+    The comment above the tuple says PREFIX, and the test was a substring
+    membership test. Nothing in the repository diverges, because every entry
+    sits at the root of its own directory -- which is exactly why it survived
+    review. The hazard is what a substring test accepts: `docs/scripts/lint_notes.md`
+    matched, and so did a hypothetical `openspec/specs/wayfinder/scripts/lint_x.md`,
+    which would have dropped a SPEC from the census because its path happened to
+    contain a directory named after a lint.
+    """
+    # ...the entries that are directories really do cover their directory
+    for rel in ("scripts/lint_brand_new_gate.py", "tests/test_lint_brand_new.py"):
+        assert ps.in_scope([rel]) == [], \
+            "%s should be excluded by the directory prefix" % rel
+    # ...and a path that merely CONTAINS one is not excluded
+    for rel in ("docs/scripts/lint_notes.md",
+                "notes/tests/test_lint_extra.md",
+                "openspec/specs/wayfinder/scripts/lint_x.md"):
+        assert ps.in_scope([rel]) == [rel], (
+            "%s contains an exclusion substring but is not itself under one; "
+            "excluding it would silently drop a file from the census" % rel
+        )
+
+
+def test_marker_may_not_reach_across_another_locator_to_the_right():
+    """The mirror of `test_marker_may_not_reach_across_another_locator`.
+
+    That test puts the marker FIRST, so the crossing is a locator to the left
+    of the target. The rule is symmetric -- a locator between the target and a
+    marker on its far side blocks the exemption just the same -- but only the
+    left-hand branch was ever exercised, so the right-hand clause of
+    `_crosses_another_locator` could have been deleted without a single test
+    turning red.
+
+    Layout: `spec.md L100 spec.md L453 (historical, was 1/64)`. For L453 the
+    marker is adjacent and legitimately annotates it. For L100 the marker is
+    to the right, and L453 sits between them, so it is not this marker's
+    object and must stay live.
+    """
+    line = "old: spec.md L100 spec.md L453 (historical, was 1/64)"
+    sites = ps.scan_line("t.md", 1, line)
+    first = [s for s in sites if s.detail.endswith("L100")]
+    second = [s for s in sites if s.detail.endswith("L453")]
+    assert first and second, \
+        f"probe produced {[(s.detail, s.historical) for s in sites]}"
+    assert any(not s.historical for s in first), \
+        "L100 was exempted by a marker that reaches across L453"
+    assert any(s.historical for s in second), \
+        "the marker's own locator must still be exempt"
+
+
 # ---------------------------------------------------------------------------
 # Round 3: the EXEMPTION was the defect, not just the detection.
 #
@@ -701,14 +753,26 @@ def test_census_scope_pins_known_files_in_and_out():
     Adding `wayfinder/tickets/` to the exclusion list dropped the census from
     80 files to 56 and the baseline from 24 to 18, and left the whole gate
     pipeline green while the sweep it had just done touched six of them.
+
+    The names come from `ps.PINNED_IN_SCOPE` / `ps.PINNED_OUT_OF_SCOPE` --
+    the same tuples `scripts/lint_pointer_detector.py` checks against its own
+    `scope_files`. This test used to carry a private 7-in/3-out literal, a
+    strict SUBSET of the gate's 15-in/4-out list: the stronger pin had no
+    test-side mirror, and a subset cannot detect drift in the superset it
+    shadows.
     """
+    # Count FIRST. A `for` over an empty tuple asserts nothing at all, so
+    # emptying either list would have left this test green -- the same
+    # vacuous-truth shape the detector lint guards against with MIN_CHECKS.
+    assert len(ps.PINNED_IN_SCOPE) == 15, \
+        "expected 15 named in-scope files, got %d" % len(ps.PINNED_IN_SCOPE)
+    assert len(ps.PINNED_OUT_OF_SCOPE) == 4, \
+        "expected 4 named out-of-scope files, got %d" % len(ps.PINNED_OUT_OF_SCOPE)
+    assert not set(ps.PINNED_IN_SCOPE) & set(ps.PINNED_OUT_OF_SCOPE), \
+        "a file is pinned both in and out of scope"
+
     scope = set(ps.tracked_files(_SCRIPTS.parents[0]))
-    for rel in ("CLAUDE.md", "LOOPS.md",
-                "openspec/specs/wayfinder/spec.md",
-                "openspec/specs/governance/spec.md",
-                "wayfinder/tickets/A1-1.md", "wayfinder/tickets/A8-2.md",
-                "src/decompmoe/safeguards.py"):
+    for rel in ps.PINNED_IN_SCOPE:
         assert rel in scope, "%s fell out of the census" % rel
-    for rel in ("scripts/pointer_scan.py", "scripts/lint_pointer_detector.py",
-                "tests/test_pointer_scan.py"):
+    for rel in ps.PINNED_OUT_OF_SCOPE:
         assert rel not in scope, "%s entered the census" % rel
