@@ -854,6 +854,92 @@ def test_voronoi_impl_output_within_1e6_of_exact_root() -> None:
         bias = abs(theta_impl - exact_root(n_e, 16))
         assert 0 < bias < mpmath.mpf("1e-6"), f"actual={float(bias)}"
 
+
+def _cap_area_fraction_quadrature(
+    theta: float,
+    signature_dim: int,
+    *,
+    exponent_offset: int = 0,
+    panels: int = 4096,
+) -> float:
+    """One-pole cap area share of `S^(d-1)`, by composite Simpson quadrature.
+
+    A cap of half-angle `theta` on `S^(d-1) ⊂ R^d` spans the surface element
+    `sin^(d-2) t`, so its share of the whole sphere is
+
+        ∫_0^theta sin^(d-2) t dt / ∫_0^pi sin^(d-2) t dt
+      = ∫_0^theta sin^(d-2) t dt / (2 · ∫_0^(pi/2) sin^(d-2) t dt).
+
+    `exponent_offset=1` deliberately swaps the integrand to `sin^(d-1)`, which is
+    the surface element of the sphere one dimension larger. That variant exists
+    so an off-by-one sphere dimension can be pinned as a *rejected* reading
+    rather than re-proposed by a later audit round.
+    """
+    if signature_dim < 2:
+        raise ValueError(f"signature_dim must be >= 2, actual={signature_dim}")
+    if exponent_offset not in (0, 1):
+        raise ValueError(f"exponent_offset must be 0 or 1, actual={exponent_offset}")
+    if panels % 2:
+        raise ValueError(f"panels must be even for Simpson, actual={panels}")
+
+    exponent = signature_dim - 2 + exponent_offset
+
+    def simpson(lo: float, hi: float) -> float:
+        h = (hi - lo) / panels
+        total = math.sin(lo) ** exponent + math.sin(hi) ** exponent
+        for k in range(1, panels):
+            weight = 4.0 if k % 2 else 2.0
+            total += weight * math.sin(lo + k * h) ** exponent
+        return total * h / 3.0
+
+    return simpson(0.0, theta) / (2.0 * simpson(0.0, math.pi / 2.0))
+
+
+def test_cap_area_fraction_matches_direct_quadrature() -> None:
+    """The tabulated `θ_Voronoi` angles are the roots of the TRUE area share.
+
+    Spec req-11 defines `θ_Voronoi` as the unique `theta` in `(0, π/2]` solving
+    `½ · I_{sin²θ}((d_c − 1)/2, 1/2) = 1/N_e`. The `d_c − 2` surface exponent
+    behind that beta parameter is the one for `S^(d_c − 1)`, so `1/N_e` must fall
+    out of direct quadrature at exactly those two tabulated angles.
+
+    The check is deliberately method-independent: it never calls
+    `_betainc_regularized` or `mpmath.betainc`, only Simpson quadrature of the
+    defining integral, so it cannot inherit the implementation's own
+    parameterisation.
+    """
+    for n_e, tabulated_deg in ((16, 67.24), (64, 58.47)):
+        theta = sphere.canonical_voronoi_angle(num_experts=n_e, signature_dim=16)
+        share = _cap_area_fraction_quadrature(theta, 16)
+        assert share == pytest.approx(1.0 / n_e, abs=1e-6), (
+            f"N_e={n_e} d_c=16 theta={theta} rad "
+            f"({math.degrees(theta):.2f} deg, tabulated {tabulated_deg} deg): "
+            f"cap area share actual={share}, expected 1/{n_e}={1.0 / n_e}"
+        )
+
+
+def test_cap_area_fraction_rejects_off_by_one_sphere_dimension() -> None:
+    """Pin the off-by-one sphere dimension as a *refuted* reading of the contract.
+
+    A 2026-10-04 audit round proposed that the `(d_c − 1)/2` beta parameter should
+    be `d_c/2`, arguing that equal-area cells on `S^(d_c − 1)` need a larger
+    half-angle. That proposal is wrong: `d_c/2` is the parameter for the sphere
+    one dimension up, and it *undershoots* the `1/N_e` area share instead of
+    reaching it.
+
+    Measured at the MVP `(16, 16)` angle: true share `0.0625` versus the
+    off-by-one variant's `0.0563632`, i.e. only `0.9018×` of target; at
+    `(64, 16)` only `0.8308×`. Encoding the deficit means a later round that
+    re-derives the same numbers finds them already adjudicated.
+    """
+    theta = sphere.canonical_voronoi_angle(num_experts=16, signature_dim=16)
+    off_by_one = _cap_area_fraction_quadrature(theta, 16, exponent_offset=1)
+    assert off_by_one == pytest.approx(0.0563632, abs=1e-6), f"actual={off_by_one}"
+    assert off_by_one < 1.0 / 16, (
+        f"off-by-one variant must undershoot the 1/16 target, actual={off_by_one}"
+    )
+
+
 def test_versine_voronoi_closed_form() -> None:
     """Audit findings MAJ-M1 / MAJ-M2: versine_Voronoi closed-form values.
 

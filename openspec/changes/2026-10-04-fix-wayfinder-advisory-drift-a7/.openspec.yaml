@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-10-04
+goal: close the still-real wayfinder advisory-layer drift (A-7 audit list AC-93/94/95/96/98/99) with ticket-side (historical, ...) annotations and a map.md resync, record the 3 refuted/expired adjudications, and pin the Voronoi cap-area closed form against direct quadrature
+skip_specs: true
