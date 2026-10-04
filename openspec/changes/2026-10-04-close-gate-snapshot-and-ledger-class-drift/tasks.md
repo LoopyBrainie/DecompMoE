@@ -122,13 +122,20 @@
       the case a content-only check cannot see, and the reason the file-list half is
       not optional. The one untracked archive entry left is the pre-existing
       `2026-10-01-audit-errata-a1-numeric-guard-list/`, which is NOT ours.
-- [ ] 6.2 Stage only this change's files: `scripts/run_gates.py`,
+- [x] 6.2 Stage only this change's files: `scripts/run_gates.py`,
       `tests/test_run_gates.py`, `tests/test_lint_no_source_field_drift.py`, and the
       five files under this change's directory. Explicitly exclude
       `wayfinder/tickets/WF-1.md` and `src/decompmoe/gating.py` — they are another
       session's in-flight work, and a blanket `git add -A` would sweep them in.
-- [ ] 6.3 Commit on `dev` **without** `--amend`. A concurrent session shares this
+      Done: the index was verified clean of anyone else's staged content first,
+      then exactly 8 paths were staged and re-checked for the forbidden set
+      (archive, `WF-1.md`, `gating.py`) before committing.
+- [x] 6.3 Commit on `dev` **without** `--amend`. A concurrent session shares this
       worktree and the same index; amend rewrites another session's commit.
+      Done: `1f2f13c`, 8 files. This tick is a separate follow-up commit rather
+      than an amend, both because amend is forbidden here and because the point
+      of the restructuring above is that the task list reaches 100% without
+      rewriting history.
 
 ## Post-apply procedure — deliberately NOT tasks
 
