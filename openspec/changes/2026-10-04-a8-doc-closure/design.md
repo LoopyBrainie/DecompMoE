@@ -133,3 +133,21 @@ agent 自述（`journal.jsonl` result 字段，逐字）保留了当时自洽的
 ### 行数口径声明
 
 两个文件的行数一律用**字节流**口径（数 `0x0A`）。PowerShell 文本路径给出 `REVIEW-LEDGER.md` = 310 行，是控制台编码吞掉多字节序列造成的**假低读数**；`numstat` 与字节口径均为 312。引用时须标明用的是哪个口径。
+
+## 事实更正：`git remote set-head` 不改远端默认分支（任务 6.1 原文有误）
+
+本 change 的任务 6.1 原文写作「`git remote set-head origin dev`（改的是**远端**默认展示分支指针，**不动任何 ref 拓扑**）」。**该描述在「远端」二字上是错的**，实测如下：
+
+| 步骤 | 观测 | 来源 |
+|---|---|---|
+| 执行前 | 本地 `refs/remotes/origin/HEAD` = `refs/remotes/origin/main` | `git symbolic-ref refs/remotes/origin/HEAD` |
+| 执行 | `git remote set-head origin dev` → `exit 0` | — |
+| 执行后（本地） | `refs/remotes/origin/HEAD` = `refs/remotes/origin/dev` | `git symbolic-ref refs/remotes/origin/HEAD` |
+| 执行后（**远端**） | **仍为** `ref: refs/heads/main	HEAD` / `051f24749770f6ceb6b3ba4d5c4961592943ba5e` | `git ls-remote --symref origin HEAD` |
+| 回滚 | `git remote set-head origin main` → `exit 0`，本地恢复 `refs/remotes/origin/main`，与远端一致 | 同上两路复验 |
+
+`git remote set-head` 写的是**本地** `refs/remotes/origin/HEAD` 这个 remote-tracking 缓存 ref；它是「远端 HEAD 是什么」的**本地副本**，不是设置远端的动作。**真正改 GitHub 仓库首页默认分支必须改远端仓库设置**：`gh repo edit <owner>/<repo> --default-branch dev`，或 GitHub 仓库 Settings → Branches → Default branch。本机 `gh` 已安装（`C:\Program Files\GitHub CLI\gh.exe`）但**未认证**（`gh repo view` 报 `run: gh auth login`），故本轮无法执行。
+
+⇒ **该执行不仅未达成目标，还使本地缓存与远端事实相反**（本地声称 `dev`、远端实为 `main`），故已回滚。任务 6.1 与 6.3 保持 `[ ]`。
+
+**教训（对应 CLAUDE.md §3「GateGuard」与本 change 的「禁止预先勾选」条款）**：命令 `exit 0` 只证明**调用成功**，不证明**目标达成**。`remote set-head` 这一族命令的名字自带「设置远端」的字面暗示，而实际作用域是本地 ref——**这类作用域与名字不符的命令，必须向被作用的另一侧（此处是 `ls-remote`）取证，而不是向本地复述**。本条若被勾选，就会把「远端首页已修好」这个**未发生的副作用**写进受治理制品。
