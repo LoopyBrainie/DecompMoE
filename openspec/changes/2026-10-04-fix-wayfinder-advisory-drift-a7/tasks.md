@@ -35,7 +35,7 @@ doc-level change：0 spec delta、0 `src/` 改动。扫描范围声明：本 cha
 ## 4. `wayfinder/tickets/A6a-2.md`（109 → 110 行）— AC-98 + 清单漏报项
 
 - [x] 4.1 L70 专家权重克隆步加 `superseded by spec req-32 … (#req-32)` 标注。**标注置于代码块围栏之外的同级 bullet**（该行在 ```` ``` ```` 内，行尾追加长散文会破坏代码块渲染），并明示「前 3 步（供体克隆质心 + 协同衰减 β）仍是现行契约」。
-- [x] 4.2 L96 `③ f_i 监控 (100)` → `(200)`。依据：同文件 L63 的 `持续 200 steps` + `wayfinder/spec.md`「Eight Geometric Quantification Metrics」内的 200-step history + `decompmoe-skeleton/spec.md` `consec = 200` + `src/decompmoe/safeguards.py:31 DEAD_EXPERT_CONSEC_STEPS = 200`。**清单未覆盖此条**，是本轮新发现的 ticket 内部自相矛盾。
+- [x] 4.2 ~~L96 `③ f_i 监控 (100)` → `(200)`~~ —— **已回滚**（见下）。本 change 初版曾据「同文件 L63 的 `持续 200 steps` + `DEAD_EXPERT_CONSEC_STEPS = 200`」把监控频率 100 改成 200，**该依据不成立**：L63 的 200 是 resurrection 的**触发窗口**（连续低于阈值多少步才触发），spec 的 `UR` 窗口是第三个量 `W = 100`（`decompmoe-skeleton` req-22、`src/decompmoe/metrics.py::_UR_WINDOW_STEPS = 100`），三者互不相干。且原行 `100 / 200 / 1000` 与三个项目**本就自洽**，改成 200 反而使左列出现一个不存在的频率。监控频率在 spec 侧无规范值，按「不在无真相源处造值」原则**保持原值 (100) 不动**。回滚后该行恢复自洽。
 - [x] 4.3 L63 既有标注规范化：`spec req-13 (Numerical Safeguards)` → `spec req-13 Numerical Safeguards (#req-13)`
 - [x] 4.4 验证：lf=110 / crlf=0 / 无 BOM / 单尾换行；代码块围栏配对未破坏。
 
