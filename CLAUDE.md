@@ -54,6 +54,10 @@ When sources disagree, consult in this order:
 
 合并顺序：main 先、release 后（release 永远在 git tree 最前端）。每次合并后立即 `git checkout dev`，避免 dev HEAD 落在 merge commit 上。
 
+> **当前状态（2026-10-04 实测）——本节通道未启用**：本仓 `main` 的 root 是只含 `.gitignore` 与 `LICENSE` 的 Initial commit `051f247`，与 `dev` 无任何共同祖先（`git merge-base main dev` 无输出且退出码非零），故 `dev → main` 存档通道在拓扑对齐前**不可执行**；`release` 分支在 `for-each-ref` / `git tag` / `ls-remote` / reflog / `packed-refs` 五路均不存在，仓库 tag 数本地与远端皆为 0，故 `dev → release` 出埠通道与「必带 tag」义务**从未被触发**。三分支架构保留为 aspirational 规范，本节不预设将来是否建立 `release`。
+>
+> **远端默认展示分支失真（已知未修）**：`origin/HEAD` 指向 `main`，即从 GitHub 仓库首页进入的人看到的是一棵与开发线无关的单提交空树。修正动作是 `git remote set-head origin dev`（只改展示指针，不动任何 ref 拓扑），本轮未执行。
+
 ## 5. MVP Hyperparameters（frozen）
 
 ```
@@ -90,6 +94,8 @@ Phase boundaries (cumulative cutpoints): 1 K / 6 K / 26 K / 56 K / 100 K
 ## 8. Wayfinder Arena Index
 
 > **2026-08-21 裁决**：wayfinder 不再是必改制品。本仓库以 OpenSpec 为唯一真相源；ticket 仅作历史决策记录（参考性、非约束性）。新变更一律走 OpenSpec 工作流，不再单独 patch tickets。
+>
+> **「非约束性」的确切含义**（`openspec/specs/governance/spec.md` 的 `req-gov-4`，Ticket Advisory Boundary — Stale Contamination Monitoring，clause (1)）：verbatim「this is the ONLY meaning of "advisory"」——ticket 文本可不经 amendment 偏离 spec（**不得推翻 spec**），但该 advisory 范围 verbatim「does NOT extend to claims about ticket-side information having no downstream effect on `src/` or `tests/`」。因此「非约束」限定的是**可否偏离 spec**，**不**限定「不得被维护」：下方三传染通道的监控义务与 `(historical, …)` 标注义务不受此限。
 
 > **2026-09-19 边界补充**（cycle-7 audit-verification meta-洞察 boundary clarification，per `openspec/specs/governance/spec.md` `req-gov-4` 显式建议）：ticket 是 advisory non-binding，但 **advisory ≠ 无影响**。ticket stale 仍可能通过三传染通道污染 `src/`：(i) MVPConfig 默认值直接抄 ticket 数值（实证：`commit adf41ef` 2026-09-19 cycle-5/6/7 batch fix 已关闭 `MVPConfig.beta_initial: 1.0 ← ticket A4-1 β_0 ≈ 1.0` 单向污染）；(ii) tests `assert == stale_value` LOCKS 传染（同 `adf41ef`：`tests/test_beta.py::test_beta_param_init_default` 原 `assert MVPConfig().beta_initial == 1.0` 已迁移 `pytest.approx(expected, abs=1e-3)`）；(iii) reader-ticket-not-spec 复制 stale 数值（cycle-9 worst-case：`wayfinder/tickets/A6a-2.md` 历史 `f_i^avg < 1/128` vs spec `1 / (2·N_e)` 参数化，`src/decompmoe/safeguards.py::_dead_expert_threshold` 已用 spec 形式）。**监控义务**：audit-verification loop 须周期性 check ticket ↔ spec ↔ `src/` 三角漂移，**传染链已断**（per `adf41ef` cycle-5/6/7 + cycle-12 `commit d239f57` 2026-09-21 + cycle-13 `commit f077be8`）不豁免监控——剩余 cycle-9/12/13 ticket-stale family 仍需周期复核。**修复协议 (a)+(b)+(c) 三步**：ticket 端 `(historical, <原值>; superseded by spec req-N L### via <change> Decision M)` 注释；`src/` 默认值同步 spec canonical；tests `pytest.approx(spec_value, abs=...)` 迁移（遵循 `CLAUDE.md` §6 第 8 条 + `req-gov-1`）。**形式化约束**：上述 4 条 obligations 由 `openspec/specs/governance/spec.md` req-gov-4 形式化，audit-verification loop 可对照该 Requirement 复核。
 

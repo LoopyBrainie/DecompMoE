@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-10-04
+goal: close the A-8 user-decision bucket on the documentation surface only — CLAUDE.md §4 not-yet-instantiated notice, CLAUDE.md §8 explicit citation of governance req-gov-4 clause (1) advisory-scope narrowing, plus the A-8 report deferred-evidence bucket and the audit-ledger location register. Zero Requirement content changes, so no delta is declared.
+skip_specs: true
