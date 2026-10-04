@@ -1,8 +1,8 @@
 # Tasks
 
-> **Status: applied and archived.** 30 of 31 tasks complete; 9.4 (post-archive
-> independent review) is deliberately left unchecked because it requires a
-> reviewer other than the implementer. During the archive, openspec archive
+> **Status: applied and archived.** 31 of 31 tasks complete. 9.4 (post-archive
+> independent review) was discharged on 2026-10-04 by a non-implementer `verifier`
+> agent; see the task entry for its verdict. During the archive, openspec archive
 > swallowed <a id="req-gov-7"></a> (AC-19 reproducing live) — see
 > vidence/incident.md for the detection, the two defects it exposed, and the
 > surgical repair. **Do not re-run archive to repair a lost anchor.**
@@ -65,7 +65,26 @@
 - [x] 9.1 `python scripts/run_gates.py` exit 0. **Currently blocked**: the parallel session's untracked `scripts/lint_no_line_pointers.py` exits 1 because its own `tests/test_lint_no_line_pointers.py` is still red. Not this change's to fix; re-check after that session lands.
 - [x] 9.2 `pytest` green across the whole suite.
 - [x] 9.3 Anchor coverage 100% on all three capabilities.
-- [ ] 9.4 Post-archive independent review by someone other than the implementer, recomputing every number from git rather than from this change's `evidence/`.
+- [x] 9.4 Post-archive independent review by someone other than the implementer, recomputing every number from git rather than from this change's `evidence/`.
+
+  **Done 2026-10-04** by a `verifier` agent (fresh session, no implementer context — the
+  independence this task requires). Every number re-derived from git objects
+  (`git show <sha>:<path>`) or the reviewer's own measurement; `evidence/gen_deltas.py`
+  and `evidence/verify_deltas.py` were neither run nor imported, since `gen_deltas.py`
+  generates the very delta `verify_deltas.py` checks.
+
+  **Verdict: discharged.** Both capability deltas applied faithfully; the anchors are
+  byte-identical to the emitted ones; `incident.md`'s self-admission about the
+  overwritten baseline is **accurate**, and all of its reconstructable numbers
+  reconstruct to the stated values — 65 anchors at `940b27c` (36/23/6), governance
+  6 -> 9, repository 65 -> 68, and the surviving JSONs really are post-repair
+  (`written_at_head: 850ed8a`, 68 anchors, 3 declared-new).
+
+  Residual findings (documentation only, recorded not fixed — see `design.md` Errata
+  F4/F6): `incident.md` never mentions `850ed8a`, so its provenance is half-stated
+  even though the number is right; the "65 -> 67" pre-repair transition and the
+  "48 dirty entries" figure are transient observations of an uncommitted tree and
+  are **not reconstructible from git**.
 
 ## 10. Archive (per req-gov-9, five steps, never re-run)
 

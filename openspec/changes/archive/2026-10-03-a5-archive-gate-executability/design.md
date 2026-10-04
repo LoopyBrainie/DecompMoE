@@ -188,3 +188,36 @@ survive archiving」。本 change 修好了它，随后的重写又带了回来�
 `2026-10-03-close-pointer-blindspot-and-full-tree-sweep` 三者在 `openspec/changes/`
 下无 delta 且长期不归档。**按用户裁决本 change 完全不接管**，在此登记以便后续
 change 知道它们是已知未处理项，而不是被漏掉。
+
+## Errata（2026-10-04，task 9.4 独立复核后追加）
+
+由一个**非实施者** `verifier` agent 复核，全部数字从 git 对象重算。**结论：两个
+capability 的 delta 均忠实落地，所有可重算的数字全部复现**——`incident.md` 关于
+「基线被覆盖、原始快照未保留」的自述**准确且难得地坦诚**。以下是残留缺口。
+
+### E6 — F4（MEDIUM）：`incident.md` 只交代了一半 provenance
+
+1. **`incident.md` 从未提到 `850ed8a`。** 两份幸存的 JSON 都记录
+   `"written_at_head": "850ed8a…"`（即 `feat(lint): add the cross-reference gate,
+   C1-C4`），而 `incident.md` 的 caveat 只讨论 `940b27c`。复核已验证
+   `git diff --stat 940b27c 1612778 -- openspec/specs/` **为空**，故 65 这个数字
+   对两者都成立——**数字对，来源只说了一半**。
+2. **「65 → 67」这次账本迁移**（`incident.md` 第 25-26 行）是关于一个**从未提交**的
+   工作树的瞬时事实：没有任何 commit 停在 governance 8 anchor 的状态，故不可重算。
+3. **「交付时刻工作树有 48 个脏条目」**（本 change E2、后续 change D1）同类。
+
+第 2、3 项正是后续 change 的 **D7** 明令禁止的：「任何『我查过，X 不存在 / X 存在』
+的说法，必须同时记下 commit。」缺了 revision，后来的读者无法区分「当时为真」与
+「无法查证」。
+
+**修法**：给 `incident.md` 补一条 Errata，写明幸存文件记录的 revision 是 `850ed8a`，
+并明确把 67 状态与 48 条目数标注为**不可从 git 重算**。
+
+### E7 — F6（LOW）：E5 的「已知未处理」清单已全部结清
+
+本文件 D3 写**两个**陈旧 change，E5 写**三个**。二者在各自 revision 都自洽——复核
+确认 `2026-10-03-close-pointer-blindspot-and-full-tree-sweep` 在后续 change 的
+revision 上**确实**未归档。但到该 change 归档时，`openspec/changes/` 下已只剩
+`archive/`。E5 的措辞（「在此登记以便后续 change 知道它们是已知未处理项」）会诱导
+后来的 change 去处理一份**已经解决的清单**。仅文档问题，且位于归档的 `design.md`
+（历史日志）。
