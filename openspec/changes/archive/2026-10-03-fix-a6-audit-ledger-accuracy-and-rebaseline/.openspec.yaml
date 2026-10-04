@@ -1,0 +1,7 @@
+schema: spec-driven
+created: 2026-10-03
+# This change corrects an audit ledger under .audit/ (a gitignored, non-capability
+# artifact). No requirement changes, so it declares no spec delta -- which also
+# makes it structurally incapable of the archive-time anchor loss that affects
+# delta-carrying changes.
+skip_specs: true

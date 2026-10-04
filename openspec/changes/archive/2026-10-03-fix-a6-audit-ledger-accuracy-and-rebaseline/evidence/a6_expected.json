@@ -1,0 +1,76 @@
+{
+  "_comment": "Hand-authored lock for the A-6 segment. _gen_listA2.py asserts classified.json against this BEFORE writing the markdown, so a later round that silently reverts an A-6 field fails loudly instead of re-emitting a known-wrong value. Derived from evidence/rebaseline_diff.json + the git re-derivations in evidence/verify_a6_errata.py, NOT copied from classified.json.",
+  "frozen_head": "95718cfa0b7e417935d2fbdd873eb7fec06ebb9b",
+  "pin": "6593a06",
+  "line_base": 1,
+  "items": {
+    "AC-06": {
+      "verdict_class": "FIXED_BY_COMMIT",
+      "severity": "MEDIUM",
+      "location_file": "src/decompmoe/sphere.py",
+      "location_line": 67,
+      "baseline_status": "touched-since-pin",
+      "origin_ids": ["rv:main48:math", "rv:main18:source"],
+      "fixing_commit": "f6461d7"
+    },
+    "AC-26": {
+      "verdict_class": "FIXED_BY_COMMIT",
+      "severity": "MAJOR",
+      "location_file": "tests/test_loss.py",
+      "location_line": 178,
+      "baseline_status": "unchanged-since-pin",
+      "origin_ids": ["rv:main45:source", "rv:main45:math", "rv:main45:impact"],
+      "fixing_commit": "315065e"
+    },
+    "AC-27": {
+      "verdict_class": "MOVED",
+      "severity": "MAJOR",
+      "location_file": "openspec/specs/decompmoe-skeleton/spec.md",
+      "location_line": 122,
+      "baseline_status": "unchanged-since-pin",
+      "origin_ids": ["rv:main72:source", "rv:main72:math"],
+      "fixing_commit": null
+    },
+    "AC-29": {
+      "verdict_class": "PARTIALLY_REAL",
+      "severity": "MAJOR",
+      "location_file": "_final_report_full.md",
+      "location_line": 1336,
+      "baseline_status": "unverifiable (no pin line)",
+      "origin_ids": ["rv:main48:math"],
+      "fixing_commit": null
+    },
+    "AC-30": {
+      "verdict_class": "FIXED_BY_COMMIT",
+      "severity": "MAJOR",
+      "location_file": "src/decompmoe/extraction.py",
+      "location_line": 90,
+      "baseline_status": "unchanged-since-pin",
+      "origin_ids": ["grv:gap0:math"],
+      "fixing_commit": "a97e3a7"
+    },
+    "AC-50": {
+      "verdict_class": "PARTIALLY_REAL",
+      "severity": "MEDIUM",
+      "location_file": "openspec/specs/wayfinder/spec.md",
+      "location_line": 383,
+      "baseline_status": "unchanged-since-pin",
+      "origin_ids": [
+        "rv:main42:source",
+        "rv:main42:math",
+        "rv:main42:impact",
+        "rv:main17:source"
+      ],
+      "fixing_commit": null
+    },
+    "AC-51": {
+      "verdict_class": "PARTIALLY_REAL",
+      "severity": "MEDIUM",
+      "location_file": "tests/test_config.py",
+      "location_line": 69,
+      "baseline_status": "unchanged-since-pin",
+      "origin_ids": ["grv:gap25:math", "rv:main22:math"],
+      "fixing_commit": null
+    }
+  }
+}

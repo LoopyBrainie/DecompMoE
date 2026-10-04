@@ -1,0 +1,3 @@
+95718cfa0b7e417935d2fbdd873eb7fec06ebb9b
+pin    = 6593a06
+date   = 2026-10-03 (FROZEN; all 'current position' claims in this change use this commit)

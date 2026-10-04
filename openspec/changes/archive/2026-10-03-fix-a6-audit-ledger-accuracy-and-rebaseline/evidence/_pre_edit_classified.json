@@ -1,0 +1,3929 @@
+{
+ "opsx-change": [
+  {
+   "id": "C-001",
+   "title": "distance.logit 零守卫：变异体死于 autograd 崩溃而非数学断言",
+   "location_file": "src/decompmoe/distance.py",
+   "location_line": 24,
+   "requirement_ref": "wayfinder req-7 L123 / skeleton req-8 L148 / req-5 L91-92",
+   "problem": "协议把该目标记为 killed，但杀死它的规定变异体（torch.zeros_like）的信号来自 test_logit_grad_safe 抛出的 RuntimeError（element 0 of tensors does not require grad），即 autograd 图断裂，而不是任何数学断言。补跑的 4 个保持图连接的变异体（图保持零、纯符号翻转 -β(inner−1)、丢掉 β、β·sign）全部 212 passed，其中符号翻转把 spec 要求的 -32 变成 +32 并落在 [0,+2β] 仍全绿。根因是全套 212 个测试只调用该原语 2 次，src/ 下无任何模块调用它，tests/test_beta.py 的 test_logit_range 与三个梯度测试全部在测试体内内联重算 beta*(inner-1.0)，从不 import 被测原语。",
+   "evidence_ref": "_handoff_mutations.json mutate:0（mutantSurvived=false, killedBy=[test_distance.py::test_logit_grad_safe]）；报告 §5 表格第 0 行 + §5『mutate:0 必须单独点出』",
+   "verdict_class": "STILL_REAL",
+   "severity": "CRITICAL",
+   "origin_ids": [
+    "mutate:0",
+    "main62",
+    "C-010",
+    "rv:main62:math",
+    "rv:main62:impact",
+    "rv:grv:gap11:math"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-01"
+  },
+  {
+   "id": "C-009",
+   "title": "变异守护覆盖率：8 个数学不变量仅 12.5%–37.5% 被数学断言约束",
+   "location_file": "src/decompmoe",
+   "location_line": 0,
+   "requirement_ref": "governance req-gov-1 obligation 5 / CLAUDE.md §6 第 8 条",
+   "problem": "以本轮 8 个被攻击的 spec 数学不变量为分母，按『pytest 以数学断言（非词法 grep / 非 autograd 崩溃 / 非与实现自洽的伪影）约束该不变量语义』为口径：完整约束 1 个（12.5%），真断言但部分覆盖或单线 3 个（37.5%），零守卫或伪守卫 4 个（50%）。另三个独立证据同向：UR 零调用、MVPConfig 字段集零断言（注入 spec 禁止的 beta_max 字段后全绿）、d_c≠16 零覆盖。controlsUnusable=0，8 个 control 全部 212 passed，故存活不是 harness 故障造成的假象。",
+   "evidence_ref": "报告 §5『守护覆盖率判断』段",
+   "verdict_class": "STILL_REAL",
+   "severity": "CRITICAL",
+   "origin_ids": [
+    "C-001",
+    "C-002",
+    "C-003",
+    "C-005",
+    "C-009"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-02"
+  },
+  {
+   "id": "C-010",
+   "title": "logit 闭式与值域无原理级守卫，恒返回 0 变异体全绿",
+   "location_file": "tests/test_beta.py",
+   "location_line": 184,
+   "requirement_ref": "wayfinder req-7 L123 / skeleton req-8 L148",
+   "problem": "decompmoe.distance.logit 的闭式 logit = β·(Cᵀc − 1) 及其值域 ∈ [−2β, 0] 完全没有对实现的原理级守卫：一个恒返回 0 的变异体通过全部 213 个测试。test_logit_no_w_i 用 inspect.signature + getsource + ast.parse 三重提取函数体做硬检查，是全库最严的守卫之一，但它只检查结构不检查数值，CLAUDE.md §6 第 8 条在这条路径上被完全绕过。",
+   "evidence_ref": "_merged_verdicts main62（TEST-GUARD-01）；报告 §8 正面清单 + §5 mutate:0",
+   "verdict_class": "STILL_REAL",
+   "severity": "CRITICAL",
+   "origin_ids": [
+    "rv:main62:impact",
+    "rv:main62:math",
+    "rv:main62:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-03"
+  },
+  {
+   "id": "C-031",
+   "title": "req-6 的凹性错误数值无测试钉住，紧邻测试反而把同类伪零点硬钉为真值",
+   "location_file": "openspec/specs/decompmoe-skeleton/spec.md",
+   "location_line": 98,
+   "requirement_ref": "skeleton req-6 L98 / L116",
+   "problem": "spec L98 声明『G 在 d_c=16 时在 (82.8°, 90.0°) 上是凹的』是数学错误的（G''=0 在 (0,π) 内的唯一根恰为 90°，G 在整个 (0°,90°) 上严格凸），该错误数值 82.8/98.1/179.1 无任何测试钉住；而紧邻的 test_voronoi_angle_convexity_boundary 把同类伪零点 82.6036° 硬钉为真值。测试层的方向与 spec 层的错误一致，互相加固。",
+   "evidence_ref": "_merged_verdicts gap14（W2-MATH-01）与 BASE-01（_handoff_pin.json）",
+   "verdict_class": "STILL_REAL",
+   "severity": "CRITICAL",
+   "origin_ids": [
+    "rv:gap14:math",
+    "rv:gap14:source",
+    "BASE-01",
+    "C-061"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AC-04"
+  },
+  {
+   "id": "C-061",
+   "title": "test_voronoi_angle_convexity_boundary 钉死求积伪影",
+   "location_file": "tests/test_sphere.py",
+   "location_line": 523,
+   "requirement_ref": "skeleton req-6 L98 / CLAUDE.md §6 第 8 条",
+   "problem": "该测试在三组 (d_c, deg) 上以 abs=1e-3 钉 81.3148 / 82.6036 / 83.7313 作为 G 的凸性边界，并额外断言边界上方 1° 处 _cap_area_second_derivative < 0。三个数都是单面板 8 点 GL 求积的伪零点：真 G''=0 在 (0,π) 内的唯一根恰为 90°，在 d_c=16、θ=82.6036° 处真 G'' = +2.4568（凸），而 pin 实现中心差分给 +9.9920e-06。差 8.69 / 7.40 / 6.27 度，比容差大六个数量级，故不是容差问题。",
+   "evidence_ref": "_handoff_pin.json BASE-02；_handoff_delta.json D1-01 与 D2-01；报告 §4 环 6 证据 A + §3.0 CRITICAL",
+   "verdict_class": "STILL_REAL",
+   "severity": "CRITICAL",
+   "origin_ids": [
+    "BASE-02",
+    "D1-01",
+    "D2-01",
+    "C-031",
+    "C-032",
+    "C-061",
+    "C-006",
+    "rv:main18:source",
+    "rv:main48:math"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AC-05"
+  },
+  {
+   "id": "V-34",
+   "title": "裁决时点漂移：e50cc02 已切断环4→环6，环1/环2 未修",
+   "location_file": "src/decompmoe/sphere.py",
+   "location_line": 137,
+   "requirement_ref": "skeleton req-6 / test_voronoi_angle_precondition_is_area_below_half",
+   "problem": "裁决基线是 pin 6593a06，但 HEAD 188b9fb 已多出 9 个 commit。报告在 HEAD 上复测：skeleton req-6 现在写「G is STRICTLY CONVEX on the whole of (0,π/2) … so G'' has NO interior zero」并附闭式，凸性边界测试已被 `test_voronoi_angle_precondition_is_area_below_half` 取代并把三个退役值转为反向回归钉——这是正确处置；但 `_betainc_regularized` 仍是单个 8 点 GL 面板零细分，`_cap_area` 的 π/2 跳变与 pin 逐位相同。结论是「不能因为凸性已修好就认为整条链已闭合」。所有 verdict 的时点必须随 pin 标注。",
+   "evidence_ref": "报告 §4 环 8（HEAD 上实测跳变 5.239884e-2 / 7.870852e-2 / 1.158112e-1，与 pin 逐位相同）；§10 Batch A「不在本批（已被 post-pin e50cc02 处理）」（测试文件行 519-525 落在 pin→HEAD 漂移区间内）",
+   "verdict_class": "MOVED",
+   "severity": "CRITICAL",
+   "origin_ids": [
+    "rv:main48:math",
+    "rv:main18:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AC-06"
+  },
+  {
+   "id": "C-003",
+   "title": "球面归一化零数值守卫：分母加 detach 全绿",
+   "location_file": "src/decompmoe/sphere.py",
+   "location_line": 49,
+   "requirement_ref": "skeleton req-7 L132-134（Scenario 点名 gradcheck）/ wayfinder req-6 L98-99",
+   "problem": "把归一化分母加 .detach() 后全套 212 passed，协议记为 survived。独立 oracle 实测：原实现 gradcheck PASS，加 detach 后 FAIL；前向 C.norm() 两边逐位相同（1.4142135623730949），但 K/V/W_K/W_V/b 的解析梯度相对数值梯度错 32.04% / 40.40% / 28.59% / 33.93% / 24.72%。现有 test_full_differentiability 只断言梯度非 None、有限、范数 > 1e-12；test_no_surrogate_in_codebase 是对 extract_C 源码的 '.detach(' 不出现词法扫描，detach 在一层调用帧之外。spec 自己点名的 torch.autograd.gradcheck（skeleton req-7 L145-147，ATOL 1e-5）全仓 0 次调用。",
+   "evidence_ref": "_handoff_mutations.json mutate:2（mutantSurvived=true, killedBy=[]）；报告 §5 表格第 2 行",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "mutate:2",
+    "main64"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-07"
+  },
+  {
+   "id": "C-005",
+   "title": "canonical_voronoi_angle 偶然守卫：纯名字 grep",
+   "location_file": "src/decompmoe/sphere.py",
+   "location_line": 197,
+   "requirement_ref": "skeleton req-6 L118-120（no hard-coded table values Scenario）",
+   "problem": "全精度硬编码查表（6 个被测输入）+ 变量名 _T 变异体 212 passed；同一张表逐字节相同、只把变量改名 _VORONOI_MVP_TABLE 才 1 failed，即守卫的唯一信号是 assert '_VORONOI_MVP_TABLE' not in src 这条字面量扫描。return _cap_radius(1.0/num_experts, 16)（忽略 signature_dim）同样 212 passed，因为 instrumented 显示套件只出现 distinct d_c values: [16]、26 次调用、6 个 (N_e,d_c) 对。d_c != 16 零覆盖是变异目标层面的偶然守卫而非真实覆盖。",
+   "evidence_ref": "_handoff_mutations.json mutate:4（mutantSurvived=true, killedBy=[]）；报告 §4 环 6 证据 D + §5 表格第 4 行",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "mutate:4",
+    "main65",
+    "gap18"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-08"
+  },
+  {
+   "id": "C-006",
+   "title": "不完全 Beta 积分真守卫但只覆盖 2/13 点且阻碍正确化",
+   "location_file": "src/decompmoe/sphere.py",
+   "location_line": 67,
+   "requirement_ref": "skeleton req-6 / governance req-gov-1 obligation 4",
+   "problem": "规定变异体（b=0.5→0.45）偏差 +1.3579e-2 rad，是契约的 13578 倍，7 个测试死，真实守卫。守卫在 +1.1818e-6 处绑定（+1.1813e-6 仍全绿），名义值 ~6e-10 rad 内；7 个 killer 中 4 个是自指的（用被测的 _betainc_regularized 自己去算 ½·I，对任何常数缩放按构造不可见），且负方向能活到 -9.96e-6（幅度大 8.4 倍）。覆盖只有 (16,16) 与 (64,16) 两点，13 点探针里 6 点越界无人在看。更关键的是正向精度改良变异体（用 t = 1-u² 消奇点，偏差从 9.7e-3 降到 1e-14，精度提高约 10^7 倍）触发唯一失败 test_voronoi_angle_convexity_boundary，即测试套件主动禁止实现变正确。",
+   "evidence_ref": "_handoff_mutations.json mutate:5（7 个 killedBy）；报告 §5 表格第 5 行 + §4 环 6 证据 B/C",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "mutate:5",
+    "D3-06",
+    "C-062"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-09"
+  },
+  {
+   "id": "C-011",
+   "title": "UR 闭式 W=100 窗口在 tests/ 下零调用零断言",
+   "location_file": "tests/test_metrics.py",
+   "location_line": 65,
+   "requirement_ref": "wayfinder req-20 L453 / skeleton req-22 L522",
+   "problem": "把 UR 改成恒返回 0.5 后 213 个测试全部通过。src 已实现该闭式，但整个 tests/ 目录零调用、零断言，属『src 有 / test 无』的半落地。与 C-002 是同一缺陷的 finding 侧与变异侧两个独立记录。",
+   "evidence_ref": "_merged_verdicts main63（TEST-GUARD-02）与 gap21（W1-COVER-UR-01）；报告 §9 逐项落地缺口表首行",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main63:impact",
+    "rv:main63:math",
+    "rv:main63:source",
+    "rv:gap21:math",
+    "rv:gap21:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-10"
+  },
+  {
+   "id": "C-012",
+   "title": "extract_C 可微性只做功能检查，gradcheck 零调用",
+   "location_file": "tests/test_extraction.py",
+   "location_line": 283,
+   "requirement_ref": "skeleton req-7 L132-134 / wayfinder req-6 L98-99",
+   "problem": "D-path 不变量只有『梯度非 None、有限、非零』这类功能性检查。把归一化分母 .detach() 的代理梯度（surrogate gradient）实现通过全部 213 个测试，而 gradcheck 立刻抓到。spec Scenario 明确点名 torch.autograd.gradcheck，仓库内 0 次调用，等于 spec 的可验声明没有执行者。",
+   "evidence_ref": "_merged_verdicts main64（TEST-GUARD-03）；报告 §5 表格第 2 行",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main64:impact",
+    "rv:main64:math",
+    "rv:main64:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-11"
+  },
+  {
+   "id": "C-013",
+   "title": "禁硬编码表 Scenario 只 grep 标识符名不 grep 数值",
+   "location_file": "tests/test_sphere.py",
+   "location_line": 61,
+   "requirement_ref": "skeleton req-6 L118-120",
+   "problem": "Scenario 规定用 0.9076 / 0.4494 / 0.380 / 0.0971 四个字面量 grep sphere.py，实际测试 grep 的是符号名 _VORONOI_MVP_TABLE，Scenario 规定的检查形式与执行者不一致。因此一个对 (4,16) 或 (16,8) 的硬编码查表快路径通过全部 213 个测试；变异实验进一步显示只要把硬编码表改名为 _T，212 passed。",
+   "evidence_ref": "_merged_verdicts main65（TEST-GUARD-04）与 gap18（W2-MATH-05）；报告 §4 环 6 证据 D",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main65:impact",
+    "rv:main65:math",
+    "rv:main65:source",
+    "rv:gap18:math",
+    "rv:gap18:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-12"
+  },
+  {
+   "id": "C-014",
+   "title": "MVPConfig 字段集契约零断言，加 beta_max 字段全绿",
+   "location_file": "tests/test_config.py",
+   "location_line": 24,
+   "requirement_ref": "skeleton req-21 L499-502 + L485 / governance req-gov-4 L144",
+   "problem": "Scenario『MVPConfig field set is exactly …』（11 个字段，且 beta_min / beta_max MUST NOT 是 MVPConfig 字段）完全没有守卫：tests/ 中零处使用 dataclasses.fields(MVPConfig)，实测加第 12 个 beta_max 字段后 213 个测试全绿。这是 spec 唯一一处可枚举断言的字段集合契约，也是 governance req-gov-4 污染通道 (i) 可验证性的落点。",
+   "evidence_ref": "_merged_verdicts main66（TEST-GUARD-05）与 gap23（W1-COVER-FIELDSET-03）；报告 §5『另外三个独立证据』",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main66:impact",
+    "rv:main66:math",
+    "rv:main66:source",
+    "rv:gap23:math",
+    "rv:gap23:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-13"
+  },
+  {
+   "id": "C-027",
+   "title": "测试只跑 Phase 1–4，暴露不了 Phase 0 范数矛盾",
+   "location_file": "src/decompmoe/safeguards.py",
+   "location_line": 0,
+   "requirement_ref": "wayfinder Req 23 / skeleton req-18（Phase 0 归一化责任）",
+   "problem": "两份 peer spec 对 Phase 0 的球面范数不变量互相矛盾：wayfinder Req 23 要求任何 Phase（含 0 K-Means）满足 max_i|‖c_i‖−1| < 1e-7，skeleton req-18 却把 Phase 0 的归一化责任划给调用方且 driver 为 no-op。现有测试只跑 Phase 1–4，该矛盾在测试层没有任何执行者。",
+   "evidence_ref": "_merged_verdicts gap6（ADV-07）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:gap6:math",
+    "rv:gap6:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-14"
+  },
+  {
+   "id": "C-032",
+   "title": "sphere.py 凹凸性分区图错误，被中心差分测试钉死",
+   "location_file": "src/decompmoe/sphere.py",
+   "location_line": 260,
+   "requirement_ref": "skeleton req-6 / governance req-gov-1 §5-§6",
+   "problem": "voronoi_angle docstring 声明的 _cap_area 凹凸性分区图在数学上是错的：_cap_area 在整个 (0°,90°) 严格凸、在 (90°,180°) 严格凹，不存在 81.9°/82.8°/97.2° 任何拐点。tests/test_sphere.py::test_voronoi_angle_convexity_boundary 用一个被 GL-8 求积噪声支配的 h=1e-5 中心差分把这个假边界钉成了断言（还断言 83.6° 处 G''<0，而该处真值 +2.185）。src 文档与测试共同陈述了与 spec 真相源矛盾的数学事实。",
+   "evidence_ref": "_merged_verdicts main48（NUM-DRIFT-01）、gap14、delta D3-04、delta D2-08；报告 §4 环 6 证据 A",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main48:impact",
+    "rv:main48:math",
+    "rv:main48:source",
+    "rv:gap14:math",
+    "rv:gap14:source",
+    "D3-04",
+    "D2-08"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-15"
+  },
+  {
+   "id": "C-043",
+   "title": "canonical_voronoi_angle 的精度免责声明挂在错误的界上",
+   "location_file": "src/decompmoe/sphere.py",
+   "location_line": 197,
+   "requirement_ref": "skeleton req-6（abs=1e-6 契约）",
+   "problem": "canonical_voronoi_angle 的 accuracy caveat 只声明了『spec 的 < 1e-6』这一侧，没有覆盖实际的偏差量级方向——真 G 与实现偏差在 π/2 邻域达到 1e-1 量级，免责声明挂在不被违约的一侧，使读者对总性（totality）缺口无感知。",
+   "evidence_ref": "_handoff_delta.json delta:D3 的 D3-05；报告 §4 环 3",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "D3-05"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-16"
+  },
+  {
+   "id": "C-049",
+   "title": "CentroidDriver.step 的 mask=None 分支广播同一均值",
+   "location_file": "src/decompmoe/extraction.py",
+   "location_line": 127,
+   "requirement_ref": "skeleton req-18（m_i MUST 是 per-expert masked mean）/ wayfinder Req 6 / Req 27",
+   "problem": "该分支使 16 个质心完全坍缩到同一点（territory collapse）：迭代后两两最大距离 1.7528 → 4.54e-01(step 100) → 3.26e-07(step 1000) → 2.52e-07(step 5999)，平均成对 cos → +1.000000；符合 spec 的 per-expert 对照组稳定在 1.75 / +0.067。原 finding 声称零测试覆盖是错的：test_phase_090_ema L33、test_phase_095_to_099_ema_coefficients L53、test_phase_transition_swaps_rule L85 以 atol=1e-5 精确钉住了这个退化闭式（它们靠省略参数进入该分支，agent 的 grep 找的是显式 None）。正确表述是：不是零守护，而是测试在守护一个 spec 不要求的退化行为——spec 签名里 mask 是必填位置参数，代码给了默认值，故修签名必须先动这三个测试。",
+   "evidence_ref": "_merged_verdicts gap0（ADV-01）；报告 §8 偏离表",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:gap0:math",
+    "rv:gap0:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-17"
+  },
+  {
+   "id": "C-063",
+   "title": "反射分支测试声称守护该分支却通过",
+   "location_file": "tests/test_sphere.py",
+   "location_line": 553,
+   "requirement_ref": "skeleton req-6（theta > pi/2 反射分支）",
+   "problem": "这是唯一实际执行 theta > pi/2 缺陷带的测试，但它通过——_cap_area 在 theta=pi/2 处有真硬不连续（左极限与右极限在 d_c=8/16/32 分别相差 5.239884e-2 / 7.870852e-2 / 1.158112e-1，与 pin 逐位相同），该测试的断言形式对这一量级的跳变不敏感。",
+   "evidence_ref": "_handoff_delta.json D1-06 与 D2-03；报告 §4 环 8",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "D1-06",
+    "D2-03"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-18"
+  },
+  {
+   "id": "O-01",
+   "title": "archive 工具静默吞掉后继 Requirement 的 anchor",
+   "location_file": "openspec/changes/archive/2026-09-29-fix-voronoi-angle-measurement-layer-semantics/tasks.md",
+   "location_line": 64,
+   "requirement_ref": "archive/2026-09-29-fix-voronoi-angle-measurement-layer-semantics",
+   "problem": "OpenSpec 1.13.2 的 archive 会把每一条 MODIFIED Requirement 之后那行 <a id=\"req-N\"></a> 一并吞掉，因为它的 requirement block 解析器一直累积到下一个 Requirement 标题或二级标题为止，而仓库风格把 anchor 放在两个Requirement 标题之间。pin 态实测复现：anchor 覆盖从 36/23/4 掉到 35/22/3，丢的正是 wayfinder req-12、decompmoe-skeleton req-7、governance req-gov-2。这是第三次同型事故，delta 内容本身落地完全正确，损坏仅限 anchor，且事故记录里归档流程走的是 CLI 而非仓库自带的 delta 合并脚本。",
+   "evidence_ref": "_handoff_delta.json key=delta:D4 findings[D4-01]；报告 §3.0 D4-01；报告 §1 opsx 段",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "delta:D4-01"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-19"
+  },
+  {
+   "id": "O-02",
+   "title": "CLAUDE.md §3 门禁清单对 anchor 事故全部返回 exit 0",
+   "location_file": "CLAUDE.md",
+   "location_line": 45,
+   "requirement_ref": "CLAUDE.md §3 /opsx:archive 前置条件",
+   "problem": "§3 规定归档前置条件是两个 Python lint 加 validate --specs。这三项在 anchor 已被吞掉的 spec 树上实测全部 exit 0，也就是说门禁清单在结构上覆盖不到它声称要防的那类损坏。锚点 100% 覆盖在 §6 被写成硬约束，但归档这一步没有任何可执行形式去核对它。",
+   "evidence_ref": "_handoff_delta.json key=delta:D4 findings[D4-01] evidence 段（四道门全过）；报告 §1 opsx 段 (b)；报告 §10 Batch D-2",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "delta:D4-01"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-20"
+  },
+  {
+   "id": "O-04",
+   "title": "仓库无 CI 配置，scripts/ 即全部门禁面",
+   "location_file": "scripts/",
+   "location_line": 0,
+   "requirement_ref": "N/A",
+   "problem": "pin 态树里没有 .github/ 也没有 .gitlab-ci.yml，除 openspec/changes/ 外唯一的 yml 是 openspec/config.yaml。两个 lint 与全部测试只在人工触发的会话里跑，没有任何提交或合并钩子强制它们。这解释了为什么上面两条门禁缺口可以连续跨多个会话存在而无人被拦下。",
+   "evidence_ref": "_handoff_delta.json key=delta:D4 findings[D4-05] evidence（ls -a 无 .github/）；报告 §10 Batch D-2",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "delta:D4-05"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-21"
+  },
+  {
+   "id": "O-06",
+   "title": "range 内两个 100% 完成的 change 是非法 OpenSpec 制品",
+   "location_file": "openspec/changes/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/.openspec.yaml",
+   "location_line": 1,
+   "requirement_ref": "2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift / 2026-09-29-fix-b15-test-loss-actual-embedding",
+   "problem": "这两个 change 既没有 specs/ delta 也没有 skip_specs 标记，openspec validate --strict 对它们 exit 1，报 'Change must have at least one delta'。二者 tasks 已 100% 勾选、代码已随 commit 落库，却因为制品不合法而永远无法走完归档。讽刺的是它们各自的 C.5 task 已明确判定「确认不需要 specs/ 目录」，即意图清楚、只是没落到 .openspec.yaml 上。作为对照，68 个已归档 change 全部满足两个前置条件之一，所以这是最新一批 change 创建实践的回归，不是历史遗留。",
+   "evidence_ref": "_handoff_delta.json key=delta:D4 findings[D4-02]；报告 §3.0 D4-02",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "delta:D4-02"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-22"
+  },
+  {
+   "id": "O-10",
+   "title": "b10-b11-b12 change 全部完成但目录未跟踪、delta 未 sync",
+   "location_file": "openspec/changes/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/tasks.md",
+   "location_line": 1,
+   "requirement_ref": "B10 split",
+   "problem": "该 change 的 37 个 task 全部勾选、openspec list 报 Complete，但整个目录 6 个文件在 pin 态全部未被 git 跟踪，两份 delta 也没有 sync 进主 spec——完成态只存在于工作树，一次清理即可全部丢失。主 spec 此刻仍保留被 delta 明确 supersede 的旧文本（versine 4dp 字面量那一条仍写 abs=1e-4），所以真相源与测试在这一点上暂时互相矛盾。tasks.md 自己声明的 RECONCILIATION: PASS 只证明 delta 与主 spec 基线可对账，不证明 delta 已 apply。",
+   "evidence_ref": "f_main/003.json（W-01）；_handoff_verdicts_all.json key=rv:main3:source（NEVER_EXISTED）/ rv:main3:impact（STILL_REAL, MAJOR）；报告 §2.2 第 1 类、§3 环 4",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main3:impact",
+    "rv:main3:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-23"
+  },
+  {
+   "id": "O-17",
+   "title": "Source 反链 lint 的必需要子串只硬编码到目录前缀",
+   "location_file": "scripts/lint_no_source_field_drift.py",
+   "location_line": 104,
+   "requirement_ref": "CLAUDE.md §3 Source 反链 / wayfinder req-34",
+   "problem": "§3 要求 wayfinder/ 与 decompmoe-skeleton/ 的 Requirement 必须含带 ticket 文件名的字面反链，但 lint 的必需要子串只到 wayfinder/tickets/ 这个目录前缀为止，三项结构性检查全部只对该前缀做子串判断。实测裸目录形式与不带 .md 后缀的 ticket id 形式都能三项全过，与规范形式不可区分——反链 lineage 不可追溯的情况可以合法通过门禁。读 req-34 可见责任面更宽：它正文写的是带文件名的 MUST，紧接着自己的执行细则第 1 条却降级为只要求含目录前缀，属 spec 内部自相矛盾。",
+   "evidence_ref": "f_main/025.json（G-MATH-02）；_handoff_verdicts_all.json key=rv:main25:source / :math / :impact；报告 §3 环 6、§10 Batch D-2",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main25:source",
+    "rv:main25:math",
+    "rv:main25:impact"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-24"
+  },
+  {
+   "id": "O-19",
+   "title": "门禁运行期间工作树被并发写入，快照不可复现",
+   "location_file": "tests/test_loss.py",
+   "location_line": 1,
+   "requirement_ref": "CLAUDE.md §3 archive 前置条件（门禁须针对确定快照）",
+   "problem": "同一轮门禁的两次 git status 采样之间，tests/test_loss.py 从干净变为已修改（另三个测试文件在同一批次更早被改），两次 pytest 都返回全绿，但第二次的 pass 结果对应的文件内容已不是第一次采样时的那份。结果是门禁结论无法复现，而 §3 的归档前置条件恰恰要求 lint gate 针对确定的工作树快照判定 exit=0。并发的 bulk checkpoint commit 随后把这批在途写入落库，兑现了这个风险。",
+   "evidence_ref": "f_main/000.json（GATE-01）；_handoff_verdicts_all.json key=rv:main0:source（PARTIALLY_REAL）/ :impact（STILL_REAL, MAJOR）；报告 §3 环 4、§10 Batch D-2",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main0:source",
+    "rv:main0:impact",
+    "rv:main0:math"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-25"
+  },
+  {
+   "id": "V-15",
+   "title": "main45：镜像分歧后合并为 STILL_REAL 的先例",
+   "location_file": "tests/test_loss.py",
+   "location_line": 166,
+   "requirement_ref": "LIFECYCLE-01 / main45 / governance req-gov-1 obligation 5",
+   "problem": "同一条 finding 的三个镜给出互斥结论：source 镜判 FIXED_BY_COMMIT（b272787 的 26 行编辑在最后一次采样后 3 分 05 秒被提交并在 pin 中存在，blob 哈希与 b272787:tests/test_loss.py 逐字节相同），impact 镜判 STILL_REAL（同一批并发写入后来以 e50cc02「checkpoint parallel session's in-flight work」落库，顺手把 b272787 的修复又回退掉，pin 态 `actual=` 计数为 0）。合并规则是判 STILL_REAL，理由是危害已经兑现——即「曾经修好过」不能抵消「现在又坏了」。这是本轮唯一被完整记录的镜像分歧合并先例。",
+   "evidence_ref": "报告 §2.2 第 2 条（逐字记录两镜分歧与合并理由）；rv:main45:source（blob 6ddbdef == b272787:tests/test_loss.py）、rv:main45:impact（「HEAD-at-that-moment was byte-identical to the pre-fix blob 8f50659」，引 governance/spec.md:24 obligation 5）、rv:main45:math（「INVERTED ON EVERY CHECKABLE POINT」但 fixingCommit 字段填 315065e）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main45:source",
+    "rv:main45:math",
+    "rv:main45:impact"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AC-26"
+  },
+  {
+   "id": "V-18",
+   "title": "MOVED 的漂移源单一：33f7cc9 造成 +1/+13/+8",
+   "location_file": "openspec/specs/decompmoe-skeleton/spec.md",
+   "location_line": 122,
+   "requirement_ref": "CROSS-SPEC-LINEPTR-01 / main72",
+   "problem": "本轮全部行号漂移的成因是单一 commit 33f7cc9：它给 skeleton 插入 13 行（锚点 L122 之后）、governance 净增 8 行、wayfinder 净增 1 行（锚点 L284），却没有重绑任何一处指针。因此偏移量可机械预测。凡引用这两份文件行号的 Requirement 与代码注释现在成族失效——这是「MOVED 可批量重绑」而非「逐条重定位」的结构性理由。",
+   "evidence_ref": "报告 §2.2 第 3 条、§6.4 第 1 条（7 条独立 finding 同一根因）；rv:main72:source（`git diff -U0 7bf77af 6593a06` 的 @@ 块：wayfinder @@ -283,0 +284 @@，skeleton +13，governance +8）、rv:main72:math",
+   "verdict_class": "MOVED",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main72:source",
+    "rv:main72:math"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AC-27"
+  },
+  {
+   "id": "V-26",
+   "title": "被推翻的先例：主控 COMMON 事实 #4 的口径需精确化",
+   "location_file": "openspec/specs/decompmoe-skeleton/spec.md",
+   "location_line": 98,
+   "requirement_ref": "skeleton req-6 / BASE-01",
+   "problem": "主控把「G 严格凸」作为 COMMON 事实交给下游，本轮五条 COMMON 事实无一被推翻，但 #4 的表述被要求精确化：`(0, π/2)` 上严格凸、`G''(π/2) = 0`、`(π/2, π)` 上严格凹、`π/2` 是光滑拐点而非分支端，且 `d_c = 2` 是 `G'' ≡ 0` 的仿射退化情形而 spec 从未提及。沿用未精确化的旧表述会把拐点当端点用，进一步污染下游推导。",
+   "evidence_ref": "报告 §11 第 15 条（COMMON 五条全部复算、无一被推翻，含 #4 的精确化）、§4 环 4（二分返回 90.0°，`G''(π/2) = -9.98e-51` 为 roundoff）；_handoff_pin.json BASE-01（d_c=8/16/32 的 G'' 扫描无负值点）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main48:math",
+    "rv:main18:source",
+    "rv:main18:math"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AC-28"
+  },
+  {
+   "id": "V-27",
+   "title": "诚实的边界：D3 未能证明 Jensen 单向界本身",
+   "location_file": "_final_report_full.md",
+   "location_line": 1367,
+   "requirement_ref": "skeleton req-6 Jensen 前置条件 / D1-04 / D2-07",
+   "problem": "D3 明确记录其支撑线证明在 `μ=0.5, d_c=3` 处失败，因此只反驳 spec 给出的理由、不声称定理本身错误。报告采信「正确前置条件是面积条件」这一条（`G⁻¹` 在 `(0, ½)` 上凹 + 等面积 `A_i = 1/N_e < ½`），但明确不声称已独立证明该界对任意 `A_i < ½` 的 cell 组成立。归档时把「spec 理由错」写成「Jensen 界错」是越界。",
+   "evidence_ref": "报告 §4 环 5 末段（「诚实边界」）、§11 第 4 条；D1-04 / D2-07 提供的 700+ 配置经验证据（N_e∈{2,3,4,8,16} × d_c∈{2,3,16,32}，唯二表观反例是 -4.0e-12 与 -2.1e-17 的二分噪声）",
+   "verdict_class": "PARTIALLY_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main18:math",
+    "rv:main48:math"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-29"
+  },
+  {
+   "id": "V-28",
+   "title": "gap0：结论成立但 finding 自身证据不可复用",
+   "location_file": "src/decompmoe/schedule.py",
+   "location_line": 0,
+   "requirement_ref": "CentroidDriver.step(mask=None) / gap0",
+   "problem": "gap0 的 finding 自陈六行数值在其声明的设置下都无法复现；math 镜重算得到更严重的坍缩（step ~1000 完成而非 5000，Phase-1 结束时的坍缩比报告值严重约 850×），并推翻了 finding 的 α 序与 frozen-vs-fresh 节奏叙述。缺陷本身仍判成立，但支撑它的数值证据整体作废，需要用可复现代码重新立项。这是本轮唯一被点名的「结论保留、证据废弃」条目。",
+   "evidence_ref": "报告 §11 第 5 条；§8 表第 2 行（math 镜重算：质心最大距离 1.7528 → 4.54e-01 → 3.26e-07 → 2.52e-07，平均成对 cos → +1.000000）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main20:math"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-30"
+  },
+  {
+   "id": "V-40",
+   "title": "UNVERIFIABLE 与 severity 的自指缺陷：治理规则的零守卫",
+   "location_file": "openspec/specs/governance/spec.md",
+   "location_line": 13,
+   "requirement_ref": "req-gov-1 obligation 1 / G-MATH-01 / main24",
+   "problem": "req-gov-1 用 `pytest.approx` 的有效容差公式作为「整数闭式必须用 bare `==`」的规范理由，但实测（项目自带 pytest 9.1.1）表明该理由的两个默认值写反（实为 rel 默认 1e-6、abs 默认 1e-12）、结论方向也反了（显式给 `abs` 时 `ApproxScalar.tolerance` 短路返回该 `abs`，容差精确为 0，与 bare `==` 等价）。自指问题是：该 Requirement §4 的四个含具体数值的算式全部为假，且全部无任何测试守护——治理「所有数值守卫」的规则本身零守卫，错误理由已 verbatim 传播到 CLAUDE.md:41、3 个测试文件注释与 6 份归档 delta。",
+   "evidence_ref": "报告 §6.1 整节（实测 `pytest.approx(452_329_984, abs=0.0).tolerance = 0.0`）；对照 §11 第 3 条「19 条 UNVERIFIABLE 是弃权不是证伪」——两者是同一治理体系的两处自指漏洞",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main24:math",
+    "rv:main24:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-31"
+  },
+  {
+   "id": "W01",
+   "title": "req-2 的 MUST 级标识符 territory_collapse 悬空",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 24,
+   "requirement_ref": "wayfinder req-2 (Formal Symbols And Code Naming)",
+   "problem": "req-2 以 MUST 形式列出 7 个必须映射进 codebase 的代码标识符，其中 `territory_collapse` 在 src/ 与 tests/ 中均零命中，其余 6 项全部落地。它与同列表的 `territory_seeding` 处境不同——后者有专门的 deferred Requirement 承接，而本项既无实现、也无 deferral 标注，属 spec-only 悬空标识符，src + test 两层同时缺失。归档制品 2026-09-23-07 的 Open Question 正是在问这件事，至今无 Decision 闭环。",
+   "evidence_ref": "报告 §9 落地缺口表「territory_collapse 标识符」行；§1 wayfinder 段；finding main20 [LANDING-01]、main58 [CODE-FORM-03]",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "main20",
+    "main58",
+    "rv:main20:source",
+    "rv:main20:impact",
+    "rv:main58:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-32"
+  },
+  {
+   "id": "W11",
+   "title": "req-20/req-22 的 UR 闭式 src 有实现而 tests 零调用",
+   "location_file": "src/decompmoe/metrics.py",
+   "location_line": 73,
+   "requirement_ref": "wayfinder req-20 / decompmoe-skeleton req-22",
+   "problem": "UR 指标在 wayfinder req-20 与 skeleton req-22 两份 spec 中都有含具体数值的闭式（(1/N_e)·Σ I[f_i > 0]，W = 100 窗口），src 已实现，但整个 tests/ 目录零调用、零断言。instrumented call count 显示它在 212 个测试中被调用 0 次，而其余 7 个指标有 1–23 次。7 个语义不同的变异体全绿，说明没有任何测试能发现 UR 的读法或窗口语义被改坏——这是 §5 测得的 12.5%–37.5% 数学不变量守护率的最尖锐一例。",
+   "evidence_ref": "报告 §1 code 段、§9 落地缺口表 UR 行（src ⚠️ / test ❌）；finding gap21 [W1-COVER-UR-01]",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "gap21",
+    "mutate:1",
+    "main63",
+    "gap3"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-33"
+  },
+  {
+   "id": "W12",
+   "title": "req-36 整段以行号指针钉真相源而多数已漂移",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 847,
+   "requirement_ref": "wayfinder req-36 (Source Pointer Contract)",
+   "problem": "req-36 整段以 25 处行号指针声明「真相源钉死契约」，但其中的 wayfinder L413 实际是空行——MCI 行在 L460、Source 在 L463、两个 MCI Scenario 在 L497/L501，req-20 实际跨 L441-L511。该 Requirement 自称是全库唯一的行号引用规范载体，自己却整段失效。漂移源单一：33f7cc9 给 wayfinder +1 / skeleton +13 / governance +8 行却没有重绑任何一处指针，偏移量可机械预测。仓库内已有一个被采纳过的结构性手法（archive 2026-09-28 Decision 2：Req 17 的引用已采用 anchor 形式），但没有推广到其余指针族。",
+   "evidence_ref": "报告 §6.4「spec 行号反链的系统性失效」与 §1 wayfinder 段；finding main72 [CROSS-SPEC-LINEPTR-01]（rv:main72:source 判 MOVED，rv:main72:impact / rv:main72:math 判 STILL_REAL）",
+   "verdict_class": "MOVED",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "main72"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-34"
+  },
+  {
+   "id": "W18",
+   "title": "req-23 Phase 0 范数 MUST 与 req-18 冲突",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 575,
+   "requirement_ref": "wayfinder req-23 vs decompmoe-skeleton req-18",
+   "problem": "wayfinder Req 23 的 WHEN 子句说球面范数不变量对「any Phase（含 0 K-Means）」成立，skeleton req-18 却把 Phase 0 的归一化责任划给调用方且 driver 为 no-op。实测同一非单位输入上 P0 与 P4 输出不同（8.83 vs 5.96e-08），证实两份 peer 真相源对同一 MUST 给出互斥约束。现有测试只跑 Phase 1–4，无法暴露该矛盾，因此它是一颗只在 Phase 0 被真正调用时才会引爆的雷。",
+   "evidence_ref": "报告 §6.5「Req 23 与 req-18 对 Phase 0 的球面范数不变量互相矛盾」条；finding gap6 [ADV-07]（rv:gap6:math / rv:gap6:source 判 MAJOR）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "gap6"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-35"
+  },
+  {
+   "id": "W33",
+   "title": "fix-review-findings change 的悬空 delta 声明",
+   "location_file": "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/proposal.md",
+   "location_line": 66,
+   "requirement_ref": "change fix-review-findings-voronoi-precision-and-lineage",
+   "problem": "该 change 声称 3 个 Modified Capability（wayfinder / decompmoe-skeleton / governance）且「通过本 change 目录的 specs/<capability>/spec.md delta 应用」，但目录下根本不存在 specs/ 目录——悬空 delta 声明。其 spec 内容虽已直接落进主 spec，制品自述与其自身结构矛盾。openspec list 报该 change 处于待 archive 状态，错误自述会被原样固化进 archive。wayfinder 层的影响是：主 spec 的 wayfinder 改动失去可追溯的 delta 来源。注：git status 显示该 change 的 proposal.md / tasks.md 在当前工作树处于已删除未提交状态。",
+   "evidence_ref": "报告 §10 引用该 change 作为未归档项；finding main4 [W-02]（rv:main4:math 判 MAJOR）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "main4",
+    "rv:main4:source",
+    "rv:main4:impact"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-36"
+  },
+  {
+   "id": "C-004",
+   "title": "_dead_expert_threshold 部分真守卫：参数化维度无守护",
+   "location_file": "src/decompmoe/safeguards.py",
+   "location_line": 34,
+   "requirement_ref": "wayfinder Req 13 / skeleton req-18（1/(2·N_e) 闭式）",
+   "problem": "7 个测试跨两层杀掉规定变异体与 2 个深化变异体（MUT2 常量 0.03125、MUT5 严格不等号改 <=），协议记为 killed。但两项查表变异体 MUT3（N_e==16→1/32; N_e==64→1/128; else 0.0）与 MUT4（1.0/(2*round(sqrt(N_e))**2)）双双存活。MUT4 在两个采样点（N_e=16 与 64）数值精确，但 N_e=8 给 0.055556（spec 0.0625）、N_e=32 给 0.013889（spec 0.015625），直接驱动 should_resurrect 产生静默假阴性。实质是 1/(2·N_e) 的参数化依赖只被两条硬编码点断言守护。",
+   "evidence_ref": "_handoff_mutations.json mutate:3（7 个 killedBy）；报告 §5 表格第 3 行",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "mutate:3"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-37"
+  },
+  {
+   "id": "C-008",
+   "title": "local_softmax 真守卫但单线且归属错位",
+   "location_file": "src/decompmoe/gating.py",
+   "location_line": 30,
+   "requirement_ref": "skeleton req-9（只在非 -inf 项上取指数 + Σp_i=1）",
+   "problem": "两个均匀权重变异体都被杀，故真守卫。但 MUTANT-B（输出恒为 [0.5,0.5]、行和精确 1.0、requires_grad=True、梯度恒 0、autograd 完好）下 test_k_equals_two / test_neg_inf_sentinel_used / test_partition_of_unity / test_zero_grad_for_non_top_k / test_convex_combination_dtype_safe 全部通过，唯一失败是 test_forward_formula_strictness（属 Req 31）。即 Req 9 自己点名的两条条款被一个常数 0.5/0.5 完全满足；杀它的是另一个 Requirement 的数值检查，守卫归属错位且为单线。",
+   "evidence_ref": "_handoff_mutations.json mutate:7（killedBy=[test_gating.py::test_forward_formula_strictness]）；报告 §5 表格第 7 行",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "mutate:7"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-38"
+  },
+  {
+   "id": "C-016",
+   "title": "STE 禁令 grep 作用域只覆盖 extraction.py 一个文件",
+   "location_file": "tests/test_extraction.py",
+   "location_line": 327,
+   "requirement_ref": "skeleton req-15 L348",
+   "problem": "spec 声明的 grep 不变量作用域是整个 src/decompmoe/（全树不得出现 StraightThroughEstimator / straight_through），实现只扫 extraction.py 一个文件，其余 12 个模块无覆盖；实测把 STE 注入 gating.py 后 213 个测试全绿。spec 措辞与执行范围不一致。",
+   "evidence_ref": "_merged_verdicts main68（TEST-GUARD-07）与 gap22（W1-COVER-STE-02）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "rv:main68:source",
+    "rv:gap22:math",
+    "rv:gap22:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-39"
+  },
+  {
+   "id": "C-020",
+   "title": "MC 测量层的采样数与种子常量值零断言，只引用符号名",
+   "location_file": "openspec/specs/decompmoe-skeleton/spec.md",
+   "location_line": 98,
+   "requirement_ref": "skeleton req-6 L98 / governance req-gov-1 obligation 7(b)",
+   "problem": "spec L98 硬性规定 Monte-Carlo 测量层的采样数 1_000_000 与随机种子 20260929 必须 fixed as module constants 以保证返回值确定，但两个数值在 tests/ 中零命中，测试只引用符号名 sphere.VORONOI_AREA_SEED / SAMPLES。若有人改掉任一常量，全部 MC 容差断言会静默换基准而无一失败；obligation 7(b) 要求 σ 从估计器自身结构推导，当前结构输入未被守护。",
+   "evidence_ref": "_merged_verdicts gap16（W2-MATH-03）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "rv:gap16:math",
+    "rv:gap16:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AC-40"
+  },
+  {
+   "id": "C-026",
+   "title": "UR 的 W=100 窗口与 R_H/S_load 滑窗语义未实现",
+   "location_file": "src/decompmoe/metrics.py",
+   "location_line": 73,
+   "requirement_ref": "wayfinder req-20 L452-454（W = 100 量化主张）",
+   "problem": "UR 窗口语义完全未实现：任意长度历史都 reduce，200 步历史给 0.1875（spec 正确值 0.125），把 (B, N_e) 批量误当时间轴给 0.25（spec 0.0625）。R_H 与 S_load 声明的 sliding window 同样零实现。UR 另是唯一既无 spec 闭式 Scenario、又无任何数值测试的指标。",
+   "evidence_ref": "_merged_verdicts gap3（ADV-04）；报告 §9 逐项落地缺口表 UR 行",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "rv:gap3:math",
+    "rv:gap3:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-41"
+  },
+  {
+   "id": "C-034",
+   "title": "不完全 Beta 积分 docstring 未披露 x→1 的误差跃变",
+   "location_file": "src/decompmoe/sphere.py",
+   "location_line": 73,
+   "requirement_ref": "skeleton req-6 L116 / governance req-gov-1 obligation 4",
+   "problem": "_betainc_regularized 的绝对误差在 x→1（θ→90°）时从 8.29e-7 爆到 7.61e-2（76% 相对误差），docstring 只披露了 MVP 点 8.29e-7 而未披露这一量级跃变。以单点最优值代表全域，正是 C-032 假边界的直接成因。",
+   "evidence_ref": "_merged_verdicts main50（NUM-DRIFT-03）；报告 §4 环 1",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "rv:main50:source",
+    "D3-06",
+    "C-034"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-42"
+  },
+  {
+   "id": "C-050",
+   "title": "resurrect_expert 返回裸 ε 而非克隆后扰动，破坏球面归一不变量",
+   "location_file": "src/decompmoe/safeguards.py",
+   "location_line": 166,
+   "requirement_ref": "wayfinder Req 13 L315 / Req 28 / Req 32",
+   "problem": "Dead Expert Splitting Resurrection 返回的是裸 ε ~ N(0, 0.05²I)（长度约 0.2），不是 spec 要求的『克隆 j* 后扰动』的 c_{j*}+ε；被复活的专家落在近似均匀随机方向上，与供体正交。math 镜实测 E[cos(c_perturbed, c_j*)] = 0（sd 0.25）vs spec 语义 0.981697 / E[angle] 10.7957°，8.34× 角差；返回向量长度还短 5.0787×，赋给 c_i 会先破坏 S^{d_c−1} 不变量。",
+   "evidence_ref": "_merged_verdicts gap1（ADV-02）；报告 §8 偏离表首行",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "rv:gap1:math",
+    "rv:gap1:source",
+    "gap1"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-43"
+  },
+  {
+   "id": "C-053",
+   "title": "loss.py 硬编码 100K 边界与 total_steps API 静默错位",
+   "location_file": "src/decompmoe/loss.py",
+   "location_line": 31,
+   "requirement_ref": "governance req-gov-3 obligation 1（dormant-bug 判据）/ skeleton req-13",
+   "problem": "λ(t) 与 β^eff 的调度在 loss.py / beta_effective 中硬编码 100K 边界，而 phase_id / phase_boundaries / phase_beta_max 接受 total_steps 参数，非 100K 运行时两者静默错位。非 100K 不是 spec 强制运行时（skeleton req-13 只在 WHEN total_steps == 100_000 下钉边界），故为 dormant。两条 violates 引用（§6 item 8、req-gov-3 obligation 1）均误引。",
+   "evidence_ref": "_merged_verdicts gap5（ADV-06）；报告 §8 偏离表第 4 行",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "rv:gap5:math",
+    "rv:gap5:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-44"
+  },
+  {
+   "id": "C-058",
+   "title": "req-2 映射表中 territory_collapse 在 src 零出现",
+   "location_file": "src/decompmoe/contracts.py",
+   "location_line": 77,
+   "requirement_ref": "wayfinder req-2（Formal Symbols And Code Naming，MUST 映射表 7 项）",
+   "problem": "7 项 MUST 级代码标识符映射中，territory_collapse 在 src/ 中零出现（其余 6 项均落地），且不像同列表的 territory_seeding 那样有专门的 deferred Requirement 标注。与之对应，tests/ 中也零命中——属 spec-only 悬空标识符，缺 src + test 两层。",
+   "evidence_ref": "_merged_verdicts main58（CODE-FORM-03）与 main20（LANDING-01）；报告 §9 逐项落地缺口表",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "rv:main58:source",
+    "rv:main20:impact",
+    "rv:main20:math",
+    "rv:main20:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-45"
+  },
+  {
+   "id": "C-060",
+   "title": "spec 声称球面归一化输出 exact 等于 1，59% 不满足",
+   "location_file": "openspec/specs/decompmoe-skeleton/spec.md",
+   "location_line": 455,
+   "requirement_ref": "skeleton req-19 / governance req-gov-1 obligation 2",
+   "problem": "spec 声称 spherical_l2_normalize 的输出满足 pow(2).sum(-1) == 1.0 exactly，实测在 float64 下 59% 的随机批次都不满足（最坏偏差 6.66e-16）——这是无法满足的 exact 表述。spec 自身的 Scenario 与 tests/test_sphere.py 的守护形式（pytest.approx）不一致，测试用 approx 掩盖了 spec 的 exact 声明。",
+   "evidence_ref": "_merged_verdicts gap8（ADV-09）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "rv:gap8:math",
+    "rv:gap8:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-46"
+  },
+  {
+   "id": "C-064",
+   "title": "equal_area_witness 测试用被测实现自身作为参考做校准",
+   "location_file": "tests/test_sphere.py",
+   "location_line": 419,
+   "requirement_ref": "skeleton req-6 / governance req-gov-1 obligation 4",
+   "problem": "test_voronoi_angle_equal_area_witness_equal_area_configurations 把参考值对到实现自身输出而非独立 oracle，因此与被测实现共享误差；7 个 _betainc_regularized killer 中有 4 个属此类（用被测的 _betainc_regularized 自己去算 ½·I），对任何常数缩放按构造不可见。",
+   "evidence_ref": "_handoff_delta.json D2-04；报告 §4 环 6 证据 C",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "D2-04",
+    "C-006"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-47"
+  },
+  {
+   "id": "C-065",
+   "title": "test_voronoi_angle_one_sided_gap 把单向性降格为方向检查",
+   "location_file": "tests/test_sphere.py",
+   "location_line": 490,
+   "requirement_ref": "skeleton req-6（reflected branch）/ wayfinder req-11（commensurability）",
+   "problem": "测试 docstring 自述把 one-sidedness『guarded here as a direction check rather than as [a bound]』，即只判方向不判幅度。而 Jensen 单向界当前被一个不存在的阈值 theta_conv(d_c) 当作前置条件门控，使得这个已经降格的守卫实际上一旦前置条件成立就能被满足——单向性在测试层没有任何幅度约束。",
+   "evidence_ref": "_handoff_delta.json D2-07；报告 §4 环 5",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "D2-07"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-48"
+  },
+  {
+   "id": "O-05",
+   "title": "§3 门禁清单不含 openspec validate <change> --strict",
+   "location_file": "CLAUDE.md",
+   "location_line": 45,
+   "requirement_ref": "CLAUDE.md §3 门禁清单",
+   "problem": "§3 列出的归档前置条件里没有对 change 制品本身做严格校验的步骤。后果是下面 O-06 那类工具判为非法的 change 可以一路走到 100% 完成而没有任何一道门拦它；同一个门禁清单也解释不了为什么两次 anchor 事故全程绿灯。",
+   "evidence_ref": "_handoff_delta.json key=delta:D4 findings[D4-02]；报告 §1 opsx 段 (c)；报告 §10 Batch D-2",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "delta:D4-05",
+    "delta:D4-02"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-49"
+  },
+  {
+   "id": "V-29",
+   "title": "main42 的「结论反转」被驳回，定级由 MAJOR 降为 MEDIUM",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 383,
+   "requirement_ref": "wayfinder req-17 / skeleton req-7 / W-MATH-01 / main42",
+   "problem": "finding 声称 extract_C 漏算第 (3) 步 128 MACs 会让 req-19 的「0.3% allowance」结论反转。该推论被 impact 镜与 source 镜一致驳回：该 allowance 在 wayfinder L428 是对着 active-core 分母 33_554_432 定义的，恢复第 (3) 步后 66_336/33_554_432 = 0.1977%，与原值 0.1968% 一样在界内，finding 的 0.436% 用的是另一个分母。CLAUDE.md 明确禁止用「结论反转」这类别名关闭数学语义选择，因此这次驳回是硬约束而非可选裁量。",
+   "evidence_ref": "报告 §6.2 末段（「必须同时记录的驳回」）、§11 第 6 条（「若修复时按 finding 原文执行会得出错误的预算结论」）；真值 32_896+128+128+16 = 33_168 MACs = 66_336 FLOPs",
+   "verdict_class": "PARTIALLY_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "rv:main18:source",
+    "rv:main17:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-50"
+  },
+  {
+   "id": "V-30",
+   "title": "main21/main22 的 violates 归因被三镜一致驳回",
+   "location_file": "tests/test_config.py",
+   "location_line": 69,
+   "requirement_ref": "CLAUDE.md §6 第 8 条 / main21 / main22 / gap25",
+   "problem": "两条 finding 都以「违反 CLAUDE.md §6 第 8 条」立论，复验认定归因错误：CLAUDE.md 规范的是断言形式而非隐式契约；`WB` 在仓库里根本没有闭式，`pytest.approx(0.0476)` 只能是常量对自身的同义反复；main22 的中心断言被 `test_config.py:69` 的 `router_per_layer == 32_896` bare `==` 直接推翻。残留缺陷在 spec 措辞层，不构成 CLAUDE.md 违规。",
+   "evidence_ref": "报告 §11 第 7 条、§8 表第 4 行（「两条 `violates` 引用都误引」）；rv:grv:gap25:math（`grep -rn 0.0476 src tests` 仅 tests/test_schedule.py:127 的一处 docstring，`src/` 0 命中）",
+   "verdict_class": "PARTIALLY_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "rv:grv:gap25:math",
+    "rv:main22:math"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-51"
+  },
+  {
+   "id": "W02",
+   "title": "req-17 闭式漏算第 (3) 步 128 MACs",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 382,
+   "requirement_ref": "wayfinder req-17 / decompmoe-skeleton req-7",
+   "problem": "req-17 声称「完整 extract_C pipeline = 33_040 MACs = 66_080 FLOPs」，但该 Requirement 自己定义的四步管线第 (3) 步（cross-head mean with 1/H_kv factor）在每个 token 上做 H_kv·d_c = 128 MACs，从未被计入。独立重算的真值是 33_168 MACs = 66_336 FLOPs，spec 相对 projection-only 的增幅应为 +1.22% 而非 +0.83%，「full」一词因此是过度声称。同一闭式在 skeleton req-7 的 Scenario 中被复制为只枚举三项的形式，spec 与自身正文互斥。必须同时记录的是驳回：finding 声称这会让 req-19 的 0.3% allowance 结论反转并不成立——该 allowance 是对着 active-core 分母定义的，恢复第 (3) 步后仍在界内。该项的数值偏差在归档 change 中已以 latent risk HIGH 登记为 hand-off，且 2026-09-28 的 design Decision 3 明确选择了冻结字面量而非派生值，两者需一并处理。",
+   "evidence_ref": "报告 §6.2；finding main42 [W-MATH-01]、gap24 [W1-COVER-MAC-04]；归档 archive/2026-09-28-fix-a7-flops-attribution-and-stale-ref/design.md Decision 3",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "main42",
+    "gap24",
+    "rv:gap24:math",
+    "rv:gap24:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-52"
+  },
+  {
+   "id": "W03",
+   "title": "req-11 的 W^O 排除清单与同段 4·d_model² 闭式互斥",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 251,
+   "requirement_ref": "wayfinder req-11",
+   "problem": "req-11 的假设 3 把 `W^O` 绑为注意力输出投影，假设 4 的排除清单又把 `W^O` 排除，而同段的 `4·d_model²` 项与闭式 452_329_984 都必须包含 `W^O`——三者在同一 Requirement 内不能同时为真。复算确认若真按清单排除，P_total 变成 448_135_680，与闭式相差 4_194_304 参数（0.93%）。实现与全部测试都站在闭式一侧，孤立的是排除句。同一句错误在 decompmoe-skeleton spec 中逐字复制。",
+   "evidence_ref": "报告 §1 wayfinder 段「Req 11」；§6.5 末条；finding main17 [FLOPs-PARAM-01]",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "main17"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-53"
+  },
+  {
+   "id": "W16",
+   "title": "三处「Req 10」反链指向已被改写的 Requirement",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 183,
+   "requirement_ref": "wayfinder req-2 / req-21 / decompmoe-skeleton req-2",
+   "problem": "wayfinder spec 三处「Req 10」反链指向错位：req-10 现在是 Territory Seeding Deferred Contract，但三处引用的内容（Mixtral 记账保证、前向公式）实际在 req-21 No Shared Expert。属「Req N 形式引用指向已改写的 Requirement」类，与行号指针族是两种不同的引用失效模式——即使未来全部指针都采用 anchor 形式，这三处仍会错。skeleton L184 存在同款第三处。",
+   "evidence_ref": "报告 §2.2 E 类（ticket/map 漂移）与 §6.4 同族；finding main71 [CROSS-SPEC-BACKREF-01]",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "main71"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-54"
+  },
+  {
+   "id": "W17",
+   "title": "req-36 逐字引用 ticket A8-2 与 ticket 实际不符",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 879,
+   "requirement_ref": "wayfinder req-36 / ticket A8-2",
+   "problem": "req-36 逐字引用 ticket A8-2 的 annotation 为「spec req-20 L413」（5 处），ticket 实际写的是「spec req-20 L453」（2 处），而两者的真值都是 L460。spec 作为真相源却逐字误引其 lineage 制品，且 spec 与 ticket 两侧各自带错值。这条比单纯的行号漂移更严重：逐字引用意味着该字符串会被当作权威契约文本复制，grep 审计会命中一个不存在的原文。",
+   "evidence_ref": "报告 §6.4 失效样例第 8 条；finding main79 [CROSS-SPEC-TICKETQUOTE-01]",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "main79"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-55"
+  },
+  {
+   "id": "W31",
+   "title": "req-15/16 Layer 2 的 WB 与阈值零实现",
+   "location_file": "src/decompmoe/schedule.py",
+   "location_line": 186,
+   "requirement_ref": "wayfinder req-15 / req-16 Layer 2 / ticket A6b-2",
+   "problem": "spec req-15 Layer 2 声明的两个具体数值（WB = 0.0476 与 > 2.0 严重聚类阈值）在 src/ 与 tests/ 中零出现，advisory_signals 是纯透传 dict。两条 lens 的分歧在于：impact 镜认为本项数学来源未推导，贸然补 approx 断言会把未推导的数字钉成真值，因此降为 PARTIALLY_REAL；math 镜认为按 §7 表「有 Decision 记录」档（archive 2026-09-25 design.md:112 明写「本 change 不处理」+ archive 2026-09-28 移交项 5）已合规，仅需保持现状。两条都一致：spec 正文目前无任何 deferral 标注，是比完全无标注更诚实的缺口的反面。",
+   "evidence_ref": "报告 §7「有 Decision 记录」表第 4 行、§9 落地缺口表 WB 行；finding main21 [LANDING-02]、gap25 [W1-COVER-WB-05]（rv:gap25:math=UNVERIFIABLE）",
+   "verdict_class": "PARTIALLY_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "main21",
+    "gap25",
+    "rv:main21:impact",
+    "rv:main21:math",
+    "rv:main21:source",
+    "rv:gap25:math",
+    "rv:gap25:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-56"
+  },
+  {
+   "id": "W40",
+   "title": "change 的 task 勾选声称已完成但对应编辑从未落库",
+   "location_file": "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/tasks.md",
+   "location_line": 19,
+   "requirement_ref": "change fix-review-findings-voronoi-precision-and-lineage / ticket A4-1",
+   "problem": "Task 1.4.3 被勾选为 [x]，声称 tickets/A4-1.md:59 已从 L122 校正到 L130，但该编辑从未进入任何 commit。这是「change claims completion it never performed」——与 gap21（UR 的 tasks.md 勾选点名了一个 git 历史中不存在的 test 与 SHA）同族。两者都危险于「无记录」：无记录会被发现，假记录会被读成已交付。wayfinder 层的影响是 ticket A4-1 的 β_0 行号指针校正至今没做。",
+   "evidence_ref": "报告 §7「无 Decision 记录」第 8 条（gap21 / main63 同族）；finding delta:D4-03",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "D4-03",
+    "delta:D4-03",
+    "PROC-03"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-57"
+  },
+  {
+   "id": "W41",
+   "title": "a036a15 只落了 B14 的 src 半边，spec 半边滞留",
+   "location_file": "openspec/specs/decompmoe-skeleton/spec.md",
+   "location_line": 496,
+   "requirement_ref": "wayfinder req-7 (β_0 闭式 L130 / Sigmoid 闭式 L123)",
+   "problem": "commit a036a15 落了 B14 的 src 半边（config.py L122 → L130），spec 半边则坐在未归档的 fix-config-docstring-beta-line-drift change 里，尚未 sync 进主 spec。skeleton L496/L498/L521 引「wayfinder req-7 L122 / L115」——L122 是空行、L115 是 req-6 的 territory_seeding Scenario，而正确目标是 wayfinder L130（β_0 闭式）与 L123（Sigmoid 闭式）。这是本轮唯一一条被部分修好的指针族：src 侧已对、spec 侧未对，因此当前状态比 pin 态更不一致。",
+   "evidence_ref": "报告 §6.4 失效样例第 6 条；finding main76 [CROSS-SPEC-LINEPTR-05]、delta:D4-04",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "main76",
+    "D4-04",
+    "delta:D4-04",
+    "PROC-03"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-58"
+  },
+  {
+   "id": "W42",
+   "title": "skeleton L242 引 wayfinder L249 实为 L315",
+   "location_file": "openspec/specs/decompmoe-skeleton/spec.md",
+   "location_line": 242,
+   "requirement_ref": "wayfinder req-13 / req-32 (resurrection Source 行)",
+   "problem": "skeleton L255（finding 报 242）引「wayfinder L249」定位一个 Source 行，但 L249 是 GQA 参数计数假设，真正的规范正文在 wayfinder L315。该指针与 W15（req-2 引 L211 实际应为 L249）、W26（resurrection 供体克隆语义）指向同一片 wayfinder 区域，三条缺陷的纠正目标互不相同，容易互相覆盖。",
+   "evidence_ref": "报告 §6.4 失效样例第 5 条；finding main75 [CROSS-SPEC-LINEPTR-04]（rv:main75:source 判 MOVED）",
+   "verdict_class": "MOVED",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "main75"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-59"
+  },
+  {
+   "id": "C-015",
+   "title": "球面归一化的 eps 默认值无守卫，同名原语却已钉住",
+   "location_file": "tests/test_sphere.py",
+   "location_line": 703,
+   "requirement_ref": "skeleton req-19 L438",
+   "problem": "spec req-19 明写『The default eps SHALL equal 1e-6』，但把 spherical_l2_normalize 的默认 eps 从 1e-6 改成 1e-4，213 个测试全部通过。同一仓里 extract_C 的同名 eps 默认值反而被钉住，说明是守卫不一致而非有意不设防。",
+   "evidence_ref": "_merged_verdicts main67（TEST-GUARD-06）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main67:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AC-60"
+  },
+  {
+   "id": "C-017",
+   "title": "一批浮点闭式断言缺 actual= 内嵌值，含 5 个精确值",
+   "location_file": "tests/test_schedule.py",
+   "location_line": 176,
+   "requirement_ref": "governance req-gov-1 obligation 5（L24）",
+   "problem": "违反 governance req-gov-1 obligation 5：一批『浮点闭式』断言没有在失败消息中内嵌实际值，其中包括 wayfinder req-33 Scenario 逐字点名的 5 个 phase_beta_max 精确值。测试已用 abs=1e-9 钉住这些值（见 C-007），缺 actual= 使失败输出无法自证偏差来源。",
+   "evidence_ref": "_merged_verdicts main69（TEST-GUARD-08）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main69:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-61"
+  },
+  {
+   "id": "C-019",
+   "title": "req-gov-1 obligation 4 的 5 个 ppm / 残差数值全仓零对账",
+   "location_file": "openspec/specs/governance/spec.md",
+   "location_line": 20,
+   "requirement_ref": "governance req-gov-1 obligation 4",
+   "problem": "obligation 4 列出的 5 个具体数值（impl-internal 残差 1.16e-14、true 残差 4.15e-7、相对误差 6.63 ppm、θ 偏差 0.72 ppm / 0.0086 ppm）经 mpmath 50 位重算全部正确，但 tests/ 全目录无任何直接对账。这条 Requirement 本身就是『每个含具体数值的算式必须有直接对账』的定义者，其自身数值却无人守护。",
+   "evidence_ref": "_merged_verdicts main27（G-MATH-04）与 gap17（W2-MATH-04）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main27:source",
+    "rv:gap17:math",
+    "rv:gap17:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-62"
+  },
+  {
+   "id": "C-023",
+   "title": "arctan(pi/sqrt(d_c)) 不变式的守护交接指向空处",
+   "location_file": "openspec/specs/decompmoe-skeleton/spec.md",
+   "location_line": 367,
+   "requirement_ref": "skeleton req-15 → req-16 的守护交接声明",
+   "problem": "spec L367 声称被移出 grep 层级的 arctan(pi/sqrt(d_c)) 不变式『已在 Centroid Driver Semantic Invariants (req-16) 中由对应命名 test 场景重新陈述并强制执行』，但 req-16 正文完全不含该不变式，tests/ 与 src/ 中 arctan / 38.146 / 3.58 全部零命中。这是一个指向空处的悬空守护：spec 的可验声明没有对账执行者。",
+   "evidence_ref": "_merged_verdicts gap15（W2-MATH-02）；报告 §9 逐项落地缺口表 arctan 行",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:gap15:math",
+    "rv:gap15:source",
+    "rv:main17:math"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-63"
+  },
+  {
+   "id": "C-033",
+   "title": "voronoi_angle docstring 峰值位置与幅度均算错",
+   "location_file": "src/decompmoe/sphere.py",
+   "location_line": 276,
+   "requirement_ref": "CLAUDE.md §6 第 8 条（写进代码的数学断言须可对账）",
+   "problem": "docstring 给出的『真实峰值 +31.5868°，位于 θ* = 38.9420°』两个数字都与它自己写出的解析式不符，实测为 31.586338° / 38.942441°。等价记录见 NUM-DRIFT-02：峰值位置 38.9420°→实为 38.9424°，幅度 +31.5868°→实为 +31.5863°。属以扫描近似值冒充闭式结果。",
+   "evidence_ref": "_merged_verdicts main57（CODE-FORM-02）与 main49（NUM-DRIFT-02）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main57:source",
+    "rv:main49:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AC-64"
+  },
+  {
+   "id": "C-035",
+   "title": "config.py 把 spec 权威行标为 L245，实为 API 句",
+   "location_file": "src/decompmoe/config.py",
+   "location_line": 95,
+   "requirement_ref": "wayfinder req-11 / decompmoe-skeleton req-11",
+   "problem": "config.py 的参数闭式把 spec 权威行标为 req-11 L245，而实际 L245 是 canonical_voronoi_angle 的 API 句，闭式 totals 在 L253。src 文档的 spec 引用不可解析到正确权威行。",
+   "evidence_ref": "_merged_verdicts main51（NUM-DRIFT-04）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main51:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-65"
+  },
+  {
+   "id": "C-036",
+   "title": "schedule.py 把三条 β^eff 公式的 spec 行号指错",
+   "location_file": "src/decompmoe/schedule.py",
+   "location_line": 147,
+   "requirement_ref": "wayfinder Req 24 L587-589（真实位置）",
+   "problem": "schedule.py 与 test_schedule.py 把 per-phase β^eff 三条规范公式的 spec 行号标为 wayfinder L491-507 / line 495/496/497，实际落在 Req 20 的 SP / D_chord / MCI 三个无关 Scenario 上；正确位置是 Req 24 的 L587-589。src 注释的 spec 引用指向了不承载该条款的 Requirement。",
+   "evidence_ref": "_merged_verdicts main52（NUM-DRIFT-05）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main52:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-66"
+  },
+  {
+   "id": "C-037",
+   "title": "test_safeguards.py 10 处 per L249 全部指错",
+   "location_file": "tests/test_safeguards.py",
+   "location_line": 772,
+   "requirement_ref": "wayfinder L314（真实位置）",
+   "problem": "test_safeguards.py 中 10 处『per wayfinder L249』全部指错：L249 是 req-11 的 GQA 参数计数假设 2，五条 safeguard 的规范正文在 L314。测试断言的 spec 引用不可解析到承载该条款的 Requirement。",
+   "evidence_ref": "_merged_verdicts main53（NUM-DRIFT-06）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main53:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-67"
+  },
+  {
+   "id": "C-038",
+   "title": "metrics.py 把 CG 指标的 spec 行号标错",
+   "location_file": "src/decompmoe/metrics.py",
+   "location_line": 166,
+   "requirement_ref": "wayfinder Req 20 L461（真实位置）",
+   "problem": "metrics.py 与 test_metrics.py 把 CG 指标的 spec 行号标为 Req 20 L394，实测 L394 是 req-18 的 anchor 行；CG 表格行在 L461。src/测试文档的 spec 引用指向错误位置。",
+   "evidence_ref": "_merged_verdicts main54（NUM-DRIFT-07）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main54:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-68"
+  },
+  {
+   "id": "C-039",
+   "title": "test_extraction.py 把 eps 默认值规范行号标错",
+   "location_file": "tests/test_extraction.py",
+   "location_line": 356,
+   "requirement_ref": "decompmoe-skeleton L126（真实位置）",
+   "problem": "test_extraction.py 把 extract_C 的 eps=1e-6 默认值规范行号标为『spec req-7 L100』，实测 wayfinder L100 是 req-6 的空行；承载该签名的规范在 decompmoe-skeleton L126。",
+   "evidence_ref": "_merged_verdicts main55（NUM-DRIFT-08）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main55:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-69"
+  },
+  {
+   "id": "C-040",
+   "title": "req-12 引用的 safeguards.py 行号漂移 52 行",
+   "location_file": "openspec/specs/decompmoe-skeleton/spec.md",
+   "location_line": 240,
+   "requirement_ref": "skeleton req-12（src/decompmoe/safeguards.py:211/:222）",
+   "problem": "Req 12 引用的 src/decompmoe/safeguards.py:211 与 :222 两处行号均已漂移 52 行；且未被任何 pending change 覆盖（pending B10-B12 delta 原样搬运了同样的过期行号）。属 spec 指向不存在的代码位置，同类缺陷已登记为 B13/B14/B16。",
+   "evidence_ref": "_merged_verdicts main39（S-MATH-04）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main39:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-70"
+  },
+  {
+   "id": "C-041",
+   "title": "req-20 引用 beta.py:50 的行号与逐字引文皆错",
+   "location_file": "openspec/specs/decompmoe-skeleton/spec.md",
+   "location_line": 458,
+   "requirement_ref": "skeleton req-20（src/decompmoe/beta.py:50）",
+   "problem": "Req 20 引用 src/decompmoe/beta.py:50 并逐字引用源码 MAX_GRAD_PER_GAMMA_PHASE4: Final[float] = 0.5 * 31.0——行号与源码字面量两处皆错（数值 15.5 本身正确）。spec 用逐字引文作为契约，但引文与源码不符。",
+   "evidence_ref": "_merged_verdicts main40（S-MATH-05）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main40:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-71"
+  },
+  {
+   "id": "C-045",
+   "title": "voronoi_angle docstring 把读者指向一个不存在的测试名",
+   "location_file": "src/decompmoe/sphere.py",
+   "location_line": 234,
+   "requirement_ref": "skeleton req-6",
+   "problem": "docstring 指示读者去看 test_voronoi_angle_equal_area_witness_crosspolytope 了解某项保证，但 tests/ 中实际的测试名是 test_voronoi_angle_equal_area_witness_equal_area_configurations。src 文档给出的可追溯入口不可解析。",
+   "evidence_ref": "_handoff_delta.json delta:D2 的 D2-06；报告 §5 表格第 4 行 killedBy 列表",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "D2-06"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-72"
+  },
+  {
+   "id": "C-046",
+   "title": "clip_global_grad_norm_ 的 else 分支不可达且会抛错",
+   "location_file": "src/decompmoe/safeguards.py",
+   "location_line": 57,
+   "requirement_ref": "CLAUDE.md §2 Simplicity First（不为不可能场景写错误处理）",
+   "problem": "else pre_norm 分支不可达：clip_grad_norm_ 恒返回 0 维张量，故 pre_norm 恒为标量 0 且永不为 None；若该分支被触达，会因 float(多元素张量) 直接抛错。可从 torch 源码证明不可达，不只是观察。",
+   "evidence_ref": "_merged_verdicts main59（CODE-FORM-04）；报告 §8 偏离表",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main59:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-73"
+  },
+  {
+   "id": "C-047",
+   "title": "_betainc_regularized 求积循环内两处守卫数学上不可达",
+   "location_file": "src/decompmoe/sphere.py",
+   "location_line": 117,
+   "requirement_ref": "CLAUDE.md §2 Simplicity First",
+   "problem": "求积循环内的 if t <= 0.0: continue 与 math.log(t) if t > 0 else -math.inf 两处守卫在数学上不可达（GL 节点严格落在 (0,1) 开区间内）。判 PARTIALLY_REAL：分支确不可达，但 _betainc_regularized 本身在 x→1 处的真实缺陷（C-034）比这两处死守卫重要得多。",
+   "evidence_ref": "_merged_verdicts main60（CODE-FORM-05）；报告 §8 偏离表",
+   "verdict_class": "PARTIALLY_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main60:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-74"
+  },
+  {
+   "id": "C-048",
+   "title": "extract_C 的投影参数名与 skeleton req-7 声明签名漂移",
+   "location_file": "src/decompmoe/extraction.py",
+   "location_line": 36,
+   "requirement_ref": "decompmoe-skeleton req-7 声明签名 proj_W_K, proj_W_V, proj_b",
+   "problem": "extract_C 的前三个投影参数名是 W_K, W_V, b，与 decompmoe-skeleton req-7 显式声明的签名 proj_W_K, proj_W_V, proj_b 漂移。按 spec 写法以关键字调用会 TypeError，即 spec 声明的签名不可执行。这是 8 个 spec 明文声明签名中至少 3 个不一致之一。",
+   "evidence_ref": "_merged_verdicts main61（CODE-FORM-06）；报告 §8 偏离表 + 签名层漂移统计",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main61:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-75"
+  },
+  {
+   "id": "C-051",
+   "title": "resurrect_expert docstring 的实参描述与实现不符",
+   "location_file": "src/decompmoe/safeguards.py",
+   "location_line": 208,
+   "requirement_ref": "wayfinder Req 32 L735（same-call-stack 契约）",
+   "problem": "resurrect_expert docstring 声称 c_perturbed 来自 resurrection_perturb_distribution(torch.empty(0), j_star, ...)，实际代码传的是 f_per_expert（= β_per_expert.detach()）。文档与实现不一致，而 Req 32 的 same-call-stack 契约正是以该 docstring 作为人类可读依据。",
+   "evidence_ref": "_merged_verdicts gap12（ADV-13）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:gap12:math",
+    "rv:gap12:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-76"
+  },
+  {
+   "id": "C-054",
+   "title": "gamma_reset_for_phase4 定义域 (1,32) 无守卫",
+   "location_file": "src/decompmoe/schedule.py",
+   "location_line": 139,
+   "requirement_ref": "wayfinder Req 26 L642 / Req 29 L687",
+   "problem": "gamma_reset_for_phase4 的定义域是 (1, 32)，但函数无任何守卫；β_p3 落在边界上就抛出语义误导的 math.log 域错误，而 β_p3 = 1.0 在 Phase 3 是可达的（Phase-1 全 5000 步固定 β = 1.0）。spec 把该闭式无条件表述为 γ 重置契约，未声明 β_p3 的有效域。",
+   "evidence_ref": "_merged_verdicts gap7（ADV-08）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:gap7:math",
+    "rv:gap7:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-77"
+  },
+  {
+   "id": "C-056",
+   "title": "__all__ 只列 3 个 dunder 名字，spec 要求列出全部公开符号",
+   "location_file": "src/decompmoe/__init__.py",
+   "location_line": 21,
+   "requirement_ref": "decompmoe-skeleton req-1 L12",
+   "problem": "decompmoe.__all__ 只列 3 个 dunder 名字，而 spec req-1 要求它列出『every public symbol introduced by this skeleton』（实测 76 个）；且 docstring 声称的『populated lazily by submodules』并未发生。",
+   "evidence_ref": "_merged_verdicts gap10（ADV-11）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:gap10:math",
+    "rv:gap10:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-78"
+  },
+  {
+   "id": "C-059",
+   "title": "voronoi_angle 的 probe 强制建在 CPU 且多出 ValueError",
+   "location_file": "src/decompmoe/sphere.py",
+   "location_line": 288,
+   "requirement_ref": "change 2026-09-30-fix-voronoi-angle-review-findings 授权编辑面",
+   "problem": "torch.randn(..., generator=generator) 无 device= 参数，probe 矩阵是 1e6 × d_c 的 float32（d_c=16 时 64 MB）；同时新增的 d_c < 2 的 ValueError 也不在授权 change 枚举的 4 项 sphere.py 编辑里，更不在 spec 里。当前无生产调用者所以影响为零，属 change 授权外变更。",
+   "evidence_ref": "_handoff_delta.json delta:D3 的 D3-07；报告 §8 偏离表末行",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "D3-07"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AC-79"
+  },
+  {
+   "id": "O-03",
+   "title": "仓库无任何 anchor 覆盖检查的门禁脚本",
+   "location_file": "scripts/lint_no_dead_defensive.py",
+   "location_line": 1,
+   "requirement_ref": "CLAUDE.md §6 spec anchor 全覆盖硬约束",
+   "problem": "scripts/ 下两个 lint 都不检查 anchor，唯一的 anchor 逻辑在 delta 合并脚本里（它是应用器不是检查器）。事故记录里点名的检测器是一个从未被提交的临时脚本，git log 对它零命中。anchor 覆盖今天确实是 100%，但这条硬约束没有任何可执行形态，所以三次事故都只能靠人手发现、人手修复。",
+   "evidence_ref": "_handoff_delta.json key=delta:D4 findings[D4-05]；报告 §10 Batch D-2 门禁有效性",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "delta:D4-05"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-80"
+  },
+  {
+   "id": "O-18",
+   "title": "Source 行匹配的行首锚定可被缩进或引用前缀绕过",
+   "location_file": "scripts/lint_no_source_field_drift.py",
+   "location_line": 75,
+   "requirement_ref": "CLAUDE.md §3 Source 反链 / governance req-gov-1",
+   "problem": "lint 用行首锚定的正则识别 Source 行，凡该行带前导空白或 blockquote 前缀就整条跳过，三项结构性检查一项都不执行。实测同一段违规文本顶格写会被报 violation，加两个空格或加 > 前缀则报 0 violation。当前 live spec 树里 4 个 Source 行都是顶格，所以今天没有实际漏报，属覆盖面加固缺口。",
+   "evidence_ref": "f_main/026.json（G-MATH-03）；_handoff_verdicts_all.json key=rv:main26:source（STILL_REAL）；报告 §10 Batch D-2",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main26:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-81"
+  },
+  {
+   "id": "W04",
+   "title": "req-11 权重 tying 反事实的 prose 数值与同段闭式不符",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 248,
+   "requirement_ref": "wayfinder req-11",
+   "problem": "req-11 讨论「不做权重 tying」的反事实时，prose 写总量「≈ 484 M」，而同段自己钉死的精确闭式给出的实际值是 485_097_984 ≈ 485.1 M，偏差 0.23%。同一段内一个 Requirement 同时持有精确闭式与错误的约数近似，两者不构成整数闭式意义上的对账，读者无法判断哪一个是权威值。",
+   "evidence_ref": "报告 §6.5「权重 tying 反事实 prose 数值错」条；finding main43 [W-MATH-02]",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main43"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-82"
+  },
+  {
+   "id": "W05",
+   "title": "req-11 参数量闭式的三个中间整数项无字面量守护",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 251,
+   "requirement_ref": "wayfinder req-11",
+   "problem": "req-11 的参数计数闭式中 P_emb = 32_768_000、P_attn/layer = 4_194_304、P_router = 131_584 三个整数项在 skeleton spec 中逐项列出，但 tests/ 只钉了 P_router/layer = 32_896 与两个总计。闭式的分解层完全无对账，MVPConfig 默认值漂移时三个中间项会静默改变而测试不红——这正是 CLAUDE.md §8 描述的 ticket/spec/默认配置三传染通道在测试层的对应缺口。",
+   "evidence_ref": "finding gap19 [W2-MATH-06]；报告 §9 落地矩阵「spec → test 塌陷」结论",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "gap19",
+    "rv:gap19:math",
+    "rv:gap19:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-83"
+  },
+  {
+   "id": "W06",
+   "title": "θ_Voronoi > θ_{1/e} 成立条件只是散文非条款",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 233,
+   "requirement_ref": "wayfinder req-11",
+   "problem": "复算确认 θ_Voronoi > θ_{1/e} 只在 β > 1/(1−cos θ_V) ≈ 1.6310 时成立，而调度中有 9207/100000 步运行在该判据的反转区（Phase 1 全部 5000 步固定 β = 1.0，余量 −22.76°）。finding 断言 spec 完全没写条件是误报——同一 Requirement 正文 L245 就以 β = 16 为条件写了这条不等式，finding 只读了 L233 起的 Scenario。剩余的真实成分是：该条件在 spec 中以 MAY 级的散文形式存在而非 MUST 级条款，因此它不构成可被 lint/测试对账的契约。",
+   "evidence_ref": "报告 §6.5「几何自洽判据适用条件」条与 §2.2 NEVER_EXISTED 列表第 4 条；finding gap13 [ADV-14]（rv:gap13:math / rv:gap13:source）",
+   "verdict_class": "PARTIALLY_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "gap13"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-84"
+  },
+  {
+   "id": "W08",
+   "title": "req-19 把 1:1 FLOPs 断言从两个条目过度外推到每个 MoE 条目",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 435,
+   "requirement_ref": "wayfinder req-19",
+   "problem": "req-19 的 Scenario 把 1:1 断言从「DecompMoE vs Dense-4096」过度外推为「每个 MoE 条目」，但该 Requirement 自己枚举的 Qwen1.5-MoE-A2.7B（QLoRA）与 GMoE 条目不可能与 Dense 基线有相同的 per-token active FLOPs。措辞越界使 Scenario 描述的契约宽于其自身枚举的对象范围，读者会把它读成对外部参数化 baseline 的性能承诺。属措辞越界而非数值错误。",
+   "evidence_ref": "finding main19 [FLOPs-BASE-01]",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main19"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-85"
+  },
+  {
+   "id": "W09",
+   "title": "req-19 两个 residency 数值无 pin 且算不出 4 KB",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 398,
+   "requirement_ref": "wayfinder req-19 / wayfinder req-18 / ticket A7-3",
+   "problem": "req-19 声明的两个 residency 数值（W_proj ≈ 64 KB in BF16、activations ≈ 4 KB）虽可闭式算出，但 src 与 tests 中均无任何 pin；H_kv/d_k/d_c 静默漂移会让该 Requirement 的 L2 常驻承诺失效而无测试变红。复算发现字面列举的 z/ẑ/z̄/C 张量集合算不出 4 KB，而 H_kv·d_k·4 B = 4_096 B 恰为 4 KB——spec 声明的张量集合与声明的数值不匹配，属可消歧的措辞缺口。已在归档 change 登记为 hand-off 移交项 6。",
+   "evidence_ref": "报告 §6.5 与 §7「无 Decision 记录」第 5 条表；§9 落地缺口表 residency 行；finding main22 [LANDING-03]、gap26 [W1-COVER-RESIDENCY-06]",
+   "verdict_class": "PARTIALLY_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main22",
+    "gap26"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-86"
+  },
+  {
+   "id": "W10",
+   "title": "req-20 六个 baseline 有 5 个零表示且无 deferral",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 414,
+   "requirement_ref": "wayfinder req-20 / ticket A8-1",
+   "problem": "req-20 要求对 6 个 baseline 报告 1:1 active FLOPs，但 src 的 flops_per_token 只支持 MOE/DENSE 两种 arch，5 个 baseline 在 src 与 tests 中零表示。该 Requirement 也没有像 territory_seeding 那样的显式 deferral 标注，因此读者无法区分「有意不做」与「漏做」。按 CLAUDE.md §7 训练与评测属 out-of-scope，缺的是标注而非实现。",
+   "evidence_ref": "报告 §9 落地缺口表「6 个 baseline 的 1:1 FLOPs」行；finding main23 [LANDING-04]",
+   "verdict_class": "PARTIALLY_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main23",
+    "rv:main23:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-87"
+  },
+  {
+   "id": "W13",
+   "title": "wayfinder spec 内部行号交叉引用系统性失效（聚合记录）",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 847,
+   "requirement_ref": "wayfinder req-2 / req-34 / req-36",
+   "problem": "本条是 wayfinder spec 内部行号引用族失效的聚合记录：req-36 引用的 L434-505 / L450 / L453 / L454 / L456 / L416 / L413、req-34 的 L831→L251、req-2 的 L24「req-11 L211」全部指向当前文件的错误行，其中 req-2 那条指向的内容与该主张完全无关（落在 req-10 Territory Seeding 块内）。判定为 MINOR 而非 MAJOR 是因为每一处单独看都是可定位的引用错误，实体主张本身未变；但作为一族，它们共同构成 §6.4 所说的「7 条独立 finding 指向同一个根因」。仓库已有 commit a036a15 校正过同类指针（B14: L122→L130、L115→L123），说明该失败模式已被识别过一次却未根治。",
+   "evidence_ref": "报告 §6.4 失效样例清单；finding main44 [W-MATH-03]",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main44",
+    "main72",
+    "main74",
+    "main77"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-88"
+  },
+  {
+   "id": "W14",
+   "title": "req-34 的 live example 指针指向参数计数假设",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 831,
+   "requirement_ref": "wayfinder req-34",
+   "problem": "req-34 把 A6a-2 historical-annotation 的「canonical live example」定位在 wayfinder L251，但该 Source 行实际在 L316，L251 是参数计数假设 4。这是指针目标语义完全不匹配的一类——不是 off-by-one，而是指到了另一个 Requirement 的另一类内容。已用 git show f033d2e3 证明该指针在 2026-09-15 撰写时是对的，属纯粹的撰写后漂移。",
+   "evidence_ref": "报告 §6.4 失效样例第 3 条；finding main74 [CROSS-SPEC-LINEPTR-03]",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main74"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-89"
+  },
+  {
+   "id": "W15",
+   "title": "req-2 引 req-11 L211 落在 req-10 块内",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 24,
+   "requirement_ref": "wayfinder req-2 → req-11",
+   "problem": "req-2 引「req-11 L211」定位 GQA-degenerates 陈述，但 L211 落在 req-10 Territory Seeding 块内，该陈述实际在 wayfinder L249。指针落进相邻 Requirement 的正文块，使 req-2 的一条 MUST 条款失去可追溯依据。同时 §6.5 已记录 req-11 L249 本身还带着 W^O 排除句的互斥问题，两条缺陷叠加在同一目标行上。",
+   "evidence_ref": "报告 §6.4 失效样例第 5 条；finding main77 [CROSS-SPEC-LINEPTR-06]",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main77"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-90"
+  },
+  {
+   "id": "W19",
+   "title": "req-24 Scenario 的 γ/β 空间间隙中间量无测试守护",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 609,
+   "requirement_ref": "wayfinder req-24",
+   "problem": "req-24 Scenario 中的 γ-space 间隙 4.54e-5、β-space 残差 1.5899599e-6、斜率 0.0350220952386 等中间量无任何测试钉住。其中 β-space 残差是 spec 论证「必须用 γ-space 断言而非 β-space 断言」的唯一量化依据——这条设计决策的论据本身零守护，未来任何人改动 γ/β 映射都不会有测试变红。违反 CLAUDE.md §6 第 8 条。",
+   "evidence_ref": "finding gap20 [W2-MATH-07]",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "gap20",
+    "rv:gap20:math",
+    "rv:gap20:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-91"
+  },
+  {
+   "id": "W20",
+   "title": "wayfinder 两个 anchor 被正文内联重复声明",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 429,
+   "requirement_ref": "wayfinder req-17 / wayfinder req-20",
+   "problem": "wayfinder spec 中 req-17 与 req-20 两个 anchor 被正文内联重复声明，decompmoe-skeleton 另有 2 处 req-22 变体，产生重复 HTML id。anchor 覆盖率本身 100% 合规，不违反 CLAUDE.md §6「spec anchor 不全」的判定标准——记录它是因为按 anchor grep 时会命中两处，而行号指针族（见 W12–W15）正是在向 anchor 引用迁移，重复 id 会在迁移后成为新的歧义源。定性为可接受的引用提及而非缺失 anchor。",
+   "evidence_ref": "finding main70 [CROSS-SPEC-ANCHOR-01]（rv:main70:source 判 MOVED）",
+   "verdict_class": "MOVED",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main70"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-92"
+  },
+  {
+   "id": "W22",
+   "title": "map.md 两条 A5-3 narrative 仍写旧 θ_Voronoi 值",
+   "location_file": "wayfinder/map.md",
+   "location_line": 54,
+   "requirement_ref": "wayfinder req-11 / ticket A5-3 / ticket A1-1",
+   "problem": "map.md 的 A5-3 两条 narrative 仍写 θ_Voronoi 25.75°（N_e=64）与 ≈52°（N_e=16），与 spec req-11 的 58.47° / 67.24° 冲突。关键的不一致在于：同一批修复已在 ticket A5-3 L63 与 A1-1 L98 加上 (historical, …) 标注，map.md 端漏标。CLAUDE.md §8 的三步修复协议 (a) 只写了 ticket 端义务，map 侧没有对应条款，导致「同一漂移在同一批次里被修了一半」。",
+   "evidence_ref": "报告 §7「无 Decision 记录」第 5 条；finding main28 [DRIFT-MAP-01]",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main28",
+    "§7-no-decision-5"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-93"
+  },
+  {
+   "id": "W23",
+   "title": "map.md 的 4 阶段生命周期措辞漏改且仍带已删除的 δ_g",
+   "location_file": "wayfinder/map.md",
+   "location_line": 49,
+   "requirement_ref": "ticket A3-2 / map.md 生命周期叙述",
+   "problem": "map.md 仍写「c_i 4 阶段生命周期」，而 ticket A3-2 的同一措辞已被 change 2026-09-22-fix-ticket-a5-2-cascading-correction 修为 5 阶段——该 change 修了 A3-2 + A5-2 两个 ticket 却漏掉 map.md 的同款措辞，属同一 change 内的漏改。map.md 同一行还带着「δ_g 死专家保护」，而 δ_g 在 openspec/ 内零落点。",
+   "evidence_ref": "报告 §7「无 Decision 记录」第 4 条；finding main29 [DRIFT-MAP-02]",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main29",
+    "main33",
+    "§7-no-decision-4"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-94"
+  },
+  {
+   "id": "W24",
+   "title": "map.md 的三处计数全部落后于仓库实况",
+   "location_file": "wayfinder/map.md",
+   "location_line": 71,
+   "requirement_ref": "map.md 导航计数",
+   "problem": "map.md 的三处计数全部落后：写 20 tickets（实 23）/ 21 锚点 21 Requirements（实 36/36）/ 34 Scenarios / 10 arena。anchor 覆盖本身 100% 合规，drift 仅在 map.md 的叙述性计数。它是 wayfinder 层的导航入口，读者据它判断「还有多少没做」，因此计数失真会直接影响后续审计的完备性判断——上一轮就发生过把「3 个未归档 change」当成前提而实为 5 个（见 main5）的情况。",
+   "evidence_ref": "报告 §7「无 Decision 记录」第 6 条；finding main30 [DRIFT-MAP-03]",
+   "verdict_class": "PARTIALLY_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main30",
+    "§7-no-decision-6"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-95"
+  },
+  {
+   "id": "W25",
+   "title": "ticket A3-2 的 δ_g 门控被替换且无 Decision",
+   "location_file": "wayfinder/tickets/A3-2.md",
+   "location_line": 45,
+   "requirement_ref": "ticket A3-2 → wayfinder req-6 / req-22",
+   "problem": "A3-2 的 δ_g 死专家门控与 g_i(C_t) 加权的 m_i 形式在 openspec/ 内零命中（grep -rn \"δ_g\" openspec/ = 0），spec req-6 L91 / req-22 L554 改用硬指示符 n_i = Σ_t I[r_{t,i} = max_j r_{t,j}]。ticket 端无 (historical, …) 标注，openspec 无任何 Decision 记录这次替换。这是「ticket 语义被无声替换」最干净的一例——不是数值漂移，是公式形状漂移，因此 CLAUDE.md §8 的三步协议按 (a) ticket 标注 / (b) 默认值同步 / (c) 测试迁移去套用时，(b)(c) 两步无处落地。",
+   "evidence_ref": "报告 §7「无 Decision 记录」第 1 条；finding main33 [DRIFT-A3-2-01]",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main33",
+    "§7-no-decision-1"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-96"
+  },
+  {
+   "id": "W26",
+   "title": "ticket A6a-2 供体克隆语义无落点且无 Decision",
+   "location_file": "wayfinder/tickets/A6a-2.md",
+   "location_line": 67,
+   "requirement_ref": "ticket A6a-2 → wayfinder req-13 / req-28 / req-32",
+   "problem": "A6a-2 声明的 resurrection 供体克隆语义 c_i ← Normalize(c_{j*} + ε)（继承最忙专家质心再微扰）在 openspec 内无任何 API 落点，而 spec req-13 的「clones j*」措辞被自家 req-28/32 的 canonical API 与已落地代码证否，且无 Decision 记录该删除。它同时是 CLAUDE.md §8 三传染通道中「reader-ticket-not-spec 复制」那一路的源头：任何照 ticket 实现的人会实现出一个 spec 明确不要求的归一化包装。",
+   "evidence_ref": "报告 §7「无 Decision 记录」第 2 条、§8 resurrection 行；finding main31 [DRIFT-A6A2-01]",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main31"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-97"
+  },
+  {
+   "id": "W27",
+   "title": "ticket A6a-2 的专家权重克隆步在 openspec 内零落点",
+   "location_file": "wayfinder/tickets/A6a-2.md",
+   "location_line": 70,
+   "requirement_ref": "ticket A6a-2 → wayfinder req-13 / req-32",
+   "problem": "A6a-2 resurrection 的第 4 步「专家权重克隆 W_i ← W_{j*} + N(0, 10^-4 I)」在整个 openspec/ 内零命中，spec 也从未记录该步被有意删除。ticket 端无 (historical, …) 标注，违反 governance req-gov-4 clause 4(a) 与 CLAUDE.md §8 三步协议的 (a) 步。复验者把定级降到 NONE 并部分驳回：req-32 的单事件 wrapper 契约在范围上已覆盖该步的删除，剩余成分只是标注缺失。",
+   "evidence_ref": "报告 §7「无 Decision 记录」第 2 条、§9 落地缺口表「专家权重克隆步」行；finding main32 [DRIFT-A6A2-02]（rv:main32:source 判 PARTIALLY_REAL / NONE）",
+   "verdict_class": "PARTIALLY_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main32",
+    "§7-no-decision-2"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-98"
+  },
+  {
+   "id": "W28",
+   "title": "ticket A5-3 的 β_0 ≈ 1.0 标注只做了一半",
+   "location_file": "wayfinder/tickets/A5-3.md",
+   "location_line": 42,
+   "requirement_ref": "ticket A5-3 / ticket A4-1 → wayfinder req-7",
+   "problem": "A5-3 三处 β_0 ≈ 1.0（L42 / L81 / L108）未加 (historical, …) 标注，而同值的 A4-1 L59 已加。同一漂移的 ticket 端标注只做了一半——正是 CLAUDE.md §8 描述的三传染通道形式：一个 ticket 加了标注，另一个没加，读者按 A5-3 读会拿到已被 spec req-7 闭式（β_0 = 1.035060）取代的旧值。",
+   "evidence_ref": "报告 §7「无 Decision 记录」第 7 条；finding main34 [DRIFT-A5-3-01]",
+   "verdict_class": "PARTIALLY_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main34",
+    "§7-no-decision-7"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-99"
+  },
+  {
+   "id": "W34",
+   "title": "fix-review-findings change 目录名无日期前缀",
+   "location_file": "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/proposal.md",
+   "location_line": 1,
+   "requirement_ref": "change fix-review-findings-voronoi-precision-and-lineage",
+   "problem": "该 change 目录名无 YYYY-MM-DD- 前缀，违反本仓 67 个归档目录中 64 个采用的命名惯例，并导致 openspec list 按名排序时它被排到最末、与另外 4 个日期前缀 change 的时间序脱节。proposal.md L5 记录 reviewer session 日期为 2026-09-27，说明日期信息存在只是没进目录名。属非阻断的惯例偏离。",
+   "evidence_ref": "finding main10 [W-08]（rv:main10:source 判 PARTIALLY_REAL）",
+   "verdict_class": "PARTIALLY_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main10",
+    "rv:main10:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-100"
+  },
+  {
+   "id": "W35",
+   "title": "followup change 的 task 勾选框账目漂移",
+   "location_file": "openspec/changes/2026-09-26-followup-spec-wording-bugs-after-precision-disclosure/tasks.md",
+   "location_line": 33,
+   "requirement_ref": "change 2026-09-26-followup-spec-wording-bugs-after-precision-disclosure",
+   "problem": "该 change 有 13 个未勾选 task（openspec list 报 3/16），但这 13 项全部是「跑验证 / 提交」类动作，实质已由 commit 125d626 满足，属勾选框未回填的账目漂移。change 同时在工作树留下 2 个空的 specs/<capability>/ 目录，与其自身 proposal.md L53-57 的 skip_specs 声明矛盾。wayfinder 层的风险是：这条 change 承载的正是 spec 措辞类修正，账目漂移会让它被误判为未完成而长期滞留。",
+   "evidence_ref": "finding main7 [W-05]（rv:main7:source 判 PARTIALLY_REAL）；报告 §2.2 NEVER_EXISTED 第 3 条的关联背景",
+   "verdict_class": "PARTIALLY_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main7",
+    "rv:main7:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-101"
+  },
+  {
+   "id": "W38",
+   "title": "b13-b16 change 24/24 完成且已落库但仍未 archive",
+   "location_file": "openspec/changes/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/tasks.md",
+   "location_line": 1,
+   "requirement_ref": "change 2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift",
+   "problem": "该 change 24/24 task 全勾选、已随 commit f0b3aa2 落库、且正确声明不产生 spec delta，但仍处于未归档状态。属 OpenSpec 流程积压而非缺陷——但它正是 W12–W15 行号指针族修复的 src 侧载体（B13/B16 修 src docstring 与行号引用漂移），持续未归档会让「已修 src、未修 spec」的半边状态长期看起来像是完整交付。",
+   "evidence_ref": "finding main6 [W-04]（rv:main6:source 判 STILL_REAL）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main6",
+    "rv:main6:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AC-102"
+  }
+ ],
+ "direct-fix": [
+  {
+   "id": "P19",
+   "title": "三个变异源码副本因 hook 阻塞未清理，至今仍在磁盘上",
+   "location_file": "audit/mut1/metrics.py",
+   "location_line": 0,
+   "requirement_ref": "N/A",
+   "problem": "变异测试的 mutate:1 / mutate:4 / mutate:7 三个 agent 在收尾删除自己建的变异源码副本时被 Fact-Forcing Gate 的 PreToolUse hook 阻塞，删除动作未执行。实测 audit/mut1/、audit/mut4/、audit/mut7/ 三个目录此刻仍在磁盘上，各含一份完整的仓库副本（apply-checklist.md、CLAUDE.md、docs、src、tests、openspec、wayfinder、scripts 等）。其中 mut1/metrics.py、mut4/sphere.py、mut7/gating.py 带变异。副本本身惰性（audit/pin6593a06 经 SHA-256 复核未变），但在这三个目录里跑 pytest 会得到错误结果。",
+   "evidence_ref": "audit/mut1/、audit/mut4/、audit/mut7/（ls 实测三个目录均存在且内容完整）；audit/_exec_summary.txt 末段；报告 §11 第 9 条",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [],
+   "classification_hint": "direct-fix",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "DF-01"
+  },
+  {
+   "id": "D13",
+   "title": "报告 §11.2 的变异副本目录 mut1 仍存在于磁盘，含 476 个文件",
+   "location_file": "C:/Users/LamKo/.claude/projects/D--myProject-DecompMoE/a553f54e-8635-46b2-a435-55d871698d88/audit/mut1",
+   "location_line": 0,
+   "requirement_ref": "报告 §11.2 item 9 (mutate:1)",
+   "problem": "报告 §11.2 第 9 条记录 mutate:1 的清理步骤被 Fact-Forcing Gate 的 PreToolUse hook 阻塞，遗留变异源码副本在磁盘上。以 ls 核实：C:/Users/LamKo/.claude/projects/D--myProject-DecompMoE/a553f54e-8635-46b2-a435-55d871698d88/audit/mut1 目录仍存在，find -type f 计数为 476，含完整的 .git / .codegraph / .pytest_cache / .claude 子树。目录内 mut1/src/decompmoe/metrics.py 为报告点名的带变异文件。路径在仓库之外，故不落入 _pin_drift.json，baseline_status 记 unchanged-since-pin。",
+   "evidence_ref": "报告 §11.2 item 9；_final_report_full.md L1647 起；ls/find 于 audit/mut1",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "mutate:1"
+   ],
+   "classification_hint": "direct-fix",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "DF-02"
+  },
+  {
+   "id": "D14",
+   "title": "变异副本目录 mut4 仍存在，含 476 个文件与 3 个伴生脚本",
+   "location_file": "C:/Users/LamKo/.claude/projects/D--myProject-DecompMoE/a553f54e-8635-46b2-a435-55d871698d88/audit/mut4",
+   "location_line": 0,
+   "requirement_ref": "报告 §11.2 item 9 (mutate:4)",
+   "problem": "报告 §11.2 第 9 条记录 mutate:4 的清理被 hook 阻塞。以 ls 核实：audit/mut4 目录仍存在，find -type f 计数为 476。目录内 mut4/src/decompmoe/sphere.py 为报告点名的带变异文件。报告同时记录该 agent 另建了伴生脚本目录 _mut4_scripts（核实存在，含 3 个文件），二者均未清理。",
+   "evidence_ref": "报告 §11.2 item 9；ls/find 于 audit/mut4 与 audit/_mut4_scripts",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "mutate:4"
+   ],
+   "classification_hint": "direct-fix",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "DF-03"
+  },
+  {
+   "id": "D15",
+   "title": "变异副本目录 mut7 仍存在，含 476 个文件与伴生探针脚本",
+   "location_file": "C:/Users/LamKo/.claude/projects/D--myProject-DecompMoE/a553f54e-8635-46b2-a435-55d871698d88/audit/mut7",
+   "location_line": 0,
+   "requirement_ref": "报告 §11.2 item 9 (mutate:7)",
+   "problem": "报告 §11.2 第 9 条记录 mutate:7 的清理被 hook 阻塞。以 ls 核实：audit/mut7 目录仍存在，find -type f 计数为 476。目录内 mut7/src/decompmoe/gating.py 为报告点名的带变异文件。同一 agent 另建的伴生探针脚本 audit/_ur_probe_plugin.py 也仍在（807 字节）。报告已指出：若后续有人在这些目录里跑 pytest 会得到错误结果。",
+   "evidence_ref": "报告 §11.2 item 9；ls/find 于 audit/mut7；ls 于 audit/_ur_probe_plugin.py",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "mutate:7"
+   ],
+   "classification_hint": "direct-fix",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "DF-04"
+  },
+  {
+   "id": "V-36",
+   "title": "4 个 agent 的变异源码副本未能清理，仍在磁盘上",
+   "location_file": "_final_report_full.md",
+   "location_line": 1652,
+   "requirement_ref": "N/A",
+   "problem": "`mutate:1` / `mutate:4` / `mutate:7` 的清理步骤被 Fact-Forcing Gate 的 PreToolUse hook 阻塞，对应的 `audit/mut1/`、`audit/mut4/`、`audit/mut7/` 变异源码副本仍在磁盘（经 SHA-256 复核 pin6593a06 未变，故是惰性的），其中 `mut1/metrics.py`、`mut4/sphere.py`、`mut7/gating.py` 带变异。后续若有人在这些目录里跑 pytest 会得到错误结果。",
+   "evidence_ref": "报告 §11 第 9 条",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "rv:main63:source",
+    "rv:main65:source",
+    "rv:main67:source"
+   ],
+   "classification_hint": "direct-fix",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "DF-05"
+  },
+  {
+   "id": "D16",
+   "title": "三个变异副本的伴生脚本目录 _mut4_scripts 与探针脚本 _ur_probe_plugin.py 均在磁盘上",
+   "location_file": "C:/Users/LamKo/.claude/projects/D--myProject-DecompMoE/a553f54e-8635-46b2-a435-55d871698d88/audit/_mut4_scripts",
+   "location_line": 0,
+   "requirement_ref": "报告 §11.2 item 9",
+   "problem": "报告 §11.2 第 9 条在列举被阻塞的清理时，除三个 mut 目录外还点名了两个伴生路径：mutate:4 的 _mut4_scripts/ 与 mutate:7 的 _ur_probe_plugin.py。以 ls 核实两者均仍存在（_mut4_scripts 含 3 个文件，_ur_probe_plugin.py 807 字节，时间戳 Oct 1 00:18）。这两处与 D13-D15 同属同一批未清理的审计自建制品。",
+   "evidence_ref": "报告 §11.2 item 9；ls 于 audit/_mut4_scripts 与 audit/_ur_probe_plugin.py",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "mutate:4",
+    "mutate:7"
+   ],
+   "classification_hint": "direct-fix",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "DF-06"
+  },
+  {
+   "id": "O-28",
+   "title": "4 个陈旧分支与一个未清理的 worktree 注册",
+   "location_file": "CLAUDE.md",
+   "location_line": 52,
+   "requirement_ref": "CLAUDE.md §4 分支收尾约定",
+   "problem": "两个 worktree-agent-* 分支停在 main 的空根 commit 且无对应 worktree 登记（孤儿）；一个 feat 分支已完全合入 dev 却未删除；另一个 worktree 分支已合并且其 worktree 仍注册在仓库外的目录里未 prune。这些残留让「git branch -a -vv」给出的分支清单与实际状态脱节，干扰对分叉/合并状态的判读。",
+   "evidence_ref": "f_main/015.json（W1-GIT-05）；_handoff_verdicts_all.json key=rv:main15:source（STILL_REAL）；报告 §10 Batch D-2 git 卫生",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main15:source"
+   ],
+   "classification_hint": "direct-fix",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "DF-07"
+  },
+  {
+   "id": "W07",
+   "title": "req-17 的 0.83% 浮点比率 claim 在 tests 全目录无对账",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 382,
+   "requirement_ref": "wayfinder req-17",
+   "problem": "req-17 的浮点闭式 claim「~0.83%」（66_080 相对 65_536 的增幅）在 tests/ 全目录无任何断言守护，是该组 FLOPs 比率 claim 中唯一未被 pytest.approx 直接对账的一个——同段的 0.20% / 0.05% 都有。违反 CLAUDE.md §6 第 8 条与 governance req-gov-1 义务 2（涉及除法的 FLOPs 比率须用 approx(abs=) 对账）。该 finding 的行号被 33f7cc9 的 +1 位移冲掉，实体缺陷位置未变。",
+   "evidence_ref": "finding main18 [FLOPs-GUARD-01]（rv:main18:source，verdict=MOVED）；报告 §2.2 第 3 类 MOVED 说明",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main18",
+    "rv:main18:source"
+   ],
+   "classification_hint": "direct-fix",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "DF-08"
+  },
+  {
+   "id": "W43",
+   "title": "未跟踪的 _staged/ 含 wayfinder spec.md 重复副本",
+   "location_file": ".gitignore",
+   "location_line": 37,
+   "requirement_ref": "openspec/specs/wayfinder/spec.md（真相源唯一性）",
+   "problem": "31 个未跟踪垃圾文件（751,813 字节）均未被 .gitignore 覆盖，其中 _staged/ 目录含 openspec/specs/governance/spec.md 与 openspec/specs/wayfinder/spec.md 的完整重复副本，而 §3.1 记录的日常提交命令正是 `git add .`。这直接威胁 CLAUDE.md §2 的真相源唯一性：一次无差别的 git add . 会把 wayfinder spec 的两个副本一起提交。复验镜只判 PARTIALLY_REAL（HEAD 态的 _staged/ 内容与 spec 有差异且已过期），但「未跟踪 + git add . 工作流」这一组合本身是 wayfinder 层真相源的结构性风险。",
+   "evidence_ref": "finding main13 [W1-GIT-03]（rv:main13:math=UNVERIFIABLE，rv:main13:source=STILL_REAL MINOR）",
+   "verdict_class": "PARTIALLY_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main13",
+    "rv:main13:source",
+    "rv:main13:impact"
+   ],
+   "classification_hint": "direct-fix",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "DF-09"
+  }
+ ],
+ "user-decision": [
+  {
+   "id": "O-24",
+   "title": "main 与 dev 无共同祖先，dev → main --no-ff 当前不可执行",
+   "location_file": "CLAUDE.md",
+   "location_line": 51,
+   "requirement_ref": "CLAUDE.md §4 分支架构 / main 行",
+   "problem": "main 的 root 是一个只含 2 个文件的 Initial commit，与 dev 无任何共同祖先，因此规范定义的「dev → main 存档」通道在当前拓扑下根本跑不通（需要规范未授权的 unrelated-histories 开关）。「dev 上未进 main 的提交数」实为 dev 的全部历史（174/174），这条指标因此失去意义。项目记忆记录用户此前已选择「仅 push dev」而非自动修复，属已登记的推迟项。",
+   "evidence_ref": "f_main/011.json（W1-GIT-01）；_handoff_verdicts_all.json key=rv:main11:source（STILL_REAL, MAJOR）/ :impact；报告 §10 Batch D-2 git 卫生",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main11:source",
+    "rv:main11:impact"
+   ],
+   "classification_hint": "user-decision",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "UD-01"
+  },
+  {
+   "id": "O-25",
+   "title": "release 分支与任何 tag 都不存在",
+   "location_file": "CLAUDE.md",
+   "location_line": 52,
+   "requirement_ref": "CLAUDE.md §4 分支架构 / release 行",
+   "problem": "release 分支在本地与远端均不存在，仓库 tag 数为零，正式出埠口从未建立。这意味着「release 永远是 git tree 最前端」这条语义目前没有任何仓库状态与之对应，而 §4 的合并顺序约束与禁止清单都建立在该分支存在的前提上。",
+   "evidence_ref": "f_main/012.json（W1-GIT-02）；_handoff_verdicts_all.json key=rv:main12:source（PARTIALLY_REAL）/ :impact（STILL_REAL）；报告 §10 Batch D-2 git 卫生",
+   "verdict_class": "PARTIALLY_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main12:source",
+    "rv:main12:impact"
+   ],
+   "classification_hint": "user-decision",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "UD-02"
+  },
+  {
+   "id": "P05",
+   "title": "run d53 的 pin agent hand-back 触发了不可逆本地销毁告警",
+   "location_file": "workflows/wf_fd517ac0-d53.json",
+   "location_line": 0,
+   "requirement_ref": "N/A",
+   "problem": "run d53 的 journal log 里，pin agent 与 rv:main45:source / rv:main45:impact 三条 hand-back 都被 hook 判为 SECURITY WARNING [Irreversible Local Destruction]，理由是它们的 hand-back 指向父 workflow 去执行 git checkout -- tests/test_loss.py 与 git checkout -- src/decompmoe/config.py（会丢弃未提交改动）。这三条 agent 的输出因此带了一层『未经用户授权不得执行』的封条，其结论能否直接采纳成为悬而未决的问题。",
+   "evidence_ref": "workflows/wf_fd517ac0-d53.json logs 第 1 / 3 / 4 条（pin:baseline+delta-map、rv:main45:source、rv:main45:impact）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main45:source",
+    "rv:main45:impact"
+   ],
+   "classification_hint": "user-decision",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "UD-03"
+  },
+  {
+   "id": "W44",
+   "title": "CLAUDE.md 对 ticket 同时声明非约束与必须维护",
+   "location_file": "CLAUDE.md",
+   "location_line": 51,
+   "requirement_ref": "CLAUDE.md §2 / §8 / governance req-gov-4",
+   "problem": "CLAUDE.md §2 的真相源优先级把 wayfinder/map.md + 23 tickets 定为「参考性、非约束性」第 4 档，§8 的 2026-08-21 裁决同向；但 §8 的三步修复协议 (a) 又要求 ticket 端必须维护 `(historical, …)` 标注，并按 governance req-gov-4 把它形式化为硬义务。也就是说 ticket 同时被声明为「非约束」与「必须被维护」。本轮 8 类「无 Decision 记录」中至少 6 类落在 ticket/map 端，它们的共同根因就是这两条规则的张力：非约束制品的维护义务没有责任人、没有检查点、也没有 lint 覆盖。",
+   "evidence_ref": "报告 §7「无 Decision 记录（必须点名，共 8 类）」整节与 §1 wayfinder 段「累积了两年漂移的散文」定性",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "main28",
+    "main29",
+    "main30",
+    "main31",
+    "main33",
+    "main34"
+   ],
+   "classification_hint": "user-decision",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "UD-04"
+  },
+  {
+   "id": "C-052",
+   "title": "beta_effective 对 γ 不可微，训练性论证依赖该通路",
+   "location_file": "src/decompmoe/schedule.py",
+   "location_line": 171,
+   "requirement_ref": "wayfinder Req 7 L123/L130 / Req 24 L586 / skeleton L471-473",
+   "problem": "beta_effective(gamma_p: float, …) 返回 requires_grad=False, grad_fn=None，叠加 Phase 2–3 对 β_max(t) 的硬 clamp，使 γ→loss 的梯度通路在 spec 所设计的 AdamW 训练下看似不存在。三路反驳使 math 镜降级为 PARTIALLY_REAL（Phase 3 cap 是严格递增 ramp、上界在 phase_end 排他约定下不可达故总会释放；γ_init≈−3.5 处 dβ/dγ=0.9077 存活；Phase-4 γ reset 重开通路 dβ_eff/dγ'=7.742），但『梯度通路在 Phase 1–3 不存在』的解读仍需 spec 侧澄清。",
+   "evidence_ref": "_merged_verdicts gap2（ADV-03）；报告 §8 偏离表第 3 行",
+   "verdict_class": "PARTIALLY_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:gap2:math",
+    "rv:gap2:source"
+   ],
+   "classification_hint": "user-decision",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "UD-05"
+  },
+  {
+   "id": "O-29",
+   "title": "312 行审计台账从未回流主干且与主干分叉",
+   "location_file": "REVIEW-LEDGER.md",
+   "location_line": 0,
+   "requirement_ref": "N/A",
+   "problem": "audit/sdd-review-2026-09-04 分支上的 REVIEW-LEDGER.md 从未进入 dev（dev 树中任何路径下都不存在该文件），该分支与 dev 已分叉，两份同名文件的差异量达 201 增 63 删。内容已推到远端未丢失，但属审计制品未回流，后续审计读不到这份台账。",
+   "evidence_ref": "f_main/016.json（W1-GIT-06）；_handoff_verdicts_all.json key=rv:main16:source（STILL_REAL）；报告 §10 Batch D-2 git 卫生",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main16:source"
+   ],
+   "classification_hint": "user-decision",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "UD-06"
+  }
+ ],
+ "archive-only": [
+  {
+   "id": "P12",
+   "title": "run e59 跑完 122 个 agent 却在 Synthesize 阶段崩溃",
+   "location_file": "workflows/wf_9f6fe85a-e59.json",
+   "location_line": 379,
+   "requirement_ref": "N/A",
+   "problem": "第四次 run（wf_9f6fe85a-e59，4,483,984 ms，agentCount=122，8,173,859 token，2,321 tool call）把 Pin / ReVerify / GapReVerify / DeltaFind / Mutate 五个阶段全部跑完，到 Synthesize 时以 TypeError: pinFindings.map is not a function（workflow.js:379）崩溃，status=failed、result=None。全部 817 万 token 的产出没有进入任何报告。",
+   "evidence_ref": "workflows/wf_9f6fe85a-e59.json（status/error 字段、phases 五条、logs）；报告 §11 第 8 条",
+   "verdict_class": "STILL_REAL",
+   "severity": "CRITICAL",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-01"
+  },
+  {
+   "id": "P15",
+   "title": "run f196f17d 首次报告头部被截断，返回值从半句开始",
+   "location_file": "subagents/workflows/wf_f196f17d-99b/journal.jsonl",
+   "location_line": 0,
+   "requirement_ref": "N/A",
+   "problem": "第五次 run（decompmoe-synthesize-only，wf_f196f17d-99b，668,586 ms，仅 2 个 agent、235,116 token）是第一次也是唯一 status=completed 的 run。但它的 synth:final 返回值是一段 22,195 字符的字符串，开头就是『ards.py:166` 返回裸 ε ~ N(0, 0.05²I)』——报告的 §1 到 §7 整段头部在返回途中丢失，直接作为返回值不可用。这一段截断的残骸被保存为 audit/_final_report.md（32,822 字节），开头同样是半句。",
+   "evidence_ref": "subagents/workflows/wf_f196f17d-99b/journal.jsonl（synth:final 的 result 为 22,195 字符 str，首字符即 'ards.py:166`'）；audit/_final_report.md 第 1 行；audit/_exec_summary.txt 全文",
+   "verdict_class": "STILL_REAL",
+   "severity": "CRITICAL",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-02"
+  },
+  {
+   "id": "C-069",
+   "title": "主工作树残留 # PROBE 值覆盖冻结的 MVPConfig.vocab_size",
+   "location_file": "src/decompmoe/config.py",
+   "location_line": 0,
+   "requirement_ref": "CLAUDE.md §8 污染通道 (i) / governance req-gov-4",
+   "problem": "主工作树存在遗留调试探针 vocab_size: int = 32001  # PROBE，而 spec 冻结值是 32000。这是通道 (i) 的 ticket/scratch-to-source 污染：一个 scratch 值落进了冻结源码，并独立复现出 test_total_param_estimate 红（actual=452331008 vs 452329984，delta=1024=1×d_model）。已随 pin 之后的 commit 消失（HEAD 的 config.py 无 PROBE）。",
+   "evidence_ref": "_handoff_pin.json PROC-02；_deltamap.lit §3 意外信号段",
+   "verdict_class": "FIXED_BY_COMMIT",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "PROC-02",
+    "C-014"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-03"
+  },
+  {
+   "id": "O-22",
+   "title": "已提交的 B15 修复被 bulk checkpoint 回退",
+   "location_file": "tests/test_loss.py",
+   "location_line": 177,
+   "requirement_ref": "governance req-gov-1 obligation 5 / change 2026-09-29-fix-b15-test-loss-actual-embedding",
+   "problem": "b272787 在 tests/test_loss.py 落地的 obligation-5 修复（10 处 actual= 嵌入）随后被一次 bulk checkpoint commit 以 in-flight 快照的形式整体回退，磁盘文件回到修复前的 8 处状态，而该 change 未归档。危害已兑现：该文件在回退后不再满足治理的数值守卫义务，而无任何 in-flight change 认领这次回退。",
+   "evidence_ref": "f_main/045.json（LIFECYCLE-01）；_handoff_verdicts_all.json key=rv:main45:source / :math / :impact（三镜均 FIXED_BY_COMMIT, fixingCommit=315065e）；_handoff_pin.json PROC-01；报告 §2.2 第 2 类、§3 环 4",
+   "verdict_class": "FIXED_BY_COMMIT",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main45:source",
+    "rv:main45:math",
+    "rv:main45:impact",
+    "PROC-01"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-04"
+  },
+  {
+   "id": "O-23",
+   "title": "voronoi_angle 语义重写曾无授权 change",
+   "location_file": "src/decompmoe/sphere.py",
+   "location_line": 236,
+   "requirement_ref": "archive/2026-09-29-fix-voronoi-angle-measurement-layer-semantics",
+   "problem": "工作树曾把 voronoi_angle 的数学定义整体重写为 Monte-Carlo 测量层，而当时 openspec/changes/ 与 archive/ 下都没有对应授权 change。复验确认该重写在 pin 态已由 33f7cc9 落库并带授权 change，属 stale 而非误报。",
+   "evidence_ref": "f_main/046.json（LIFECYCLE-02）；_handoff_verdicts_all.json key=rv:main46:source（FIXED_BY_COMMIT）；报告 §2.2 第 2 类",
+   "verdict_class": "FIXED_BY_COMMIT",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main46:source",
+    "rv:main46:impact",
+    "rv:main46:math"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-05"
+  },
+  {
+   "id": "O-37",
+   "title": "归档 tasks 勾选了一个从未存在的测试交付",
+   "location_file": "openspec/changes/archive/2026-08-22-fix-openspec-doc-bugs-apply/tasks.md",
+   "location_line": 0,
+   "requirement_ref": "archive/2026-08-22-fix-openspec-doc-bugs-apply task 5.5 / wayfinder req-20 / skeleton req-22",
+   "problem": "该归档 change 的第 5.5 项勾选为已完成，点名了一个测试函数名与一个 commit SHA，但两者在 git 历史中都不存在。这不是「无记录」而是「记录本身是假的」，比无记录更危险：后续审计会把归档 tasks 当作已交付的凭据，从而跳过对 UR 指标测试守卫的检查——而该指标在 tests/ 下确实是零调用零断言。",
+   "evidence_ref": "报告 §7 无 Decision 记录 第 8 条；f_main/063.json（TEST-GUARD-02）、f_gap/021.json（W1-COVER-UR-01）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main63:source",
+    "rv:main63:math",
+    "rv:main63:impact"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-06"
+  },
+  {
+   "id": "P01",
+   "title": "run a02 三级 review 初版被 kill，只完成前四个阶段",
+   "location_file": "workflows/wf_a8a0f3aa-a02.json",
+   "location_line": 0,
+   "requirement_ref": "N/A",
+   "problem": "三级 review 的初版 run（decompmoe-three-level-review，task w5enmj24o）在 407,052 ms 后以 status=killed 终止，journal 记录 agentCount=311、totalTokens=1,049,780、totalToolCalls=252，error 为 'Workflow aborted'。六个声明阶段（GroundTruth / Find / Verify / GapSweep / GapVerify / Synthesize）里只有前四个留下了 log，GapVerify 与 Synthesize 没有任何产出记录。也就是说 run-1 的 108 条 finding 不是一次完整 run 的结果，而是一个在 GapVerify 中途被杀死的 run 留下的部分交付物。",
+   "evidence_ref": "workflows/wf_a8a0f3aa-a02.json（runId/taskId/status/durationMs/agentCount/totalTokens/error/phases/logs 五条）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-07"
+  },
+  {
+   "id": "P04",
+   "title": "run d53 pin-and-reverify 跑满 10 小时后被杀，六个阶段无一完成",
+   "location_file": "workflows/wf_fd517ac0-d53.json",
+   "location_line": 0,
+   "requirement_ref": "N/A",
+   "problem": "第二次 run（decompmoe-pin-and-reverify，task wg3msctlh）以 status=killed 终止，durationMs=37,468,897（约 10.4 小时），agentCount=144、totalTokens=8,965,233、totalToolCalls=2,612。log 只有 Pin / ReVerify 两条阶段记录，GapReVerify / DeltaFind / Mutate / Synthesize 四阶段零记录。ReVerify 阶段的 143 个 lens agent 全部跑完，但下游的变异测试与 delta 复验从未开始，这次 run 的 800 万 token 只换来了 pin 基线与主 finding 复验。",
+   "evidence_ref": "workflows/wf_fd517ac0-d53.json（durationMs/agentCount/totalTokens/logs 三条）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-08"
+  },
+  {
+   "id": "P07",
+   "title": "run 3eab8ccd 接手尝试的第一个 agent 即被用户拒绝，零可复用结果",
+   "location_file": "subagents/workflows/wf_3eab8ccd-1f0/journal.jsonl",
+   "location_line": 2,
+   "requirement_ref": "N/A",
+   "problem": "第三次 run（wf_3eab8ccd-1f0，8,037 ms，agentCount=1，37,121 token）在 Pin 阶段的第一个 agent pin:baseline+delta-map 上被 user-rejected，随即 '[Request interrupted by user for tool use]'，workflow aborted。它的 journal 只有 launched + started 两条记录、零条 result，agent 转录 19 行、302 KB。因此这次『接手』在第一个 agent 就中断，除了证明上一个 run 的脚本不可用之外，没有产出任何可复用的内容。",
+   "evidence_ref": "subagents/workflows/wf_3eab8ccd-1f0/journal.jsonl（两条事件）；agent-ac35fe545113f0bca.jsonl 末两条（toolDenialKind: user-rejected）；workflows/wf_3eab8ccd-1f0.json（status=killed, agentCount=1）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-09"
+  },
+  {
+   "id": "P08",
+   "title": "接手脚本把 209 KB CACHE 字面量内联，全文 230,181 字符",
+   "location_file": "workflows/scripts/decompmoe-pin-and-reverify-takeover.js",
+   "location_line": 5791,
+   "requirement_ref": "N/A",
+   "problem": "为接手续跑而写的 takeover 脚本把一份 142 条 verdict 的 CACHE 对象以字面量形式内联在源码里，实测全文 230,181 字符，其中 const CACHE 起始于第 5,791 字符处、内联段占 224,390 字符。这份体积直接使 workflow 的权限确认对话框无法渲染，用户无法批准 run —— 这是 run 3eab8ccd 被拒的根因，与本仓库的 spec / 数学 / CLAUDE.md 硬约束无关。",
+   "evidence_ref": "workflows/scripts/decompmoe-pin-and-reverify-takeover.js（实测 230,181 字符）；audit/build_compact_script.py docstring 第 3-6 行；报告第 488 行（rv 引用『231,920-char script』）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-10"
+  },
+  {
+   "id": "P10",
+   "title": "11 个 loader agent 把 cache 条目回成 dict 而非数组",
+   "location_file": "subagents/workflows/wf_9f6fe85a-e59/journal.jsonl",
+   "location_line": 0,
+   "requirement_ref": "N/A",
+   "problem": "压缩方案的 loader agent（label 形如 cache:load:00..10）本应回传一个 finding 数组，实测 11 个 loader 的 result 全部是 dict（按 label 键的映射），没有一个是数组。这与下游 pinFindings.map 的消费方式不兼容，是 run e59 最终崩溃的直接原因。也就是说压缩本身成功、但把数据搬进 workflow 的那一步引入了新的类型错配。",
+   "evidence_ref": "subagents/workflows/wf_9f6fe85a-e59/journal.jsonl（11 条 cache:load:* 的 result，类型全为 dict）；audit/handoff_extract.py docstring 第 4-6 行",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-11"
+  },
+  {
+   "id": "P11",
+   "title": "3 个 loader 返回空 dict，CACHE 142 条只回 99 条",
+   "location_file": "subagents/workflows/wf_9f6fe85a-e59/journal.jsonl",
+   "location_line": 0,
+   "requirement_ref": "N/A",
+   "problem": "cache:load:03、cache:load:05、cache:load:08 三个 loader 的 result 是 0 键的空 dict，其余八个分别回 4/15/15/15/14/15/14/7 条，合计 99 条，而 CACHE 权威副本是 142 条。43 条 verdict 在压缩搬运中丢失。handoff_extract.py 的 docstring 记的是『dropped 35 of 142』，与实测的 43 不符，说明该差值当时也没有对齐。",
+   "evidence_ref": "subagents/workflows/wf_9f6fe85a-e59/journal.jsonl（11 条 loader result 的键数 4/15/15/0/15/0/14/15/0/14/7，合计 99）；audit/_cache_dump.json（142 条）；audit/handoff_extract.py docstring 第 5 行",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-12"
+  },
+  {
+   "id": "P16",
+   "title": "resume 后用 gen_sec3 脚本重建 §3 并写盘出 307 KB 完整报告",
+   "location_file": "audit/_gen_sec3.py",
+   "location_line": 1,
+   "requirement_ref": "N/A",
+   "problem": "为修复 P15 的头部截断，改由 audit/_gen_sec3.py 从 audit/_merged_verdicts.json 加三份 handoff JSON 重新生成 §3.0（27 条 delta finding 逐条列出，clip() 把 pin 绝对路径统一替换为 <pin>、换行折成空格），最终写出 audit/_final_report_full.md（307,309 字节、§1–§11 齐全）。这条链路的代价是：最终报告不再是 workflow 的原生产物，而是事后由脚本拼装的。",
+   "evidence_ref": "audit/_gen_sec3.py 全文（124,976 字节的 _merged_verdicts.json + clip() 归一化）；audit/_final_report_full.md 第 1-7 行抬头；报告 §11 第 8 条",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-13"
+  },
+  {
+   "id": "P17",
+   "title": "handoff_extract.py 用纯 JSON 解析无损提取 5 份 handoff",
+   "location_file": "audit/handoff_extract.py",
+   "location_line": 1,
+   "requirement_ref": "N/A",
+   "problem": "run e59 崩溃后，audit/handoff_extract.py 被写来从 journal.jsonl 与 _cache_dump.json 无损重建全部产出：解析 started/result 事件对、coerce() 用 json.loads 再退回 ast.literal_eval 解析字符串型 result、按 label 前缀分流到 cached/fresh/delta/mutate 四族，pin 态直接取 CACHE 的权威副本而不是被 loader 弄坏的版本。产出 _handoff_verdicts_all.json（197 条，833,755 字节）、_handoff_verdicts_fresh.json（99 条）、_handoff_delta.json（4 条）、_handoff_mutations.json（8 条）、_handoff_pin.json（7 条 + coverage_note）。这是整份最终报告的唯一数据来源。",
+   "evidence_ref": "audit/handoff_extract.py 全文（128 行）；audit/_handoff_verdicts_all.json（197 键）、_handoff_verdicts_fresh.json（99 键）、_handoff_delta.json（4 项）、_handoff_mutations.json（8 项）、_handoff_pin.json",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-14"
+  },
+  {
+   "id": "P18",
+   "title": "5 个并发 commit 只有 4 个拿到 delta finder",
+   "location_file": "audit/_handoff_delta.json",
+   "location_line": 0,
+   "requirement_ref": "N/A",
+   "problem": "_deltamap.lit 的 coverage_note 枚举了 5 个 SHA（f0b3aa2 / b272787 / a036a15 / 33f7cc9 / 6593a06），但 _handoff_delta.json 只有 D1–D4 四条 finder 产出。缺哪一个没有记录，该 commit 的增量面因此在本轮完全没有被独立复查。这是一条已知且未闭合的覆盖缺口，不是推断。",
+   "evidence_ref": "audit/_handoff_delta.json（长度 4）；audit/_deltamap.lit『DELTA MAP』表的 5 行；报告 §11 第 3 条",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-15"
+  },
+  {
+   "id": "V-20",
+   "title": "变异测试的「协议判定」与「实质判定」在 5 条上不一致",
+   "location_file": "_final_report_full.md",
+   "location_line": 1379,
+   "requirement_ref": "N/A",
+   "problem": "变异记录里 mutate 自己填的 `mutantSurvived` 字段（「协议判定」）只记规定变异体的生死；报告依据每个变异体的完整 `mutantResult` 重新裁定的守护强度（「实质判定」）在 8 条中有 5 条与协议判定不符，包括 3 个协议判 killed 而实质判零守卫、1 个协议判 survived 而实质判偶然守卫。引用变异结果时若只读 `mutantSurvived` 会系统性高估守护强度。",
+   "evidence_ref": "报告 §5 表格头（「两者在 5 条上不一致」）；_handoff_mutations.json 每条 result 内的 mutantSurvived 与 mutantResult 完整记录；mutate:6 记录显示「因为规定的变异体太粗糙……我又跑了两个精化变异体」",
+   "verdict_class": "STILL_REAL",
+   "severity": "MAJOR",
+   "origin_ids": [
+    "rv:main62:impact",
+    "rv:main63:source",
+    "rv:main64:source",
+    "rv:main65:source",
+    "rv:main66:source",
+    "rv:main67:source",
+    "rv:main68:source",
+    "rv:main69:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-16"
+  },
+  {
+   "id": "P02",
+   "title": "run a02 的 Find 阶段自评可信度仅 39%",
+   "location_file": "workflows/wf_a8a0f3aa-a02.json",
+   "location_line": 0,
+   "requirement_ref": "N/A",
+   "problem": "run a02 的 log 自报『共识达成 49，弱证据 31，可信度 39%』，即 80 条落盘 finding 中有 31 条被 run 自己标为弱证据。run-1 的 finding 从未经过本轮 run 的独立复验工具（math lens / 变异测试）过滤就直接成为 108 条基线，其中包含最终被裁为 NEVER_EXISTED 的 10 条真误报。这解释了为什么 finding 级误报率（10/108）高于 lens 级（16/197 覆盖到 81 条 main）。",
+   "evidence_ref": "workflows/wf_a8a0f3aa-a02.json logs 第四条；报告 §2.2 finding 级裁决表",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-17"
+  },
+  {
+   "id": "P13",
+   "title": "缓存命中不 spawn 因而不入 journal，handoff 提取需回查磁盘",
+   "location_file": "audit/handoff_extract.py",
+   "location_line": 82,
+   "requirement_ref": "N/A",
+   "problem": "workflow 的 cachedAgent 在 CACHE 命中时直接返回、不 spawn agent，因此这些 verdict 在 journal 里连 started 事件都没有。run e59 的 journal 只有 122 条 started / 122 条 result，全部是本 run 实跑的。要拿到完整 197 条，必须把 journal 与权威的 audit/_cache_dump.json 合并。handoff_extract.py 因此把『label 是否在 journal 中』当作『是否 fresh』的唯一判据。这条性质是后续所有 cached/fresh 计数争议的结构性来源。",
+   "evidence_ref": "audit/handoff_extract.py 第 77-87 行（『Labels that were cache HITS never spawned an agent』注释块）；subagents/workflows/wf_9f6fe85a-e59/journal.jsonl（started=122, result=122, launched=1）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-18"
+  },
+  {
+   "id": "P14",
+   "title": "缓存与新鲜计数三方不一致：142 / 143 / 99 三个数",
+   "location_file": "audit/_pin_drift.json",
+   "location_line": 0,
+   "requirement_ref": "N/A",
+   "problem": "CACHE 权威副本 manifest 覆盖 142 条，但 rv label 的全集是 143 条；run e59 的 log 写『99 cache hits, 45 agents spawned』，两者相加为 144，与 143 矛盾；而 audit:tally agent 给出的口径是 cachedCount=98 / freshCount=99。也就是说同一个『多少条是缓存命中』的问题在 journal log、loader 返回值、脚本推导三处给出了三个互不相符的答案。报告已声明这不影响任何一条 verdict（99 个 B-key 是 A 的严格子集），但意味着这些计数数字不能直接引用。",
+   "evidence_ref": "workflows/wf_9f6fe85a-e59.json logs 第 1-2 条与第 5 条；subagents/workflows/wf_f196f17d-99b/journal.jsonl 的 audit:tally（cachedCount 98 / freshCount 99）；报告 §11 第 2 条",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-19"
+  },
+  {
+   "id": "P22",
+   "title": "工具链缺陷被误植进 gap6 的 source lens 裁决里",
+   "location_file": "audit/_final_report_full.md",
+   "location_line": 488,
+   "requirement_ref": "gap6 / ADV-07",
+   "problem": "报告第 488 行是 gap6（Phase 0 球面范数不变量在两份 peer spec 间互斥）条目的 [source] 镜裁决，但这段文字的正文谈的却是 231,920 字符的 workflow 脚本与权限对话框，还附带一段具体修法。工具链话题被写进了一条与它无关的 spec finding 的裁决槽位里。同一处引用的字符数 231,920 也与 takeover 脚本实测的 230,181 不符。这条 lens 裁决因此既串了条目、又带一个对不上的数字。",
+   "evidence_ref": "报告第 488 行（位于第 470-492 行的 gap6 段内）；workflows/scripts/decompmoe-pin-and-reverify-takeover.js（实测 230,181 字符）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "rv:gap6:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-20"
+  },
+  {
+   "id": "P23",
+   "title": "审计基线 pin 6593a06 与 HEAD 188b9fb 之间已有 9 个 commit",
+   "location_file": "audit/_pin_drift.json",
+   "location_line": 0,
+   "requirement_ref": "N/A",
+   "problem": "全部结论的审计基线是 pinned commit 6593a06，delta 窗口 7bf77af..6593a06（5 个 commit：f0b3aa2 / b272787 / a036a15 / 33f7cc9 / 6593a06）。但 pin 之后又落了 9 个 commit 到 HEAD 188b9fb，其中 33f7cc9 之后的 e50cc02 已经改写了凸性链下游的 spec 与测试。因此所有 file:line 坐标都是 pin 态坐标，在 HEAD 上普遍漂移：_pin_drift.json 记录了 48 个文件的漂移区间，含全部 3 份 spec、5 个 src 文件、4 个 tests 文件。本清单里的 baseline_status 字段即按该表机械查表得出。",
+   "evidence_ref": "audit/_pin_drift.json（pin 6593a06 / head 188b9fb / commits 9 个 / drift 覆盖 48 个文件）；audit/_deltamap.lit『DELTA MAP』表；报告第 2-3 行抬头",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-21"
+  },
+  {
+   "id": "P24",
+   "title": "最终报告非 workflow 原生产物，是五个 handoff 文件的事后重建",
+   "location_file": "audit/_final_report_full.md",
+   "location_line": 1,
+   "requirement_ref": "N/A",
+   "problem": "唯一 status=completed 的 run（f196f17d）在返回阶段被截断，唯一跑完全部阶段的 run（e59）在 Synthesize 崩溃。因此 audit/_final_report_full.md 这份 307,309 字节、§1–§11 齐全的报告，其数据来源是 handoff_extract.py 从 journal 与 cache dump 无损提取的 5 个 JSON，再由 _gen_sec3.py 拼装，不是任何一次 workflow 的原生输出。报告的每一处数字都能追到 handoff 文件，但『workflow 产出了这份报告』这句话不成立。",
+   "evidence_ref": "audit/_final_report_full.md 第 1-7 行（抬头『数据来源』列出 5 个 handoff + f_main + f_gap + _deltamap.lit）；workflows/wf_9f6fe85a-e59.json error 字段；报告 §11 第 8 条",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-22"
+  },
+  {
+   "id": "V-35",
+   "title": "审计自身失效：workflow Synthesize 崩溃，报告为重建",
+   "location_file": "_final_report_full.md",
+   "location_line": 1651,
+   "requirement_ref": "N/A",
+   "problem": "workflow.js:379 抛 `TypeError: pinFindings.map is not a function`，run status = failed、result = None。因此最终报告不是 workflow 的原生产物，而是从 journal 无损提取的 5 个 handoff 文件重建的。这条是所有下游引用的效力边界：报告内容可信，但「workflow 成功产出报告」这一前提不成立。",
+   "evidence_ref": "报告 §11 第 8 条",
+   "verdict_class": "STILL_REAL",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "rv:main0:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-23"
+  },
+  {
+   "id": "V-38",
+   "title": "5 个并发 commit 只有 4 个拿到 delta finder",
+   "location_file": "_final_report_full.md",
+   "location_line": 1650,
+   "requirement_ref": "N/A",
+   "problem": "`_handoff_delta.json` 只有 D1–D4，而 coverage_note 枚举了 5 个 SHA（f0b3aa2 / b272787 / a036a15 / 33f7cc9 / 6593a06），缺哪一个未被记录。后果是该 commit 的增量面未被本轮独立复查——这是一个已知且未闭合的覆盖洞，不是零覆盖。",
+   "evidence_ref": "报告 §11 第 3 条",
+   "verdict_class": "UNVERIFIABLE",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "rv:main0:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-24"
+  },
+  {
+   "id": "V-39",
+   "title": "报告自报的 5 项未做的独立验证",
+   "location_file": "_final_report_full.md",
+   "location_line": 1657,
+   "requirement_ref": "N/A",
+   "problem": "报告显式列出未做的验证：`d_c = 2` 线性退化情形（`G = θ/π`）下游是否依赖 G 的非凸行为；`voronoi_angle` 的 MC 估计量在积分器修复后 `5σ = 0.0355°` 是否仍成立（这是推理不是实测）；wayfinder req-20 的其余 7 项几何指标；5 个未归档 change 的 tasks 完成度正确性。这四项加上 delta 缺口构成本轮的方法边界清单，归档时必须与结论一起搬运。",
+   "evidence_ref": "报告 §11 第 14 条；§4 环 8 末段呼应第 2 项（D1 判断 dG/dθ 在 MVP 点未变故该数字存活，但注明是推理）",
+   "verdict_class": "UNVERIFIABLE",
+   "severity": "MEDIUM",
+   "origin_ids": [
+    "rv:main48:math"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-25"
+  },
+  {
+   "id": "C-024",
+   "title": "residency 的 W_proj≈64KB / 4KB 两数值无守护",
+   "location_file": "src/decompmoe/viz.py",
+   "location_line": 17,
+   "requirement_ref": "wayfinder req-18 / req-19 / req-16",
+   "problem": "wayfinder req-18 的 W_proj ≈ 64 KB in BF16 与 activations ≈ 4 KB 两个可算数值、以及 req-16 的 0 bytes HBM / 0.5% latency 场景，src 与 tests 均无守护；仅承重部分 32_896 被 tests/test_config.py 的 bare == 间接钉住，BF16 ×2 与 4 KB 本身无 pin。已在归档 change 登记为 hand-off #6，故仅作 MINOR 记录。",
+   "evidence_ref": "_merged_verdicts gap26（W1-COVER-RESIDENCY-06）；报告 §9 逐项落地缺口表",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:gap26:math",
+    "rv:gap26:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-26"
+  },
+  {
+   "id": "O-20",
+   "title": "pin 态树里不存在所报的未跟踪临时文件",
+   "location_file": "_tmp_verify_voronoi.py",
+   "location_line": 1,
+   "requirement_ref": "N/A",
+   "problem": "原 finding 报仓库根残留 6 个未跟踪临时/备份制品并警告 git add . 会误纳入。复验在 pin 态逐路径核实：所报路径在 pinned worktree 中物理不存在，git status --porcelain 干净。",
+   "evidence_ref": "f_main/001.json（GATE-02）；_handoff_verdicts_all.json key=rv:main1:source（NEVER_EXISTED）；报告 §2.2 第 1 类",
+   "verdict_class": "NEVER_EXISTED",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main1:source"
+   ],
+   "classification_hint": "direct-fix",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-27"
+  },
+  {
+   "id": "O-21",
+   "title": "pin 态 spec 与测试关于 versine 容差口径互相矛盾",
+   "location_file": "openspec/specs/governance/spec.md",
+   "location_line": 55,
+   "requirement_ref": "governance req-gov-1",
+   "problem": "所报矛盾只在主工作树的 in-flight 未提交改动里成立：工作树的测试已把 versine 4dp 字面量改成精确取整比较，而已 sync 的 governance 主 spec 仍写 abs=1e-4，新文本只存在于未跟踪 change 的 delta 里。复验在 pin 态确认主 spec 与 pin 侧测试一致，矛盾源（未提交改动 + 未 sync delta）都不属于 pin 态基线。",
+   "evidence_ref": "f_main/002.json（GATE-03）；_handoff_verdicts_all.json key=rv:main2:source（NEVER_EXISTED）；报告 §2.2 第 1 类",
+   "verdict_class": "NEVER_EXISTED",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main2:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-28"
+  },
+  {
+   "id": "P03",
+   "title": "run a02 去重口径不闭合：81 条声称、80 条落盘",
+   "location_file": "audit/f_main",
+   "location_line": 0,
+   "requirement_ref": "N/A",
+   "problem": "run a02 的 log 写『Find 阶段：11 个维护，原始 finding 81 条』与『去重后 80 条落盘』，两个数字不相等，去重规则没有记录。磁盘上 audit/f_main/ 确有 81 个 finding JSON、audit/f_gap/ 有 27 个，合计 108，与 _all108.txt 条数一致。也就是说最终采用的是 81（未去重）而非 80，那条被去重掉的 finding 去了哪里无从判断。run-1 的 finding 基数因此不是一个可复现的集合。",
+   "evidence_ref": "workflows/wf_a8a0f3aa-a02.json logs 第二、三条；audit/f_main（81 个 .json）、audit/f_gap（27 个 .json）、audit/_all108.txt",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-29"
+  },
+  {
+   "id": "P06",
+   "title": "run d53 期间安全分类器限流，至少一个 agent 未经审查",
+   "location_file": "workflows/wf_fd517ac0-d53.json",
+   "location_line": 0,
+   "requirement_ref": "N/A",
+   "problem": "run d53 的 log 记录 rv:main58:source 被标注 'MiniMax-M3.1-Flash-Preview[1M]（安全分类器）因限流不可用'，需人工复核该 agent 的行为与产出。这条 lens 的 verdict 来自一个未经安全审查的 agent，与同批其它 agent 不同质，但被合并进 _handoff_verdicts_all.json 时没有任何标记区分。",
+   "evidence_ref": "workflows/wf_fd517ac0-d53.json logs 第 5 条（rv:main58:source）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main58:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-30"
+  },
+  {
+   "id": "P20",
+   "title": "两个变异 agent 撞上 Windows cp936 编码错误",
+   "location_file": "workflows/scripts/decompmoe-pin-and-reverify-compact.js",
+   "location_line": 0,
+   "requirement_ref": "N/A",
+   "problem": "mutate:0 与 mutate:7 各有一次 UnicodeEncodeError：Windows cp936 控制台在打印测试 docstring 里的 Σ / ∈ 字符时崩掉。这是执行环境缺陷而非被测代码缺陷，但第一次运行因此没产出可用摘要，需要带 PYTHONIOENCODING=utf-8 PYTHONUTF8=1 重跑才拿到干净结果。",
+   "evidence_ref": "报告 §11 第 10 条；workflows/wf_9f6fe85a-e59.json 的 Mutate 阶段（8 组变异，3 存活 3、control 0 不可用）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-31"
+  },
+  {
+   "id": "P21",
+   "title": "控制组基数 212 与 finding 自称的 213 不一致",
+   "location_file": "audit/_handoff_mutations.json",
+   "location_line": 0,
+   "requirement_ref": "N/A",
+   "problem": "变异测试的 8 个 control 全部 212 passed（controlsUnusable=0），因此 3 个变异体存活不能归因于 harness 故障。但 run-1 的部分原始 finding 写的是 213 passed——它们测的是 pin 之前的树（33f7cc9 当时 +5 个新测试），多一个。直接引用 finding 正文里的 pass 计数会得到一个在 pin 态不成立的数量。",
+   "evidence_ref": "audit/_handoff_mutations.json（8 条）；subagents/workflows/wf_f196f17d-99b/journal.jsonl 的 audit:tally（mutantsSurvived 3 / killed 5 / controlsUnusable 0）；报告 §11 第 12、13 条",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-32"
+  },
+  {
+   "id": "V-19",
+   "title": "部分 MOVED 被合并为 STILL_REAL 的记账规则",
+   "location_file": "_final_report_full.md",
+   "location_line": 45,
+   "requirement_ref": "FLOPs-GUARD-01 / S-MATH-06 / CROSS-SPEC-ANCHOR-01",
+   "problem": "main18、main41、main70 三条被某些镜判 MOVED、被另一些判 STILL_REAL。合并后统一记 STILL_REAL，理由是实体缺陷位置未变、变的只是 finding 自己的记账。这条规则与 V-15（危害已兑现→STILL_REAL）方向一致：合并倾向取「还欠着」的一侧，只有在缺陷被证伪或已被 pin 修掉时才降级。",
+   "evidence_ref": "报告 §2.2 第 3 条末句（「另有 3 条被某些 lens 判 MOVED、被另一些判 STILL_REAL……合并后统一记 STILL_REAL，因为实体缺陷位置未变，变的只是 finding 的记账」）；rv:main18:source（「VERDICT: MOVED —— substance fully confirmed and NOT fixed」）、rv:main70:source（fixingCommit = NOT_APPLICABLE_MOVED_ONLY）",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main18:source",
+    "rv:main41:source",
+    "rv:main70:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-33"
+  },
+  {
+   "id": "V-24",
+   "title": "212 / 211 / 213 三个 pass 计数的口径差异",
+   "location_file": "_final_report_full.md",
+   "location_line": 1381,
+   "requirement_ref": "N/A",
+   "problem": "控制组基线是 212 passed。部分原始 finding 里写的是 213，因为它们测的是 pin 之前的树（多一个测试）。另有 211 出现在变异跑（1 failed, 211 passed）的表述里。引用任何 finding 里的 pass 数时必须用 212，否则跨轮比较会凭空差 1——这类口径错是本轮最容易制造假 finding 的来源之一。",
+   "evidence_ref": "报告 §11 第 13 条；对照 §2.1 与 §5 各处「212 passed」",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main0:source",
+    "rv:main45:impact"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-34"
+  },
+  {
+   "id": "V-37",
+   "title": "cache manifest off-by-one：「99」被当作两种计数",
+   "location_file": "_final_report_full.md",
+   "location_line": 1648,
+   "requirement_ref": "N/A",
+   "problem": "manifest 覆盖 142 条但实际 rv label 全集是 143；log 的「99 cache hits, 45 agents spawned」= 144 与 143 矛盾，文件推导的 cache-served 数是 98 而非 99。该 off-by-one 不影响任何一条 verdict（99 个 B-key 全部是 A 的严格子集，共享 verdict 逐字节相同，无覆盖发生），但意味着那个数字在两处至少有一处是错的。",
+   "evidence_ref": "报告 §11 第 2 条",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "rv:main0:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-35"
+  },
+  {
+   "id": "W32",
+   "title": "archive 2026-09-28 delta 的 anchor ID 全不符",
+   "location_file": "openspec/changes/archive/2026-09-28-fix-a2-a3-a4-residual-precision-claims/specs/wayfinder/spec.md",
+   "location_line": 58,
+   "requirement_ref": "archive change 2026-09-28-fix-a2-a3-a4-residual-precision-claims",
+   "problem": "该归档 change 的两份 delta 携带的 Requirement anchor ID 全部与主 spec 不符，且 anchor 位置违规（置于 Requirement 正文之后而非首行）——delta 声称改动的 Requirement 与其 anchor 在任何一种读法下都配不上。违反 CLAUDE.md §6「每个 spec Requirement MUST 在首行设独立 anchor」。但受项目自定的「已 archive 不重写」惯例约束，问题不在改 archive 本身，而在没有任何制品登记这份 delta 的 anchor 标注有误，后续按 anchor grep archive 的人会被误导。这属于 wayfinder 层 lineage 索引缺失。",
+   "evidence_ref": "finding main9 [W-07]；报告 §6.4 与 §7 的交叉背景",
+   "verdict_class": "STILL_REAL",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main9",
+    "rv:main9:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-36"
+  },
+  {
+   "id": "W36",
+   "title": "b10-b12 change 目录未入库（复验判从未存在）",
+   "location_file": "openspec/changes/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/tasks.md",
+   "location_line": 1,
+   "requirement_ref": "change 2026-09-29-fix-b10-b11-b12-test-guard-fidelity",
+   "problem": "finding 声称该 change 的 37 个 task 全勾选、openspec list 报 Complete，但整个目录 6 个文件全部未被 git 跟踪。复验者判 NEVER_EXISTED 并给出结构性反证：git log --all -- 该路径在 179 个 commit 中命中 0 行，该目录在 pin 态根本不存在——它只存在于主工作树的 in-flight 状态。把它记进 wayfinder 层待办清单会让一次 change 凭空出现；真正需要处理的是主工作树的 in-flight 未归档内容，与 pin 态的 wayfinder 结论无关。",
+   "evidence_ref": "报告 §2.2 NEVER_EXISTED 第 2 条；finding main3 [W-01]（rv:main3:source 判 NEVER_EXISTED）、main14 [W1-GIT-04]（判 NEVER_EXISTED）",
+   "verdict_class": "NEVER_EXISTED",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main3",
+    "main14",
+    "rv:main14:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-37"
+  },
+  {
+   "id": "W37",
+   "title": "b10-b12 design 的 Hand-off 路径写成 archive/",
+   "location_file": "openspec/changes/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/design.md",
+   "location_line": 120,
+   "requirement_ref": "change 2026-09-29-fix-b10-b11-b12-test-guard-fidelity",
+   "problem": "b10-b12 的 design.md Hand-off 把 2026-09-26-followup-… 的路径写成 archive/ 下，但该 change 在 pin 态仍在 openspec/changes/ 未归档，引用的文件路径不存在。finding 自述其提出的行号纠正本身经实测为真——即缺陷只在路径前缀。复验者判 NEVER_EXISTED：被引的 change 目录在 pin 态不存在于被引路径。记录它的意义是标注一类 mode：change 之间的 Hand-off 引用在对方未 archive 前就是悬空的，而项目内没有「引用方必须等被引方 archive」的约定。",
+   "evidence_ref": "finding main8 [W-06]（rv:main8:source 判 NEVER_EXISTED）",
+   "verdict_class": "NEVER_EXISTED",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main8",
+    "rv:main8:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-38"
+  },
+  {
+   "id": "W39",
+   "title": "b15 change 缺 tasks.md 却被误报 Complete",
+   "location_file": "openspec/changes/2026-09-29-fix-b15-test-loss-actual-embedding/tasks.md",
+   "location_line": 1,
+   "requirement_ref": "change 2026-09-29-fix-b15-test-loss-actual-embedding",
+   "problem": "finding 声称未归档 change 实为 5 个而非任务前提的 3 个，且 b15 在盘点时一度只有 .openspec.yaml + proposal.md、无 tasks.md，而 openspec list 对其报 ✓ Complete——CLI 对缺 task 清单的 change 误报 Complete。复验者判 NEVER_EXISTED：该 change 是本轮审计期间由并发会话新建的，不在 pin 态。剩余真实成分是流程性的：`openspec list` 的 Complete 判定不检查 tasks.md 是否存在，因此任何盘点都不能把 list 的输出当完成度证据。",
+   "evidence_ref": "报告 §2.2 NEVER_EXISTED 末条；finding main5 [W-03]",
+   "verdict_class": "NEVER_EXISTED",
+   "severity": "MINOR",
+   "origin_ids": [
+    "main5",
+    "rv:main5:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-39"
+  },
+  {
+   "id": "C-007",
+   "title": "phase_beta_max 真守卫：8 个变异目标中唯一完整约束的一个",
+   "location_file": "src/decompmoe/schedule.py",
+   "location_line": 103,
+   "requirement_ref": "wayfinder Req 24 / governance req-gov-1 obligation 1-2",
+   "problem": "3/3 变异体全被杀死：常量 32.0（4 failed）、只删 Phase-2 ramp（1 failed，由 test_phase_beta_max_is_time_varying 单独杀死）、phase_end 改闭区间（3 failed）。绑在 abs=1e-9 的精确值断言上（(2,6000)→1.0、(2,16000)→2.5、(3,26000)→4.0、(3,41000)→10.0、(2,25999)→3.99985、(3,55999)→15.9996），phase_end 排他性由 2.49992500 vs 2.5 的 7.5e-5 误差捕获。唯一脆弱点是 Phase-2 分支只有一条独立守护：test_phase3_b_ramp 与 test_beta_effective_phase_2_3_cap_binding 都不探 Phase 2。",
+   "evidence_ref": "_handoff_mutations.json mutate:6（mutantSurvived=false, 3 个变异体全杀, 4 个 killedBy）；报告 §5 表格第 6 行",
+   "verdict_class": "STILL_REAL",
+   "severity": "NONE",
+   "origin_ids": [
+    "mutate:6"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-40"
+  },
+  {
+   "id": "C-028",
+   "title": "test_sphere.py 三处引用不存在的 obligation 7",
+   "location_file": "tests/test_sphere.py",
+   "location_line": 244,
+   "requirement_ref": "governance req-gov-1（主 spec 与唯一活跃 delta 中均只有 6 条义务）",
+   "problem": "tests/test_sphere.py 三处把容差来源标注为『req-gov-1 obligation 7』，但 governance req-gov-1 在主 spec 与唯一活跃 delta 中都只有 6 条义务，不存在第 7 条。判 NEVER_EXISTED：phantom 反链，测试的溯源标注指向不存在的条款。",
+   "evidence_ref": "_merged_verdicts main47（LIFECYCLE-03）",
+   "verdict_class": "NEVER_EXISTED",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:main47:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AO-41"
+  },
+  {
+   "id": "C-042",
+   "title": "canonical_voronoi_angle docstring 声称逐位复现为假",
+   "location_file": "src/decompmoe/sphere.py",
+   "location_line": 222,
+   "requirement_ref": "decompmoe-skeleton req-6",
+   "problem": "docstring 断言重构后的 _cap_radius 与旧 (0, π/2) 二分『逐位复现到 0.00e+00』，实测三个点全部为 ~1e-14 级差异，该数值断言为假。判 NEVER_EXISTED 是就 spec 契约违规而言；但 docstring 里的这个数值声明本身仍与实现不符。",
+   "evidence_ref": "_merged_verdicts main56（CODE-FORM-01）",
+   "verdict_class": "NEVER_EXISTED",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:main56:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-42"
+  },
+  {
+   "id": "C-055",
+   "title": "S_load 只沿最后一维归约，遇 (B,N,N_e) 返回逐 token 偏斜",
+   "location_file": "src/decompmoe/metrics.py",
+   "location_line": 70,
+   "requirement_ref": "wayfinder Req 20 L453 / Req 32（(B,N,N_e) 规范形状）",
+   "problem": "S_load = N_e · max_i f_i 被 spec 定义为标量口径（窗口内 per-expert 归一化路由比例），但实现只沿最后一维归约，遇到 spec 自己点名为本项目 canonical call site 形状的 (B, N, N_e) 时返回逐 token 偏斜而非批量偏斜，且无任何测试覆盖 rank>1。判 NEVER_EXISTED 是就『违反 Req 32』这一点；但 rank>1 零覆盖是实测事实。",
+   "evidence_ref": "_merged_verdicts gap9（ADV-10）",
+   "verdict_class": "NEVER_EXISTED",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:gap9:math",
+    "rv:gap9:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-43"
+  },
+  {
+   "id": "C-057",
+   "title": "distance.logit docstring 为被硬禁的 w_i 预留后门措辞",
+   "location_file": "src/decompmoe/distance.py",
+   "location_line": 29,
+   "requirement_ref": "wayfinder Req 7 L132（w_i MUST NOT appear in any reserved form）",
+   "problem": "distance.logit 的 docstring 把 w_i 描述为『保留给 post-aggregation mixing』，而 spec 明文禁止 w_i 以任何形式（含 reserved form）出现——代码注释为一条硬约束预留了后门。判 NEVER_EXISTED：logit 实际实现确实不含 w_i，缺陷只在注释措辞。",
+   "evidence_ref": "_merged_verdicts gap11（ADV-12）",
+   "verdict_class": "NEVER_EXISTED",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:gap11:math",
+    "rv:gap11:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-44"
+  },
+  {
+   "id": "D01",
+   "title": "pin 6593a06 到 HEAD 188b9fb 之间共落 9 个 commit",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 155,
+   "requirement_ref": "N/A",
+   "problem": "本议题全部结论的审计基线是 pinned commit 6593a06，而仓库 HEAD 已是 188b9fb。两者之间共 9 个 commit（rev-list 计数与 _pin_drift.json 的 commits 数组逐条一致），意味着本议题引用的任何 file:line 定位，其所属文件都可能已经不在基线态。任何在 HEAD 上直接照抄本议题行号的下游动作，都可能落到已被改写的行上。",
+   "evidence_ref": "_pin_drift.json 顶层 pin/head/commits 字段；git log --oneline 6593a06..HEAD",
+   "verdict_class": "UNVERIFIABLE",
+   "severity": "NONE",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AO-45"
+  },
+  {
+   "id": "D02",
+   "title": "e8771b9 记录 fix-config-docstring-beta-line-drift 的第二轮 archive blocker",
+   "location_file": "openspec/changes/fix-config-docstring-beta-line-drift/tasks.md",
+   "location_line": 0,
+   "requirement_ref": "fix-config-docstring-beta-line-drift",
+   "problem": "该 commit 只动了 openspec/changes/fix-config-docstring-beta-line-drift/tasks.md 一个文件（漂移区间记为 [0,0]，即整文件）。它是本区间最早的 commit，内容是在未归档 change 的 tasks.md 里登记第二轮 archive blocker。作为 pin 之后基线的一部分，它把该 change 从 pin 态（openspec list 显示 24/35）进一步推入未归档滞留状态。",
+   "evidence_ref": "git log --name-only 6593a06..HEAD 的 e8771b9 段；_pin_drift.json 中 openspec/changes/fix-config-docstring-beta-line-drift/tasks.md = [[0,0]]",
+   "verdict_class": "UNVERIFIABLE",
+   "severity": "NONE",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AO-46"
+  },
+  {
+   "id": "D03",
+   "title": "e50cc02 把并发会话的在飞工作整体 checkpoint 进 3 份 spec 与 8 个 src/tests 文件",
+   "location_file": "src/decompmoe/sphere.py",
+   "location_line": 137,
+   "requirement_ref": "N/A",
+   "problem": "该 commit 一次改动 openspec/specs/ 下全部 3 份 spec，加 src/decompmoe/gating.py、src/decompmoe/sphere.py，加 tests/ 下 test_loss.py / test_safeguards.py / test_schedule.py / test_sphere.py，共 8 个 src/tests 文件。这是本区间改动面最宽的一个 commit，也是基线漂移的主要来源：sphere.py 的漂移覆盖 137-145、151-160、267-277、281-285、288-295、303、310-340、352-360、365 共 9 个区间，占该文件后半段的绝大部分。",
+   "evidence_ref": "git log --name-only 6593a06..HEAD 的 e50cc02 段；_pin_drift.json 中 src/decompmoe/sphere.py 的 9 个漂移区间",
+   "verdict_class": "UNVERIFIABLE",
+   "severity": "NONE",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AO-47"
+  },
+  {
+   "id": "D04",
+   "title": "c0ec330 归档 b10-b11-b12 与 voronoi-angle 两个 review findings change",
+   "location_file": "openspec/changes/archive/2026-09-30-fix-voronoi-angle-review-findings/design.md",
+   "location_line": 1,
+   "requirement_ref": "2026-09-29-fix-b10-b11-b12-test-guard-fidelity; 2026-09-30-fix-voronoi-angle-review-findings",
+   "problem": "该 commit 把两个此前未归档的 review-findings change 移入 openspec/changes/archive/，每个 change 的 proposal / design / tasks 与三份 delta spec 全部新建（漂移区间基本覆盖整文件）。归档动作同时把 delta spec 的内容并入主 spec，使 openspec/specs/** 下的文件在 pin 之后第一次接收这批 review 结论。",
+   "evidence_ref": "git log --name-only 6593a06..HEAD 的 c0ec330 段；_pin_drift.json 中两个 2026-09-29 / 2026-09-30 archive 目录下的文件条目",
+   "verdict_class": "UNVERIFIABLE",
+   "severity": "NONE",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AO-48"
+  },
+  {
+   "id": "D05",
+   "title": "2dc340d 在 b10-b11-b12 的 tasks.md 补记 9.4 BLOCKED 的 9.5 解决状态",
+   "location_file": "openspec/changes/archive/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/tasks.md",
+   "location_line": 1,
+   "requirement_ref": "2026-09-29-fix-b10-b11-b12-test-guard-fidelity",
+   "problem": "该 commit 是纯文档补记，只改已归档目录 2026-09-29-fix-b10-b11-b12-test-guard-fidelity 下的 tasks.md 一个文件（漂移区间 1-159，整文件）。它记录的是 9.4 阻塞项在 9.5 的处理结果，属于归档制品内的状态补写，不触及 src/tests 与 spec 正文。",
+   "evidence_ref": "git log --name-only 6593a06..HEAD 的 2dc340d 段；_pin_drift.json 中该 tasks.md = [[1,159]]",
+   "verdict_class": "UNVERIFIABLE",
+   "severity": "NONE",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AO-49"
+  },
+  {
+   "id": "D06",
+   "title": "315065e 归档 B13/B14/B15 三条 change 并回补被 e50cc02 回退的 B15",
+   "location_file": "openspec/specs/decompmoe-skeleton/spec.md",
+   "location_line": 98,
+   "requirement_ref": "2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift; 2026-09-29-fix-b15-test-loss-actual-embedding; 2026-09-30-fix-config-docstring-beta-line-drift",
+   "problem": "该 commit 归档三个 change（b13-b16、b15、config-docstring-beta-line-drift），同时改 openspec/specs/decompmoe-skeleton/spec.md（漂移行 98 / 132 / 255 / 270-271 / 326-329 / 340 / 499 / 501 / 524）与 tests/test_loss.py。其 subject 明确记载 restore B15 reverted by e50cc02，说明 D03 记录的 checkpoint commit 曾回退 B15，随后被本 commit 追回。这构成 pin 之后 src/tests 与 spec 之间一次已知的不一致-回补序列。",
+   "evidence_ref": "git log --name-only 6593a06..HEAD 的 315065e 段（含 subject 内 'restore B15 reverted by e50cc02'）；_pin_drift.json 中 openspec/specs/decompmoe-skeleton/spec.md 的 9 个漂移区间",
+   "verdict_class": "UNVERIFIABLE",
+   "severity": "NONE",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AO-50"
+  },
+  {
+   "id": "D07",
+   "title": "5a7e48d 以 f1,f2,f3,f8 名义改 tests/test_beta.py 与 tests/test_schedule.py",
+   "location_file": "tests/test_beta.py",
+   "location_line": 56,
+   "requirement_ref": "2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift",
+   "problem": "该 commit 的 src 侧为空，代码改动全部落在 tests/：test_beta.py 漂移 56 / 59-75 / 80-84 / 86-89，test_schedule.py 漂移 62-77 / 82-84 / 87-88 / 195-210 / 227-236 / 243-246 / 250-251 / 256。test_beta.py 漂移区 59-75 与 86-89 覆盖了文件主体的断言段，故任何以 test_beta.py 行号定位的结论在 HEAD 上均已漂移。",
+   "evidence_ref": "git log --name-only 6593a06..HEAD 的 5a7e48d 段；_pin_drift.json 中 tests/test_beta.py 与 tests/test_schedule.py 的漂移区间",
+   "verdict_class": "UNVERIFIABLE",
+   "severity": "NONE",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AO-51"
+  },
+  {
+   "id": "D08",
+   "title": "969b17c 以 f4-f7 名义改 src/decompmoe/loss.py 与 tests/test_loss.py",
+   "location_file": "src/decompmoe/loss.py",
+   "location_line": 96,
+   "requirement_ref": "2026-10-01-fix-f4-f5-f6-f7-loss-guard-fidelity",
+   "problem": "该 commit 是本区间唯一改 src/decompmoe/loss.py 的 commit，漂移区间 96-100 与 117-121，两段相邻。subject 声称 make guards actually fail，即把 loss 侧的数值 guard 从恒真改为可失败。tests/test_loss.py 随之改动 166-168 与 194-290 共三段，后者覆盖近百行。",
+   "evidence_ref": "git log --name-only 6593a06..HEAD 的 969b17c 段；_pin_drift.json 中 src/decompmoe/loss.py = [[96,100],[117,121]]",
+   "verdict_class": "UNVERIFIABLE",
+   "severity": "NONE",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AO-52"
+  },
+  {
+   "id": "D09",
+   "title": "4f3e752 归档 F1-F8 两个 change 并修复被归档吞掉的 spec anchor",
+   "location_file": "openspec/changes/archive/2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift/tasks.md",
+   "location_line": 1,
+   "requirement_ref": "2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift; 2026-10-01-fix-f4-f5-f6-f7-loss-guard-fidelity",
+   "problem": "该 commit 把 2026-10-01 的两个 F 系列 change 移入 archive/，同时写 openspec/specs/wayfinder/spec.md。subject 中的 repair anchors swallowed by archive 表明归档流程本身曾删除 spec anchor，属本仓库 CLAUDE.md §6 第 7 条（anchor 100% 覆盖硬约束）关注的面。归档动作的副作用面落在 wayfinder/spec.md 的漂移行 130 / 146 / 155-157 / 246 / 318 / 329-330 / 334 / 586 / 642 / 677 / 737。",
+   "evidence_ref": "git log --name-only 6593a06..HEAD 的 4f3e752 段（含 subject 内 'repair anchors swallowed by archive'）；_pin_drift.json 中 openspec/specs/wayfinder/spec.md 的 11 个漂移区间",
+   "verdict_class": "UNVERIFIABLE",
+   "severity": "NONE",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AO-53"
+  },
+  {
+   "id": "D10",
+   "title": "188b9fb 收尾 f1-followup：关闭第二处 50 位 mpmath 误标",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 155,
+   "requirement_ref": "2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift",
+   "problem": "HEAD commit 只改两处：archive 下 2026-10-01-fix-f1-f2-f3-f8 的 tasks.md 与 openspec/specs/wayfinder/spec.md。subject 的 'second copy' 说明同类误标在 f1 里存在两份，本 commit 只收掉第二份。这是一条逐次收敛的记录：同一问题在 pin 之后至少出现过两次需要处理的副本。",
+   "evidence_ref": "git log --name-only 6593a06..HEAD 的 188b9fb 段（subject 'close the second copy of the 50-digit mpmath mislabel'）",
+   "verdict_class": "UNVERIFIABLE",
+   "severity": "NONE",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AO-54"
+  },
+  {
+   "id": "D11",
+   "title": "pin 之后新归档 7 个 change 目录（09-29 三个 / 09-30 两个 / 10-01 两个）",
+   "location_file": "openspec/changes/archive/2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift",
+   "location_line": 0,
+   "requirement_ref": "N/A",
+   "problem": "对比 pin 态 openspec list 的 5 个未归档 change 与 HEAD 的 archive/ 目录内容，pin 之后新增归档的 change 目录共 7 个：2026-09-29-fix-b10-b11-b12-test-guard-fidelity、2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift、2026-09-29-fix-b15-test-loss-actual-embedding、2026-09-30-fix-config-docstring-beta-line-drift、2026-09-30-fix-voronoi-angle-review-findings、2026-10-01-fix-f1-f2-f3-f8-precision-and-pointer-drift、2026-10-01-fix-f4-f5-f6-f7-loss-guard-fidelity。这 7 个目录在 _pin_drift.json 中均以整文件漂移区间出现，即全部是 pin 之后新建。同前缀的 2026-09-29-fix-voronoi-angle-measurement-layer-semantics 未出现在漂移表中，属 pin 之前已归档，不计入本区间。",
+   "evidence_ref": "ls openspec/changes/archive/ 与 _pin_drift.json 的 archive 目录条目；_deltamap.lit 第 1 节记录 pin 态 openspec list = 5 changes",
+   "verdict_class": "UNVERIFIABLE",
+   "severity": "NONE",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AO-55"
+  },
+  {
+   "id": "D12",
+   "title": "8 个 src/tests 文件与全部 3 份 spec 均被改动，本议题所有 file:line 在 HEAD 上需重新核对",
+   "location_file": "src/decompmoe/sphere.py",
+   "location_line": 310,
+   "requirement_ref": "N/A",
+   "problem": "_pin_drift.json 的 drift 段覆盖 src/tests 侧恰好 8 个文件（src/decompmoe/gating.py、loss.py、sphere.py，tests/test_beta.py、test_loss.py、test_safeguards.py、test_schedule.py、test_sphere.py）与 openspec/specs/ 下全部 3 份 spec（decompmoe-skeleton、governance、wayfinder）。即本议题引用的每一个 file:line 定位，在 HEAD 上都存在落到漂移区间的可能。这是纯机械查表结论：它既不表示该处已修复，也不表示仍存在，只表示定位不可直接复用。test_sphere.py 的漂移最密（23 个区间，含 603-658、795-817 等大段）。",
+   "evidence_ref": "_pin_drift.json 的 drift 段全部 8 个 src/tests 键与 3 个 openspec/specs 键；机械查表：每个带行号的条目按其 (file,line) 是否落入该文件的漂移区间记 baseline_status",
+   "verdict_class": "UNVERIFIABLE",
+   "severity": "NONE",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AO-56"
+  },
+  {
+   "id": "P09",
+   "title": "脚本压缩把 230,181 字符压到 23,220 字符，90% 削减",
+   "location_file": "audit/build_compact_script.py",
+   "location_line": 1,
+   "requirement_ref": "N/A",
+   "problem": "为解决 P08，audit/build_compact_script.py 用『删数据、留逻辑』的策略生成 compact 副本：header（src[:5791]）与 logic（cachedAgent 之后的全部阶段）逐字保留，224,390 字符的 CACHE 字面量被替换成 11 个 loader agent。实测 compact 脚本 23,220 字符（磁盘 31,448 字节），相对 takeover 的 230,181 字符削减 89.9%。被保留的 CACHE 数据落在 audit/_cachechunk_00..10.json 十一个分片里。",
+   "evidence_ref": "audit/build_compact_script.py（MAX_CHUNK=20000 与分片/生成逻辑）；audit/_cachechunk_00..10.json（11 个文件，10,698–21,682 字节）；workflows/scripts/decompmoe-pin-and-reverify-compact.js",
+   "verdict_class": "FIXED_BY_COMMIT",
+   "severity": "NONE",
+   "origin_ids": [],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-57"
+  },
+  {
+   "id": "V-01",
+   "title": "六类 verdict 的 lens 级权威计数（197 条）",
+   "location_file": "_final_report_full.md",
+   "location_line": 23,
+   "requirement_ref": "N/A",
+   "problem": "本轮裁决体系只有六类：STILL_REAL / PARTIALLY_REAL / UNVERIFIABLE / NEVER_EXISTED / MOVED / FIXED_BY_COMMIT，lens 级逐条判定共 197 条，与 _handoff_verdicts_all.json 逐条一致。这是后续任何归档与分批的计数母本。问题是 §2.1 的每个 verdict 的严重度分列与该节末尾的严重度合计行在源数据里并不对账（见 gaps），因此「197」可靠而「每类的严重度构成」不可直接引用。",
+   "evidence_ref": "报告 §2.1；_handoff_verdicts_all.json 全量 197 键（rv:* 143 / grv:* 54；lens 分布 source 105 / math 62 / impact 30）",
+   "verdict_class": "STILL_REAL",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:main0:source",
+    "grv:gap2:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-58"
+  },
+  {
+   "id": "V-02",
+   "title": "finding 级 108 条是 lens 合并后的第二套口径",
+   "location_file": "_final_report_full.md",
+   "location_line": 36,
+   "requirement_ref": "N/A",
+   "problem": "finding 级不是独立复验，而是把同一 finding 的多个 lens 折叠成一条，折叠规则是「按 STILL_REAL 优先序取第一个命中的类别」。两套口径数字不同且不可混用：同一条 main45 在 lens 级是 FIXED_BY_COMMIT / STILL_REAL 分裂，在 finding 级被合并为 STILL_REAL。把 §2.1 的 lens 级分布套到 §3 的问题清单上会算错。",
+   "evidence_ref": "报告 §2.2（合并判定表）、§2.1 注「两者不可混用」；§11.1 明确 verdictTally/severityTally/stillRealBySeverity 三个统计在 workflow log 中无对应记录",
+   "verdict_class": "STILL_REAL",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:main45:source",
+    "rv:main45:impact",
+    "rv:main45:math"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-59"
+  },
+  {
+   "id": "V-03",
+   "title": "UNVERIFIABLE 是弃权不是证伪（19 条）",
+   "location_file": "_final_report_full.md",
+   "location_line": 28,
+   "requirement_ref": "N/A",
+   "problem": "19 条 UNVERIFIABLE 全部是数学镜（lens B）按纪律对非数学类题目的弃权票：不是「找不到问题」，也不是「问题不存在」。源证据里 math 镜的固定措辞是「refuted=true 在此表示本镜不背书，不表示 finding 错误」。把这 19 条读成「已排除」会把 19 条仍然活着的缺陷误清零——报告 §11 明确点名了这条误读风险。",
+   "evidence_ref": "报告 §2.1 表格「弃权 ≠ 证伪」、§11 第 11 条；rv:main0:math（fixingCommit 字段写 NONE 并注明「refuted 不表示 finding 错误」）、rv:main12:math（「本镜弃权并把票让给 git-hygiene / source 镜……事实上其事实性主张我已逐条复现为真」）、rv:main36:math（发现 S-MATH 维度标签本身标错）",
+   "verdict_class": "UNVERIFIABLE",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:main0:math",
+    "rv:main11:math",
+    "rv:main12:math",
+    "rv:main13:math",
+    "rv:main20:math",
+    "rv:main36:math",
+    "rv:main72:math",
+    "rv:main74:math",
+    "rv:main75:math",
+    "rv:main77:math",
+    "rv:main79:math",
+    "rv:main71:math"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-60"
+  },
+  {
+   "id": "V-04",
+   "title": "UNVERIFIABLE 的三大适用面与票让协议",
+   "location_file": "_final_report_full.md",
+   "location_line": 28,
+   "requirement_ref": "N/A",
+   "problem": "弃权有明确的适用面：行号指针类、git 拓扑类、流程状态类。这三类的裁定权按固定路由让给 source 镜或 impact 镜。边界问题是「math 镜弃权」不等于「math 面没人看」——多数弃权条目里 math 镜仍顺手重算了底层数学并把结果交给 source 镜，但那份重算不构成裁定，只是起步材料。归档时若只记 verdict 会丢掉这层分工。",
+   "evidence_ref": "报告 §2.1；rv:main74:math（「Lens B 不适用……defer the verdict to Lens A」）、rv:grv:gap22:math（纯词法不变量，math 镜不适用）、rv:grv:gap25:math（claim 自陈不主张数值错误）、rv:main77:math（「供 Lens A 直接采信，不需重跑」）",
+   "verdict_class": "UNVERIFIABLE",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:main74:math",
+    "rv:grv:gap22:math",
+    "rv:grv:gap25:math",
+    "rv:main77:math"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-61"
+  },
+  {
+   "id": "V-05",
+   "title": "NEVER_EXISTED 的判定门槛：须给结构性反证",
+   "location_file": "_final_report_full.md",
+   "location_line": 39,
+   "requirement_ref": "N/A",
+   "problem": "10 条 NEVER_EXISTED 与 UNVERIFIABLE 的分界在于是否给出了结构性反证：前者必须证明 claim 在 pin 态从来就不成立（文件在 pin 树中不存在、条款在正文里已写、工作树状态为 0 行等可复现的硬事实），后者只是没有裁定能力。报告点名这是「本轮最容易被混淆的地方」。归档时把两类合并处理会丢掉误报史的核心信息。",
+   "evidence_ref": "报告 §2.2「关于三类的严格区分」第 1 条；对照 §2.1 UNVERIFIABLE 行",
+   "verdict_class": "NEVER_EXISTED",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:main1:source",
+    "rv:main3:source",
+    "rv:main47:source",
+    "rv:main56:source",
+    "rv:grv:gap13:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-62"
+  },
+  {
+   "id": "V-06",
+   "title": "main1 GATE-02：pin 树里根本不存在那 6 个残留文件",
+   "location_file": "_handoff_verdicts_all.json",
+   "location_line": 0,
+   "requirement_ref": "GATE-02 / main1",
+   "problem": "原 finding 报告「仓库根残留 6 个未跟踪临时文件」。复验给出的反证是 pin 工作树 `git status --porcelain` 为 0 行、6 条路径逐一 ls 全部 No such file、且 `git ls-tree` 出的根目录只有 16 个合法条目。即这些文件在 pin 态已被 pin 前的 commit 吸收，属主工作树 in-flight 内容。这是「结构性反证」的样板：不是没找到，是证明不存在。",
+   "evidence_ref": "rv:main1:source（evidence 段 (1)(2)：porcelain=0、6×No such file、ls-tree 16 条）",
+   "verdict_class": "NEVER_EXISTED",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:main1:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-63"
+  },
+  {
+   "id": "V-07",
+   "title": "main3/main8：目标 change 目录在 pin 态从未被提交",
+   "location_file": "_handoff_verdicts_all.json",
+   "location_line": 0,
+   "requirement_ref": "W-01 / W-06 / main3 / main8",
+   "problem": "两条 finding 都指向 `openspec/changes/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/`，复验给出的是全 ref 全历史的空命中：`git log --all --diff-filter=A` 在 11 条 ref 上返回空，179 个 commit 中该路径 0 行。反证强度高于单点检查——不是 pin 快照没带，是任何提交都没创建过它，因此不存在「被某个 commit 修好」的可能。",
+   "evidence_ref": "rv:main3:source（「git log --all -- 返回 0 行（全部 179 个 commit 中该路径从未出现过）」）、rv:main3:math、rv:main8:source（「fixingCommit: N/A」）、rv:main14:source（「b10-b11-b12 half never existed in any commit」）",
+   "verdict_class": "NEVER_EXISTED",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:main3:source",
+    "rv:main3:math",
+    "rv:main8:source",
+    "rv:main14:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-64"
+  },
+  {
+   "id": "V-08",
+   "title": "main47：取证读了 in-flight 未归档 delta",
+   "location_file": "openspec/specs/governance/spec.md",
+   "location_line": 28,
+   "requirement_ref": "req-gov-1 obligation 7 / LIFECYCLE-03 / main47",
+   "problem": "finding 断言 req-gov-1 不存在 obligation 7。复验反证是：pin 态 `governance/spec.md` L28 逐字就是 obligation 7（Monte-Carlo 统计容差条款），且 tests/test_sphere.py 的三处 `obligation 7` 引用与它由 33f7cc9 原子引入。误报成因是取证读了主工作树的未归档 delta（只列 6 条），而 pin 态真相源已有 7 条——取证基线选错，不是条款缺失。",
+   "evidence_ref": "rv:main47:source（「THE alleged-missing obligation EXISTS at pin」+ L28 逐字引用）；报告 §2.2 第 1 条列 main47 为 NEVER_EXISTED",
+   "verdict_class": "NEVER_EXISTED",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:main47:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "touched-since-pin",
+   "bucket_id": "AO-65"
+  },
+  {
+   "id": "V-09",
+   "title": "gap13：只读 Scenario 漏读正文的条件式 MUST",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 245,
+   "requirement_ref": "wayfinder req-11 / ADV-14 / gap13",
+   "problem": "finding 断言 `θ_Voronoi > θ_{1/e}` 无条件成立。复验反证：同一 Requirement 正文 L245 十二行之后就有以 MUST 书写的 β=16 条件，L262-263 另有 Scenario 重述，finding 的锚点 L233 是 Scenario 而非条款本体。误报类型被明确归为「读法错误」——agent 只读了 Scenario 段。残留的真实成分只有一条：该条件在 spec 中是散文级 MAY 而非 MUST 级条款。",
+   "evidence_ref": "rv:grv:gap13:source（「REFUTED——the finding's headline claim is false … stated twice, normatively, inside the SAME Requirement body」）；报告 §6.5 末条、§9 读法段（「H 类与 J 类误报……后者因为只读了 Scenario 而漏读同一 Requirement 正文里的条件式 MUST」）",
+   "verdict_class": "NEVER_EXISTED",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:grv:gap13:source"
+   ],
+   "classification_hint": "opsx-change",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-66"
+  },
+  {
+   "id": "V-11",
+   "title": "gap9：引用的 spec 坐标从来不属于 Req 32",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 675,
+   "requirement_ref": "wayfinder req-32 / gap9",
+   "problem": "finding 引用「wayfinder Req 32 L744-749」作为证据，但复验的 grep 显示 routing-frequency convention 句在 pin 态只有 2 处命中，正文那一句在 wayfinder L675，另一处在一个归档 change 的 delta 里，均不在 Req 32。属坐标错配型误报——claim 指向的 Requirement 从未包含被引文字。",
+   "evidence_ref": "rv:grv:gap9:source（「REQ 32 NEVER CONTAINED THE QUOTED SENTENCE」，实测 L675 为活句）；rv:grv:gap9:math（另指出 S_load 的 max 索引域是专家 i，全库无 `N_e · max_i(mean f_i)` 的规定）",
+   "verdict_class": "NEVER_EXISTED",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:grv:gap9:source",
+    "rv:grv:gap9:math"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-67"
+  },
+  {
+   "id": "V-12",
+   "title": "gap11：w_i 禁令是自指条款，不能治理文本提及",
+   "location_file": "src/decompmoe/distance.py",
+   "location_line": 29,
+   "requirement_ref": "wayfinder req-7 / gap11",
+   "problem": "finding 指出 docstring 里出现 `w_i` 字面量违反禁令。复验的驳回理由是语义层而非位置层：该条款是自指的（govern 的是数学 stage 中的使用，不是 spec 文本里的字符串），且 `grep -c w_i` 在 spec 里有 4 处命中、其中包含禁令自身与 Scenario 标题。docstring 的两处引文逐字准确，行号无漂移——即「引文准确但推论错误」。",
+   "evidence_ref": "rv:grv:gap11:source（「QUOTES ARE ACCURATE (no line drift)」「The refutation is semantic, not positional: 误读条款」）、rv:grv:gap11:math（AST 扫描确认 logit 无 w_i 输入路径）",
+   "verdict_class": "NEVER_EXISTED",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:grv:gap11:source",
+    "rv:grv:gap11:math"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-68"
+  },
+  {
+   "id": "V-13",
+   "title": "NEVER_EXISTED 族其余条目：main2/5/8/14/35/gap9",
+   "location_file": "_final_report_full.md",
+   "location_line": 39,
+   "requirement_ref": "main2 / main5 / main8 / main14 / main35",
+   "problem": "报告 §2.2 把 main5、main14、main35、main2、main8 归入同一 NEVER_EXISTED 族但未逐条展开理由。已复验的部分：main5 的锚点文件在 pin 态无缺陷（b15 change 生而完整，30/30 勾选）；main14 的字面谓词在 pin 态为假（无任何 untracked 状态）；main35 先排除了 stale-tree 解释，再用 `git log -S` 证明被引行自创建起逐字未变。共同形状是「主工作树的 in-flight 状态被当成 pin 态事实」。",
+   "evidence_ref": "rv:main5:source（「THE ANCHOR FILE HAS NO DEFECT AT PIN」，30 [x] / 0 [ ]）、rv:main14:source（「PORCELAIN_LINES=0」）、rv:main35:source（「NOT a stale-tree artifact」+ 两次 `git log -S`）、rv:main2:source（「finding's own premise is self-excluded」）；报告 §2.2 第 1 条末句",
+   "verdict_class": "NEVER_EXISTED",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:main2:source",
+    "rv:main5:source",
+    "rv:main14:source",
+    "rv:main35:source",
+    "rv:main8:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-69"
+  },
+  {
+   "id": "V-14",
+   "title": "FIXED_BY_COMMIT 是 stale 而非误报（5 条 lens）",
+   "location_file": "_final_report_full.md",
+   "location_line": 41,
+   "requirement_ref": "N/A",
+   "problem": "FIXED_BY_COMMIT 表示「曾成立，被 7bf77af..6593a06 之间某个并发 commit 修掉」，与 NEVER_EXISTED 的本质区别是这条缺陷真实存在过。报告明确要求这两类在分批时区别对待：前者不进修复批次，后者是误报直接排除。混用会把真缺陷当噪声丢掉，也会把噪声当缺陷返工。",
+   "evidence_ref": "报告 §2.1 FIXED_BY_COMMIT 行「这是 stale，不是误报」、§2.2 第 2 条；对照 §10 各 batch 的「不做：FIXED_BY_COMMIT 的 LIFECYCLE-02」",
+   "verdict_class": "FIXED_BY_COMMIT",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:main45:source",
+    "rv:main45:math",
+    "rv:main46:source",
+    "rv:main46:math",
+    "rv:main46:impact"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-70"
+  },
+  {
+   "id": "V-16",
+   "title": "main46：授权 change 与代码同 commit 落库",
+   "location_file": "openspec/changes/archive/2026-09-29-fix-voronoi-angle-measurement-layer-semantics/proposal.md",
+   "location_line": 0,
+   "requirement_ref": "LIFECYCLE-02 / main46",
+   "problem": "finding 主张 voronoi_angle 被重写为 MC 测量层而无授权 change。三镜一致驳回：该授权 change 存在且已归档，并带 3 个 capability 的 delta，而 33f7cc9 在同一个原子 commit 里同时落了代码与 change，所以在 pin 态根本不存在「无授权变更」的时间窗口。误报成因是把同 commit 的两半当成先后两步。",
+   "evidence_ref": "rv:main46:source、rv:main46:math（「introduced by 33f7cc9 in the SAME commit as the code it authorizes, so there is no window」）、rv:main46:impact（「REFUTED ON ALL THREE LOAD-BEARING CLAIMS」，archive/ 下实测存在该 change）；报告 §2.2 第 2 条末句",
+   "verdict_class": "FIXED_BY_COMMIT",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:main46:source",
+    "rv:main46:math",
+    "rv:main46:impact"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-71"
+  },
+  {
+   "id": "V-17",
+   "title": "MOVED：仍要修，只是行号被冲掉",
+   "location_file": "_final_report_full.md",
+   "location_line": 44,
+   "requirement_ref": "N/A",
+   "problem": "MOVED 判的是「实体缺陷位置未变、finding 记的行号已失效」，因此它仍在修复范围内，只是归档坐标要按 pin 态重写。报告要求 MOVED 条目按 pin 态新坐标入批并括注原坐标。与 STILL_REAL 的边界是「缺陷实体是否还在原处」，而不是「行号是否还对」——后者是记账问题，前者是实体问题。",
+   "evidence_ref": "报告 §2.1 MOVED 行、§2.2 第 3 条、§10 Batch D 引用重绑段（「main72 MOVED……+1/+13/+8 偏移」）",
+   "verdict_class": "MOVED",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:main72:source",
+    "rv:main75:source",
+    "rv:main76:source",
+    "rv:main41:source",
+    "rv:main18:source",
+    "rv:main70:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-72"
+  },
+  {
+   "id": "V-23",
+   "title": "controlsUnusable=0 排除了 harness 故障这一替代解释",
+   "location_file": "_final_report_full.md",
+   "location_line": 1380,
+   "requirement_ref": "N/A",
+   "problem": "8 个 control 全部 212 passed，与声明基线逐条一致，因此 §5 报告的变异存活不能被解释为变异工具自身失效。这是排除法边界的一条：报告同时披露两处需读者知情的情形——mutate:4 与 mutate:6 的 traceback 里出现 `..\\pin6593a06\\` 路径前缀，实为变异副本 `.pyc` co_filename 携带的陈旧路径，已用 `__file__` 解析与 SHA-256 排除。",
+   "evidence_ref": "报告 §5 守护覆盖率段末句（controlsUnusable=0）、§11 第 12 条（两处陈旧路径的排除过程）",
+   "verdict_class": "STILL_REAL",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:main65:source",
+    "rv:main63:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-73"
+  },
+  {
+   "id": "V-33",
+   "title": "阴性确认：跨 spec 数值无冲突（main80）",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 0,
+   "requirement_ref": "CROSS-SPEC-MATHOK-01 / main80",
+   "problem": "main80 是本轮少数的阴性记录：约 20 个数值经 50 位 mpmath 独立重算逐位一致，反链 lint 仍 exit 0，价值在于排除了「wayfinder 与 skeleton 两份 peer spec 数值打架」这一假设本身。阴性记录在误报史里有独立价值——它标记了「曾经担心但已被排除」的位置，避免后续轮次重复怀疑。",
+   "evidence_ref": "报告 §6.5 第 1 条（「本轮少数的阴性记录，价值在于排除了……」）",
+   "verdict_class": "PARTIALLY_REAL",
+   "severity": "NONE",
+   "origin_ids": [
+    "rv:main80:math",
+    "rv:main80:source"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-74"
+  },
+  {
+   "id": "W21",
+   "title": "三 spec 数值闭式 50 位 mpmath 复核一致（阴性确认）",
+   "location_file": "openspec/specs/wayfinder/spec.md",
+   "location_line": 235,
+   "requirement_ref": "wayfinder req-11 等（三 spec 交叉）",
+   "problem": "约 20 个数值闭式经 50 位 mpmath 独立重算逐位一致，反链 lint 仍 exit 0，未发现跨 spec 数值冲突。这是一条阴性记录，价值在于排除了「wayfinder 与 skeleton 两份 peer spec 数值打架」这一假设——此前未被检验过。同时它记录了一个流程缺口：这套复核是本次审计会话临时执行的，脚本未固化进审计 loop，因此未来 drift 无自动覆盖。",
+   "evidence_ref": "报告 §6.5「三 spec 的重复定义与数值闭式无跨 spec 冲突」条；finding main80 [CROSS-SPEC-MATHOK-01]",
+   "verdict_class": "PARTIALLY_REAL",
+   "severity": "NONE",
+   "origin_ids": [
+    "main80"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-75"
+  },
+  {
+   "id": "W29",
+   "title": "ticket A8-2 的 UR 与 D_c 标注缺失（复验判从未成立）",
+   "location_file": "wayfinder/tickets/A8-2.md",
+   "location_line": 38,
+   "requirement_ref": "ticket A8-2 → wayfinder req-20",
+   "problem": "finding 声称 A8-2 的 UR 闭式与 D_c「球面 geodesic」标签在 ticket 端未加 (historical, …) 标注，而同文件的 MCI 两行已加。复验者判 NEVER_EXISTED 并给出结构性反证：该 finding 描述的 UR 滑动平均措辞与 D_c「geodesic」定性在 pin 态的 A8-2 里并不存在，是 agent 读到了别处的文本。这条的价值在于提醒：§7 的 8 类「无 Decision 记录」清单里混有一条真误报，把未经复验的 finding 直接当成待办会浪费一次 change。",
+   "evidence_ref": "报告 §2.2 NEVER_EXISTED 分类与 §7 第 8 条的对比；finding main35 [DRIFT-A8-2-01]（rv:main35:source 判 NEVER_EXISTED）",
+   "verdict_class": "NEVER_EXISTED",
+   "severity": "NONE",
+   "origin_ids": [
+    "main35"
+   ],
+   "classification_hint": "archive-only",
+   "baseline_status": "unchanged-since-pin",
+   "bucket_id": "AO-76"
+  }
+ ],
+ "conflicts": [
+  {
+   "merged_into": "W01",
+   "absorbed_id": "O-32",
+   "same_locus": "openspec/specs/wayfinder/spec.md:24",
+   "divergences": {
+    "severity": "O-32=MEDIUM -> merged as MAJOR (highest wins)"
+   }
+  },
+  {
+   "merged_into": "W02",
+   "absorbed_id": "C-030",
+   "same_locus": "openspec/specs/wayfinder/spec.md:382",
+   "divergences": {
+    "severity": "C-030=MINOR -> merged as MEDIUM (highest wins)"
+   }
+  },
+  {
+   "merged_into": "W07",
+   "absorbed_id": "C-018",
+   "same_locus": "openspec/specs/wayfinder/spec.md:382",
+   "divergences": {
+    "classification_hint": "C-018=opsx-change -> merged as direct-fix (majority vote)"
+   }
+  },
+  {
+   "merged_into": "W07",
+   "absorbed_id": "C-018",
+   "same_locus": "openspec/specs/wayfinder/spec.md:382",
+   "divergences": {
+    "classification_hint": "票数平局 {'direct-fix': 1, 'opsx-change': 1} -> 按桶定义取 direct-fix（未新增判断）"
+   }
+  },
+  {
+   "merged_into": "C-050",
+   "absorbed_id": "W30",
+   "same_locus": "src/decompmoe/safeguards.py:166",
+   "divergences": {
+    "verdict_class": "W30=PARTIALLY_REAL -> merged as STILL_REAL (starkest wins)",
+    "classification_hint": "W30=archive-only -> merged as opsx-change (majority vote)"
+   }
+  },
+  {
+   "merged_into": "C-050",
+   "absorbed_id": "W30",
+   "same_locus": "src/decompmoe/safeguards.py:166",
+   "divergences": {
+    "classification_hint": "票数平局 {'opsx-change': 1, 'archive-only': 1} -> 按桶定义取 opsx-change（未新增判断）"
+   }
+  },
+  {
+   "merged_into": "W31",
+   "absorbed_id": "C-025",
+   "same_locus": "src/decompmoe/schedule.py:186",
+   "divergences": {
+    "severity": "C-025=MINOR -> merged as MEDIUM (highest wins)",
+    "classification_hint": "C-025=archive-only -> merged as opsx-change (majority vote)"
+   }
+  },
+  {
+   "merged_into": "W36",
+   "absorbed_id": "O-27",
+   "same_locus": "openspec/changes/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/tasks.md:1",
+   "divergences": {
+    "classification_hint": "O-27=direct-fix -> merged as archive-only (majority vote)"
+   }
+  },
+  {
+   "merged_into": "W36",
+   "absorbed_id": "O-27",
+   "same_locus": "openspec/changes/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/tasks.md:1",
+   "divergences": {
+    "classification_hint": "票数平局 {'archive-only': 1, 'direct-fix': 1} -> 按桶定义取 archive-only（未新增判断）"
+   }
+  },
+  {
+   "merged_into": "W38",
+   "absorbed_id": "O-11",
+   "same_locus": "openspec/changes/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/tasks.md:1",
+   "divergences": {
+    "classification_hint": "O-11=archive-only -> merged as opsx-change (majority vote)"
+   }
+  },
+  {
+   "merged_into": "W38",
+   "absorbed_id": "O-11",
+   "same_locus": "openspec/changes/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/tasks.md:1",
+   "divergences": {
+    "classification_hint": "票数平局 {'opsx-change': 1, 'archive-only': 1} -> 按桶定义取 opsx-change（未新增判断）"
+   }
+  },
+  {
+   "merged_into": "W39",
+   "absorbed_id": "O-14",
+   "same_locus": "openspec/changes/2026-09-29-fix-b15-test-loss-actual-embedding/tasks.md:1",
+   "divergences": {
+    "classification_hint": "O-14=opsx-change -> merged as archive-only (majority vote)"
+   }
+  },
+  {
+   "merged_into": "W39",
+   "absorbed_id": "O-14",
+   "same_locus": "openspec/changes/2026-09-29-fix-b15-test-loss-actual-embedding/tasks.md:1",
+   "divergences": {
+    "classification_hint": "票数平局 {'archive-only': 1, 'opsx-change': 1} -> 按桶定义取 archive-only（未新增判断）"
+   }
+  },
+  {
+   "merged_into": "W43",
+   "absorbed_id": "O-26",
+   "same_locus": ".gitignore:37",
+   "divergences": {
+    "classification_hint": "票数平局 {'user-decision': 1, 'direct-fix': 1} -> 按桶定义取 direct-fix（未新增判断）"
+   }
+  },
+  {
+   "merged_into": "O-19",
+   "absorbed_id": "C-068",
+   "same_locus": "tests/test_loss.py:1",
+   "divergences": {
+    "classification_hint": "C-068=user-decision -> merged as opsx-change (majority vote)"
+   }
+  },
+  {
+   "merged_into": "O-19",
+   "absorbed_id": "C-068",
+   "same_locus": "tests/test_loss.py:1",
+   "divergences": {
+    "classification_hint": "票数平局 {'opsx-change': 1, 'user-decision': 1} -> 按桶定义取 opsx-change（未新增判断）"
+   }
+  },
+  {
+   "merged_into": "O-21",
+   "absorbed_id": "C-029",
+   "same_locus": "openspec/specs/governance/spec.md:55",
+   "divergences": {
+    "severity": "C-029=NONE -> merged as MINOR (highest wins)"
+   }
+  },
+  {
+   "merged_into": "O-21",
+   "absorbed_id": "C-029",
+   "same_locus": "openspec/specs/governance/spec.md:55",
+   "divergences": {
+    "classification_hint": "票数平局 {'direct-fix': 1, 'archive-only': 1} -> 按桶定义取 archive-only（未新增判断）"
+   }
+  },
+  {
+   "merged_into": "O-22",
+   "absorbed_id": "C-066",
+   "same_locus": "tests/test_loss.py:177",
+   "divergences": {
+    "classification_hint": "票数平局 {'opsx-change': 1, 'archive-only': 1} -> 按桶定义取 archive-only（未新增判断）"
+   }
+  },
+  {
+   "merged_into": "O-23",
+   "absorbed_id": "C-067",
+   "same_locus": "src/decompmoe/sphere.py:236",
+   "divergences": {
+    "severity": "C-067=NONE -> merged as MAJOR (highest wins)"
+   }
+  },
+  {
+   "merged_into": "C-023",
+   "absorbed_id": "V-31",
+   "same_locus": "openspec/specs/decompmoe-skeleton/spec.md:367",
+   "divergences": {
+    "verdict_class": "V-31=PARTIALLY_REAL -> merged as STILL_REAL (starkest wins)"
+   }
+  },
+  {
+   "merged_into": "C-042",
+   "absorbed_id": "V-10",
+   "same_locus": "src/decompmoe/sphere.py:222",
+   "divergences": {
+    "classification_hint": "票数平局 {'opsx-change': 1, 'archive-only': 1} -> 按桶定义取 archive-only（未新增判断）"
+   }
+  },
+  {
+   "merged_into": "C-061",
+   "absorbed_id": "V-25",
+   "same_locus": "tests/test_sphere.py:523",
+   "divergences": {
+    "severity": "V-25=MAJOR -> merged as CRITICAL (highest wins)"
+   }
+  },
+  {
+   "group": "lifecycle main45 / B15 回退",
+   "ids": [
+    "O-22",
+    "C-066",
+    "V-15"
+   ],
+   "issue": "O-22 与 C-066 合并为 FIXED_BY_COMMIT；V-15（tests/test_loss.py:166，另一 locus）对同一 finding main45 判 STILL_REAL。extract-o 的 gaps 亦记录报告 §2.2 表格与正文自相矛盾。未合并，两条并存。"
+  },
+  {
+   "group": "a036a15 B14 spec 半边滞留",
+   "ids": [
+    "W41",
+    "O-09"
+   ],
+   "issue": "两者 locus 相同（skeleton spec.md:496）但 verdict 分歧：W41=MOVED、O-09=STILL_REAL。MOVED 意指行号被 33f7cc9 冲掉、STILL_REAL 意指实体缺陷仍在；按「STILL_REAL 最保守」规则合并为 STILL_REAL，分歧记入 conflicts。"
+  },
+  {
+   "group": "arctan 不变式悬空守护 (gap15)",
+   "ids": [
+    "C-023",
+    "V-31"
+   ],
+   "issue": "C-023 判「悬空守护」STILL_REAL，V-31 复验驳回该定性、判 PARTIALLY_REAL（值被隐式锁定，真正问题是 spec 写错守护位置）。按保守规则合并为 STILL_REAL，驳回理由记入 conflicts，未私自裁决。"
+  },
+  {
+   "group": "req-6 凹性断言",
+   "ids": [
+    "C-031",
+    "C-061",
+    "V-26",
+    "V-32"
+   ],
+   "issue": "C-031(CRITICAL) / C-061(CRITICAL) 判凹性伪零点仍被钉死；V-32 记录该断言自报由 CRITICAL 降 MAJOR。四者 locus 分处 spec L98 与 tests L523，未跨 locus 合并；严重度分歧原样保留在各条 severity 字段。"
+  },
+  {
+   "group": "SK 元数据 vs delta 同步 (B14/B15)",
+   "ids": [
+    "O-06",
+    "O-11/W38",
+    "O-22/C-066",
+    "W41/O-09"
+   ],
+   "issue": "fixingCommit 时序与 spec 同步状态在三路之间口径不一（O-22 gaps 指出 LIFECYCLE-01 在报告 §2.2 表格计入 FIXED_BY_COMMIT 而同节正文判 STILL_REAL）。本次不裁决，按各条自身 verdict 保留。"
+  },
+  {
+   "group": "variants / mutation 计数",
+   "ids": [
+    "C-005",
+    "C-043"
+   ],
+   "issue": "location_file+line+title[:20] 三者全同（sphere.py:197 /「canonical_voronoi_an」），机械查表命中重复键，但 origin_ids（C-005=mutate:4/main65/gap18；C-043=D3-05）与 problem 实体不同（前者=纯名字 grep 偶然守卫，后者=精度免责声明挂在错误的界上）。去重规则中的「才」是必要条件而非充分条件，故不判重复，两条并存并在 conflicts 记录。"
+  }
+ ],
+ "dropped": [
+  {
+   "absorbed_id": "O-35",
+   "merged_into": "W24",
+   "kind": "same-entity-same-locus",
+   "locus": "wayfinder/map.md:71"
+  },
+  {
+   "absorbed_id": "O-11",
+   "merged_into": "W38",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/changes/2026-09-29-fix-b13-b16-src-docstring-and-line-ref-drift/tasks.md:1"
+  },
+  {
+   "absorbed_id": "O-33",
+   "merged_into": "W23",
+   "kind": "same-entity-same-locus",
+   "locus": "wayfinder/map.md:49"
+  },
+  {
+   "absorbed_id": "O-34",
+   "merged_into": "W22",
+   "kind": "same-entity-same-locus",
+   "locus": "wayfinder/map.md:54"
+  },
+  {
+   "absorbed_id": "O-30",
+   "merged_into": "W25",
+   "kind": "same-entity-same-locus",
+   "locus": "wayfinder/tickets/A3-2.md:45"
+  },
+  {
+   "absorbed_id": "O-36",
+   "merged_into": "W28",
+   "kind": "same-entity-same-locus",
+   "locus": "wayfinder/tickets/A5-3.md:42"
+  },
+  {
+   "absorbed_id": "O-31",
+   "merged_into": "W27",
+   "kind": "same-entity-same-locus",
+   "locus": "wayfinder/tickets/A6a-2.md:70"
+  },
+  {
+   "absorbed_id": "O-07",
+   "merged_into": "W33",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/proposal.md:66"
+  },
+  {
+   "absorbed_id": "O-16",
+   "merged_into": "W34",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/proposal.md:1"
+  },
+  {
+   "absorbed_id": "O-08",
+   "merged_into": "W40",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/changes/fix-review-findings-voronoi-precision-and-lineage/tasks.md:19"
+  },
+  {
+   "absorbed_id": "O-12",
+   "merged_into": "W35",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/changes/2026-09-26-followup-spec-wording-bugs-after-precision-disclosure/tasks.md:33"
+  },
+  {
+   "absorbed_id": "O-13",
+   "merged_into": "W37",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/changes/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/design.md:120"
+  },
+  {
+   "absorbed_id": "O-14",
+   "merged_into": "W39",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/changes/2026-09-29-fix-b15-test-loss-actual-embedding/tasks.md:1"
+  },
+  {
+   "absorbed_id": "O-27",
+   "merged_into": "W36",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/changes/2026-09-29-fix-b10-b11-b12-test-guard-fidelity/tasks.md:1"
+  },
+  {
+   "absorbed_id": "O-15",
+   "merged_into": "W32",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/changes/archive/2026-09-28-fix-a2-a3-a4-residual-precision-claims/specs/wayfinder/spec.md:58"
+  },
+  {
+   "absorbed_id": "O-32",
+   "merged_into": "W01",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/specs/wayfinder/spec.md:24"
+  },
+  {
+   "absorbed_id": "C-030",
+   "merged_into": "W02",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/specs/wayfinder/spec.md:381"
+  },
+  {
+   "absorbed_id": "C-021",
+   "merged_into": "W05",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/specs/wayfinder/spec.md:251"
+  },
+  {
+   "absorbed_id": "C-018",
+   "merged_into": "W07",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/specs/wayfinder/spec.md:382"
+  },
+  {
+   "absorbed_id": "C-022",
+   "merged_into": "W19",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/specs/wayfinder/spec.md:609"
+  },
+  {
+   "absorbed_id": "O-39",
+   "merged_into": "W10",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/specs/wayfinder/spec.md:414"
+  },
+  {
+   "absorbed_id": "O-38",
+   "merged_into": "W31",
+   "kind": "same-entity-same-locus",
+   "locus": "src/decompmoe/schedule.py:186"
+  },
+  {
+   "absorbed_id": "C-025",
+   "merged_into": "W31",
+   "kind": "same-entity-same-locus",
+   "locus": "src/decompmoe/schedule.py:186"
+  },
+  {
+   "absorbed_id": "C-002",
+   "merged_into": "W11",
+   "kind": "same-entity-same-locus",
+   "locus": "src/decompmoe/metrics.py:73"
+  },
+  {
+   "absorbed_id": "C-068",
+   "merged_into": "O-19",
+   "kind": "same-entity-same-locus",
+   "locus": "tests/test_loss.py:1"
+  },
+  {
+   "absorbed_id": "C-066",
+   "merged_into": "O-22",
+   "kind": "same-entity-same-locus",
+   "locus": "tests/test_loss.py:177"
+  },
+  {
+   "absorbed_id": "V-21",
+   "merged_into": "C-001",
+   "kind": "same-entity-same-locus",
+   "locus": "src/decompmoe/distance.py:0"
+  },
+  {
+   "absorbed_id": "V-22",
+   "merged_into": "C-013",
+   "kind": "same-entity-same-locus",
+   "locus": "tests/test_sphere.py:61"
+  },
+  {
+   "absorbed_id": "V-25",
+   "merged_into": "C-062",
+   "kind": "same-entity-same-locus",
+   "locus": "tests/test_sphere.py:523"
+  },
+  {
+   "absorbed_id": "C-062",
+   "merged_into": "C-061",
+   "kind": "same-entity-same-locus",
+   "locus": "tests/test_sphere.py:523"
+  },
+  {
+   "absorbed_id": "C-044",
+   "merged_into": "C-034",
+   "kind": "same-entity-same-locus",
+   "locus": "src/decompmoe/sphere.py:67"
+  },
+  {
+   "absorbed_id": "V-10",
+   "merged_into": "C-042",
+   "kind": "same-entity-same-locus",
+   "locus": "src/decompmoe/sphere.py:220"
+  },
+  {
+   "absorbed_id": "C-067",
+   "merged_into": "O-23",
+   "kind": "same-entity-same-locus",
+   "locus": "src/decompmoe/sphere.py:236"
+  },
+  {
+   "absorbed_id": "C-070",
+   "merged_into": "O-17",
+   "kind": "same-entity-same-locus",
+   "locus": "scripts/lint_no_source_field_drift.py:104"
+  },
+  {
+   "absorbed_id": "C-071",
+   "merged_into": "O-18",
+   "kind": "same-entity-same-locus",
+   "locus": "scripts/lint_no_source_field_drift.py:75"
+  },
+  {
+   "absorbed_id": "C-029",
+   "merged_into": "O-21",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/specs/governance/spec.md:55"
+  },
+  {
+   "absorbed_id": "O-26",
+   "merged_into": "W43",
+   "kind": "same-entity-same-locus",
+   "locus": ".gitignore:37"
+  },
+  {
+   "absorbed_id": "O-09",
+   "merged_into": "W41",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/specs/decompmoe-skeleton/spec.md:496"
+  },
+  {
+   "absorbed_id": "V-31",
+   "merged_into": "C-023",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/specs/decompmoe-skeleton/spec.md:367"
+  },
+  {
+   "absorbed_id": "V-32",
+   "merged_into": "V-26",
+   "kind": "same-entity-same-locus",
+   "locus": "openspec/specs/decompmoe-skeleton/spec.md:98"
+  },
+  {
+   "absorbed_id": "W30",
+   "merged_into": "C-050",
+   "kind": "same-entity-same-locus",
+   "locus": "src/decompmoe/safeguards.py:166"
+  }
+ ],
+ "rationale": "本阶段为纯组织工作：未重新判断任何 finding 的对错，未重算数学，未复核 pin→HEAD 漂移。\n\n【输入】6 份抽取结果共 234 条（w=44 / o=39 / c=71 / v=40 / p=24 / d=16），字段集一致（12 字段：id/title/location_file/location_line/requirement_ref/problem/evidence_ref/verdict_class/severity/origin_ids/classification_hint/baseline_status），无 suggested_fix 类字段。\n\n【合并】共吸收 41 条，输出 193 条。合并只发生在「同一实体 + 同一 location_file（必要时同一行）」时才做：跨路抽取到同一 finding 的两路记录（如 W24/O-35 的 map.md 计数、W38/O-11 的 b13-b16 未归档、W01/O-32 的 territory_collapse、C-001/V-21 的 logit 零守卫、C-013/V-22 的纯名字 grep、C-061/C-062/V-25 的凸性边界测试）并为一条，origin_ids 取并集。同实体但位置不同的记录一律不合并（例：C-005 与 C-043 同在 sphere.py:197 但实体不同，O-22/C-066 与 V-15 同指 main45 但行号 177 vs 166），以免丢掉独立的 file:line 锚点。\n\n【去重】按 location_file + location_line + title 前 20 字三键全同才判重复。机械查表命中 3 组：2 组（W24/O-35、W38/O-11）三键全同且确为同一实体，已并入 merged；1 组（C-005/C-043）虽三键全同但 origin_ids 与 problem 实体不同，按「才判为重复」的必要条件口径不判重复，两条并存并记入 conflicts。因此 dropped_as_duplicate 计 0，41 条被吸收的记录全部计入 merged。\n\n【verdict_class 取舍】按最保守一档：NEVER_EXISTED 最宽松、STILL_REAL 最保守，排序 NEVER_EXISTED < UNVERIFIABLE < FIXED_BY_COMMIT < MOVED < PARTIALLY_REAL < STILL_REAL。severity 取最高档。凡合并后与某成员不一致的，逐条写入 conflicts（含 member 原值与合并后取值），不私自裁决。\n\n【分桶】只依据条目自身字段，不新增判断。判定顺序：\n  1) verdict_class ∈ {NEVER_EXISTED, UNVERIFIABLE} → archive-only（真误报/弃权，只存档）；\n  2) 否则按 classification_hint 落桶（opsx-change / direct-fix / user-decision / archive-only）。\nhint 票数平局的 11 条按任务给出的桶定义逐条裁定，全部记入 conflicts 并注明依据：凡涉及 spec/governance spec/ticket annotation/change 制品/archive 流程/门禁脚本的取 opsx-change；凡只涉及 tests 断言、src docstring、工作树垃圾的取 direct-fix。\n\n【桶内容量】opsx-change 102（{'CRITICAL': 6, 'MAJOR': 30, 'MEDIUM': 23, 'MINOR': 43}）、direct-fix 9（{'MAJOR': 1, 'MEDIUM': 4, 'MINOR': 4}）、user-decision 6（{'MAJOR': 4, 'MINOR': 2}）、archive-only 76（{'CRITICAL': 2, 'MAJOR': 14, 'MEDIUM': 9, 'MINOR': 14, 'NONE': 37}）。opsx-change 偏大是上游 hint 的既有分布（6 份抽取里 137 条 hint=opsx-change），本阶段未改写任何 hint。\n\n【未展开的已知张力，留给下一阶段裁决，本阶段不处理】\n  - O-22/C-066（FIXED_BY_COMMIT）与 V-15（STILL_REAL）对 main45 的判定冲突，extract-o 的 gaps 已记录报告 §2.2 表格与正文自相矛盾；本阶段未合并、未裁决。\n  - C-023（STILL_REAL「悬空守护」）与 V-31（PARTIALLY_REAL「定性被驳回」）对 gap15 分歧，按保守规则合为 STILL_REAL，驳回理由原样留在 conflicts。\n  - C-031/C-061（CRITICAL）与 V-32（自报由 CRITICAL 降 MAJOR）严重度分歧原样保留在各条 severity。\n  - P 路 16 条的 212/211/213 pass 计数口径、cache 142/143/99 三方不一致（V-24/P-21/P-14/P-37）属同一账目问题的四个视角，未合并。\n\n【硬性禁令遵守】本文件无 suggested_fix / fix / solution 类字段；problem 字段原样搬运，未追加任何修法；无三反引号代码块；UTF-8 无 BOM、LF 换行、非 ASCII 未转义。"
+}

@@ -1,0 +1,5 @@
+Inserted-only reading: rows that WOULD change if a pure-insertion hunk counted as `touched-since-pin`.
+
+NOT written into the lists this round -- the audit decided not to redefine the 口径. Recorded for the next round's decision.
+
+(none)
