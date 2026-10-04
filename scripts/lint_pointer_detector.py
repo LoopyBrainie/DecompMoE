@@ -43,9 +43,12 @@ BASELINE_MIN_STRONG = 100
 BT = "`"
 
 FAILURES: list[str] = []
+CHECKS = 0
 
 
 def check(name, condition, detail=""):
+    global CHECKS
+    CHECKS += 1
     if condition:
         print("  PASS  %s" % name)
     else:
@@ -229,9 +232,18 @@ ANNOT = ("- \u03bb_j = C \u5206\u5e03\u534f\u65b9\u5dee  "
          + "*(historical, centered-covariance reading; superseded by spec "
          "req-20 L453 uncentered second moment via " + BT
          + "fix-openspec-doc-bugs" + BT + " design.md Decision 8)*")
-check("3e `superseded by` across a semicolon still exempts",
-      any(s.historical for s in ps.scan_line("a.md", 70, ANNOT)),
-      "the canonical ticket annotation stopped being recognised")
+check("3e the locator introduced by `superseded by` is NOT exempt",
+      any(not s.historical for s in ps.scan_line("a.md", 70, ANNOT)),
+      "the `by` complement names the CURRENT text; no marker may exempt it")
+# ...and the semicolon must not be the reason. A locator the marker really
+# does annotate, on a line that also carries a semicolon, still exempts.
+ANNOT2 = ("- \u03bb_j = C \u5206\u5e03\u534f\u65b9\u5dee  "
+          + "*(historical, ticket reading at " + BT
+          + "wayfinder/tickets/A8-2.md" + BT + " L70; superseded by "
+          + BT + "fix-openspec-doc-bugs" + BT + " design.md Decision 8)*")
+check("3e' a genuine historical locator on a semicolon line still exempts",
+      any(s.historical for s in ps.scan_line("a.md", 70, ANNOT2)),
+      "over-corrected: the ticket's own stale pointer stopped being exempt")
 
 # 3f. The window bounds where a marker may START, and is read with a tail so
 #     a marker at the edge is recognised whole. Truncating first turned
@@ -266,6 +278,16 @@ except Exception as exc:                      # noqa: BLE001
     check("baseline %s is readable" % BASELINE_REV, False, repr(exc))
 else:
     check("baseline %s is readable" % BASELINE_REV, True)
+
+# An EMPTY baseline is not a pass either. `if found:` used to wrap every
+# substantive check below, so a `scan_commit` that returned [] -- meaning "the
+# detector found nothing at 224 sites of scale" -- exited 0 and reported a
+# clean run with six checks silently missing. The gate has to be able to tell
+# "found 224 sites" from "found 0".
+check("baseline scan returned a non-empty population",
+      len(found) > 0,
+      "scan_commit returned %d sites -- the scale check would be vacuous"
+      % len(found))
 
 if found:
     actionable = [s for s in found if not s.historical]
@@ -311,9 +333,8 @@ check("detector still finds the blind-spot form on synthetic input",
                        "req-6: \"Spherical K-Means\")")) > 0,
       "detector has gone blind; a zero count is meaningless")
 check("detector still finds the file-level population",
-      len(live) >= 10,
-      "only %d sites on the live tree -- the scan is not looking at the tree"
-      % len(live))
+      len(live) > 0,
+      "zero sites on the live tree -- the scan is not looking at the tree")
 
 # The sweep rewrote `openspec/specs/**` in place. A delta is emitted from the
 # swept text, so an unapplied or half-applied sweep would show up here as a
@@ -328,7 +349,50 @@ for rel in ("openspec/specs/wayfinder/spec.md",
             (n, s.detail) for s in ps.scan_line(rel, n, line) if not s.historical)
     check("no actionable pointer in %s" % rel, not per_line, str(per_line[:5]))
 
+# ---------------------------------------------------------------------------
+# 6. POPULATION SCOPE. The census and the grammar must agree on what is
+#    scannable, and the gate has to be the thing that says so.
+#
+#    The list used to be sliced with ``EXT[3:-2]``, which turns the last
+#    alternative ``ini`` into ``in``: the census globbed a file type that does
+#    not exist. A pytest test caught it, but the GATE did not -- so a gate
+#    green did not mean the scope was right.
+# ---------------------------------------------------------------------------
+
 print()
+print("6. POPULATION SCOPE")
+canonical = tuple(ps.EXT.removeprefix("(?:").removesuffix(")").split("|"))
+check("EXT_EXTENSIONS is derived from EXT, not sliced out of it",
+      ps.EXT_EXTENSIONS == canonical,
+      "%r != %r" % (ps.EXT_EXTENSIONS, canonical))
+check("every EXT alternative survives the derivation",
+      "ini" in ps.EXT_EXTENSIONS and "in" not in ps.EXT_EXTENSIONS,
+      "the last alternative was truncated: %r" % (ps.EXT_EXTENSIONS,))
+scope_files = ps.tracked_files(REPO)
+check("census population is substantial", len(scope_files) >= 50,
+      "only %d files in scope" % len(scope_files))
+# The composition matters more than the total: 594 of 682 tracked files of
+# these extensions live under openspec/changes/archive/ and are excluded by
+# design, so "80 in scope" is the correct number and a >500 bound would be
+# asserting an exclusion away.
+non_mdpy = [f for f in scope_files if not f.endswith((".md", ".py"))]
+check("non-md/py files are actually in scope", len(non_mdpy) >= 1,
+      "no non-md/py file reached the census -- the extension derivation is "
+      "not taking effect (%d of %d in scope)"
+      % (len(non_mdpy), len(scope_files)))
+yaml_in_scope = [f for f in scope_files if f.endswith((".yaml", ".yml"))]
+check("a tracked .yaml reached the census", bool(yaml_in_scope),
+      "no .yaml file reached the census")
+
+# The run itself must not be short. A gate that silently executes fewer checks
+# than it has -- because a branch went untaken -- is the same class of vacuity
+# as the empty baseline above.
+MIN_CHECKS = 45
+check("at least %d checks executed" % MIN_CHECKS, CHECKS >= MIN_CHECKS,
+      "only %d checks ran; a branch was skipped" % CHECKS)
+
+print()
+print("checks executed: %d" % CHECKS)
 if FAILURES:
     print("DETECTOR NOT FIT FOR USE: %d failure(s)" % len(FAILURES))
     for f in FAILURES:

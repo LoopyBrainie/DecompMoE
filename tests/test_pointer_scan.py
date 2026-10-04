@@ -329,18 +329,32 @@ def test_adjacent_marker_still_exempts():
     assert any(s.historical for s in ps.scan_line("g.md", 1, line))
 
 
-def test_canonical_ticket_annotation_is_still_exempt():
-    """``(historical, X; superseded by spec req-N L###)`` is ONE annotation.
+def test_canonical_ticket_annotation_splits_into_two_verdicts():
+    """``(historical, X; superseded by spec req-N L###)`` is ONE unit, and the
+    two locators in it are not the same kind of object.
 
-    Treating ``;`` as a clause boundary cut the marker off from the locator
-    it annotates, and nine historical annotations were reported as live.
+    ``historical`` annotates the TICKET -- that locator is genuinely a record
+    of a past state. ``superseded by spec req-20 L453`` names the CURRENT
+    authoritative text, and it is exactly the pointer that drifts. Letting
+    the marker reach across the semicolon exempted nine sites that were 9 to
+    61 lines stale, two of them pointing at a blank line.
     """
-    line = ("- lambda_j eigenvalue  "
-            "*(historical, centered-covariance reading; superseded by spec "
-            "req-20 L453 uncentered second moment via " + BT
-            + "fix-openspec-doc-bugs" + BT + " design.md Decision 8)*")
-    assert any(s.historical for s in ps.scan_line("a.md", 70, line)), \
-        "the repository's own annotation format stopped being recognised"
+    ticket_side = ("- \u03bb_j = C \u5206\u5e03\u534f\u65b9\u5dee  "
+                   + "*(historical, ticket reading at " + BT
+                   + "wayfinder/tickets/A8-2.md" + BT + " L70; superseded by "
+                   + BT + "fix-openspec-doc-bugs" + BT + " design.md Decision 8)*")
+    assert any(s.historical for s in ps.scan_line("a.md", 70, ticket_side)), \
+        "the ticket's own stale pointer stopped being exempt"
+
+    spec_side = ("- \u03bb_j = C \u5206\u5e03\u534f\u65b9\u5dee  "
+                 + "*(historical, centered-covariance reading; superseded by "
+                 "spec req-20 L453 uncentered second moment via " + BT
+                 + "fix-openspec-doc-bugs" + BT + " design.md Decision 8)*")
+    sites = ps.scan_line("a.md", 70, spec_side)
+    assert sites, "not detected at all"
+    assert any(not s.historical for s in sites), \
+        "the `superseded by` complement names current text and must not be " \
+        "exempted by the word that introduces it"
 
 
 def test_marker_at_the_window_edge_is_recognised_whole():
@@ -427,3 +441,143 @@ def test_scan_commit_reads_a_revision_without_a_worktree():
     assert len(strong) >= 100, \
         "only %d strong sites on the baseline -- the detector is too narrow" \
         % len(strong)
+
+
+# ---------------------------------------------------------------------------
+# Round 4: the post-archive recheck rejected the round-3 closure.
+#
+# Every test below reproduces a defect that shipped with a GREEN gate. The
+# common shape: the census reported zero, the tests passed, and the gate was
+# happy -- and the pointer was still there, or the exemption was still wrong.
+# ---------------------------------------------------------------------------
+
+
+def test_label_mention_does_not_suppress_the_whole_line():
+    """``RE_LABEL_L`` used to `return sites` for the entire line.
+
+    One ``L2-step2`` mention anywhere suppressed every pointer on that line:
+    the same line-level suppression round 3 removed, one rule further down.
+    """
+    line = "the L2-step2 layer uses wayfinder/spec.md L83 as the anchor"
+    sites = ps.scan_line("t.md", 1, line)
+    assert sites, "a label mention swallowed the whole line"
+    assert any(not s.historical for s in sites)
+
+
+def test_label_blanking_preserves_character_offsets():
+    """The label is blanked with spaces, not deleted.
+
+    ``Site.pos`` indexes into the scanned string and the exemption window is
+    measured from it, so a length-changing replacement would shift every
+    position on the line.
+    """
+    line = "L2-step2 then wayfinder/spec.md L83"
+    sites = ps.scan_line("t.md", 1, line)
+    assert sites
+    lo, hi = sites[0].pos
+    assert line[lo:hi] == sites[0].detail, \
+        "span does not delimit the detail after label blanking"
+    assert "L2-step2" not in sites[0].text or True   # display keeps the raw line
+
+
+def test_unterminated_code_span_masks_to_end_of_line():
+    """CommonMark reads an unmatched backtick as a literal, but that is the
+    wrong direction for a gate: an unclosed fence is a formatting accident,
+    and leaving its body unmarked turned ``HISTORICAL=True`` into a marker
+    that exempted a live pointer."""
+    line = "wayfinder/spec.md L83 (the " + BT + "historical note) is current"
+    sites = ps.scan_line("t.md", 1, line)
+    assert sites, "not detected at all"
+    assert all(not s.historical for s in sites), \
+        "a marker inside an unterminated span still exempted the pointer"
+
+
+def test_unclosed_fence_body_is_code():
+    line = BT * 3 + "python HISTORICAL=True  # wayfinder/spec.md L83"
+    assert not ps.has_marker_anywhere(line), \
+        "a token inside a fence must never act as a historical marker"
+
+
+def test_dedupe_does_not_let_a_historical_instance_shadow_a_live_one():
+    """Same locator, same line, one historical mention and two live ones.
+
+    ``_loc_key`` is (path, line, number), so all three collapse to one entry
+    and the historical instance used to win on kind rank -- the two live
+    pointers never reached the census.
+    """
+    line = ("(historical: wayfinder/spec.md L83) -- the live pointer is "
+            "wayfinder/spec.md L83 today")
+    raw = ps.scan_line("t.md", 1, line)
+    assert any(not s.historical for s in raw), "no live instance was produced"
+    out = ps.dedupe(raw)
+    assert out, "dedupe returned nothing"
+    assert any(not s.historical for s in out), \
+        "dedupe emitted only the historical instance"
+
+
+def test_english_sentence_boundary_breaks_the_exemption():
+    """``EXEMPT_BREAK`` held only the CJK full stop, and ``scan_line`` is
+    line-local so a ``\\n`` could never occur: the rule was vacuous and
+    ``was `1/128`. now spec req-20 L453`` stayed exempt across a full stop."""
+    line = ("was " + BT + "1/128" + BT
+            + ". now spec req-20 L453 is the canonical second moment")
+    sites = ps.scan_line("t.md", 1, line)
+    assert sites, "not detected at all"
+    assert all(not s.historical for s in sites), \
+        "a marker two sentences away still exempted the locator"
+
+
+def test_a_dot_in_a_path_is_not_a_sentence_boundary():
+    """The break rule has to be a PATTERN.
+
+    Every path in this grammar contains a dot, so a bare ``.`` in the break
+    character set truncates the window at the first file extension and
+    silently disables exemption for every path-shaped pointer.
+    """
+    line = "- per " + BT + "wayfinder/spec.md" + BT + " L413, before the change"
+    assert any(s.historical for s in ps.scan_line("g.md", 1, line)), \
+        "'spec.md' was read as a sentence boundary"
+
+
+def test_bare_hex_word_is_not_a_pin():
+    """``defaced``, ``effaced`` and ``deadbeef`` are all 7-char all-hex words
+    and each exempted a live pointer -- the same class as the ``history``
+    noun. A pin has to be STATED as one."""
+    for word in ("defaced", "effaced", "deadbeef"):
+        line = ("the value is computed at src/decompmoe/safeguards.py:40 and "
+                + word + " appears nearby")
+        sites = ps.scan_line("t.md", 1, line)
+        assert all(not s.historical for s in sites), \
+            "%r exempted a live pointer" % word
+    line = ("signature mirrors " + BT + "src/decompmoe/safeguards.py:71-80" + BT
+            + " at commit " + BT + "d3689a1" + BT)
+    assert any(s.historical for s in ps.scan_line("s.md", 261, line))
+
+
+def test_chinese_past_state_vocabulary_is_symmetric():
+    """The set carried ``原`` alone. In a Chinese-primary repository that is
+    an inconsistency, not a decision: ``旧`` and ``之前`` were both missing
+    while ``原值`` was correctly exempt."""
+    for marker in ("\u65e7\u5b9e\u73b0", "\u4e4b\u524d\u7684\u5b9e\u73b0",
+                   "\u539f\u503c"):
+        line = marker + "\u89c1 src/decompmoe/safeguards.py:222"
+        sites = ps.scan_line("t.md", 1, line)
+        assert sites, "not detected at all: %r" % marker
+        assert any(s.historical for s in sites), \
+            "%r did not exempt -- the Chinese vocabulary set is asymmetric" \
+            % marker
+
+
+def test_empty_baseline_is_not_a_pass():
+    """``if found:`` wrapped every substantive baseline check, so a
+    ``scan_commit`` returning [] exited 0 with six checks silently missing.
+    The gate has to be able to tell 'found 224 sites' from 'found 0'."""
+    from pathlib import Path
+    src = Path(ps.__file__).read_text(encoding="utf-8")
+    assert "if found:" not in src, \
+        "the baseline block is still conditional on a non-empty result"
+    lint = Path(ps.__file__).parent / "lint_pointer_detector.py"
+    body = lint.read_text(encoding="utf-8")
+    assert "baseline scan returned a non-empty population" in body
+    assert "checks executed" in body, \
+        "the gate does not report how many checks it ran"

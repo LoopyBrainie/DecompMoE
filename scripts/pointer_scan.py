@@ -224,16 +224,27 @@ HISTORICAL_MARKERS = (
     re.compile(r"\bsupersed(?:e|ed|ing)\b", re.IGNORECASE),
     re.compile(r"\bformer(?:ly)?\b", re.IGNORECASE),
     re.compile(r"\boriginal(?:ly)?\b", re.IGNORECASE),
-    re.compile(r"\u539f", re.IGNORECASE),          # 原
+    re.compile(r"\bno\s+longer\b", re.IGNORECASE),
+    re.compile(r"\bdeprecated\b", re.IGNORECASE),
+    re.compile(r"\bobsolete\b", re.IGNORECASE),
+    # Chinese past-state vocabulary. The set carried ``原`` alone, which is an
+    # inconsistency rather than a decision in a Chinese-primary repository:
+    # ``旧实现见 x.py:222`` and ``之前的实现在 x.py:222`` were both reported
+    # as live pointers while ``原值见 x.py:222`` was correctly exempt.
+    re.compile(r"[\u539f\u65e7]"),                       # 原 旧
+    re.compile(r"\u4e4b\u524d"),                        # 之前
+    re.compile(r"\u66fe(?:\u7ecf|\u4e3a)"),              # 曾 / 曾经 / 曾为
+    re.compile(r"\u5f53\u65f6"),                        # 当时
+    re.compile(r"\u5f53\u65f6\u4e3a"),                  # 当时为
     re.compile(r"\bwas\s+(?=[`\"'(])", re.IGNORECASE),
     re.compile(r"\bbefore\b", re.IGNORECASE),
-    # A pin commit id. It MUST contain at least one hex LETTER, otherwise a
-    # plain decimal number is accepted: the earlier ``[0-9a-f]{7,40}`` matched
-    # the tail of the float ``0.0350601609682665718`` and silently exempted
-    # four LOOPS.md log entries.
-    re.compile(r"\b(?=[0-9a-f]{7,40}\b)(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}\b",
-               re.IGNORECASE),
 )
+
+#: A bare 7-40 character all-``[0-9a-f]`` word is NOT a marker. Requiring a hex
+#: LETTER kept a decimal float out -- the tail of ``0.0350601609682665718``
+#: is legal hex -- but it still accepted ``defaced``, ``effaced`` and
+#: ``deadbeef``, which exempted live pointers. A pin has to be STATED as one;
+#: that is what :data:`RE_PIN_COMMIT` requires, and nothing else needs this.
 
 #: A pin commit is a STRUCTURED token, not prose. ``at commit `d3689a1``` is
 #: an explicit statement that the locator is read at that revision, and the
@@ -244,6 +255,21 @@ RE_PIN_COMMIT = re.compile(
     r"\bcommit\s+`?(?=[0-9a-f]{7,40}\b)(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}`?",
     re.IGNORECASE,
 )
+
+#: ``superseded by X`` -- X is the NEW authoritative text, so the word that
+#: introduces it must not exempt it. This is the repository's own canonical
+#: annotation:
+#:
+#:     *(historical, centered-covariance reading; superseded by spec
+#:       req-20 L453 uncentered second moment)*
+#:
+#: Here ``historical`` annotates the TICKET. ``req-20 L453`` names the spec,
+#: and it is exactly the pointer that drifts. Letting the marker reach it
+#: exempted nine sites that were 9 to 61 lines stale, two of them pointing at
+#: a blank line -- the sweep replaced fourteen UNMARKED pointers and left
+#: these, because the marker had already claimed them. A locator introduced by
+#: ``superseded by`` is a statement about the present, not the past.
+RE_SUPERSEDE_LEAD = re.compile(r"\bsupersed\w*\s+by\b", re.IGNORECASE)
 
 
 @dataclass
@@ -279,11 +305,22 @@ EXEMPT_WINDOW = 40
 #:
 #: ``;`` is deliberately NOT a break. The repository's canonical annotation
 #: ``(historical, <value>; superseded by spec req-N L###)`` is ONE unit split
+#: Sentence boundaries. ``;`` is deliberately NOT one -- the repository's
+#: canonical annotation
+#: ``(historical, <value>; superseded by spec req-N L###)`` is ONE unit split
 #: by a semicolon, and breaking there cut the marker off from the very
-#: locator it is there to annotate -- nine genuine historical annotations were
-#: reported as live pointers. Distance alone carries the separation; the
-#: semicolon is not a clause boundary in this grammar.
-EXEMPT_BREAK = "。\n"
+#: locator it is there to annotate.
+#:
+#: English terminators ARE included. The earlier value held only the CJK
+#: full stop, and since ``scan_line`` is line-local a ``\n`` can never occur,
+#: so the break rule was vacuous: ``was `1/128`. now spec-20 L453`` kept its
+#: exemption across a full stop.
+#:
+#: It has to be a PATTERN, not a character set. Every path in this grammar
+#: contains a dot -- ``safeguards.py:40``, ``1.128`` -- so a bare ``.`` in the
+#: break set truncates the window at the first file extension it meets and
+#: silently disables exemption for every path-shaped pointer.
+RE_EXEMPT_BREAK = re.compile(r"[。！？]|[.!?](?=\s|$)")
 
 #: Characters read PAST the window so a marker at the very edge is recognised
 #: whole instead of sliced. The window still bounds where a marker may start.
@@ -300,6 +337,12 @@ def code_span_mask(text: str):
     twice over: a DOUBLE-backtick span contributes four backticks, so its
     contents were reported as being OUTSIDE a code span, and even for a single
     backtick only the delimiters were ever marked, never the text between.
+
+    An UNTERMINATED run marks to the end of the line. CommonMark treats an
+    unmatched backtick as a literal, which is the stricter reading but the
+    wrong direction for a gate: an unclosed fence is a formatting accident,
+    and leaving its body unmarked let a word like ``HISTORICAL=True`` inside a
+    Python fence act as a historical marker and exempt a live pointer.
 
     Both errors point the same way -- a token in backticks is a quotation, not
     a claim about the line, and must not act as a historical marker. That is
@@ -330,7 +373,7 @@ def code_span_mask(text: str):
                     k = m
                 else:
                     k += 1
-            end = close if close >= 0 else j
+            end = close if close >= 0 else len(text)
             for q in range(i, end):
                 mask[q] = 1
             i = end
@@ -361,7 +404,7 @@ def has_marker_anywhere(text: str) -> bool:
         for m in rx.finditer(text):
             if not mask[m.start()]:
                 return True
-    return False
+    return bool(RE_PIN_COMMIT.search(text))
 
 
 def _exempt(text: str, start: int, end: int):
@@ -384,23 +427,52 @@ def _exempt(text: str, start: int, end: int):
     lo = max(0, start - EXEMPT_WINDOW)
     hi = min(len(text), end + EXEMPT_WINDOW)
     raw = text[lo:hi]
-    first_break = min(
-        (i for i, c in enumerate(raw) if c in EXEMPT_BREAK),
-        default=len(raw),
-    )
-    window = text[lo: lo + first_break + MARKER_TAIL]
+    # A sentence break matters only when it falls BETWEEN the marker and the
+    # locator. Keeping the whole window and cutting it at the first break kept
+    # the half in front of the break -- which is where the marker was -- so
+    # `was `1/128`. now spec req-20 L453` stayed exempt across a full stop.
+    # Keep the stretch that actually CONTAINS the locator.
+    left = 0
+    for brk in RE_EXEMPT_BREAK.finditer(raw):
+        if brk.end() <= start - lo:
+            left = brk.end()
+        elif brk.start() >= end - lo:
+            break
+    right = len(raw)
+    for brk in RE_EXEMPT_BREAK.finditer(raw):
+        if brk.start() >= end - lo:
+            right = brk.start()
+            break
+    window = text[lo + left: lo + right + MARKER_TAIL]
     mask = code_span_mask(text)
 
     def _admissible(abs_start: int) -> bool:
         return start - EXEMPT_WINDOW <= abs_start <= end + EXEMPT_WINDOW
 
+    def _in_supersede_complement() -> bool:
+        """True when this locator is the text introduced by ``superseded by``.
+
+        The complement of ``superseded by`` is the superseding text, i.e. the
+        present. A pointer that sits there is a statement about the current
+        spec and no marker on the line may exempt it.
+        """
+        for lead in RE_SUPERSEDE_LEAD.finditer(text, lo, end + MARKER_TAIL):
+            if lead.end() <= start:
+                return True            # the locator IS what `by` introduces
+        return False
+
+    new_target = _in_supersede_complement()
+
     m = RE_PIN_COMMIT.search(window)
     if m and _admissible(lo + m.start()):
         return m.group(0)
+    if new_target:
+        return ""
     for rx in HISTORICAL_MARKERS:
         for m in rx.finditer(window):
-            if not mask[lo + m.start()] and _admissible(lo + m.start()):
-                return m.group(0)
+            if mask[lo + m.start()] or not _admissible(lo + m.start()):
+                continue
+            return m.group(0)
     return ""
 
 
@@ -411,8 +483,16 @@ def _bridge_ok(text: str, ref_end: int, loc_start: int) -> bool:
 def scan_line(rel: str, lineno: int, line: str):
     """Return every pointer site on one line."""
     sites = []
+    display = line
     if RE_LABEL_L.search(line):
-        return sites  # L2-step2 style label, not a locator
+        # Blank out the LABEL tokens, not the whole line. Returning early
+        # meant that one `L2-step2` mention anywhere on a line suppressed
+        # every pointer on it -- the same line-level suppression this change
+        # exists to remove, one rule further down. The replacement is
+        # space-padded so every character offset is preserved: `Site.pos`
+        # indexes into this string and the exemption window is measured
+        # from it.
+        line = RE_LABEL_L.sub(lambda m: " " * len(m.group(0)), line)
 
     # -- self-carrying forms: no adjacency search needed -------------------
     for rx, kind in (
@@ -429,7 +509,7 @@ def scan_line(rel: str, lineno: int, line: str):
             if rx is RE_PATH_L and m.group("loc2"):
                 detail = m.group(0)[: m.start("dash") - m.start(0)].strip() + " ..."
             sites.append(
-                Site(rel, lineno, kind, detail, line.strip(), (m.start(), m.end()))
+                Site(rel, lineno, kind, detail, display.strip(), (m.start(), m.end()))
             )
 
     # -- antecedent form: a bare ``:100-101`` whose path was named earlier in
@@ -448,7 +528,7 @@ def scan_line(rel: str, lineno: int, line: str):
                 continue
             sites.append(
                 Site(rel, lineno, "antecedent-colon-line",
-                     m.group(0).strip(), line.strip(), (m.start(), m.end()))
+                     m.group(0).strip(), display.strip(), (m.start(), m.end()))
             )
 
     # -- bare capability word + locator: adjacency REQUIRED ---------------
@@ -459,7 +539,7 @@ def scan_line(rel: str, lineno: int, line: str):
                 continue
             detail = line[cm.start(): lm.end()].strip()
             sites.append(
-                Site(rel, lineno, "capability-L", detail, line.strip(),
+                Site(rel, lineno, "capability-L", detail, display.strip(),
                      (cm.start(), lm.end()))
             )
             break  # one site per capability word is enough
@@ -476,7 +556,7 @@ def scan_line(rel: str, lineno: int, line: str):
                 end = lm.end() + cm.end()
                 detail = line[lm.start(): end].strip()
                 sites.append(
-                    Site(rel, lineno, "L-then-capability", detail, line.strip(),
+                    Site(rel, lineno, "L-then-capability", detail, display.strip(),
                          (lm.start(), end))
                 )
                 break
@@ -486,7 +566,7 @@ def scan_line(rel: str, lineno: int, line: str):
         for m in RE_WORD_LINE.finditer(line):
             sites.append(
                 Site(rel, lineno, "word-line", m.group(0).strip(),
-                     line.strip(), (m.start(), m.end()), weak=True)
+                     display.strip(), (m.start(), m.end()), weak=True)
             )
 
     for s in sites:
@@ -567,14 +647,25 @@ def dedupe(sites):
     """
     best: dict = {}
     counts: dict = {}
+    live: dict = {}
     for s in sites:
         k = _loc_key(s)
         counts[k] = counts.get(k, 0) + 1
+        live[k] = live.get(k, False) or not s.historical
         cur = best.get(k)
         if cur is None or _KIND_RANK.get(s.kind, 9) < _KIND_RANK.get(cur.kind, 9):
             best[k] = s
     for k, s in best.items():
         s.merged = counts[k]
+        # A LIVE instance of the locator must never be shadowed by a
+        # historical one of the same locator on the same line:
+        # ``(historical: spec.md L83) -- but spec.md L83 is current`` used to
+        # emit only the historical site, and the two live ones vanished from
+        # the census. One locator, one verdict: if any mention of it is live,
+        # it is reported.
+        if live[k] and s.historical:
+            s.historical = False
+            s.marker = ""
     return sorted(best.values(), key=lambda s: (s.path, s.line, s.detail))
 
 
