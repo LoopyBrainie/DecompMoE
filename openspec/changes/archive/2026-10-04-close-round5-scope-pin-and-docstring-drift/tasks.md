@@ -38,8 +38,9 @@
 - [x] 6.2 `scripts/lint_pointer_detector.py` → 83 checks, exit 0, `DETECTOR FIT`。
 - [x] 6.3 `scripts/lint_no_line_pointers.py` → exit 0, 35 files, no violations。
 - [x] 6.4 baseline 数字无回归：`1526b98` 仍 224 sites / 209 actionable / 198 strong；活树仍 5 sites / 0 actionable / 5 historical / 3 files。
-- [ ] 6.5 全量 `run_gates.py --change <name>` → GATE OK，pytest 全绿。
-- [ ] 6.6 `openspec validate <change> --strict` 通过。
+- [x] 6.5 全量 `run_gates.py --change <name>` → GATE OK，pytest 全绿。
+      首次在主工作树跑出 `GATE RESULT INVALID`（exit 2，tracked/untracked digest 均 CHANGED）——并行 session 在门禁运行期间改动了 16 个 tracked 文件，其中 7 个在 `PINNED_IN_SCOPE` 内。改在 `git worktree add --detach` 出的静止树上重跑：`head=c7137ef dirty_entries=0` → `GATE OK`，pytest 424 passed / 1 skipped。
+- [x] 6.6 `openspec validate <change> --strict` 通过（需先在 `.openspec.yaml` 声明 `skip_specs: true`，本 change 无 delta）。
 - [ ] 6.7 归档后 `git ls-tree` 对活跃路径返回空。
 
 ## 7. 不做
