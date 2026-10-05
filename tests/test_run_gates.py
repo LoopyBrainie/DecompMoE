@@ -13,6 +13,7 @@ treats that as an anti-pattern — lint infrastructure is not first-party code).
 """
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -210,7 +211,7 @@ def test_gates_exit_2_when_worktree_changes_during_run(monkeypatch, capsys) -> N
 
     monkeypatch.setattr(G, "worktree_snapshot", fake_snapshot)
     monkeypatch.setattr(G, "discover_lints", lambda: [Path("fake_lint.py")])
-    monkeypatch.setattr(G, "_run", lambda cmd: (0, "ok"))
+    monkeypatch.setattr(G, "_run", lambda cmd, env=None: (0, "ok"))
     monkeypatch.setattr(G, "check_anchor_coverage", lambda: [])
 
     rc = G.main(["--skip-pytest"])
@@ -239,7 +240,7 @@ def test_gates_stay_valid_when_only_the_derived_count_moves(monkeypatch, capsys)
 
     monkeypatch.setattr(G, "worktree_snapshot", fake_snapshot)
     monkeypatch.setattr(G, "discover_lints", lambda: [Path("fake_lint.py")])
-    monkeypatch.setattr(G, "_run", lambda cmd: (0, "ok"))
+    monkeypatch.setattr(G, "_run", lambda cmd, env=None: (0, "ok"))
     monkeypatch.setattr(G, "check_anchor_coverage", lambda: [])
 
     rc = G.main(["--skip-pytest"])
@@ -255,7 +256,7 @@ def test_gates_exit_0_on_stable_worktree(monkeypatch, capsys) -> None:
     snap = {"head": "a" * 40, "tracked_digest": "t1", "untracked_digest": "u1", "status_lines": 1}
     monkeypatch.setattr(G, "worktree_snapshot", lambda: dict(snap))
     monkeypatch.setattr(G, "discover_lints", lambda: [Path("fake_lint.py")])
-    monkeypatch.setattr(G, "_run", lambda cmd: (0, "ok"))
+    monkeypatch.setattr(G, "_run", lambda cmd, env=None: (0, "ok"))
     monkeypatch.setattr(G, "check_anchor_coverage", lambda: [])
 
     rc = G.main(["--skip-pytest"])
@@ -310,9 +311,11 @@ def test_change_flag_validates_only_the_named_change(monkeypatch) -> None:
         "head": "a" * 40, "tracked_digest": "t1", "untracked_digest": "u1", "status_lines": 0})
     monkeypatch.setattr(G, "discover_lints", lambda: [])
     recorded: list[list[str]] = []
+    recorded_env: list[dict | None] = []
 
-    def fake_run(cmd: list[str]) -> tuple[int, str]:
+    def fake_run(cmd: list[str], env: dict | None = None) -> tuple[int, str]:
         recorded.append(list(cmd))
+        recorded_env.append(env)
         return 0, "ok"
 
     monkeypatch.setattr(G, "_run", fake_run)
@@ -328,6 +331,18 @@ def test_change_flag_validates_only_the_named_change(monkeypatch) -> None:
         ["openspec", "validate", "my-change", "--type", "change", "--strict"],
     ], f"Unexpected openspec invocations: {openspec_cmds}"
 
+    # The change under the knife must reach the lints as `GATE_CHANGE`, not as a
+    # positional argument: two lints read a positional as a path to scan, so
+    # passing the name positionally would send them looking for a file called
+    # `my-change`. A lint that scopes its own work (req-gov-7's scoping rule)
+    # depends on this arriving.
+    lint_envs = [e for c, e in zip(recorded, recorded_env) if c and c[-1].endswith("fake_lint.py")]
+    assert lint_envs, f"the lint invocation was not recorded: {recorded}"
+    for env in lint_envs:
+        assert env is not None and env.get("GATE_CHANGE") == "my-change", (
+            f"lints must receive GATE_CHANGE in the environment, got {env!r}"
+        )
+
 
 def test_change_flag_absent_runs_no_change_validation(monkeypatch) -> None:
     """Without `--change`, no change-level validation is performed."""
@@ -336,7 +351,7 @@ def test_change_flag_absent_runs_no_change_validation(monkeypatch) -> None:
     monkeypatch.setattr(G, "discover_lints", lambda: [Path("fake_lint.py")])
     recorded: list[list[str]] = []
     monkeypatch.setattr(
-        G, "_run", lambda cmd: (recorded.append(list(cmd)) or (0, "ok"))
+        G, "_run", lambda cmd, env=None: (recorded.append(list(cmd)) or (0, "ok"))
     )
     monkeypatch.setattr(G, "check_anchor_coverage", lambda: [])
 
@@ -389,7 +404,16 @@ def _write_ledger_file(tmp_path: Path, ledger: dict, expect_new: list[str] | Non
     path = tmp_path / "ledger.json"
     path.write_text(
         json.dumps(
-            {"written_at_head": "0" * 40, "expect_new": expect_new or [], "ledger": ledger},
+            {
+                "written_at_head": "0" * 40,
+                # `null` = the content came from the named head. These fixtures are
+                # synthetic baselines, so a clean worktree is what they mean; a
+                # fixture that omits the field entirely is a *legacy* entry and is
+                # covered separately by test_verify_treats_legacy_entry_as_unknown.
+                "worktree_digest": None,
+                "expect_new": expect_new or [],
+                "ledger": ledger,
+            },
             indent=2,
         ),
         encoding="utf-8",
@@ -406,6 +430,7 @@ def _write_ledger_file_named(
         json.dumps(
             {
                 "written_at_head": "0" * 40,
+                "worktree_digest": None,
                 "change": change,
                 "expect_new": expect_new or [],
                 "ledger": ledger,
@@ -554,20 +579,222 @@ def test_removed_anchor_lookup_is_scoped_per_capability(
     )
 
 
-def test_ledger_round_trip_on_live_tree(tmp_path, capsys) -> None:
+def _pretend_clean_worktree(monkeypatch) -> None:
+    """Make the content digests report an empty diff and an empty untracked set.
+
+    Simulates a quiesced worktree without touching the real one. Only the two
+    *content* digests are stubbed — `head` and the porcelain call still come from
+    git, so the rest of the entry is produced exactly as it would be in the field.
+    """
+    monkeypatch.setattr(G, "_tracked_content_digest", lambda: G._EMPTY_SHA256)
+    monkeypatch.setattr(G, "_untracked_content_digest", lambda: G._EMPTY_SHA256)
+
+
+def test_ledger_round_trip_on_clean_live_tree(
+    tmp_path, monkeypatch, capsys
+) -> None:
     """write → verify against the real spec tree must report OK.
 
     Anchors the regression this guards: a ledger that reports drift on a
     healthy tree gets ignored, and then it never catches a real loss.
+
+    The worktree is stubbed clean because that is now the only condition under
+    which this verdict is legal. A ledger written over a dirty worktree records
+    the worktree as its baseline, and a comparison rebuilds the baseline from
+    the head -- so the honest answer there is UNKNOWN, which the companion test
+    below pins. This test keeps the "no spurious drift" guard honest by giving
+    it the case where drift genuinely is knowable.
     """
+    _pretend_clean_worktree(monkeypatch)
     ledger_file = tmp_path / "before.json"
     assert G.main(["anchor-ledger", "--write", str(ledger_file)]) == G.EXIT_OK
     payload = json.loads(ledger_file.read_text(encoding="utf-8"))
     total = sum(len(v) for v in payload["ledger"].values())
     assert total > 0, "Live tree must have anchors"
+    assert payload["worktree_digest"] is None, (
+        f"a quiesced worktree must declare the head as its baseline, "
+        f"actual={payload['worktree_digest']!r}"
+    )
 
     assert G.main(["anchor-ledger", "--verify", str(ledger_file)]) == G.EXIT_OK
     assert "OK" in capsys.readouterr().out
+
+
+def test_ledger_written_on_dirty_worktree_verifies_as_unknown(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    """A worktree-baseline entry cannot yield a pass, only UNKNOWN.
+
+    This is the defect in its original form. The entry names one head and
+    carries another tree's anchors; the comparison rebuilds the baseline from
+    the named head. Reporting OK there would be a verdict drawn from a baseline
+    that was never the one in the file -- and it is how a correct number came to
+    read as a self-contradiction.
+
+    The write MUST still succeed: the archive procedure writes the ledger
+    before the archive runs, with the delta applied but uncommitted, so a dirty
+    worktree is that procedure's normal state.
+    """
+    monkeypatch.setattr(G, "_tracked_content_digest", lambda: "d" * 64)
+    ledger_file = tmp_path / "before.json"
+    rc_write = G.main(["anchor-ledger", "--write", str(ledger_file)])
+    capsys.readouterr()
+
+    assert rc_write == G.EXIT_OK, "a dirty worktree must not block the write"
+    payload = json.loads(ledger_file.read_text(encoding="utf-8"))
+    assert isinstance(payload["worktree_digest"], str)
+    assert payload["worktree_digest"], "dirty worktree must yield a non-empty digest"
+    assert len(payload["worktree_digest"]) == 64, (
+        f"expected a sha256 hex digest, actual={payload['worktree_digest']!r}"
+    )
+    assert payload["ledger"], "the anchors themselves must still be recorded"
+
+    rc = G.main(["anchor-ledger", "--verify", str(ledger_file)])
+    out = capsys.readouterr().out
+    assert rc == G.EXIT_INVALID, out
+    assert rc not in (G.EXIT_OK, G.EXIT_FAIL), out
+    assert "UNKNOWN baseline" in out, out
+    assert "WORKING TREE" in out, out
+
+
+def test_verify_treats_legacy_entry_as_unknown(tmp_path, capsys) -> None:
+    """An entry predating the field cannot report a verdict either.
+
+    Absence of the field is not evidence of a clean worktree -- it is absence of
+    evidence. Reporting OK would read "no rule was violated"; reporting a
+    violation would read "the entry is malformed". Neither is knowable from the
+    file, so neither is reported.
+    """
+    path = tmp_path / "legacy.json"
+    path.write_text(
+        json.dumps(
+            {
+                "written_at_head": "0" * 40,
+                "expect_new": [],
+                "ledger": {"governance": {"req-gov-1": "Something"}},
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    rc = G.main(["anchor-ledger", "--verify", str(path)])
+    out = capsys.readouterr().out
+    assert rc == G.EXIT_INVALID, out
+    assert "predates worktree_digest" in out, out
+
+
+def test_worktree_digest_is_none_only_when_both_content_digests_are_empty() -> None:
+    """The clean/dirty decision is made by the content digests, not by a count.
+
+    `status_lines` is a coarser function of the same porcelain string and is
+    deliberately not a signal (`req-gov-8`). Deciding "is the tree clean" by
+    counting porcelain lines would reintroduce exactly that weaker judgement
+    through the back door, on the field that decides whether a verdict is legal.
+    """
+    empty = {"tracked_digest": G._EMPTY_SHA256, "untracked_digest": G._EMPTY_SHA256}
+    assert G.worktree_digest(empty) is None
+    assert G.worktree_digest({**empty, "tracked_digest": "a" * 64}) is not None
+    assert G.worktree_digest({**empty, "untracked_digest": "b" * 64}) is not None
+    both = {"tracked_digest": "a" * 64, "untracked_digest": "b" * 64}
+    assert G.worktree_digest(both) == G.worktree_digest(dict(both)), (
+        "digest must be a pure function of the two content digests"
+    )
+    assert G.worktree_digest(both) != G.worktree_digest(
+        {"tracked_digest": "a" * 64, "untracked_digest": "c" * 64}
+    ), "digest must distinguish which component moved"
+
+
+def test_status_lines_cannot_decide_the_clean_state() -> None:
+    """A busy-but-unchanged `status_lines` must not flip the verdict.
+
+    Structurally pins the `req-gov-8` rule on the field that gates whether a
+    verdict is legal at all: `worktree_digest` reads only the two content digests,
+    so a `status_lines` value of any shape is inert.
+    """
+    clean = {
+        "tracked_digest": G._EMPTY_SHA256,
+        "untracked_digest": G._EMPTY_SHA256,
+        "status_lines": 999_999,
+    }
+    assert G.worktree_digest(clean) is None, (
+        "status_lines must not participate in the clean/dirty decision"
+    )
+    # A snapshot missing `status_lines` entirely must behave identically.
+    del clean["status_lines"]
+    assert G.worktree_digest(clean) is None
+
+
+def test_empty_sha256_is_the_digest_of_no_input() -> None:
+    """The `null` state rests on this identity, so pin it.
+
+    `_tracked_content_digest` hashes `git diff HEAD` (empty when clean) and
+    `_untracked_content_digest` hashes `"\n".join([])` == `""` when there are no
+    untracked files. Both therefore reduce to `sha256(b"")`. If either stopped
+    doing so, every clean-worktree write would begin recording a digest and
+    `--verify` would return unknown forever — silently, with no test failing
+    until someone tried to use the ledger.
+    """
+    assert G._EMPTY_SHA256 == hashlib.sha256(b"").hexdigest(), (
+        f"actual={G._EMPTY_SHA256!r}"
+    )
+    assert hashlib.sha256("".encode("utf-8")).hexdigest() == G._EMPTY_SHA256
+
+
+@pytest.mark.parametrize("declared", ["", 0, False, [], {}])
+def test_non_string_digest_values_are_unknown_not_pass(
+    tmp_path, capsys, declared
+) -> None:
+    """A field of any other type or an empty string is an unknown baseline.
+
+    The Requirement this change adds enumerates four shapes; this covers the
+    fourth, which the first draft of its table omitted. All of them must fall to
+    *unknown* — a falsy value must not be mistaken for the deliberate `None` that
+    means "content is the committed base".
+
+    (The Requirement is named here as prose rather than as a `req-gov-N` token on
+    purpose: it reaches the live spec only at archive, and C4 of
+    `lint_no_line_pointers` resolves references against the live spec without
+    consulting historical markers, so a token here would be an unresolvable
+    reference until this change is archived.)
+    """
+    path = tmp_path / "ledger.json"
+    path.write_text(
+        json.dumps(
+            {
+                "written_at_head": "0" * 40,
+                "worktree_digest": declared,
+                "expect_new": [],
+                "ledger": {"governance": {"req-gov-1": "Something"}},
+            }
+        ),
+        encoding="utf-8",
+    )
+    rc = G.main(["anchor-ledger", "--verify", str(path)])
+    out = capsys.readouterr().out
+    assert rc == G.EXIT_INVALID, f"{declared!r} -> expected unknown, got {rc}: {out}"
+    assert "UNKNOWN baseline" in out, out
+
+
+def test_written_payload_carries_exactly_the_five_declared_fields(
+    tmp_path, monkeypatch
+) -> None:
+    """The key set is a contract; assert it instead of eyeballing the JSON.
+
+    This was previously a manual check in `tasks.md`. A manual check of a
+    contract that a script is expected to honour is the same class of defect as
+    the baseline-less count: a fact that cannot be re-derived.
+    """
+    _pretend_clean_worktree(monkeypatch)
+    out = tmp_path / "before.json"
+    assert G.main(["anchor-ledger", "--write", str(out)]) == G.EXIT_OK
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert sorted(payload) == [
+        "change",
+        "expect_new",
+        "ledger",
+        "worktree_digest",
+        "written_at_head",
+    ], f"unexpected payload keys: {sorted(payload)}"
 
 
 def test_verify_reports_lost_anchor_by_id_and_title(tmp_path, monkeypatch, capsys) -> None:

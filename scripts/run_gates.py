@@ -30,12 +30,21 @@ Exit codes
 ----------
     0  every gate passed on a stable worktree
     1  at least one gate reported a violation
-    2  the worktree changed *while the gates ran* — the result is UNKNOWN and
-       must not be read as either pass or fail
+    2  the result is UNKNOWN and must not be read as either pass or fail.
+       Two distinct causes, both meaning "cannot tell":
+         - the worktree changed *while the gates ran*; or
+         - `anchor-ledger --verify` was handed an entry whose baseline it
+           cannot rebuild (see `req-gov-12`). The first means the tree moved;
+           the second means the comparison was never possible.
 
 Exit 2 is deliberately distinct from exit 1. "No violations" and "we cannot
 tell" are different claims, and collapsing them is what produced the AC-25
 false green.
+
+Lints are invoked with no positional arguments (several of them would read one
+as a file path). The change under the knife is passed in the environment as
+`GATE_CHANGE` instead, so a lint that scopes its own work can do so without
+every lint having to grow an argument parser.
 """
 
 from __future__ import annotations
@@ -43,6 +52,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -71,8 +81,13 @@ _REQUIREMENT_RE = re.compile(r"^### Requirement: (.+)$")
 # --- process helpers ---------------------------------------------------------
 
 
-def _run(cmd: list[str]) -> tuple[int, str]:
-    """Run `cmd` in the repo root, returning `(returncode, combined output)`."""
+def _run(cmd: list[str], env: dict[str, str] | None = None) -> tuple[int, str]:
+    """Run `cmd` in the repo root, returning `(returncode, combined output)`.
+
+    `env` is an overlay on the current environment, not a replacement, so a
+    caller that passes `GATE_CHANGE` does not accidentally strip `PATH` or
+    `SystemRoot` from the child.
+    """
     proc = subprocess.run(
         cmd,
         cwd=_REPO_ROOT,
@@ -80,6 +95,7 @@ def _run(cmd: list[str]) -> tuple[int, str]:
         text=True,
         encoding="utf-8",
         errors="replace",
+        env=env,
     )
     return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
 
@@ -183,6 +199,39 @@ def worktree_snapshot() -> dict[str, object]:
         "untracked_digest": _untracked_content_digest(),
         "status_lines": len(st.splitlines()),
     }
+
+
+# The digest both `_tracked_content_digest` and `_untracked_content_digest` return
+# when they have nothing to digest: an empty tracked diff, and an empty untracked
+# list. Precomputed so "is the worktree clean?" is answered by comparing the two
+# *content* digests against their own empty values, not by counting porcelain lines.
+_EMPTY_SHA256 = _sha256_bytes(b"")
+
+
+def worktree_digest(snap: dict[str, object]) -> str | None:
+    """Return which tree a snapshot's content came from, or `None` if it is HEAD.
+
+    A ledger entry names the committed base it was written at, but the anchors it
+    records are read off the *working tree*. On a dirty worktree those two are
+    constructionally decoupled — both values are correct, and the entry reads as
+    self-contradictory to anyone who infers the content from the field name. This
+    function is the field that removes the ambiguity: non-`None` means "the content
+    came from the worktree, not from the named base".
+
+    This is a **provenance marker, not a write gate.** The archive procedure writes
+    the ledger *before* the archive runs, at a point where the change's spec delta
+    has been applied but not yet committed, so a dirty worktree is the normal state
+    of that procedure. Refusing the write on dirt would deadlock it. See
+    `req-gov-12` and `design.md` D2.
+    """
+    if (
+        snap["tracked_digest"] == _EMPTY_SHA256
+        and snap["untracked_digest"] == _EMPTY_SHA256
+    ):
+        return None
+    return _sha256_bytes(
+        f"{snap['tracked_digest']}\0{snap['untracked_digest']}".encode("utf-8")
+    )
 
 
 def _snapshot_differs(before: dict[str, object], after: dict[str, object]) -> list[str]:
@@ -436,7 +485,17 @@ def removed_anchors(change_name: str) -> set[str]:
 
 
 def cmd_anchor_ledger(args: argparse.Namespace) -> int:
-    """`anchor-ledger --write` / `--verify`."""
+    """`anchor-ledger --write` / `--verify`.
+
+    `--write` records the anchors plus *which tree they were read from*
+    (`worktree_digest`), so the entry does not read as "these anchors came from
+    the head it names" when they did not.
+
+    `--verify` returns three outcomes, not two: OK, a violation report, or
+    `EXIT_INVALID` when the entry does not declare a baseline a comparison can
+    rebuild. A pass and a "do not know" must never be read as the same thing
+    (`req-gov-8`); this brings that to the ledger layer (`req-gov-12`).
+    """
     if args.write:
         current = anchor_ledger()
         # Explicit `--expect-new` wins; otherwise derive the expectation from the
@@ -444,8 +503,15 @@ def cmd_anchor_ledger(args: argparse.Namespace) -> int:
         expect_new = list(args.expect_new or [])
         if not expect_new and args.change:
             expect_new = declared_added_anchors(args.change)
+        snap = worktree_snapshot()
         payload = {
-            "written_at_head": worktree_snapshot()["head"],
+            "written_at_head": snap["head"],
+            # Which tree `current` actually came from. `null` when the worktree was
+            # clean, so the anchors below are the anchors of `written_at_head`; a
+            # digest when it was not, so a reader (and `anchor-ledger --verify`)
+            # can tell that a HEAD-only comparison is not a valid baseline. Not
+            # named after the head on purpose — see `worktree_digest`.
+            "worktree_digest": worktree_digest(snap),
             "change": args.change,
             "expect_new": sorted(expect_new),
             "ledger": current,
@@ -461,14 +527,58 @@ def cmd_anchor_ledger(args: argparse.Namespace) -> int:
                 json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
             )
         total = sum(len(v) for v in current.values())
+        baseline_kind = "worktree (dirty)" if payload["worktree_digest"] else "HEAD (clean)"
         print(
             f"anchor-ledger: wrote {out} ({total} anchor(s) across "
-            f"{len(current)} capabilit(ies), {len(expect_new)} declared-new)"
+            f"{len(current)} capabilit(ies), {len(expect_new)} declared-new, "
+            f"baseline: {baseline_kind})"
         )
         return EXIT_OK
 
     if args.verify:
         baseline = _load_ledger(Path(args.verify))
+
+        # Three-state baseline gate (req-gov-12). A ledger entry records the tree
+        # its anchors were actually read from, separately from the base it names.
+        # A comparison can only reconstruct a baseline from the *base*, so unless
+        # the entry declares that its content IS the base's content, the honest
+        # answer is "unknown" -- not a pass, and not a violation. Reporting either
+        # of those would be a verdict drawn from a baseline that was never the one
+        # in the file.
+        #
+        # This is the defect that made a correct number look wrong: an entry
+        # recorded at one head while carrying the worktree's anchors, read as
+        # "these anchors came from that head". They did not. Both values were
+        # right; the field name implied a link that did not exist.
+        _MISSING = object()
+        declared_baseline = baseline.get("worktree_digest", _MISSING)
+        if declared_baseline is not _MISSING and declared_baseline is not None:
+            print(
+                f"anchor-ledger: UNKNOWN baseline — {Path(args.verify)} records its "
+                f"anchors as coming from the WORKING TREE at "
+                f"{baseline.get('written_at_head')}, not from that head.\n"
+                f"  A comparison can only rebuild a baseline from the head, so this "
+                f"entry cannot yield a pass or a violation.\n"
+                f"  Re-write the ledger with --write on a quiesced worktree, or verify "
+                f"against the worktree the entry was taken from."
+            )
+            return EXIT_INVALID
+        if declared_baseline is _MISSING:
+            print(
+                f"anchor-ledger: UNKNOWN baseline — {Path(args.verify)} predates "
+                f"worktree_digest, so it does not say which tree its anchors came "
+                f"from.\n"
+                f"  Reporting a pass would read 'no rule was violated'; reporting an "
+                f"anchor-level violation would read 'the entry is malformed'. Neither "
+                f"is knowable, so neither is reported.\n"
+                f"  If this entry lives under openspec/changes/archive/** it is frozen "
+                f"history (req-gov-5) and cannot be re-written — its anchors are "
+                f"verifiable only by re-deriving them from a known commit, which is "
+                f"outside this comparison. If it is an in-flight entry, re-write it "
+                f"with --write to record a declared baseline."
+            )
+            return EXIT_INVALID
+
         before = baseline["ledger"]
         expect_new = set(baseline.get("expect_new") or [])
         after = anchor_ledger()
@@ -582,8 +692,18 @@ def cmd_gates(args: argparse.Namespace) -> int:
     print()
 
     failures: list[str] = []
+    # Lints are invoked bare, with no positional argument: two of them treat a
+    # positional as a path to scan, so handing them the change name would make
+    # them look for a file called `2026-10-04-...`. The change under the knife
+    # travels in the environment instead. A lint that scopes its own work reads
+    # `GATE_CHANGE`; a lint that cannot is unaffected.
+    lint_env = dict(os.environ)
+    if args.change:
+        lint_env["GATE_CHANGE"] = args.change
+    else:
+        lint_env.pop("GATE_CHANGE", None)
     for lint in lints:
-        rc, out = _run([sys.executable, str(lint)])
+        rc, out = _run([sys.executable, str(lint)], env=lint_env)
         name = lint.name
         if rc == 0:
             print(f"  PASS  {name}")
