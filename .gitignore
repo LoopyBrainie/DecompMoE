@@ -39,6 +39,20 @@ htmlcov/
 # Sphinx docs (future)
 docs/_build/
 
+# Audit scratch — root-anchored on purpose.
+# These live only at the repo root. The leading slash keeps them from
+# shadowing a same-named file in any subdirectory.
+# See openspec/changes/archive/2026-10-05-audit-df-list-fact-corrections/
+/_tmp_*.py
+/_numdrift_*.py
+/_revcheck_*.py
+/_rvrev_*.py
+/_verify_*.py
+/_w02_*.py
+/_bk_*.bak
+/_r2_*.txt
+/.zed/
+
 # Editor / OS
 .idea/
 .vscode/
