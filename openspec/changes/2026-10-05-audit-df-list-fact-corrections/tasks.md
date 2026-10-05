@@ -13,30 +13,32 @@
 
 ## 2. 外部审计目录清理
 
-- [ ] 2.1 断言 `git worktree list` 在册项，确认 13 棵待删树无一在册
-- [ ] 2.2 以单次顶层可恢复删除移除 13 棵非 pin 仓库副本树
-- [ ] 2.3 保留 `pin6593a06`（审计基线）、`_mut4_scripts`、`_ur_probe_plugin.py`、`_lensB`、`_scratch_adv01`（除 mut2）
-- [ ] 2.4 校验：审计基线 `git status --porcelain` 仍为空；`git worktree list` 条目数不变
+- [x] 2.1 断言 `git worktree list` 在册项，确认 13 棵待删树无一在册（实测在册 3 项，命中 0/13）
+- [x] 2.2 以单次顶层可恢复删除移除 13 棵非 pin 仓库副本树（实测 13/13 已移除，`rm` exit 0）
+- [x] 2.3 保留 `pin6593a06`（审计基线）、`_mut4_scripts`、`_ur_probe_plugin.py`、`_lensB`、`_scratch_adv01`（除 mut2）（实测全部仍在）
+- [x] 2.4 校验：审计基线 `git status --porcelain` 为空；`git worktree list` 在本阶段结束时条目数未变
+- [ ] 2.5 `scratch/` 未清空（残留 4 个 audit 脚本 `nd05_*.py`），按计划的条件式守卫**不删除**，留作未决
 
 ## 3. 分支与 worktree 卫生
 
-- [ ] 3.1 移除 `worktree-quiet-forest-039d` 的 worktree 注册（已验证无实质未提交内容）
-- [ ] 3.2 删除分支 `worktree/quiet-forest-039d`（须在 3.1 之后）
-- [ ] 3.3 删除分支 `feat/auto-20260904-b6fca17d`（已合入 dev）
-- [ ] 3.4 用 `-D` 删除两个孤儿分支 `worktree-agent-aaca167863d597599`、`worktree-agent-ae19e963fe5074bcf`，并在提交信息中记明「与 dev 无共同祖先，非遗漏合入」
-- [ ] 3.5 校验 `git branch -a -vv` 与 `git worktree list` 一致；`git merge-base main dev` 仍退出非零
+- [x] 3.1 移除 `worktree-quiet-forest-039d` 的 worktree 注册（删除前复验：`--ignore-cr-at-eol` diff 为空、无暂存、无未跟踪）
+- [x] 3.2 删除分支 `worktree/quiet-forest-039d`（须在 3.1 之后；实测先 remove 后 `-d` 成功）
+- [x] 3.3 删除分支 `feat/auto-20260904-b6fca17d`（已合入 dev）
+- [x] 3.4 用 `-D` 删除两个孤儿分支 `worktree-agent-aaca167863d597599`、`worktree-agent-ae19e963fe5074bcf`（实测 `-d` 如预期以 "not fully merged" 拒绝，`-D` 成功；两者停在 `051f247`，与 dev 无共同祖先）
+- [x] 3.5 校验 `git branch -a -vv` 与 `git worktree list` 一致（实测 3 类目标分支均已消失，worktree 降至 2 项）；`git merge-base main dev` 仍退出 1，既有状态未变
 
 ## 4. `.gitignore` 补模式
 
-- [ ] 4.1 为根级 scratch 文件补 root-anchored 模式（`_tmp_*.py` / `_numdrift_*.py` / `_revcheck_*.py` / `_rvrev_*.py` / `_verify_*.py` / `_w02_*.py` / `_bk_*.bak` / `_r2_*.txt` / `.zed/`）
-- [ ] 4.2 刻意不写无锚点的宽模式，避免将来误伤子目录中的同名正式文件
-- [ ] 4.3 校验未跟踪文件归零，且无 `spec.md` 副本被卷入
+- [x] 4.1 为根级 scratch 文件补 root-anchored 模式（9 条模式，覆盖实测 45 个未跟踪 scratch 文件）
+- [x] 4.2 刻意不写无锚点的宽模式；用 `git check-ignore` 对假设路径实测：根级 `_tmp_probe.py` 被忽略，`tests/` `src/` `docs/` 下的同名文件均可见
+- [x] 4.3 校验未跟踪文件归零（仅剩本 change 自身 4 个文件），且 `spec.md` 副本 0 命中
+- [x] 4.4 保留原文件的 LF 行尾：首次提交把整文件翻成 CRLF，已改回并 `--amend`，最终 diff 为纯 +14 行
 
 ## 5. 门禁与归档
 
-- [ ] 5.1 `python scripts/run_gates.py --change 2026-10-05-audit-df-list-fact-corrections` → `exit 0`
-- [ ] 5.2 `openspec validate 2026-10-05-audit-df-list-fact-corrections --type change --strict` 通过
-- [ ] 5.3 anchor 计数与本 change 开始前一致（wayfinder 38 / governance 11 / decompmoe-skeleton 23）
+- [x] 5.1 `python scripts/run_gates.py --change 2026-10-05-audit-df-list-fact-corrections` → `exit 0`（5 lint + 2 validate + anchor 70 + pytest 483 passed/1 skipped，全 PASS，`GATE OK: all gates passed on a stable worktree`）
+- [x] 5.2 `openspec validate 2026-10-05-audit-df-list-fact-corrections --type change --strict` 通过
+- [x] 5.3 anchor 计数与本 change 开始前一致（门禁报 anchor coverage 70 anchor(s) across 3 capabilities；wayfinder 38 / governance 11 / decompmoe-skeleton 23）
 - [ ] 5.4 归档本 change
 
 > 勾选规则：每条任务的 `[x]` 必须在**该动作实际执行并校验通过之后**才写入，不预先勾选。

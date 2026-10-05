@@ -52,12 +52,14 @@ pin6593a06 files=476
 ## D3 DF-05：报告 §11 第 9 条
 
 **纠正一：行号错。** 清单给 `_final_report_full.md:1652`，实际文本在 **1662** 行；1652 行是无关的 §11 另一条（cache-manifest 142/143 off-by-one）。
+> 基线：审计根下的 `_final_report_full.md`，取自审计 pin `6593a06` 对应的运行产物。复现命令 `Select-String -Path <audit>/_final_report_full.md -Pattern 'PreToolUse'`（该串只出现在第 9 条）。该文件位于 `.claude/projects/…/audit`，不在版本控制内，故行号以该次运行的落盘副本为准。
 
 **纠正二：引用的证据文件不存在。** 清单把 `check-completeness.json` 当作验证来源，该文件在审计根下不存在（递归过滤 `*completeness*` 无命中）。
 
 **纠正三：溯源错链为真。** `f_main/063.json`、`065.json`、`067.json` 三者的 `agent` 与 `dimension` 均为 `find:TEST-GUARD`，内容分别是 UR 闭式测试、Voronoi 硬编码表值、`spherical_l2_normalize` 的 eps 默认值——没有一条与变异副本清理相关。对应 verdict 亦如此。**该字段指向错误，引用本条不能凭 `origin_ids` 定位原始证据。**
 
 **纠正四：「4 个 agent」无出处。** 报告 §11 第 9 条自己的括号枚举是 `mutate:1` / `mutate:4` / `mutate:7`，共 3 个。磁盘上另有 `mut066_39982` 与 mut062/065/067/068 系列 scratch 树，但报告正文未引用它们。标题的「4」与正文的「3」不一致，本 change 按正文记 3。
+> 基线：同 D3 纠正一，审计 pin `6593a06` 的 `_final_report_full.md`。复现命令 `Select-String -Path <audit>/_final_report_full.md -Pattern 'mutate:1'`。该报告不在版本控制内，行号不可由 git 重建。
 
 ## D4 DF-06：伴生脚本
 
@@ -71,9 +73,12 @@ pin6593a06 files=476
 
 **行号错 19 行。** 清单给 `wayfinder/spec.md:382`；382 行是 req-15 的一条 scenario（`WHEN an advisory signal crosses any threshold`）。`0.83` 字符串实际在 **401** 行，所属 Requirement 正确（req-17，anchor 在 397 行）。
 
-**实体缺陷已在源头根除。** 401 行原文把该值逐字标为 prior：
+> 基线：`openspec/specs/wayfinder/spec.md` @ `92a937a`。复现命令：`Select-String -Path openspec/specs/wayfinder/spec.md -Pattern '0\.83'`（唯一命中即该行）。行号随该文件的编辑移动，但 Requirement 归属由 `<a id="req-17"></a>` 锚点固定。
+
+**实体缺陷已在源头根除。** req-17 正文把该值逐字标为 prior：
 
 > …bring the full extract_C pipeline to `33_168 MACs = 66_336 FLOPs` per the skeleton spec, ~1.22% above the projection-only figure …; the prior `33_040 MACs = 66_080 FLOPs` / `~0.83%` omitted the step-(3) cross-head mean)
+> 上引为 `openspec/specs/wayfinder/spec.md` @ `92a937a` 中 req-17 正文的逐字引用，非本 change 的计算结果。两个百分比都是该 spec 的既有文本：`~1.22%` 对应 live 闭式，`~0.83%` 是同句中被显式标注为 prior 的旧值。
 
 live 闭式是 `33_168 MACs = 66_336 FLOPs` / `~1.22%`，且已有守护：`tests/test_extraction.py:283` 的 `pytest.approx(0.001977, abs=1e-6)`、`tests/test_config.py:163` 的 `assert extract_c_flops == 66_336`。finding 写于 pin（`6593a06`，当时 `33_040` 仍是 canonical），change `f6461d7 fix(a2-errata)` 重算了它。清单称「实体缺陷位置未变」不成立——它不是位置漂移，是被从源头消除。
 
@@ -118,6 +123,7 @@ live 闭式是 `33_168 MACs = 66_336 FLOPs` / `~1.22%`，且已有守护：`test
 即清单断言的「含 spec.md 完整重复副本」这一后果不成立：未跟踪文件里没有任何 `spec.md` 副本，单一真相源风险已消失。
 
 **清单自身数字也已漂移。** 报告称 31 个未跟踪垃圾文件 / 751,813 字节；实测 48 个 / 177,011 字节（取样于写 `.gitignore` 之前）。
+> 两组数字的基线互不相同，不可混用：报告侧取自审计 pin `6593a06` 的运行产物 `<audit>/_final_report_full.md`（不在版本控制内）；实测侧为仓库 @ `5f611b6`，命令 `git ls-files --others --exclude-standard` 可重算，并在本 change 的 `.gitignore` 提交 `92a937a` 落地后归零。差额是时间推移，不是任一侧的计量错误。
 
 **残留部分仍然成立**：仓库根下确有大量未跟踪 scratch 文件且 `.gitignore` 无任何模式覆盖它们。结合 CLAUDE.md §3.1 记录的日常命令是无差别的 `git add .`，一次常规提交就会把它们扫进版本控制。`tasks.md` 为此补 root-anchored 模式。
 
