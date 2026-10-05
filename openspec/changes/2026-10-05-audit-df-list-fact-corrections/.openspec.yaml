@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-10-05
+goal: correct the factual record for the nine DF items of the B-1 audit list, after re-measuring every claim at HEAD 5f611b6 instead of trusting the pin-relative verdict carried in the list. Two items are refuted outright, six hold only with corrected locators, one is clean. No Requirement content changes, so no delta is declared.
+skip_specs: true
