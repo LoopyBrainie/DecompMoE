@@ -144,9 +144,14 @@ def gamma_reset_for_phase2() -> float:
     and `4.0 → 16.0` (Phase 3) is delivered deterministically, by the
     schedule cap rather than by the value of `β^param`.
 
-    Why `0.0` and not the smallest γ that saturates (`logit(0.498420) ≈
-    −0.006318`): the latter would leave a margin of only `3.4e-5`, whereas
-    `0.0` leaves `5.04e-2` (`1483×`). `γ = 0` is additionally the fixed point
+    Why `0.0` and not something closer to the saturation boundary: the exact
+    threshold is `γ* = logit(0.49841943…) = −0.006319770250253427`, whose
+    margin is `≈ 0` **by construction** — it is the boundary, not a safe
+    operating point. The rounded literal `−0.006318` does saturate, but only
+    by `1.41e-5` in exact arithmetic, so `0.0`'s margin of `5.04e-2` is
+    `≈ 3574×` larger. (Note `logit(0.498420) = −0.006320021…` overshoots past
+    `γ*` and does **not** saturate at all — margin `−2.0e-6`.) `γ = 0` is
+    additionally the fixed point
     of decoupled weight decay, so in Phase 3 — where `phase_step_frozen_names(3)`
     is `{"c_i"}` and `beta_i` is therefore unfrozen — the weight-decay term
     drives an already-zero `γ` to zero and no extra momentum reset is needed.

@@ -318,15 +318,25 @@ def test_gamma_reset_for_phase2_is_zero() -> None:
 def test_saturation_margin_holds_in_float32_frame() -> None:
     """`β^param(0) > phase_beta_max(3, 55_999)` in the float32 operational frame.
 
-    This is the non-vacuous half of the ramp contract: the bit-exactness test
-    below compares `beta_effective` against a float32-rendered cap, which
-    would also hold if the clamp were absent. Only this inequality proves the
-    clamp's UPPER bound is what `β^eff` returns.
+    This test and `test_beta_effective_saturated_branch_is_bit_exact_with_float32_cap`
+    are BOTH non-vacuous, but for different properties — do not read either as
+    redundant:
+
+    - The **bit-exact** test is the one that pins the *composition*: it calls
+      `beta_effective` and therefore goes RED if the upper clamp is removed
+      (with no clamp the function returns `β^param = 16.05`, which is not
+      bit-equal to the cap `15.9996`). Verified by mutation.
+    - This test pins the *inequality* — that the binding side is the clamp's
+      UPPER bound. It never calls `beta_effective`, so on its own it would
+      still hold for an implementation that applied no clamp at all. Its job is
+      to make the direction of the inequality explicit and to keep the margin
+      off the knife-edge, which is what lets the bit-exact test's
+      "saturated branch" reading be sound rather than assumed.
 
         exact arithmetic:  β^param(0) = 0.1 + 31.9·σ(0) = 16.05
                           cap supremum  = phase_beta_max(3, 55_999) = 15.9996
                           margin         = 16.05 − 15.9996 = 0.0504
-        float32 frame:    16.0499992      >   15.9995995    (margin 0.0503998)
+        float32 frame:    16.0499992      >   15.9996004    (margin 0.0503988)
 
     Both the strict inequality and the saturation identity are asserted with NO
     tolerance, in the frame the implementation actually runs in —
@@ -345,7 +355,7 @@ def test_saturation_margin_holds_in_float32_frame() -> None:
 
     # Strict inequality, float32 frame, no tolerance.
     assert float(beta_param_f32) > float(cap_sup_f32), (
-        f"actual β^param={float(beta_param_f32)} vs cap={float(cap_sup_f32)}; "
+        f"actual β^param={float(beta_param_f32)} vs actual cap={float(cap_sup_f32)}; "
         "the upper clamp must saturate for the whole of Phase 3"
     )
     # The cap is computed in float64, so ITS 4-decimal display literal is pinned
@@ -393,8 +403,122 @@ def test_beta_effective_saturated_branch_is_bit_exact_with_float32_cap() -> None
         got = schedule.beta_effective(gamma_reset, phase=phase, step=step)
         cap_f32 = _t.tensor(schedule.phase_beta_max(phase, step), dtype=_t.float32)
         assert _t.equal(got, cap_f32), (
-            f"actual={float(got)} float32_cap={float(cap_f32)} "
+            f"actual={float(got)} actual float32_cap={float(cap_f32)} "
             f"(phase={phase}, step={step}); the saturated branch must be bit-exact"
+        )
+
+
+def test_phase_beta_max_saturation_holds_across_the_whole_ramp_windows() -> None:
+    """The Req 24 Scenario claims saturation for the WHOLE of Phase 2 ∪ Phase 3.
+
+    The 6-point pinned grid only samples 6 steps, so it cannot see a defect
+    *between* the samples. A sawtooth perturbation of `phase_beta_max`'s
+    progress term that happens to preserve all 6 grid points leaves the grid
+    test fully green. This test sweeps every step in both windows (stride 1) and
+    pins the two properties the whole-phase claim actually rests on:
+
+      1. `phase_beta_max` is **monotone non-decreasing in `step`** within each
+         ramp window — this is what makes "the cap supremum is attained at the
+         window's last step" a valid reduction rather than an assumption;
+      2. `β^param(0)` is **strictly above the cap at every single step**, which
+         is the substantive normative claim, in the float32 frame.
+
+    Runtime is dominated by 50_000 pure-Python calls; measured well under a
+    second.
+    """
+    import torch as _t
+
+    _t.manual_seed(0)
+    beta_param_f32 = float(beta.inverse_temperature(_t.as_tensor(0.0)))
+    boundaries = schedule.phase_boundaries(100_000)  # (1000, 6000, 26000, 56000, 100000)
+
+    for phase, lo_step, hi_step_exclusive in ((2, boundaries[1], boundaries[2]),
+                                              (3, boundaries[2], boundaries[3])):
+        prev_cap = float("-inf")
+        first_violation = None
+        non_monotone = None
+        for step in range(lo_step, hi_step_exclusive):
+            cap = float(_t.tensor(schedule.phase_beta_max(phase, step), dtype=_t.float32))
+            if cap < prev_cap and non_monotone is None:
+                non_monotone = (step, prev_cap, cap)
+            if beta_param_f32 <= cap and first_violation is None:
+                first_violation = (step, beta_param_f32, cap)
+            prev_cap = cap
+        assert non_monotone is None, (
+            f"actual first non-monotone step={non_monotone!r} (phase={phase}); "
+            "phase_beta_max must be monotone non-decreasing in step"
+        )
+        assert first_violation is None, (
+            f"actual first unsaturated step={first_violation!r} (phase={phase}); "
+            "beta^param(0) must strictly exceed the cap at EVERY step"
+        )
+        # The window's last IN-WINDOW step really is the attained cap supremum.
+        # Note the ranges are END-EXCLUSIVE, so the box hi is approached but
+        # not attained inside the window: Phase 2 tops out at
+        # 1.0 + 3.0·(19999/20000) = 3.99985 (not 4.0), Phase 3 at
+        # 4.0 + 12.0·(29999/30000) = 15.9996.
+        if phase == 2:
+            assert round(prev_cap, 4) == 3.9999, (
+                f"actual={prev_cap}; the attained Phase 2 cap supremum must be "
+                f"3.9999 (last in-window step={hi_step_exclusive - 1})"
+            )
+        else:
+            assert round(prev_cap, 4) == 15.9996, (
+                f"actual={prev_cap}; the attained Phase 3 cap supremum must be "
+                f"15.9996 (last in-window step={hi_step_exclusive - 1})"
+            )
+
+
+def test_beta_effective_returns_leaf_tensor_in_every_phase() -> None:
+    """Req 24: `beta_effective` MUST keep taking `gamma_p: float` and returning
+    a leaf tensor — the differentiable primitives stay in `decompmoe.beta`.
+
+    Guards the last AND-clause of the Req 24 gradient Scenario. Without this, a
+    future refactor that "fixes" `beta_effective` to be differentiable would
+    contradict both the spec text and the `schedule.py` docstring with nothing
+    objecting. Phase 2/3 is incidentally covered by the value comparisons in
+    other tests, but Phase 4 has **no** clamp and so no value-based tripwire;
+    this is the only assertion that covers it.
+
+    The second half also pins the silent part: handing in a `requires_grad=True`
+    Tensor does not raise and does not propagate the graph. `float(gamma_p)`
+    detaches it, so the caller gets a leaf without being told.
+    """
+    import torch as _t
+
+    _t.manual_seed(0)
+
+    for phase, step in ((1, 3_000), (2, 6_000), (3, 26_000), (4, 56_000)):
+        out = schedule.beta_effective(0.0, phase=phase, step=step)
+        assert out.requires_grad is False, (
+            f"actual requires_grad={out.requires_grad} (phase={phase}, step={step}); "
+            "beta_effective is a schedule-layer float helper, non-differentiable by design"
+        )
+        assert out.grad_fn is None, (
+            f"actual grad_fn={out.grad_fn!r} (phase={phase}, step={step}); "
+            "beta_effective MUST return a leaf tensor"
+        )
+        assert out.is_leaf, (
+            f"actual is_leaf={out.is_leaf} (phase={phase}, step={step})"
+        )
+
+    # A Tensor input must be silently detached, not honoured and not rejected.
+    # Phase 4 is the load-bearing case: it has no clamp, so a naive
+    # implementation would happily thread the graph straight through. Phase 1
+    # is the other edge — a constant, so a graph could not survive it either.
+    for phase, step in ((1, 3_000), (2, 6_000), (3, 26_000), (4, 56_000)):
+        grad_tensor = _t.tensor(0.0, requires_grad=True)
+        out = schedule.beta_effective(grad_tensor, phase=phase, step=step)  # type: ignore[arg-type]
+        assert out.grad_fn is None, (
+            f"actual grad_fn={out.grad_fn!r} (phase={phase}, step={step}); "
+            "passing a Tensor MUST NOT open a gradient path"
+        )
+        assert out.is_leaf, (
+            f"actual is_leaf={out.is_leaf} (phase={phase}, step={step})"
+        )
+        assert grad_tensor.grad is None, (
+            f"actual grad={grad_tensor.grad!r} (phase={phase}, step={step}); "
+            "beta_effective MUST NOT populate .grad"
         )
 
 
@@ -426,8 +550,11 @@ def test_gamma_gradient_exists_only_from_phase_4() -> None:
         beta_eff = beta.inverse_temperature(g).clamp(
             min=1.0, max=schedule.phase_beta_max(phase, step)
         )
+        # grad_fn present AND grad == 0 together prove the zero comes from
+        # clamp saturation, not from a severed autograd graph.
         assert beta_eff.grad_fn is not None, (
-            f"phase={phase} step={step}: composition severed the autograd graph"
+            f"actual grad_fn={beta_eff.grad_fn!r} (phase={phase} step={step}); "
+            "composition severed the autograd graph"
         )
         beta_eff.backward()
         assert g.grad == 0, (
@@ -439,13 +566,18 @@ def test_gamma_gradient_exists_only_from_phase_4() -> None:
     g4 = _t.tensor(schedule.gamma_reset_for_phase4(16.0), requires_grad=True)
     beta_eff4 = beta.phase4_inverse_temperature(g4)
     assert beta_eff4.grad_fn is not None, (
+        f"actual grad_fn={beta_eff4.grad_fn!r}; "
         "Phase-4 path must be differentiable (no clamp applies)"
     )
     beta_eff4.backward()
+    # This single assertion already discriminates the three gradient quantities:
+    # 240/31 = 7.7419355... is ~8.06e-3 away from 7.75 (the γ'=0 upper bound),
+    # which is 8x the abs=1e-6 tolerance, and ~6.8 away from 0.9077 (the
+    # parameterisation-space value at γ_init). An explicit `!= 7.75` assertion
+    # was removed as tautological -- it is fully implied by this one and could
+    # never fail. The distinction it documented is real and is kept as the
+    # comment above and in the Req 24 Scenario's non-conflation clause.
     assert g4.grad == pytest.approx(240 / 31, abs=1e-6), (
-        f"actual={g4.grad}; ∂β^eff/∂γ' at γ'=ln(15/16) is 31·σ'(γ') = 240/31"
-    )
-    # 240/31 = 7.7419355...; the γ'=0 upper bound is a DIFFERENT quantity.
-    assert g4.grad != pytest.approx(7.75, abs=1e-3), (
-        f"actual={g4.grad}; the reset-point slope must not be the γ'=0 bound 7.75"
+        f"actual={g4.grad}; ∂β^eff/∂γ' at γ'=ln(15/16) is 31·σ'(γ') = 240/31, "
+        f"which must be distinguishable from the γ'=0 bound 7.75 and from 0.9077"
     )

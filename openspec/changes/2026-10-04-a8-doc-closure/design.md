@@ -46,7 +46,7 @@
 
 **落点（`release` 行之后）**：
 
-> **当前状态（2026-10-04 实测）——本节通道未启用**：本仓 `main` 的 root 是只含 `.gitignore` 与 `LICENSE` 的 Initial commit `051f247`，与 `dev` 无任何共同祖先（`git merge-base main dev` 无输出且退出码非零），故 `dev → main` 存档通道在拓扑对齐前**不可执行**；`release` 分支在 `for-each-ref` / `git tag` / `ls-remote` / reflog / `packed-refs` 五路均不存在，仓库 tag 数本地与远端皆为 0，故 `dev → release` 出埠通道与「必带 tag」义务**从未被触发**。三分支架构保留为 aspirational 规范，本节不预设将来是否建立 `release`。`origin/HEAD` 原指向 `main`（一棵与开发线无关的单提交空树），已改指 `dev`。
+> **当前状态（2026-10-04 实测）——本节通道未启用**：本仓 `main` 的 root 是只含 `.gitignore` 与 `LICENSE` 的 Initial commit `051f247`，与 `dev` 无任何共同祖先（`git merge-base main dev` 无输出且退出码非零），故 `dev → main` 存档通道在拓扑对齐前**不可执行**；`release` 分支在 `for-each-ref` / `git tag` / `ls-remote` / reflog / `packed-refs` 五路均不存在，仓库 tag 数本地与远端皆为 0，故 `dev → release` 出埠通道与「必带 tag」义务**从未被触发**。三分支架构保留为 aspirational 规范，本节不预设将来是否建立 `release`。远端 HEAD 仍指向 `main`（一棵与开发线无关的单提交空树），**未修复**；`git remote set-head origin dev` 不是该问题的修法，理由与实测见本文件末尾的更正节。
 
 **被否决的替代方案 (b) 改写为 dev 单分支 + main 降为可选存档**：§4 三分支是专门立的规范，改写会同时牵动 L51 的 `dev` 条目（「绝对无 merge commit，保持线性」），改动面远大于加一段状态说明。
 

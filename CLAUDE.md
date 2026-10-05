@@ -56,7 +56,7 @@ When sources disagree, consult in this order:
 
 > **当前状态（2026-10-04 实测）——本节通道未启用**：本仓 `main` 的 root 是只含 `.gitignore` 与 `LICENSE` 的 Initial commit `051f247`，与 `dev` 无任何共同祖先（`git merge-base main dev` 无输出且退出码非零），故 `dev → main` 存档通道在拓扑对齐前**不可执行**；`release` 分支在 `for-each-ref` / `git tag` / `ls-remote` / reflog / `packed-refs` 五路均不存在，仓库 tag 数本地与远端皆为 0，故 `dev → release` 出埠通道与「必带 tag」义务**从未被触发**。三分支架构保留为 aspirational 规范，本节不预设将来是否建立 `release`。
 >
-> **远端默认展示分支失真（已知未修）**：`origin/HEAD` 指向 `main`，即从 GitHub 仓库首页进入的人看到的是一棵与开发线无关的单提交空树。修正动作是 `git remote set-head origin dev`（只改展示指针，不动任何 ref 拓扑），本轮未执行。
+> **远端默认展示分支失真（已知未修）**：`origin` 的远端 HEAD 指向 `main`，即从 GitHub 仓库首页进入的人看到的是一棵与开发线无关的单提交空树。修正需**改远端仓库设置**：`gh repo edit <owner>/<repo> --default-branch dev`，或 GitHub 仓库 Settings → Branches → Default branch。**注意 `git remote set-head origin dev` 不解决本问题**——它只写本地 `refs/remotes/origin/HEAD` 这个 remote-tracking 缓存 ref；2026-10-04 实测：执行后本地为 `dev`，而 `git ls-remote --symref origin HEAD` 仍返回 `refs/heads/main` / `051f247`，且本地缓存因此与远端事实相反。本轮已实测并回滚（本地复归 `main`），问题**未修复**。
 
 ## 5. MVP Hyperparameters（frozen）
 
