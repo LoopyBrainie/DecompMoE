@@ -150,4 +150,25 @@ agent 自述（`journal.jsonl` result 字段，逐字）保留了当时自洽的
 
 ⇒ **该执行不仅未达成目标，还使本地缓存与远端事实相反**（本地声称 `dev`、远端实为 `main`），故已回滚。任务 6.1 与 6.3 保持 `[ ]`。
 
+### 更正的后续：2026-10-05 真正完成修复
+
+`gh` 完成认证后（account `LoopyBrainie`，scopes 含 `repo`），改用真正的修法 **`gh repo edit LoopyBrainie/DecompMoE --default-branch dev`**，三路复验：
+
+| 观测面 | 修复前 | 修复后 |
+|---|---|---|
+| GitHub API `defaultBranchRef.name` | `main` | **`dev`** |
+| `git ls-remote --symref origin HEAD` | `ref: refs/heads/main	HEAD` / `051f247…` | **`ref: refs/heads/dev	HEAD`** |
+| 本地 `refs/remotes/origin/HEAD`（镜像） | `refs/remotes/origin/main` | `refs/remotes/origin/dev`（`set-head` 刷新后与远端一致） |
+
+**不变量全部未变**：release ref 本地+远端 0；tag 本地 0 / 远端 0；`git merge-base main dev` 仍 `exit 1`；`main` root 仍 `051f247`；远端 heads 仍 4 条（**未创建任何分支**）。
+
+**两条看似相同的命令，正确处置方向相反**——值得单独记住：
+
+| | 远端是否真的移动 | 本地与远端关系 | 正确处置 |
+|---|---|---|---|
+| `git remote set-head origin dev`（2026-10-04） | **否** | 相反 | **回滚**（刷新会制造假象） |
+| `gh repo edit --default-branch dev` + `set-head` 刷新（2026-10-05） | **是** | 一致 | 保持（刷新是真实反映） |
+
+判据**不是**「这条命令好不好」，而是**「刷新后本地是否与远端一致」**。`set-head` 本身永远只写本地；它是**镜像的刷新动作**，正确与否取决于它所镜像的远端事实是否已经改变。
+
 **教训（对应 CLAUDE.md §3「GateGuard」与本 change 的「禁止预先勾选」条款）**：命令 `exit 0` 只证明**调用成功**，不证明**目标达成**。`remote set-head` 这一族命令的名字自带「设置远端」的字面暗示，而实际作用域是本地 ref——**这类作用域与名字不符的命令，必须向被作用的另一侧（此处是 `ls-remote`）取证，而不是向本地复述**。本条若被勾选，就会把「远端首页已修好」这个**未发生的副作用**写进受治理制品。
