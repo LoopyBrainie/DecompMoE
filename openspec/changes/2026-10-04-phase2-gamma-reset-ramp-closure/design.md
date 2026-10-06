@@ -19,7 +19,7 @@
 **Non-Goals（design 层边界，超出 proposal 范围的补充）:**
 
 - 不引入训练循环或任何 optimizer 集成。交付物是**原语 + 契约**；仓库是 formalize-only 目的地。
-- 不引入可微的 `beta_effective` 变体。若未来要 Phase 2/3 的 γ 学习信号，那是独立 change（见 Open Questions）。
+- 不引入可微的 `beta_effective` 变体。若未来要 Phase 2–3 的 γ 学习信号，那是独立 change（见 Open Questions）。
 - 不新增梯度上界常量。饱和区推导链写进 `beta.py` 注释即可。
 
 ## Decisions
@@ -32,13 +32,13 @@ req-14 的 ramp 与 req-24 的 `Clamp(β^param(γ), 1.0, cap(t))` 在数学上�
 
 **被否决的替代方案**：(b) 改 spec 对齐「γ 可训」——需给出 γ 在 30 000 步内从 `−3.5` 爬到 `≥ logit(3.9/31.9) = −1.9709` 的训练动力学 derivation，本 design 无此依据，且按 `CLAUDE.md` §6 第 8 条属 policy-first。(c) 引入独立排程量 `β^op(t)` 让 cap 不再兼任 ramp——唯一真能同时满足两者的方案，但要改 req-24 的核心公式，改动面与本 change 的保守姿态不匹配。
 
-**连带结果**：审计头条结论「Phase 1–3 无 γ 梯度通路」从误报转为显式语义——Phase 1 常数函数、Phase 2/3 上界饱和、Phase 4 无 clamp 故有通路。
+**连带结果**：审计头条结论「Phase 1–3 无 γ 梯度通路」从误报转为显式语义——Phase 1 常数函数、Phase 2–3 上界饱和、Phase 4 无 clamp 故有通路。
 
 ### D2 — 契约由既有 `beta_effective` + 具名锚点承载；`beta_effective` 签名与函数体不动
 
 **证据强制，非偏好**。`test_beta_effective_phase_2_3_use_inverse_temperature` 传 `γ = −5.0` 期望下界饱和得 `1.0`；`test_beta_effective_at_100k_is_unchanged` 传 `−5.0` 与 `0.0`。若让 `beta_effective` 在 Phase 2/3 忽略传入 γ 并改用 reset 值，这两条立刻变红，且需连带修改 `decompmoe-skeleton` req-20/req-33 的签名契约。
 
-**被否决的替代方案 (a)**：在 `beta_effective` 内部把 Phase 2/3 的 γ 替换为 reset 值。代价 = 2 条既有断言变红 + 跨 capability 签名改动 + 语义变更与「显式 γ 入参」的可测试性冲突。
+**被否决的替代方案 (a)**：在 `beta_effective` 内部把 Phase 2–3 的 γ 替换为 reset 值。代价 = **2** 条既有断言变红（复算：`test_schedule.py::test_beta_effective_phase_2_3_use_inverse_temperature` 与 `test_beta_effective_phase_4_continuity`；二者都显式传 γ，基线 `555f7d9`）+ 跨 capability 签名改动 + 语义变更与「显式 γ 入参」的可测试性冲突。
 
 **被否决的替代方案 (b)**：新增 `beta_effective_operational(phase, step, total_steps)` 作为无 γ 的 operational 读取路径。**实现阶段经审查后撤销**，理由是它在 D1 语义下**零可计算内容**：Phase 2–3 饱和后 `β^eff ≡ phase_beta_max(phase, step)`，而 `phase_beta_max` 已存在且已是公开符号；该函数唯一语义是它在 Phase 2–3 上的别名。更糟的是它与 `beta_effective` 构成**永久命名漂移风险**——名字暗示「这才是真正的 operational β」，下一轮 audit 必问「这两个函数谁是真相」。点式相等这个不变量完全可以用既有符号钉成 Scenario，不需要第三个名字。
 
@@ -66,11 +66,13 @@ Phase 1–3 的梯度断言需要一条可微组合路径。`beta_effective` 是
 
 `gamma_reset_for_phase2` 是新公开符号，必须进 `schedule.__all__` 与 `decompmoe.__all__`。这直接改动 `decompmoe-skeleton` req-1 的三个**规范性**计数（不是描述性统计——原文带 "SHALL expose a stable `__all__` listing every public symbol" + 去重规则 + "MUST NOT: summing … yields 76"）：
 
-| | 前 | 后 |
-|---|---|---|
-| 去重 union | 75 | **76** |
-| 未去重 per-module sum | 76 | **77** |
-| 包级 `__all__` | 78 | **79** |
+| 计数面 | 前 | 后 | 复算（基线 `555f7d9`） |
+|---|---|---|---|
+| 去重 union | 75 | **76** | `pytest tests/test_a3_contract_alignment.py::test_all_is_deduplicated_union_of_submodule_alls`（`len(union) == 76`） |
+| 未去重 per-module sum | 76 | **77** | 同上测试内 `total_sum == 77` |
+| 包级 `__all__` | 78 | **79** | 同上测试内 `len(decompmoe.__all__) == 79`，且 `len(set(...)) == 79` |
+
+三个计数由 `decompmoe-skeleton` req-1 的去重规则**推导**得出，故随公开符号增减整体移动；上表「后」列的三个数字是该测试的 bare `==` 断言值，可直接跑该测试复算，不必另行推导。
 
 新符号无跨模块同名碰撞，去重规则叙述与「唯一碰撞是 `flops_per_token`」这句话**不变**。
 
@@ -84,7 +86,7 @@ Phase 1–3 的梯度断言需要一条可微组合路径。`beta_effective` 是
 
 **裁决：在 float32 操作帧内用 bit-exact 断言（`torch.equal`，无容差、不会 flaky），float64 帧偏移降级为文档。** 仓内已有定型先例：`decompmoe-skeleton` req-19（`spherical_l2_normalize`）把标题里的 "equals 1.0" 降级为 DISPLAY FORM、改钉维度相关的可证界 + 实测包络，并明令 MUST NOT restate as bare `==`；`governance` req-gov-1 的双帧器具（spec-literal 帧 vs impl-internal 帧）同理。饱和分支返回的就是 `float32(cap)`，故 bit-exact 是**构造性**成立，不是靠调容差凑出来的。
 
-**被否决的替代方案 (a) 把 operational 路径升 float64**：换来的「精确」只是下一层量子化（float64 在 16 处 ulp ≈ `3.6e-15`），而代价是实打实的——与 `beta_effective` / logit 热路径的 float32 计算惯例之间出现跨 dtype 边界，下游 `β·(Cᵀc − 1)` 面临提升风险，且「升到哪里为止」是任意的（logit 要不要也升？）。D2 砍掉 `beta_effective_operational` 之后，这条路更无触发器。
+**被否决的替代方案 (a) 把 operational 路径升 float64**：换来的「精确」只是下一层量子化（float64 在 16 处的 ulp ≈ `3.6e-15`；复算：`python -c "import math; print(math.ulp(16.0))"` → `3.552713678800501e-15` = `2**-48`，两位有效数字即 `3.6e-15`——这是 **IEEE-754 的常量属性**，不是对本仓状态的测量），而代价是实打实的——与 `beta_effective` / logit 热路径的 float32 计算惯例之间出现跨 dtype 边界，下游 `β·(Cᵀc − 1)` 面临提升风险，且「升到哪里为止」是任意的（logit 要不要也升？）。D2 砍掉 `beta_effective_operational` 之后，这条路更无触发器。
 
 **被否决的替代方案 (c) 连 `beta_effective` 一起升 float64**：超出本 change 范围（无改动理由——D2 已砍掉别名，dtype 问题随别名一起消失）。若将来 logit 侧确有 float32 精度问题，另开 change。
 
