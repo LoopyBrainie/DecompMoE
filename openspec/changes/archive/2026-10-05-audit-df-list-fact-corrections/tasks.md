@@ -34,11 +34,12 @@
 - [x] 4.3 校验未跟踪文件归零（仅剩本 change 自身 4 个文件），且 `spec.md` 副本 0 命中
 - [x] 4.4 保留原文件的 LF 行尾：首次提交把整文件翻成 CRLF，已改回并 `--amend`，最终 diff 为纯 +14 行
 
-## 5. 门禁与归档
+## 5. 门禁
 
 - [x] 5.1 `python scripts/run_gates.py --change 2026-10-05-audit-df-list-fact-corrections` → `exit 0`（5 lint + 2 validate + anchor 70 + pytest 483 passed/1 skipped，全 PASS，`GATE OK: all gates passed on a stable worktree`）
 - [x] 5.2 `openspec validate 2026-10-05-audit-df-list-fact-corrections --type change --strict` 通过
 - [x] 5.3 anchor 计数与本 change 开始前一致（门禁报 anchor coverage 70 anchor(s) across 3 capabilities；wayfinder 38 / governance 11 / decompmoe-skeleton 23）
-- [ ] 5.4 归档本 change
 
 > 勾选规则：每条任务的 `[x]` 必须在**该动作实际执行并校验通过之后**才写入，不预先勾选。
+>
+> 本文件不列「归档本 change」这类任务：归档发生在 tasks 全部完成之后，且归档后该文件即不可写回，写成 task 等于把 change 自己的归档设成它自己的前置条件，那一条永远勾不上。归档后需人工执行的步骤记在 `proposal.md` 的 Post-archive checklist，不进本文件。
