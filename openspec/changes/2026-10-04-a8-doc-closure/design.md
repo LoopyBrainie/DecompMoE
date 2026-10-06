@@ -1,12 +1,23 @@
 # Design
 
+## 审计登记的计数约定（本 change 立，后续沿用）
+
+本 design.md 的「审计台账登记」段与其余 evidence prose 里的**每一个计数**，二选一，不允许裸数字：
+
+1. **可复算** → 同 block 内给出复算命令或 pinned 对象（`git …` / `Select-String …` / commit hash / `HEAD` / change 名 / `req-N` / 具名测试名）。格式：`数字（复算：`<命令>`）`。
+2. **不可重建** → 同 block 内标 `not reconstructible`，且**必须带三要素**：**原因**（可判定的，不是「懒得补」）、**记录日期**、**重建所需条件**。只写四个字而无可判定理由，等于把逃生舱用成橡皮图章——下一个审计者无法区分「真的蒸发了」与「基线没补」。
+
+依据：`scripts/lint_no_baseline_counts.py` 的判据是「block 内有 COUNT 而无 BASELINE token」；其 EXEMPTION MARKER 是 in-document 的（无登记表），所以规则在**文档里**，不在代码里。
+
+**为什么立这条**：本次审查报出的 finding 全部落在裸计数上（复算：`GATE_CHANGE=2026-10-04-a8-doc-closure python scripts/lint_no_baseline_counts.py` 的 `without a baseline` 条数，修复前为 6）。修完后若不立约定，下一个并行 session 仍会写出新的裸计数，门禁再次变红，而那时 blame 的是本登记格式没有给后来者立规矩。**本段自身也曾触发该 lint**——它举例说「本次 N 处」时同样是无基线计数，是 lint 报出来的，不是预想到的。
+
 ## Context
 
 见 `proposal.md` — Why。此处只记录塑形了方案的现状与约束。
 
 `.audit/` 被 `.gitignore` 忽略、非版本化（见兄弟 change `fix-wayfinder-advisory-drift-a7` 的 design.md「Not changed by design」表）。因此本 change 的「报告面」产物在执行时可能没有可写的版本化落点——`design.md` 是**唯一一定存在**的决策记录处。
 
-`CLAUDE.md` 共 118 行、§1–§9。A-8 清单给的三处 `CLAUDE.md:51/52` 引用**全部落空**：`L51` 是 `dev` 分支行（与 §2/§8 无关），`main` 行在 `L52`、`release` 行在 `L53`（三处同向偏移一行）。本 change 按**内容**定位，不按行号。
+`CLAUDE.md` 共 **118** 行、§1–§9（复算：`git show 35380cf:CLAUDE.md | Measure-Object -Line` → 118；该 commit 是本 change 写作时的基线，此后 §4/§8 各有一次增补，行数已变，**故引用时必须带 commit**）。A-8 清单给的三处 `CLAUDE.md:51/52` 引用**全部落空**：`L51` 是 `dev` 分支行（与 §2/§8 无关），`main` 行在 `L52`、`release` 行在 `L53`（三处同向偏移一行）。本 change 按**内容**定位，不按行号。
 
 `governance` req-gov-4 的 clause (1) 原文已核实：
 
@@ -17,7 +28,7 @@
 **Goals:**
 
 - 让 `CLAUDE.md` §4 与 §8 的文本不再与自身治理条款冲突。
-- 把 3 条被封条的 hand-back 结论显式降级为「需重新取证」，使其既不被静默丢弃、也不以「已裁决」面目混入结论链。
+- 把 **3** 条被封条的 hand-back 结论显式降级为「需重新取证」，使其既不被静默丢弃、也不以「已裁决」面目混入结论链（复算：`.audit/wayfinder-opsx-code-review/lists/opsx-changes.md` 的 `UD-03` 条目，其「问题」行一句话点明这三条 lens，`Select-String -Path <该文件> -Pattern 'Irreversible'` → 1 处封条标记；该文件**未被 gitignore 之外的方式版本化**，`git ls-files .audit` → 0，故此基线依赖工作树存在，消失时须改标 `not reconstructible`）。
 - 让后续审计能定位到未回流的审计台账。
 
 **Non-Goals（design 层边界）:**
@@ -34,7 +45,7 @@
 
 **被否决的替代方案 (a) 删掉 §8 协议 (a) 的维护义务**：成本被严重低估。删 §8 那一句并不等于删一句软话——`req-gov-4` clause (3)(4) 是已生效的硬条款（周期监控 ticket ↔ spec ↔ `src/` 三角漂移 + 三步修复协议），`req-gov-2` 文档化标注格式，`req-34` 与 `lint_no_source_field_drift.py` 三门独立检查硬卡。**动的是已生效的治理层。** 选 (a) 要先废掉这些。
 
-**被否决的替代方案 (c) 只补执行机制**：义务会继续悬空。实测 `scripts/lint_*.py` 共 4 个（`lint_no_dead_defensive` / `lint_no_line_pointers` / `lint_no_source_field_drift` / `lint_pointer_detector`），**无一覆盖 ticket 维护义务**——`lint_no_source_field_drift.py` 只 `glob("*/spec.md")`、从不打开任何 ticket 文件。但注意 `req-gov-4` clause 4 的触发条件是「ticket stale 已传播到 `src/`」这一**条件性**前提，因此无条件 lint 本就不该存在；实测 `wayfinder/tickets/` 23 个文件中 9 个已有 `(historical, …)` 标注（共 18 处），其余 14 个无标注**不构成违反**。
+**被否决的替代方案 (c) 只补执行机制**：义务会继续悬空。实测 `scripts/lint_*.py` **5 个**（`lint_no_dead_defensive` / `lint_no_line_pointers` / `lint_no_source_field_drift` / `lint_pointer_detector` / `lint_no_baseline_counts`；复算：`Select-String -Path scripts -Filter 'lint_*.py'` → 5。注意第 5 个是 2026-10-05 并行 session 的 `4b24285` 引入的，本 change 写作时不存在——`CLAUDE.md` §3 说 `run_gates.py` 按 glob 自动发现该目录，故「清单与实际门禁不可能失步」的反面是**门禁数量会在无通知的情况下增长**，任何写死数量的句子都会过期。**这 5 个无一覆盖 ticket 维护义务**——`lint_no_source_field_drift.py` 只 `glob("*/spec.md")`、`lint_no_baseline_counts.py` 只扫 `changes/**/{proposal,design,tasks}.md` + `docs/**`，**都不打开任何 ticket 文件**。但注意 `req-gov-4` clause 4 的触发条件是「ticket stale 已传播到 `src/`」这一**条件性**前提，因此无条件 lint 本就不该存在。实测 `wayfinder/tickets/` **23** 个文件中 **8** 个已有 `(historical, …)` 标注（共 **19** 处），其余 **15** 个无标注**不构成违反**（复算：`Select-String -Path wayfinder/tickets -Pattern '\(historical,'`；本仓 tickets 为 GBK/ACP 936 编码，须按字节计数，见「行数口径声明」节）。
 
 **落点（追加到 `CLAUDE.md` §8 的 2026-08-21 裁决段末）**：
 
@@ -46,11 +57,13 @@
 
 **落点（`release` 行之后）**：
 
-> **当前状态（2026-10-04 实测）——本节通道未启用**：本仓 `main` 的 root 是只含 `.gitignore` 与 `LICENSE` 的 Initial commit `051f247`，与 `dev` 无任何共同祖先（`git merge-base main dev` 无输出且退出码非零），故 `dev → main` 存档通道在拓扑对齐前**不可执行**；`release` 分支在 `for-each-ref` / `git tag` / `ls-remote` / reflog / `packed-refs` 五路均不存在，仓库 tag 数本地与远端皆为 0，故 `dev → release` 出埠通道与「必带 tag」义务**从未被触发**。三分支架构保留为 aspirational 规范，本节不预设将来是否建立 `release`。远端 HEAD 仍指向 `main`（一棵与开发线无关的单提交空树），**未修复**；`git remote set-head origin dev` 不是该问题的修法，理由与实测见本文件末尾的更正节。
+> **当前状态（2026-10-04 实测）——本节通道未启用**：本仓 `main` 的 root 是只含 `.gitignore` 与 `LICENSE` 的 Initial commit `051f247`（复算：`git log --oneline -1 main`；`git ls-tree -r main --name-only` → 2 条），与 `dev` 无任何共同祖先（`git merge-base main dev` 无输出且退出码 1），故 `dev → main` 存档通道在拓扑对齐前**不可执行**；`release` 分支**不存在**，故 `dev → release` 出埠通道与「必带 tag」义务**从未被触发**。三分支架构保留为 aspirational 规范，本节不预设将来是否建立 `release`。远端 HEAD 仍指向 `main`（一棵与开发线无关的单提交空树），**未修复**；`git remote set-head origin dev` 不是该问题的修法，理由与实测见本文件末尾的更正节。
+>
+> **「`release` 不存在」的证据力分级**（初稿写作「五路均不存在」，其中三腿并不能证明分支不存在，容易让复核者分不清「分支不存在 / tag 不存在 / 文件缺失」）：**决定性的两腿**是 `git for-each-ref refs/heads/release` 与 `git ls-remote --heads origin release`（穷举 loose + packed refs 与全部远端 ref，各自单独即足够）；**辅助腿**是 `git tag`（枚举的是 **tag** 不是分支，只能佐证无同名 tag）、`.git/logs/refs/heads/release` 缺失（佐证从未被创建过）、`packed-refs`（⚠️ **本仓不存在该文件**，8 个 head 全是 loose，故此腿在本仓是**空的**；即便存在也只列 packed ref，loose 的 `refs/heads/release` 不会出现在其中）。仓库 tag 数本地与远端皆为 0（复算：`git tag | Measure-Object -Line`；`git ls-remote --tags origin | Measure-Object -Line`）。
 
 **被否决的替代方案 (b) 改写为 dev 单分支 + main 降为可选存档**：§4 三分支是专门立的规范，改写会同时牵动 L51 的 `dev` 条目（「绝对无 merge commit，保持线性」），改动面远大于加一段状态说明。
 
-**「未进 main 的提交数」这一指标同步作废**：实测 `main..dev` = `229/229`（该指标退化为 dev 全部历史）。A-8 清单记录的 `174/174` 已过期——核查期间并行 session 两次推进 HEAD。任何「提交计数」型数字在并发工作树下都会漂移，故上述事实陈述**不引用任何提交数**。
+**「未进 main 的提交数」这一指标同步作废**：`git rev-list --left-right --count main...dev` 在 HEAD `4b24285` 读数为 `1 / 243`（main 仅 1 个 commit 领先、dev 领先 243），指标已**退化为 dev 全部历史**，毫无信息量。A-8 清单记录的 `174/174` 更早过期——核查期间并行 session 多次推进 HEAD。初稿在此写的 `229/229` 同样过期，且 `A/B` 这种斜杠对**不是任何 git 命令的输出形状**（`rev-list --left-right --count` 输出的是**制表符**分隔的两列）。**本段自身即示范了为什么不能引用提交数**：任何「提交计数」型数字在并发工作树下都会漂移，故 `CLAUDE.md` §4 的事实陈述**不引用任何提交数**，本 design 也只在上句给读取点以示其不可信。
 
 ### D3 (UD-06) — 台账只登记不回流，且必须同时登记 `LOOPS.md`
 
@@ -59,7 +72,7 @@
 **A-8 清单在 UD-06 上有两处错，必须在登记时纠正**：
 
 1. 差异量。实测 `git diff --numstat dev...audit -- REVIEW-LEDGER.md` = **312 增 0 删**（纯新增，merge-base `d52f8be` 不含该文件）。清单的「201 增 63 删」是 **`LOOPS.md`** 的 numstat，且**极性颠倒**（dev→audit 实为 63 增 / 201 删）。
-2. 「两份同名文件」。全仓**只有一份** `REVIEW-LEDGER.md`。真正的同名两份是 `LOOPS.md`（dev 侧由 `dd8b9d7 chore(audit): import LOOPS.md to version control` 引入，audit 侧由 `f8e5b26` 独立新增），且它**同样未回流**——这是 A-8 清单的漏项。
+2. 「两份同名文件」。全仓**只有一份** `REVIEW-LEDGER.md`（复算：`git ls-tree -r <各 ref> --name-only` 在 `dev` / `main` / `audit` / `origin/dev` 中对 `REVIEW-LEDGER` 的命中数合计 = 1）。真正的同名两份是 `LOOPS.md`（dev 侧由 `dd8b9d7 chore(audit): import LOOPS.md to version control` 引入，audit 侧由 `f8e5b26` 独立新增）——准确表述是：**audit 侧那份 `LOOPS.md` 的内容未回流**（dev 侧是 `dd8b9d7` 引入的**另一份**内容）。这是 A-8 清单的漏项。
 
 **行数口径**：必须用**字节流**口径（`git cat-file blob` 数 `0x0A`）得 312。PowerShell 文本路径给出 310（控制台编码吞掉多字节序列的假低读数），且 CR 计数为 0 ⇒ 纯 LF。三个独立口径（raw LF / `numstat` / 字节数）须互相对账。
 
@@ -90,7 +103,9 @@ A-8 清单的 4 条 hand-back 实际只有 **3 条**带封条，且来源与清�
 
 ## Deferred-Evidence 桶（UD-03）
 
-A-8 清单登记了 4 条 hand-back，实测**只有 3 条带封条**。告警原文不在 `journal.jsonl`（对 `Irreversible` / `SECURITY WARNING` 的匹配数为 0），而在 workflow json `wf_fd517ac0-d53.json` 的 `logs` 数组（`logs[0]` / `logs[3]` / `logs[4]`）。清单把三条的理由合并陈述了——**只有 pin 那条同时点名两个文件**。
+A-8 清单登记了 **4** 条 hand-back（复算：workflow json 的 `logs` 数组中带 lens 前缀的条目 → `pin:baseline+delta-map` / `rv:main45:source` / `rv:main45:impact` / `rv:main58:source`），实测**只有 3 条带封条**。告警原文不在 `journal.jsonl`（对 `Irreversible` / `SECURITY WARNING` 的匹配数为 0），而在 workflow json 的 `logs` 数组（`logs[0]` / `logs[3]` / `logs[4]`；复算：`Select-String -Path <该 json> -Pattern 'Irreversible'` → 3）。清单把三条的理由合并陈述了——**只有 pin 那条同时点名两个文件**。
+
+**索引的一处更正（2026-10-06 实测，d53 工件仍在）**：A-8 清单的「证据」行写 `logs 第 1 / 3 / 4 条`，而主工件 `wf_fd517ac0-d53.json` 的 `logs` 是 **0-based、长度 6 的字符串数组**，三条封条落在 `index 0` / `3` / `4`（`index 1` 是「Pin 阶段完成：基线 finding 7 条」、`index 2` 是 ReVerify 展开、`index 5` 是分类器那条）。故 **1-based 读法「第 1/3/4」会把第 1 条错指到无告警的条目**。上一版审查把「清单的 1/3/4」当作正解、本 design 的「0/3/4」当作可疑——**方向反了**：主工件可直接读出 0-based 下标，本文件的 `0/3/4` 是对的，差一位的是清单。
 
 **共同失效原因（负证据，非「分类器未过」的非证据）**：`tests/test_loss.py` 与 `src/decompmoe/config.py` 现均与 HEAD 一致（各自 blob 相等）；`tests/test_loss.py` 当前 blob `e12ac751` **既不是** d53 当时的 revert 态 `7a88c637`，**也不是** fix 态 `6ddbdefb`。封条所保护的那份工作树状态**已从树上消失**，三条结论的证据基础在当前 HEAD 下不可复现。
 
@@ -105,7 +120,7 @@ agent 自述（`journal.jsonl` result 字段，逐字）保留了当时自洽的
 - `rv:main45:source`：verbatim「The revert exists only as uncommitted working-tree state in D:/myProject/DecompMoE, so it is fixed by `git checkout -- tests/test_loss.py`, not by any commit.」
 - `rv:main45:impact`：verbatim「none — b272787 IS the fix being reverted; no commit repairs it, because the damage lives only in the uncommitted main worktree (remedy is `git checkout -- tests/test_loss.py`, not a code change)」
 
-**重取证范围已划死为这 3 条 lens**，不重跑整个 `rv:main45` 批次——批内其余结论的证据基础未受该 blob 变更影响，整批重跑会无谓作废仍然有效的证据。
+**重取证范围已划死为这 3 条 lens**（复算：上表 **3** 行；每行对应 workflow json `logs` 数组中一个 `[Irreversible Local Destruction]` 条目，`Select-String -Path <该 json> -Pattern 'Irreversible'` → 3），不重跑整个 `rv:main45` 批次——批内其余结论的证据基础未受该 blob 变更影响，整批重跑会无谓作废仍然有效的证据。
 
 **脚注（非 deferred 项）**：`rv:main58:source` 因安全分类器限流**根本没被审查**（`logs[5]` 记「the safety classifier was unavailable (rate-limited)」），既无 `SECURITY WARNING` 也无放行确认。它**从未产生任何输出，不构成证据**，因此不进上表的重取证清单；如需覆盖须重新提交分类。**A-8 清单从未涵盖这第 4 条。**
 
@@ -115,12 +130,13 @@ agent 自述（`journal.jsonl` result 字段，逐字）保留了当时自洽的
 
 ### `REVIEW-LEDGER.md` — 纯新增，未回流
 
-- 位置：分支 `audit/sdd-review-2026-09-04`，路径 `REVIEW-LEDGER.md`
-- 实测（字节口径 `git cat-file blob`）：**17 961 bytes、312 LF、0 CR**（纯 LF 结尾）
-- `git diff --numstat dev...audit -- REVIEW-LEDGER.md` = **312 增 / 0 删**（merge-base `d52f8be` 不含该文件）
+- 位置：分支 `audit/sdd-review-2026-09-04`，路径 `REVIEW-LEDGER.md`（复算：`git rev-parse audit/sdd-review-2026-09-04` → `f8e5b26d5a34fd7d2d276e80808cf2eaff143ac7`，本地与 `origin` 同 SHA，远端可见）
+- 实测（字节口径 `git cat-file blob`）：**17 961 bytes、312 LF、0 CR**（纯 LF 结尾；复算：`git cat-file blob audit/sdd-review-2026-09-04:REVIEW-LEDGER.md`）
+- `git diff --numstat dev...audit -- REVIEW-LEDGER.md` = **312 增 / 0 删**（三点，merge-base `d52f8be` 不含该文件；见「numstat 口径声明」）
 - `git ls-tree -r dev --name-only` 对 `REVIEW-LEDGER` **零命中** ⇒ 确实从未进入 dev
-- verbatim 引文（≥8 字符，req-gov-6 prose-passage 格式）：**「DecompMoE SDD math-conformance review」**
-- **该台账自身已陈旧**：其表头声明「master, 31 Req」与「master, 22 Req」、以及「Current test baseline: `uv run pytest tests/` → **136 passed, 0 failed**」。当前实际为 wayfinder 36 Req / decompmoe-skeleton 23 Req。**引用它时必须先按新 HEAD 重测**，不要把它当作现状基线。
+- **分叉计数**：`git rev-list --left-right --count dev...audit/sdd-review-2026-09-04` = **203 / 1**，读取于 HEAD `4b24285`。⚠️ 这是**会漂**的数字——dev 在并发工作树下持续推进，故本登记**只把它当定位提示**（`203` 意味着 audit 侧落后 dev 约 200 个提交），**任何后续审计 MUST NOT 采信它而不重测**。初稿写的 `190/1` 已过期（差 13 个提交）；此处按本文件顶部的「计数约定」显式给出仪器与读取点，正是为了让它可被重算而非被信任。
+- verbatim 引文（≥8 字符，req-gov-6 prose-passage 格式）：**「DecompMoE SDD math-conformance review」**（从上述 blob 现场 `Select-String` 提取，非凭文件名编造）
+- **该台账自身已陈旧**：其表头声明「master, 31 Req」与「master, 22 Req」、以及「Current test baseline: `uv run pytest tests/` → **136 passed, 0 failed**」。当前实际为 wayfinder 36 Req / decompmoe-skeleton 23 Req（复算：`Select-String -Path openspec/specs -Pattern '^### Requirement'`，`governance` 另 10 条，合计 69）。**引用它时必须先按新 HEAD 重测**，不要把它当作现状基线。
 
 ### `LOOPS.md` — 两分支同名但内容不同（A-8 清单漏项）
 
@@ -132,7 +148,30 @@ agent 自述（`journal.jsonl` result 字段，逐字）保留了当时自洽的
 
 ### 行数口径声明
 
-两个文件的行数一律用**字节流**口径（数 `0x0A`）。PowerShell 文本路径给出 `REVIEW-LEDGER.md` = 310 行，是控制台编码吞掉多字节序列造成的**假低读数**；`numstat` 与字节口径均为 312。引用时须标明用的是哪个口径。
+两个文件的行数一律用**字节流**口径（数 `0x0A`）。实测（复算：`git cat-file blob audit/sdd-review-2026-09-04:REVIEW-LEDGER.md` 后按字节数 `0x0A` → 312；该审计分支本地与远端均在 `f8e5b26`，故此基线**可复算**、无需 `not reconstructible`）。
+
+**哪一种读法会给出假低读数 310**（2026-10-06 逐一实测，落在**未污染的原始字节文件**上）：
+
+| 读法 | 结果 |
+|---|---|
+| `Get-Content <file>`（PS7 默认 UTF-8） | **312** ✅ |
+| `Get-Content <file> -Encoding utf8` | **312** ✅ |
+| `[System.IO.File]::ReadAllLines(<file>)` | **312** ✅ |
+| `Get-Content <file> -Encoding ansi`（ACP 936） | **310** ❌ |
+| `git show … \| Out-File` 之后任何文本读法 | **310** ❌（写盘时已坏） |
+
+**成因（已定位到字节）**：恰有 **2** 个 `0x0A`（偏移 `9079` 与 `10973`）紧跟 GBK 前导字节 `0x85` / `0x92`。.NET 的 cp936 解码器在 lead byte 后**不校验 trail byte 范围**，直接吞掉后一字节，于是这两处换行消失，两对行被合并 ⇒ `312 − 2 = 310`。
+
+⇒ **初稿的警告结论与成因均正确，错的是被点名的那个命令**（初稿写「不得用 PowerShell 文本路径的 `Get-Content`」——**默认的 `Get-Content` 恰恰是正确读法**）。引用时须标明用的是哪个口径。
+
+### numstat 口径声明（两点 vs 三点）
+
+登记里两个 numstat 用的是**不同**的 diff 形式，这是有意的，不是笔误：
+
+- `REVIEW-LEDGER.md` 用**三点** `dev...audit`（merge-base `d52f8be` 不含该文件 ⇒ 纯新增 `312 增 / 0 删`）
+- `LOOPS.md` 用**两点** `dev audit/…`（两点按 tree 比对，dev 侧已有该文件 ⇒ `63 增 / 201 删`）
+
+用**同一**仪器重测这两个会得到矛盾结果：`LOOPS.md` 在**三点**下是 `63 增 / 0 删`（merge-base 无此文件）。**引用任一 numstat 必须连同其 diff 形式一起写**，否则读者用另一种形式复算会以为数字错了。
 
 ## 事实更正：`git remote set-head` 不改远端默认分支（任务 6.1 原文有误）
 
@@ -146,7 +185,7 @@ agent 自述（`journal.jsonl` result 字段，逐字）保留了当时自洽的
 | 执行后（**远端**） | **仍为** `ref: refs/heads/main	HEAD` / `051f24749770f6ceb6b3ba4d5c4961592943ba5e` | `git ls-remote --symref origin HEAD` |
 | 回滚 | `git remote set-head origin main` → `exit 0`，本地恢复 `refs/remotes/origin/main`，与远端一致 | 同上两路复验 |
 
-`git remote set-head` 写的是**本地** `refs/remotes/origin/HEAD` 这个 remote-tracking 缓存 ref；它是「远端 HEAD 是什么」的**本地副本**，不是设置远端的动作。**真正改 GitHub 仓库首页默认分支必须改远端仓库设置**：`gh repo edit <owner>/<repo> --default-branch dev`，或 GitHub 仓库 Settings → Branches → Default branch。本机 `gh` 已安装（`C:\Program Files\GitHub CLI\gh.exe`）但**未认证**（`gh repo view` 报 `run: gh auth login`），故本轮无法执行。
+`git remote set-head` 写的是**本地** `refs/remotes/origin/HEAD` 这个 remote-tracking 缓存 ref；它是「远端 HEAD 是什么」的**本地副本**，不是设置远端的动作。**真正改 GitHub 仓库首页默认分支必须改远端仓库设置**：`gh repo edit <owner>/<repo> --default-branch dev`，或 GitHub 仓库 Settings → Branches → Default branch。当时（2026-10-04）本机 `gh` 已安装但**未认证**（`gh repo view` 报 `run: gh auth login`），故那一轮无法执行；认证后的完成情况见下一节。
 
 ⇒ **该执行不仅未达成目标，还使本地缓存与远端事实相反**（本地声称 `dev`、远端实为 `main`），故已回滚。任务 6.1 与 6.3 保持 `[ ]`。
 

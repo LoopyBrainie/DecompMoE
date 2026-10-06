@@ -2,7 +2,7 @@
 
 ## 1. 台账实读与登记素材
 
-- [x] 1.1 从 `git cat-file blob audit/sdd-review-2026-09-04:REVIEW-LEDGER.md` 取**字节流**口径的行数与 CR 计数（数 `0x0A`；**不得**用 PowerShell 文本路径的 `Get-Content`，它给出假低读数 310）。验证：raw LF 计数 = 312、raw CR = 0，且与 `git diff --numstat dev...audit -- REVIEW-LEDGER.md` 的 `312 0` 三口径对账一致。
+- [x] 1.1 从 `git cat-file blob audit/sdd-review-2026-09-04:REVIEW-LEDGER.md` 取**字节流**口径的行数与 CR 计数（数 `0x0A`）。**口径更正（2026-10-06 实测）**：初稿写「**不得**用 PowerShell 文本路径的 `Get-Content`，它给出假低读数 310」——**点错了命令**。在**未污染的原始字节文件**上逐法实测：`Get-Content`（PS7 默认 UTF-8）= **312** ✅、`-Encoding utf8` = 312 ✅、`[IO.File]::ReadAllLines` = 312 ✅、**`-Encoding ansi`（ACP 936）= 310** ❌。成因已定位到字节：恰 2 个 `0x0A`（偏移 `9079` / `10973`）紧跟 GBK 前导字节 `0x85` / `0x92`，cp936 解码器不校验 trail byte 范围故吞掉后一字节，`312 − 2 = 310`。**任何经 `git show … | Out-File` 落盘的读法也一律给 310**（写盘时已坏）——我自己在复核时踩过一次，教训记在此处。验证：raw LF = 312、raw CR = 0，与 `git diff --numstat dev...audit -- REVIEW-LEDGER.md` 的 `312 0` 三口径对账一致。
 - [x] 1.2 对 `LOOPS.md` 做同口径核验：确认它是 A-8 清单漏掉的同族资产，且其 dev→audit numstat 为 `63` 增 / `201` 删（**极性与清单记录的 `201 增 63 删` 相反**）。验证：`git diff --numstat dev audit/sdd-review-2026-09-04 -- LOOPS.md` 输出与记录一致。
 - [x] 1.3 从上述两个 blob 中各提取一句 **≥8 字符的 verbatim 引文**，供 req-gov-6 的 prose-passage 引用格式使用。**禁止凭文件名或记忆编造引文**（`CLAUDE.md` §3：不在无真相源处造值）。验证：引文可在 `git cat-file blob` 的输出中逐字 grep 到。
 - [x] 1.4 确认 `REVIEW-LEDGER.md` 在 `dev` 树中任何路径下均不存在（全量 `git ls-tree -r dev --name-only`，不做 scope-limited 收窄），且 audit 分支在远端可见（`git ls-remote` 返回该 ref 且 SHA 与本地一致）。验证：记录两条命令的实测输出。
