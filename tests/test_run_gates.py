@@ -326,8 +326,19 @@ def test_change_flag_validates_only_the_named_change(monkeypatch) -> None:
     G.main(["--change", "my-change", "--skip-pytest"])
 
     openspec_cmds = [c for c in recorded if c[0] == "openspec"]
+    # The specs call carries NO `--strict`; the change call still does.
+    #
+    # `--strict` promotes WARNINGs to invalid, and the only WARNING class this
+    # tree emits is openspec's `REQUIREMENT_TOO_LONG` advisory. openspec applies
+    # that limit to a delta's ADDED requirements but explicitly skips it for
+    # MODIFIED — `dist/core/validation/validator.js`: "MODIFIED is left alone:
+    # its text is the existing requirement, which the specs instruction says to
+    # keep whole." Applying `--strict` to the specs path would therefore ask
+    # openspec to enforce retroactively the rule it declines to enforce on an
+    # existing requirement. The change-level check keeps `--strict` because that
+    # is where a NEW overlong requirement can still be caught before it lands.
     assert openspec_cmds == [
-        ["openspec", "validate", "--specs", "--strict"],
+        ["openspec", "validate", "--specs"],
         ["openspec", "validate", "my-change", "--type", "change", "--strict"],
     ], f"Unexpected openspec invocations: {openspec_cmds}"
 
