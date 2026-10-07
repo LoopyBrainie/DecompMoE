@@ -9,7 +9,17 @@ Defines the observable, testable behavior of the DecompMoE skeleton: type-safe c
 
 ### Requirement: Canonical Package And Version Identifier
 
-The package SHALL expose `decompmoe.__canonical_name__ == "DecompMoE"`, `decompmoe.__alias__ == "GeoMoE"`, and `decompmoe.__version__` as a `str` matching PEP 440 semantics. The package SHALL expose a stable `__all__` listing every public symbol introduced by this skeleton. **De-duplication rule (normative):** "every public symbol" means the **de-duplicated union** of the `__all__` entries declared by the 13 submodules — a name declared in more than one submodule counts **once**. At MVP that union is exactly **75** names; together with the 3 package dunders (`__version__`, `__canonical_name__`, `__alias__`) the package-level `__all__` therefore has **78** entries. The **only** cross-module name collision at MVP is `flops_per_token`, declared in both `config` and `metrics` (the `metrics` definition is a passthrough wrapper that mirrors `config.flops_per_token`); the package-level `__all__` MUST bind that name to the `config` definition, and the `metrics` definition MUST remain reachable as `decompmoe.metrics.flops_per_token`. **MUST NOT:** summing the 13 per-module counts without de-duplication yields **76** and is not the expected total. The alias SHALL NOT appear as a code identifier anywhere in the package (only in design prose / docstrings).
+The package SHALL expose `decompmoe.__canonical_name__ == "DecompMoE"`, `decompmoe.__alias__ == "GeoMoE"`, and `decompmoe.__version__` as a `str` matching PEP 440 semantics. The package SHALL expose a stable `__all__` listing every public symbol introduced by this skeleton. **De-duplication rule (normative):** "every public symbol" means the **de-duplicated union** of the `__all__` entries declared by the 13 submodules — a name declared in more than one submodule counts **once**. At MVP that union is exactly **76** names; together with the 3 package dunders (`__version__`, `__canonical_name__`, `__alias__`) the package-level `__all__` therefore has **79** entries. The **only** cross-module name collision at MVP is `flops_per_token`, declared in both `config` and `metrics` (the `metrics` definition is a passthrough wrapper that mirrors `config.flops_per_token`); the package-level `__all__` MUST bind that name to the `config` definition, and the `metrics` definition MUST remain reachable as `decompmoe.metrics.flops_per_token`. **MUST NOT:** summing the 13 per-module counts without de-duplication yields **77** and is not the expected total. The alias SHALL NOT appear as a code identifier anywhere in the package (only in design prose / docstrings).
+
+<!-- No `**Source:**` line, deliberately. `("decompmoe-skeleton", "req-1")` is
+     entry 1 of `SOURCE_EXEMPTIONS` in scripts/lint_no_source_field_drift.py:
+     req-1 is grandfathered as lacking a lineage field, and the lint enforces
+     that a registry entry which NOW carries one is itself a violation. Adding
+     the line here would apply the delta into a spec tree where req-1 carries a
+     field while still being registered as exempt -- i.e. it would turn the very
+     next `/opsx:archive` red. req-1 keeps its exemption and stays consistent
+     with its 19 exempt decompmoe-skeleton peers. Design lineage for this
+     change is recorded in the change's own design.md Decision 6. -->
 
 #### Scenario: Name resolution
 - **WHEN** `decompmoe.__canonical_name__` is accessed
@@ -18,6 +28,13 @@ The package SHALL expose `decompmoe.__canonical_name__ == "DecompMoE"`, `decompm
 #### Scenario: Alias preserved
 - **WHEN** `decompmoe.__alias__` is accessed
 - **THEN** it returns the literal string `"GeoMoE"` for documentation continuity
+
+#### Scenario: gamma_reset_for_phase2 is on the public surface
+
+- **WHEN** the 13 submodules' `__all__` entries are de-duplicated
+- **THEN** the union contains `gamma_reset_for_phase2` exactly once, it is declared by `schedule`, and `from decompmoe import gamma_reset_for_phase2` resolves
+- **AND** the union size, the un-deduplicated per-module sum, and the package-level `__all__` size are **76**, **77**, and **79** respectively (integer closed forms -> bare `==`, never `pytest.approx(..., abs=0)` per governance req-gov-1 §1)
+- **AND** those three counts are the values the de-duplication rule **yields**, not independent constants: they are normative, so a count that stops matching the rule is itself a violation of this Requirement rather than stale documentation. A symbol that is public but absent from `__all__` violates the enumeration obligation above, and the counts are what make that omission detectable
 
 <a id="req-2"></a>
 
@@ -380,8 +397,8 @@ The package SHALL satisfy the following source-level invariants, asserted by **l
 - **THEN** all invariants pass
 
 <a id="req-16"></a>
-### Requirement: Centroid Driver Semantic Invariants
 
+### Requirement: Centroid Driver Semantic Invariants
 
 The package's `CentroidDriver` SHALL enforce four semantic invariants that **cannot be verified by literal-token grep alone** (data-flow analysis, runtime observation, and arithmetic comparison are required). These are the **semantic counterpart** to Requirement "Hard-Constraint Grep Invariants" and are the landing site for the two invariants that req-15 removed from grep scope:
 
@@ -396,7 +413,6 @@ The package's `CentroidDriver` SHALL enforce four semantic invariants that **can
 #### Scenario: Semantic invariants are enforced by the named test scenarios
 - **WHEN** the four named test scenarios (`test_empty_cell_preserves_centroid`, `test_spherical_norm_is_strictly_one`, `test_near_zero_candidate_fallback`, `test_near_zero_candidate_fallback_phase4`) all pass
 - **THEN** the empty-cell fallback, spherical re-projection, and near-zero candidate fallback invariants hold for `CentroidDriver` across all four active phases
-
 
 #### Scenario: Voronoi closed form is not the arctan shortcut
 
@@ -428,8 +444,8 @@ The package's test suite SHALL include the following three tests, asserting the 
 ---
 
 <a id="req-18"></a>
-### Requirement: Centroid Four-Phase Lifecycle Driver — Phase-4 SGD Step Extension
 
+### Requirement: Centroid Four-Phase Lifecycle Driver — Phase-4 SGD Step Extension
 
 The package SHALL provide `CentroidDriver(phase: Phase) -> CentroidDriver` with `Phase ∈ {SEEDING=0, EMA_090=1, EMA_095=2, EMA_099=3, PROJECTED_SGD=4}`. The `step(centroids, X, mask, *, grad=None, eta=1e-2) -> Tensor` method MUST apply, per phase. **`mask` is a REQUIRED positional parameter and MUST NOT be given a default value:** per-expert masked means `m_i` are undefined without it, and a defaulted `mask=None` invites an implementation to substitute a whole-batch mean for `m_i`, which silently broadcasts one mean to every centroid and collapses all territories to a single point. An implementation MUST reject a missing `mask` rather than substitute one.
 
@@ -509,8 +525,8 @@ The package SHALL provide `inverse_temperature(gamma) -> Tensor` implementing th
 ---
 
 <a id="req-21"></a>
-### Requirement: Frozen MVP Hyperparameter Set — D1 Geometric-Only Fields
 
+### Requirement: Frozen MVP Hyperparameter Set — D1 Geometric-Only Fields
 
 The package SHALL provide a `MVPConfig` frozen dataclass whose locked constants equal: `d_model == 1024`, `N_e == 16`, `k == 2`, `d_ffn == 2048`, `L == 4`, `d_ffn_dense == 4096`, `d_c == 16`, `H_kv == 8`, `d_k == 128`, `β_initial ≈ 1.035` (per wayfinder `Req 7` "Isotropic Squared-Chord Distance And Bounded Beta" (`#req-7`) closed-form `β_0 = 0.1 + 31.9·σ(γ_init)` with `γ_init ≈ −3.5`; 50-digit mpmath `β_0 = 1.0350601609682665718`). Attempting to mutate any field SHALL raise `dataclasses.FrozenInstanceError`. A factory function `MVPConfig()` SHALL return an instance with all default values.
 
@@ -629,8 +645,8 @@ The four offline metric implementations MUST implement the closed forms above (a
 - **THEN** it raises `TypeError` (the `CG` definition is the `ℓ₂` norm of a learnable-parameter gradient — non-floating-point tensors cannot be such a gradient)
 
 <a id="req-23"></a>
-### Requirement: No decompmoe-skeleton spec changes required for cycle-12 finding 1 closure
 
+### Requirement: No decompmoe-skeleton spec changes required for cycle-12 finding 1 closure
 
 The system SHALL NOT modify any `decompmoe-skeleton` spec Requirement as part of cycle-12 finding 1 closure. The cycle-12 finding 1 (historical: ticket A8-2 L70 centered-covariance + L74 CV/convex-hull vs `wayfinder Req 20 MCI row (#req-20-mci)` uncentered second moment) is **purely a wayfinder spec scope concern** — but `decompmoe-skeleton` **does** own a verbatim mirror of the wayfinder Req 20 closed-form definitions (see below), so this Requirement serves as an explicit declaration that the existing mirror is already aligned and no new mirror / no new behavior is being introduced by this change.
 
@@ -653,4 +669,3 @@ The system SHALL NOT modify any `decompmoe-skeleton` spec Requirement as part of
 - **AND** the `MCI closed-form on uniform token distribution` and `MCI closed-form on rank-1 token distribution` Scenarios use `abs=1e-12` (mirroring the two corresponding Scenarios under wayfinder `#req-20`) — both endpoints of the declared `[1/d_c, 1]` range are guarded
 - **AND** no `decompmoe-skeleton` Requirement is listed in the "Affected code / Affected Requirements" sections of `proposal.md` for this change (the mirror is unchanged)
 - **AND** the `decompmoe-skeleton` spec.md anchor coverage remains unchanged (existing anchors per archived changes `2026-09-15-fix-skeleton-spec-duplicate-and-completeness-2026-09-15` + `2026-09-16-fill-skeleton-spec-leading-anchor-gaps` are not affected by this change)
-
