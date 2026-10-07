@@ -340,26 +340,56 @@ def test_spec_counts_are_inert_to_the_lint_rules_but_never_routed_here() -> None
     )
 
 
-def test_scope_follows_gate_change(monkeypatch) -> None:
+def test_scope_follows_gate_change(monkeypatch, tmp_path) -> None:
     """`GATE_CHANGE` narrows the scan to one change, per req-gov-7's scoping rule.
 
     Without this, the gate's verdict is a function of every sibling change's
     in-flight edits — which is how a gate gets switched off, and how a green can
     be produced by somebody else's commit instead of by this change.
+
+    The tree is SYNTHETIC. An earlier version of this test named a real,
+    then-unarchived change and asserted the repo-wide scan saw strictly more.
+    Both halves were a function of live repository state: archiving that change
+    silently emptied the scoped scan, and archiving every sibling emptied the
+    difference, so a routine archive turned this test red for a reason that had
+    nothing to do with the lint. A scoping rule must be pinned by the fixture,
+    not by whatever changes happen to be open this week.
     """
-    monkeypatch.setenv("GATE_CHANGE", "2026-10-04-archive-evidence-provenance")
-    rels = [str(p.relative_to(_REPO_ROOT)).replace("\\", "/") for p in L.evidence_files()]
+    changes = tmp_path / "changes"
+    docs = tmp_path / "docs"
+    (changes / "alpha-change").mkdir(parents=True)
+    (changes / "beta-change").mkdir(parents=True)
+    (changes / "archive" / "gone-change").mkdir(parents=True)
+    docs.mkdir(parents=True)
+    (changes / "alpha-change" / "proposal.md").write_text("alpha\n", encoding="utf-8")
+    (changes / "beta-change" / "design.md").write_text("beta\n", encoding="utf-8")
+    (changes / "archive" / "gone-change" / "proposal.md").write_text("old\n", encoding="utf-8")
+    (docs / "kept.md").write_text("doc\n", encoding="utf-8")
+
+    monkeypatch.setattr(L, "_CHANGES_DIR", changes)
+    monkeypatch.setattr(L, "_ARCHIVE_DIR", changes / "archive")
+    monkeypatch.setattr(L, "_DOCS_DIR", docs)
+
+    monkeypatch.setenv("GATE_CHANGE", "alpha-change")
+    rels = [p.relative_to(tmp_path).as_posix() for p in L.evidence_files()]
     assert rels, "a scoped scan over a real change must find files"
     for rel in rels:
-        assert "2026-10-04-archive-evidence-provenance" in rel or rel.startswith("docs/"), (
+        assert "alpha-change" in rel or rel.startswith("docs/"), (
             f"scoped mode admits only the named change and docs/: {rel}"
         )
+    # The archive is excluded in BOTH modes (req-gov-5), so an archived change
+    # must not sneak in through the repo-wide branch either.
+    assert not any("gone-change" in r for r in rels), f"archive must stay excluded: {rels}"
 
     monkeypatch.delenv("GATE_CHANGE", raising=False)
-    wide = [str(p.relative_to(_REPO_ROOT)).replace("\\", "/") for p in L.evidence_files()]
+    wide = [p.relative_to(tmp_path).as_posix() for p in L.evidence_files()]
     assert len(wide) > len(rels), (
         f"repo-wide mode must scan more than scoped mode: {len(wide)} vs {len(rels)}"
     )
+    assert "changes/beta-change/design.md" in wide, (
+        f"repo-wide mode must admit the sibling change: {wide}"
+    )
+    assert not any("gone-change" in r for r in wide), f"archive must stay excluded: {wide}"
 
 
 def test_scoped_to_a_nonexistent_change_scans_nothing_and_says_so(
