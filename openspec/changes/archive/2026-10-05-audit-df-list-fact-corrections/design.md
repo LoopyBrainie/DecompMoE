@@ -137,3 +137,29 @@ live 闭式是 `33_168 MACs = 66_336 FLOPs` / `~1.22%`，且已有守护：`test
 即：校正的「记录」被忽略，校正的「过程」未入库。这也是本 change 存在的原因——把校正放进会入库的位置，而不是只写回被忽略的目录。
 
 该 change 已于本 change 之前单独补录（`00ed706`），其 26 项 task 全部完成、`.openspec.yaml` 声明 `skip_specs: true` 故无 delta 子目录，符合该类变更的形态。anchor 未受损：三条 live spec 的 anchor 计数在补录前后一致。
+
+## D10 `scratch/` 内 `nd05_*.py` 的定性更正与保全裁决
+
+**原表述有误。** §2 阶段把 `scratch/` 内四个文件记作「残留 audit 脚本」。那是按文件名所作的推测，**从未开箱**。2026-10-07 实测开箱后，四者均为 cap-area `G` 闭式的数值 oracle（`mpmath`，`mp.dps = 50`），不是草稿或残留。
+> 基线：审计根 `audit/scratch/` 的四个文件，取自审计 pin `6593a06` 对应的运行产物；复现命令 `Get-ChildItem <audit>\scratch`。该目录不在版本控制内，故行文中的文件集合以该次运行的落盘副本为准。
+
+**各自承担什么**（定位，不复述其结论）：
+
+| 文件 | 作用 | 是否依赖审计基线 |
+|---|---|---|
+| `nd05_a.py` | `B((d_c-1)/2, 1/2)` 与 `G_exact / Gp / Gpp` 闭式 | 是，`sys.path` → `pin6593a06/src` |
+| `nd05_b.py` | `Gpp` ＋ `tests/test_sphere.py::_cap_area_second_derivative` 的逐字副本 | 是，同上 |
+| `nd05_c.py` | `\|G_impl - G_exact\|` 偏差表 ＋ 「若 `_cap_area` 被修正，该测试会否通过」探针 | 是，同上 |
+| `nd05_d.py` | 纯 `mpmath`：G 在 `pi/2` 的连续性与 C¹、变号计数 | 否，独立 |
+
+它们所支撑的 finding 编号与数值结论见 `_cache_dump.json` 的 `BASE-01` 与 `BASE-02` 两条 CRITICAL；本节按单一事实源原则只给指针，不复述其内容。
+> 基线：`<audit>/_cache_dump.json`（审计 pin `6593a06` 运行产物，不在版本控制内）；复现命令 `Select-String -Path <audit>\_cache_dump.json -Pattern 'BASE-0[12]'`。
+
+**与审计基线的耦合是隐式的。** 四者中除 `nd05_d.py` 外均把 `sys.path` 硬指向 `pin6593a06/src`。删掉基线，其余三者立即不可运行，且失败现场只是一句 `ImportError`，指不回基线。故「保留基线」**不充分**——oracle 组必须与基线同存，这是本节与 D4 的取舍差异。
+> 基线：`audit/scratch/` 的四个脚本 @ `6593a06` 运行产物；复现命令 `Select-String -Path <audit>\scratch\*.py -Pattern 'pin6593a06'`。
+
+**可发现性缺口——这是本 change 需要 2.5 这条 task 的唯一理由。** 同类 oracle 在另两个目录里被证据**按名**引用：`_lensB/` 与 `_scratch_adv01/` 均出现在 `_handoff_verdicts_all.json`、`_handoff_verdicts_fresh.json`、`_merged.json`、`_top_notes.txt` 之中，其中一条证据还直接写明了 `sys.path -> pin6593a06/src` 与所用解释器。而 `scratch/nd05_*.py` 在审计根顶层全部 `*.txt` / `*.md` / `*.json` 证据中检索为 0 命中——`BASE-01` / `BASE-02` 只引其**数值**，从不引**脚本名**。这是三个目录之间唯一不对等的地方，也是最容易被当作 scratch 清掉的一处。
+> 基线：`<audit>/` 顶层的 `*.txt` / `*.md` / `*.json` @ `6593a06` 运行产物；复现命令两条并列——`Select-String -Path <audit>\*.txt,*.md,*.json -Pattern 'nd05'`（0 命中）与同式 `-Pattern '_lensB'`（有命中）。
+
+**裁决：保留，不进入「待处置」。** 满足保全准入三件套——**是什么**见上表；**谁依赖**见 `_cache_dump.json` 的 `BASE-01` / `BASE-02`；**为什么删不得**见上段耦合论证。三者缺一不得进入保全清单，该判据本身写在审计根 `_PRESERVE.md` 的头部。
+> 基线：本节；准入判据原文见 `<audit>/_PRESERVE.md` 首段（不在版本控制内）。

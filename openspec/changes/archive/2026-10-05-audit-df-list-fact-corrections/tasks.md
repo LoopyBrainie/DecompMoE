@@ -17,7 +17,7 @@
 - [x] 2.2 以单次顶层可恢复删除移除 13 棵非 pin 仓库副本树（实测 13/13 已移除，`rm` exit 0）
 - [x] 2.3 保留 `pin6593a06`（审计基线）、`_mut4_scripts`、`_ur_probe_plugin.py`、`_lensB`、`_scratch_adv01`（除 mut2）（实测全部仍在）
 - [x] 2.4 校验：审计基线 `git status --porcelain` 为空；`git worktree list` 在本阶段结束时条目数未变
-- [ ] 2.5 `scratch/` 未清空（残留 4 个 audit 脚本 `nd05_*.py`），按计划的条件式守卫**不删除**，留作未决
+- [x] 2.5 裁决 `scratch/` 内 `nd05_*.py` 去留：保留；依据与耦合见 design.md D10、审计根 `_PRESERVE.md`
 
 ## 3. 分支与 worktree 卫生
 
