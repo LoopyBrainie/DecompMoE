@@ -163,3 +163,28 @@ live 闭式是 `33_168 MACs = 66_336 FLOPs` / `~1.22%`，且已有守护：`test
 
 **裁决：保留，不进入「待处置」。** 满足保全准入三件套——**是什么**见上表；**谁依赖**见 `_cache_dump.json` 的 `BASE-01` / `BASE-02`；**为什么删不得**见上段耦合论证。三者缺一不得进入保全清单，该判据本身写在审计根 `_PRESERVE.md` 的头部。
 > 基线：本节；准入判据原文见 `<audit>/_PRESERVE.md` 首段（不在版本控制内）。
+
+## D11 本次编辑的门禁口径与阻塞判据
+
+**唯一阻塞判据是口径 A 的 exit code。** 口径 B 的结果**不作阻塞依据**，只作环境快照——两者含义不同，混读会把「环境当时的状态」误当成「这个 change 门禁没过」。
+
+| 口径 | 命令 | HEAD | 时间 | exit | 性质 |
+|---|---|---|---|---|---|
+| A 收窄 lint | `$env:GATE_CHANGE='archive/2026-10-05-audit-df-list-fact-corrections'` 后跑 `lint_no_baseline_counts.py` | `953b096` | 2026-10-07 23:03:19 | **0** | **阻塞判据** |
+| B full gate | `run_gates.py`（不带 `--change`） | `953b096` | 2026-10-07 23:03:19 – 23:04:13 | 1 | 环境快照，不作阻塞依据 |
+
+> 基线：本地实测；HEAD `953b096` 即记录 D10 与收口 task 2.5 的那次提交，复现命令见上表命令列。
+
+**口径 B 的 exit 1 不由本 change 引起。** 其唯一 FAIL 项是 `openspec validate --specs --strict`，而该命令只校验 `openspec/specs/**`；本 change 的提交仅触及 `openspec/changes/archive/**` 下的两个文件。
+> 基线：提交 `953b096` 的改动路径清单，以及 `git diff 34b445a 953b096 -- openspec/specs` 的空输出，两者均可在 HEAD 复算。
+
+**⚠ 一处尚未解释的矛盾，如实记录而非抹平。** 该失败在 HEAD 确定性复现——主工作树与一份干净 detached worktree 各连续三次同结果——并可回溯至本 change 之前的多个提交；**但** 2026-10-05 归档前的那次门禁输出中，同一条命令被记为 PASS。二者不可能同时为真。
+> 基线：可重复性由本地连续执行同一命令得到；矛盾项的一方来自本 change `tasks.md` §5.1 记录的 2026-10-05 门禁输出。
+
+已排除的因素：`openspec/config.yaml` 自初始提交起从未改动；`openspec.exe` shim 的 mtime 为 2026-08-02；本 change 未触及任何 spec 文件。**成因未定位，故不作结论。**
+> 基线：`git log -- openspec/config.yaml` 仅一条初始提交；shim 文件属性与 spec 文件改动范围均为 HEAD `953b096` 本地实测。
+
+**通过项（口径 B 输出中为 PASS）**：五条 lint 全部 PASS，anchor 覆盖 70 个 anchor 跨三份 capability，pytest 全绿。
+> 基线：口径 B 的 stdout，`run_gates.py` 于 HEAD `953b096` 实测。
+
+**D11 自身的合规性**：本节与 D10 均由口径 A 在追加后复跑确认 `exit 0`；复跑发生在本节落盘之后，故其校验结果不回写本节，以免自指。
