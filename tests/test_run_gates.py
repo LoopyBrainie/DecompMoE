@@ -83,12 +83,23 @@ def test_snapshot_differs_is_empty_for_identical_snapshots() -> None:
 
 
 def test_worktree_snapshot_has_all_components() -> None:
-    """The real repo snapshot must carry every discriminating component."""
+    """The real repo snapshot must carry every discriminating component.
+
+    `gate_digest` (D5) joins the three tree components because the others describe
+    the run's input and none of them describes its coverage.
+    """
     snap = G.worktree_snapshot()
-    assert set(snap) == {"head", "tracked_digest", "untracked_digest", "status_lines"}
+    assert set(snap) == {
+        "head",
+        "tracked_digest",
+        "untracked_digest",
+        "gate_digest",
+        "status_lines",
+    }
     assert len(snap["head"]) == 40, f"HEAD should be a full sha, got {snap['head']!r}"
     assert len(snap["tracked_digest"]) == 64
     assert len(snap["untracked_digest"]) == 64
+    assert len(snap["gate_digest"]) == 64
     assert isinstance(snap["status_lines"], int)
 
 
@@ -1116,3 +1127,78 @@ def test_ledger_records_every_capability() -> None:
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))
+
+# ---------------------------------------------------------------------------
+# Change C (2026-10-07-lint-count-baseline-scope-and-gate-set-integrity)
+# ---------------------------------------------------------------------------
+
+
+def test_snapshot_records_the_gate_set(monkeypatch, tmp_path) -> None:
+    """D5: the lint set is part of what a gate result describes.
+
+    HEAD and the two tree digests describe the run's INPUT. They say nothing
+    about its COVERAGE, so a lint added or edited while the gates ran left both
+    snapshots agreeing on the new HEAD while the executed set was the old one --
+    a PASS describing checks that no longer exist.
+    """
+    fake_git = tmp_path / "repo"
+    (fake_git / "scripts").mkdir(parents=True)
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    (scripts / "lint_one.py").write_text("print('one')\n", encoding="utf-8")
+
+    monkeypatch.setattr(G, "_git", lambda *args: (0, "b" * 40 + "\n"))
+    monkeypatch.setattr(G, "SCRIPTS_DIR", scripts)
+    monkeypatch.setattr(G, "discover_lints", lambda: sorted(scripts.glob("lint_*.py")))
+    monkeypatch.setattr(G, "_tracked_content_digest", lambda: "t1")
+    monkeypatch.setattr(G, "_untracked_content_digest", lambda: "u1")
+
+    snap_one = G.worktree_snapshot()
+    assert "gate_digest" in snap_one, (
+        f"the snapshot must carry the gate set, actual keys={sorted(snap_one)!r}"
+    )
+
+    # Same tree, different coverage: add a lint. Nothing else moved.
+    (scripts / "lint_two.py").write_text("print('two')\n", encoding="utf-8")
+    snap_two = G.worktree_snapshot()
+    assert snap_two["gate_digest"] != snap_one["gate_digest"], (
+        "adding a lint must change gate_digest even though the tree is identical, "
+        f"actual={snap_one['gate_digest']!r} vs {snap_two['gate_digest']!r}"
+    )
+
+    # Editing a lint in place must also move it.
+    (scripts / "lint_two.py").write_text("print('two changed')\n", encoding="utf-8")
+    snap_three = G.worktree_snapshot()
+    assert snap_three["gate_digest"] != snap_two["gate_digest"], (
+        "editing a lint must change gate_digest, "
+        f"actual={snap_two['gate_digest']!r} vs {snap_three['gate_digest']!r}"
+    )
+
+    # And the digest must be one of the fields `_snapshot_differs` reports.
+    moved = G._snapshot_differs(snap_one, snap_three)
+    assert any("gate_digest" in m for m in moved), (
+        f"gate_digest must be compared, actual moved={moved!r}"
+    )
+    assert not any("gate_digest" in m for m in G._snapshot_differs(snap_one, dict(snap_one))), (
+        "an unchanged gate set must report nothing moved"
+    )
+
+
+def test_discovery_happens_inside_the_snapshot_window(monkeypatch) -> None:
+    """D5: discovery and the snapshot must share one window.
+
+    Reading the source for `discover_lints()` before `worktree_snapshot()` reopens
+    the race the digest closes, so the ordering is pinned rather than assumed.
+    """
+    order: list[str] = []
+    monkeypatch.setattr(G, "worktree_snapshot", lambda: order.append("snapshot") or {
+        "head": "c" * 40, "tracked_digest": "t", "untracked_digest": "u",
+        "gate_digest": "g", "status_lines": 0,
+    })
+    monkeypatch.setattr(G, "discover_lints", lambda: order.append("discover") or [Path("fake.py")])
+    monkeypatch.setattr(G, "_run", lambda cmd, env=None: (0, "ok"))
+    monkeypatch.setattr(G, "check_anchor_coverage", lambda *a, **k: [])
+    G.main(["--skip-pytest"])
+    assert order[:2] == ["snapshot", "discover"], (
+        f"the snapshot must be taken before discovery, actual order={order[:4]!r}"
+    )

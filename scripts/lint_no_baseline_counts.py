@@ -136,7 +136,13 @@ EVIDENCE_GLOBS = ("proposal.md", "design.md", "tasks.md")
 
 # --- 1. count tokens (exhaustive) --------------------------------------------
 COUNT_PATTERNS: tuple[tuple[str, str], ...] = (
-    (r"\b\d+\s*/\s*\d+\b", "ratio"),
+    # `Phase 2/3` is a prose enumeration of two phases, not a ratio, and it is the
+    # only false positive this rule family produced. The lookbehinds exempt exactly
+    # that spelling without touching the rest of the pattern: `3/16` and `2/3`
+    # still fire, and `3/16 = 0.1875` is live text in `wayfinder`'s spec. An
+    # earlier candidate that required whitespace around the slash was rejected on
+    # that evidence — it silently lost every compact ratio.
+    (r"(?<!Phase\s)(?<!Step\s)(?<!阶段\s)\b\d+\s*/\s*\d+\b", "ratio"),
     # `48 / loose 48` — two figures, one word apart. A bare `\d+/\d+` misses the
     # `strict N / loose N` spelling, which is how the motivating instance is written.
     (r"\b\d+\s*/\s*[A-Za-z]+\s*\d+\b", "paired counts"),
@@ -157,7 +163,13 @@ _CLAUSE_REF_RE = re.compile(r"第\s*\d+\s*(?:条|项|个|处|次|款|章|节)")
 
 # --- 2. baseline tokens (exhaustive) -----------------------------------------
 BASELINE_PATTERNS: tuple[tuple[str, str], ...] = (
-    (r"\b[0-9a-f]{7,40}\b", "commit hash"),
+    # At least one digit is required. `\b[0-9a-f]{7,40}\b` alone is matched by
+    # `defaced`, `effaced` and `feedbac`, so any paragraph containing one of those
+    # English words counted as baselined and its real counts went unreported. The
+    # cost is an all-letter hash (`deadbee`); `abcdef1` still matches. Measured on
+    # the 432-file archived corpus, this change removes the false baselines at zero
+    # finding-count cost.
+    (r"\b(?=[0-9a-f]{7,40}\b)(?=[0-9a-f]*\d)[0-9a-f]{7,40}\b", "commit hash"),
     (r"\bHEAD\b", "HEAD"),
     (r"\b\d{4}-\d{2}-\d{2}-[a-z0-9][a-z0-9-]*\b", "change name"),
     (r"\breq-(?:gov-)?\d+\b", "Requirement anchor"),
@@ -171,7 +183,10 @@ BASELINE_PATTERNS: tuple[tuple[str, str], ...] = (
 # --- 3. exemption markers (exhaustive, in-document) --------------------------
 EXEMPTION_MARKERS = (
     "pre-this-change",
-    "histor",
+    # `histor` was a bare substring here, so `history`, `historian` and any other
+    # word merely starting with those six letters all granted an exemption. The
+    # marker is the word `historical`; `has_exemption` matches it on a boundary.
+    "historical",
     "superseded",
     "not reconstructible",
     "无法复算",
@@ -179,6 +194,16 @@ EXEMPTION_MARKERS = (
     "待独立裁决",
     "不处置",
 )
+
+# Exemption markers split by script class, and deliberately so. `\b` is an ASCII
+# word boundary and CJK characters are word characters, so `\b无法复算\b` could
+# never match and every Chinese exemption would silently stop working. ASCII
+# markers get word-boundary matching so a longer word cannot smuggle one in;
+# CJK markers stay substring matches because that is the only form that works.
+_ASCII_EXEMPTION_RE = re.compile(
+    r"\b(?:" + "|".join(re.escape(m) for m in EXEMPTION_MARKERS if m.isascii()) + r")\b"
+)
+_CJK_EXEMPTION_MARKERS = tuple(m for m in EXEMPTION_MARKERS if not m.isascii())
 
 _COUNT_RES = tuple(re.compile(p) for p, _ in COUNT_PATTERNS)
 _BASELINE_RES = tuple(re.compile(p) for p, _ in BASELINE_PATTERNS)
@@ -312,7 +337,9 @@ def _block_bounds(lines: list[str], idx: int) -> tuple[int, int]:
 
 def has_exemption(text: str) -> bool:
     low = text.lower()
-    return any(m in low for m in EXEMPTION_MARKERS)
+    return bool(_ASCII_EXEMPTION_RE.search(low)) or any(
+        m in low for m in _CJK_EXEMPTION_MARKERS
+    )
 
 
 def _table_cell_counts(line: str) -> bool:
@@ -331,12 +358,44 @@ def _table_cell_counts(line: str) -> bool:
     return False
 
 
+def _is_baselined(lines: list[str], i: int, lo: int, hi: int) -> bool:
+    """True when the count on line `i` carries an exemption or a baseline.
+
+    Scope is the COUNT'S OWN LINE, not the block. Under the previous block-wide
+    scope one command named anywhere in a paragraph baselined every count in it,
+    so gate coverage shrank as paragraphs got longer — the exact inverse of the
+    intent, and the worst of the defects found by the audit.
+
+    `i` rather than `lo`: `_block_bounds` extends a block upward across every
+    non-blank line, so for a list the block start is the PREVIOUS item. Using
+    `lo` here would test a neighbouring line's baseline, which is the same defect
+    one level in.
+
+    A table row keeps the contiguous `|` run as its scope, header included,
+    because `_block_bounds` already documents the header as the legitimate place
+    for a table's baseline. That exception is carried over from that prior
+    design rationale rather than from measurement: building both variants over
+    the 432-file archived corpus produced identical counts (943 either way), so
+    it is unmeasured, not free.
+    """
+    if lines[i].lstrip().startswith("|"):
+        text = "\n".join(lines[lo:hi])
+    else:
+        text = lines[i]
+    return has_exemption(text) or any(res.search(text) for res in _BASELINE_RES)
+
+
 def find_unbaselined_counts(lines: list[str]) -> list[tuple[int, str, str]]:
     """Return `(lineno, count_kind, line)` for every count lacking a baseline.
 
     One report per offending BLOCK, not per count line. A paragraph that states
     five counts and names no baseline is one defect, and reporting it five times
     inflates the number the triage pass has to read.
+
+    Report granularity and baseline scope are separate questions and this change
+    touched only the second. The docstring previously described per-count
+    baselining while the code did per-block, which is the same defect class as the
+    rule it described: a comment that no longer matches what runs.
     """
     findings: list[tuple[int, str, str]] = []
     reported_blocks: set[tuple[int, int]] = set()
@@ -353,14 +412,16 @@ def find_unbaselined_counts(lines: list[str]) -> list[tuple[int, str, str]]:
         if not kinds:
             continue
         lo, hi = _block_bounds(lines, i)
+        # Baseline is evaluated for EVERY count, before the block is considered
+        # reported. Order matters: deduping first would let the first count in a
+        # block decide the fate of the rest, which is the block-wide rule this
+        # change exists to remove — a list where item 1 is baselined would hide
+        # every unbaselined count in items 2..n.
+        if _is_baselined(lines, i, lo, hi):
+            continue
         if (lo, hi) in reported_blocks:
             continue
         reported_blocks.add((lo, hi))
-        block = "\n".join(lines[lo:hi])
-        if has_exemption(block):
-            continue
-        if any(res.search(block) for res in _BASELINE_RES):
-            continue
         first = next(
             (j for j in range(lo, hi) if _count_kinds(lines[j])),
             i,

@@ -174,6 +174,11 @@ def worktree_snapshot() -> dict[str, object]:
       status letter only.
     * `untracked_digest` — a digest of every untracked file's bytes, enumerated
       individually so that a new file inside an untracked directory counts.
+    * `gate_digest` — a digest of the lint set this run will execute. `HEAD` and
+      the two tree digests describe the *input*, but not the *coverage*: a lint
+      added or edited while the gates run changes what was checked without
+      changing a single byte of the tree the run started from. Without this
+      component the run can report PASS over a gate set that no longer exists.
 
     `status_lines` is deliberately *not* among them. The rule being implemented is
     `req-gov-8`'s: a derived count of changed entries must not be treated as an
@@ -197,6 +202,7 @@ def worktree_snapshot() -> dict[str, object]:
         "head": head.strip(),
         "tracked_digest": _tracked_content_digest(),
         "untracked_digest": _untracked_content_digest(),
+        "gate_digest": gate_set_digest(),
         "status_lines": len(st.splitlines()),
     }
 
@@ -256,7 +262,7 @@ def _snapshot_differs(before: dict[str, object], after: dict[str, object]) -> li
     # transitions (including --assume-unchanged and --skip-worktree on a dirty
     # file) with zero counterexamples; still an empirical property of those three
     # git commands, not a proof. See design.md D3.
-    for key in ("head", "tracked_digest", "untracked_digest"):
+    for key in ("head", "tracked_digest", "untracked_digest", "gate_digest"):
         if before.get(key) == after.get(key):
             continue
         if key.endswith("_digest"):
@@ -276,6 +282,33 @@ def discover_lints() -> list[Path]:
     no edit to this file or to `CLAUDE.md` (that is the AC-20/AC-21 fix).
     """
     return sorted(SCRIPTS_DIR.glob(LINT_GLOB))
+
+
+def gate_set_digest() -> str:
+    """sha256 over the sorted lint filenames and their bytes.
+
+    The gate's own coverage is part of what a result describes, so it belongs in
+    the snapshot next to HEAD and the tree digests. Without it the snapshot could
+    not distinguish two runs that executed *different lints*: `cmd_gates` used to
+    discover the lint set before taking the snapshot, and that set appeared nowhere
+    in the comparison, so a lint committed in the gap made both snapshots agree
+    on the new HEAD while the run used the pre-commit set and still reported PASS.
+
+    The names are hashed as well as the bytes. Two lints could otherwise swap
+    contents under one name and leave the set looking identical.
+    """
+    h = hashlib.sha256()
+    for lint in discover_lints():
+        h.update(lint.name.encode("utf-8"))
+        h.update(b"\0")
+        try:
+            h.update(lint.read_bytes())
+        except OSError:
+            # A lint that cannot be read cannot be run either; record the name so
+            # the digest still changes if the file later becomes readable.
+            h.update(b"<unreadable>")
+        h.update(b"\0")
+    return h.hexdigest()
 
 
 # --- anchor ledger (AC-19 / AC-80) ------------------------------------------
@@ -662,6 +695,19 @@ def cmd_anchor_ledger(args: argparse.Namespace) -> int:
 
 def cmd_gates(args: argparse.Namespace) -> int:
     """Run every gate, then re-verify the snapshot."""
+    # Snapshot FIRST, discover SECOND. The two must land inside one window or the
+    # gate set recorded and the gate set executed can differ: previously
+    # discovery ran before the snapshot, so a lint committed in the gap left both
+    # snapshots agreeing on the new HEAD while the run used the pre-commit set
+    # and still reported PASS. With `gate_digest` in the snapshot, any lint
+    # appearing or changing after this point now moves the digest and the run
+    # ends INVALID (exit 2) instead of green.
+    try:
+        before = worktree_snapshot()
+    except RuntimeError as exc:
+        print(f"GATE FAIL: {exc}", file=sys.stderr)
+        return EXIT_FAIL
+
     lints = discover_lints()
     # Assert the count BEFORE iterating. `all([])` is vacuously true, so a
     # glob that silently matches nothing would report a clean gate while
@@ -679,16 +725,11 @@ def cmd_gates(args: argparse.Namespace) -> int:
         )
         return EXIT_FAIL
 
-    try:
-        before = worktree_snapshot()
-    except RuntimeError as exc:
-        print(f"GATE FAIL: {exc}", file=sys.stderr)
-        return EXIT_FAIL
-
     print(f"run_gates: snapshot head={before['head'][:12]} "
           f"dirty_entries={before['status_lines']}")
-    print(f"run_gates: {len(lints)} lint(s) discovered "
-          f"(glob, not an enumerated list)")
+    print(f"run_gates: {len(lints)} lint(s) discovered (glob, not an enumerated list):")
+    for lint in lints:
+        print(f"           {lint.name}")
     print()
 
     failures: list[str] = []

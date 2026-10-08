@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-10-07
+goal: tighten the count-baseline lint's four measured pattern defects and put the gate's own lint set into its reproducibility record — code and tests only, zero Requirement content changes, so no delta is declared.
+skip_specs: true

@@ -53,14 +53,26 @@ def test_red_on_real_instance_and_green_once_baselined() -> None:
         "if this fails the lint cannot detect the case that motivated it"
     )
 
+    # The baseline now has to sit on the COUNT'S OWN line (D2). Under the old
+    # block-wide scope a mention two lines below sufficed, which is exactly how one
+    # sentence's revision silenced a paragraph of numbers.
     baselined = (
         "It was caught by the **net count**: the ledger moved 65 → 67 where 65 + 3\n"
-        "additions = 68. One anchor short. Recorded at `ea802c8`; the intermediate\n"
-        "state is not reconstructible from git."
+        "additions = 68, recorded at `ea802c8`; the intermediate state is not\n"
+        "reconstructible from git."
     )
-    assert L.check_text(baselined) == [], (
-        f"a revision plus a not-reconstructible marker must silence the report, "
+    assert L.check_text(baselined) != [], (
+        f"the verbatim sentence carries no baseline of its own, "
         f"actual={L.check_text(baselined)}"
+    )
+    green = (
+        "It was caught by the **net count**: the ledger moved 65 → 67 where 65 + 3 "
+        "additions = 68, recorded at `ea802c8`; the intermediate state is not "
+        "reconstructible from git."
+    )
+    assert L.check_text(green) == [], (
+        f"a revision named on the count's own line must silence the report, "
+        f"actual={L.check_text(green)}"
     )
 
 
@@ -141,11 +153,11 @@ def test_baseline_in_an_adjacent_block_does_not_silence() -> None:
         ("原值 65 条, superseded by spec req-gov-12", "superseded"),
         ("27336a4 已知，待独立裁决", "待独立裁决"),
         ("65 → 67 条，本轮不处置", "不处置"),
-        # `histor` is a bare substring, so it also silences "historical". That is
-        # deliberate — a historical figure is past-tense by definition — but it is
-        # also the marker most capable of over-silencing, so it is pinned here
-        # rather than left to be discovered as a false negative.
-        ("原值 36/decompmoe-skeleton 23 个，historical", "histor"),
+        # D4 narrowed this marker from the bare substring `histor` to the word
+        # `historical`, matched on an ASCII word boundary. The old form also
+        # silenced `history` and `historian`; `test_exemptions_match_on_word_
+        # boundaries_but_keep_cjk_substrings` now pins that those stay unsilenced.
+        ("原值 36/decompmoe-skeleton 23 个，historical", "historical"),
     ],
 )
 def test_every_declared_marker_silences_the_report(line: str, marker: str) -> None:
@@ -167,7 +179,7 @@ def test_marker_set_is_fully_covered_by_the_cases_above() -> None:
     """
     covered = {
         "pre-this-change",
-        "histor",
+        "historical",
         "superseded",
         "not reconstructible",
         "无法复算",
@@ -410,4 +422,166 @@ def test_scoped_to_a_nonexistent_change_scans_nothing_and_says_so(
     assert "does not exist" in out, out
     assert "not a pass" in out, (
         f"the message must say the result is not a pass, got: {out}"
+    )
+
+# ---------------------------------------------------------------------------
+# Change C (2026-10-07-lint-count-baseline-scope-and-gate-set-integrity)
+# Each pattern change is asserted in BOTH directions: the defect is caught, and
+# the neighbouring non-defect is not flagged. A one-sided test passes just as
+# happily against a pattern that matches everything.
+# ---------------------------------------------------------------------------
+
+
+def test_ratio_pattern_ignores_prose_phase_enumeration() -> None:
+    """D1: `Phase 2/3` enumerates two phases; it is not a ratio.
+
+    This was the only false positive the pattern family produced, and it had
+    already forced three prose workarounds (`34b445a` swapped the slash for an
+    en-dash). The narrowing must be surgical: compact real ratios survive.
+    """
+    assert L._count_kinds("Phase 2/3") == [], (
+        f"prose enumeration is not a ratio, actual={L._count_kinds('Phase 2/3')!r}"
+    )
+    assert L._count_kinds("Phase 2/3 ramp closure") == [], (
+        f"prose enumeration mid-sentence, actual={L._count_kinds('Phase 2/3 ramp closure')!r}"
+    )
+    # A rejected alternative required whitespace around the slash and lost these.
+    # `3/16 = 0.1875` is live prose in openspec/specs/wayfinder/spec.md.
+    assert L._count_kinds("3/16 = 0.1875") == ["ratio"], (
+        f"a compact real ratio must still fire, actual={L._count_kinds('3/16 = 0.1875')!r}"
+    )
+    assert L._count_kinds("2/3") == ["ratio"], (
+        f"actual={L._count_kinds('2/3')!r}"
+    )
+    assert L._count_kinds("48 / loose 48") == ["paired counts"], (
+        f"actual={L._count_kinds('48 / loose 48')!r}"
+    )
+
+
+def test_hex_only_english_words_confer_no_baseline() -> None:
+    """D3: `defaced` and friends are prose, not commit hashes.
+
+    Under the old `\\b[0-9a-f]{7,40}\\b` any paragraph containing one of these was
+    treated as baselined and its real counts went unreported.
+    """
+    hash_re = next(
+        r for r, (_, kind) in zip(L._BASELINE_RES, L.BASELINE_PATTERNS) if kind == "commit hash"
+    )
+    for word in ("defaced", "effaced", "feedbac"):
+        assert hash_re.match(word) is None, (
+            f"{word!r} is an English word, not a commit hash, actual match={bool(hash_re.match(word))}"
+        )
+    for h in ("82b84d6", "051f247", "f8e5b26d5a34fd7d2d276e80808cf2eaff143ac7", "abcdef1"):
+        assert hash_re.match(h) is not None, (
+            f"{h!r} must still read as a commit hash, actual match={bool(hash_re.match(h))}"
+        )
+
+    # End to end: the word must not silence a real count in its own paragraph.
+    para = f"The history was defaced. We counted 3 条 defects."
+    assert L.find_unbaselined_counts(para.splitlines()), (
+        "a hex-only English word must not bless the paragraph's real counts"
+    )
+    para_ok = "The history was defaced. We counted 3 条 defects, see `82b84d6`."
+    assert L.find_unbaselined_counts(para_ok.splitlines()) == [], (
+        f"a real hash must still baseline it, actual={L.find_unbaselined_counts(para_ok.splitlines())!r}"
+    )
+
+
+def test_exemptions_match_on_word_boundaries_but_keep_cjk_substrings() -> None:
+    """D4: the marker is the word `historical`, and CJK exemptions must survive.
+
+    `\b` is an ASCII word boundary and CJK characters are word characters, so a
+    uniform `\\b...\\b` over every marker would make `无法复算` unmatchable and kill
+    every Chinese exemption. That regression is worse than the one being fixed,
+    which is why the two classes take different code paths.
+    """
+    for word in ("histor", "history", "historian"):
+        assert L.has_exemption(word) is False, (
+            f"{word!r} merely starts with the marker letters, actual={L.has_exemption(word)!r}"
+        )
+    for phrase in ("historical", "pre-this-change", "superseded", "not reconstructible"):
+        assert L.has_exemption(phrase) is True, (
+            f"{phrase!r} must remain exempt, actual={L.has_exemption(phrase)!r}"
+        )
+    for cjk in ("无法复算", "不可复算", "待独立裁决", "不处置"):
+        assert L.has_exemption(cjk) is True, (
+            f"CJK exemption {cjk!r} must survive, actual={L.has_exemption(cjk)!r}"
+        )
+    # And end to end: a "history" sentence must not exempt a bare count.
+    assert L.find_unbaselined_counts(["We reviewed history. We found 3 条 defects."]) != [], (
+        "an unrelated 'history' must not exempt the paragraph"
+    )
+
+
+def test_one_baseline_no_longer_blesses_a_whole_paragraph() -> None:
+    """D2: a baseline on the last line used to baseline every count above it.
+
+    Coverage shrank as paragraphs grew longer, which is the inverse of what the
+    lint exists to do. The count's own line must carry its own baseline.
+    """
+    spread = [
+        "We saw 3 条 defects, 4 处 warnings, 5 次 retries, 6 个 outliers, 7 份 reports.",
+        "Reproduce with `git rev-parse HEAD`.",
+    ]
+    assert L.find_unbaselined_counts(spread), (
+        "a baseline on a neighbouring line must not bless these counts, "
+        f"actual={L.find_unbaselined_counts(spread)!r}"
+    )
+    together = ["We saw 3 条 defects, reproducible via `git rev-parse HEAD`."]
+    assert L.find_unbaselined_counts(together) == [], (
+        f"a baseline on the count's own line must still work, "
+        f"actual={L.find_unbaselined_counts(together)!r}"
+    )
+    bare = ["We saw 3 条 defects."]
+    assert len(L.find_unbaselined_counts(bare)) == 1, (
+        f"a bare count must still be reported, actual={L.find_unbaselined_counts(bare)!r}"
+    )
+    # Regression: the scope must be the count's OWN line, not the block start.
+    # `_block_bounds` extends a block upward across every non-blank line, so in a
+    # list the block start is the PREVIOUS item. An implementation that reads the
+    # block start here tests a neighbour's baseline -- the same defect one level
+    # in, and it was shipped once before this line was written.
+    listed = [
+        "- [ ] 4.1 found 3 条 defects, reproduce with `grep -c`",
+        "- [ ] 4.2 found 4 条 warnings",
+    ]
+    assert len(L.find_unbaselined_counts(listed)) == 1, (
+        f"a later list item must be judged on its own line, not its predecessor's "
+        f"baseline, actual={L.find_unbaselined_counts(listed)!r}"
+    )
+    listed_ok = [
+        "- [ ] 4.1 found 3 条 defects, reproduce with `grep -c`",
+        "- [ ] 4.2 found 4 条 warnings, reproduce with `grep -c`",
+    ]
+    assert L.find_unbaselined_counts(listed_ok) == [], (
+        f"each item's own baseline must silence it, "
+        f"actual={L.find_unbaselined_counts(listed_ok)!r}"
+    )
+
+
+def test_table_row_still_accepts_a_baseline_named_in_its_header() -> None:
+    """D2's table exception: the header is the legitimate place for a baseline.
+
+    Carried over from `_block_bounds`'s prior rationale rather than from
+    measurement -- both variants scored 943 on the archived corpus -- so it is
+    pinned by a test rather than left to drift.
+    """
+    table = [
+        "| phase | count, baselined by `git rev-parse HEAD` |",
+        "| --- | --- |",
+        "| 2 | 3 条 |",
+        "| 3 | 4 条 |",
+    ]
+    assert L.find_unbaselined_counts(table) == [], (
+        f"a table's header baseline must cover its rows, "
+        f"actual={L.find_unbaselined_counts(table)!r}"
+    )
+    unbaselined = [
+        "| phase | count |",
+        "| --- | --- |",
+        "| 2 | 3 条 |",
+    ]
+    assert len(L.find_unbaselined_counts(unbaselined)) == 1, (
+        f"an unbaselined table must still be reported, "
+        f"actual={L.find_unbaselined_counts(unbaselined)!r}"
     )
