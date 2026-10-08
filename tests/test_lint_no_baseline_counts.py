@@ -10,8 +10,18 @@ exists because "the same defect family was fixed by hand five times, each pass
 leaving siblings behind, because no check could say whether the fix was complete".
 A lint that has never gone red has never demonstrated it can. So
 `test_red_on_real_instance_and_green_once_baselined` takes the *verbatim* sentence
-from the archive that motivated this work, asserts the lint reports it, and then
-asserts the same sentence is clean once a baseline is named.
+from the archive that motivated this work and asserts the lint reports it.
+
+**Where the discrimination actually lives, stated plainly.** Under the original
+block-wide baseline scope, a *silent* assertion could not discriminate: a fixture
+that passes under per-line scope also passes under block scope, because block scope
+is strictly more permissive. Only a *reported* assertion can. So after D2 narrowed
+the scope, the direction of the second half of that test flipped: the same evidence
+with its revision moved to a later line must now be **reported**, and that assertion
+is the discriminating one. The green case now only states the positive rule (a count
+line carrying its own baseline is silent). Anyone reading only the green half is
+reading the weaker half; the design rationale is in `design.md` D2 and the probe
+table there is the one to check.
 """
 from __future__ import annotations
 
@@ -43,28 +53,35 @@ REAL_INSTANCE = (
 
 
 def test_red_on_real_instance_and_green_once_baselined() -> None:
-    """The motivating sentence must be reported, and silent once it has a baseline.
+    """The motivating evidence must be reported, and silent only when baselined.
 
     Both directions matter. Red alone would be a lint that cannot pass; green alone
-    would be a lint that cannot fire. The pair is what makes the gate trustworthy.
+    would be a lint that cannot fire.
     """
     assert L.check_text(REAL_INSTANCE), (
-        "the verbatim incident sentence is a baseline-less count and MUST be reported; "
-        "if this fails the lint cannot detect the case that motivated it"
+        f"the verbatim incident sentence is a baseline-less count and MUST be "
+        f"reported; if this fails the lint cannot detect the case that motivated "
+        f"it, actual={L.check_text(REAL_INSTANCE)}"
     )
 
-    # The baseline now has to sit on the COUNT'S OWN line (D2). Under the old
-    # block-wide scope a mention two lines below sufficed, which is exactly how one
-    # sentence's revision silenced a paragraph of numbers.
+    # D2 narrowed the baseline scope from the block to the count's own line, so the
+    # discriminating half of this test FLIPPED rather than staying green. The
+    # original three-line fixture cannot stay silent under the new rule, and
+    # keeping it silent would have meant keeping the defect. What is asserted here
+    # is the direction that actually separates the two rules: the same figures,
+    # with the revision on a later line, are now reported.
     baselined = (
         "It was caught by the **net count**: the ledger moved 65 → 67 where 65 + 3\n"
         "additions = 68, recorded at `ea802c8`; the intermediate state is not\n"
         "reconstructible from git."
     )
     assert L.check_text(baselined) != [], (
-        f"the verbatim sentence carries no baseline of its own, "
+        f"a revision on a later line must no longer bless this paragraph's counts, "
         f"actual={L.check_text(baselined)}"
     )
+    # The positive rule, stated in one line: a count carrying its own baseline is
+    # silent. This half cannot discriminate old from new (block scope also passes),
+    # which is why it is not the half doing the work above.
     green = (
         "It was caught by the **net count**: the ledger moved 65 → 67 where 65 + 3 "
         "additions = 68, recorded at `ea802c8`; the intermediate state is not "
@@ -585,3 +602,87 @@ def test_table_row_still_accepts_a_baseline_named_in_its_header() -> None:
         f"an unbaselined table must still be reported, "
         f"actual={L.find_unbaselined_counts(unbaselined)!r}"
     )
+
+
+def test_baseline_scope_is_per_line() -> None:
+    """Granularity is the line, not the individual count within it.
+
+    Two counts on one line share that line's baseline, because a baseline is a
+    line-level token; attributing it to individual counts inside the line would be
+    arbitrary. The defect D2 removes is the *paragraph*, not the line. Pinned here
+    so the granularity is stated rather than left to be inferred from a docstring —
+    and so a future "make it per-count" edit has to come here and say why.
+    """
+    shared = ["We counted 3 条 defects and 4 处 warnings, both at `82b84d6`."]
+    assert L.find_unbaselined_counts(shared) == [], (
+        f"counts on one line share that line's baseline, "
+        f"actual={L.find_unbaselined_counts(shared)!r}"
+    )
+    unbaselined = ["We counted 3 条 defects and 4 处 warnings with no baseline."]
+    assert len(L.find_unbaselined_counts(unbaselined)) == 1, (
+        f"one block, one finding even with two counts on the line, "
+        f"actual={L.find_unbaselined_counts(unbaselined)!r}"
+    )
+
+
+def test_exemption_scope_stays_block_while_baselines_go_per_line() -> None:
+    """The two scopes are deliberately asymmetric, and the asymmetry is the point.
+
+    A baseline is a provenance token about a figure, so it must sit with the
+    figure. An exemption is a sentence about recomputability and is routinely
+    written next to the figure it qualifies. Measured over the archived corpus,
+    174 of the exempted count-lines carry their marker on a *different* line, so
+    narrowing exemptions too would red them for no defect. Both directions are
+    pinned: moving a baseline down breaks it, moving an exemption down does not.
+    """
+    # Baseline moved to the next line: must be reported.
+    baseline_moved = [
+        "We counted 3 条 defects here.",
+        "Reproduce with `git rev-parse HEAD`.",
+    ]
+    assert L.find_unbaselined_counts(baseline_moved), (
+        f"a baseline on the next line must NOT silence this, "
+        f"actual={L.find_unbaselined_counts(baseline_moved)!r}"
+    )
+    # Exemption moved to the next line: still exempt, by design.
+    exemption_moved = [
+        "We counted 3 条 defects here.",
+        "The figure is not reconstructible from git.",
+    ]
+    assert L.find_unbaselined_counts(exemption_moved) == [], (
+        f"an exemption in the adjacent sentence must still apply, "
+        f"actual={L.find_unbaselined_counts(exemption_moved)!r}"
+    )
+    # And the same shape for a CJK marker, since the two marker classes already
+    # take different matching paths.
+    cjk_moved = ["We counted 3 条 defects here.", "该数字不可复算。"]
+    assert L.find_unbaselined_counts(cjk_moved) == [], (
+        f"a CJK exemption in the adjacent sentence must still apply, "
+        f"actual={L.find_unbaselined_counts(cjk_moved)!r}"
+    )
+
+
+def test_report_quotes_the_line_that_actually_failed() -> None:
+    """The reported line and the quoted text must be the same line.
+
+    Pre-D2 they were the same by construction — a reported block had no baseline
+    anywhere — so the report could name the block's first count line for free.
+    They are not the same now, and quoting a line that visibly carries the
+    baseline makes the lint look like it is contradicting itself in the one line
+    the reader actually looks at.
+    """
+    lines = ["a 12% b 34% at `82b84d6`", "later 56% here"]
+    findings = L.find_unbaselined_counts(lines)
+    assert len(findings) == 1, f"actual={findings!r}"
+    lineno, kind, quoted = findings[0]
+    assert lineno == 2, (
+        f"the failing line is 2, not the block's first count line; actual={findings!r}"
+    )
+    assert quoted == lines[1], (
+        f"the quoted text must be the failing line's own text, actual={findings!r}"
+    )
+    assert "82b84d6" not in quoted, (
+        f"quoting a line that carries the baseline reads as self-contradiction, "
+        f"actual={findings!r}"
+    )
+    assert kind == "percentage", f"actual={findings!r}"

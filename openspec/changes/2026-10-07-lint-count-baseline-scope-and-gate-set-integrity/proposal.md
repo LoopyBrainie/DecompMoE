@@ -41,5 +41,9 @@ because the module docstring states that anything not in `COUNT_PATTERNS` is not
 - counts in headings are skipped
 
 Also out of scope: the duplicated `_table_cell_counts` definition (the first is dead code, byte-identical
-to the second), and the lint's own non-UTF-8 read — no archived file currently triggers it, but a
-future un-archive would crash rather than report.
+to the second), and the lint's own non-UTF-8 read. One archived file **does** carry a truncated
+multi-byte sequence —
+`archive/2026-09-23-07-fix-spec-territory-seeding-phase-0/tasks.md` at bytes 32-33 — so a future
+un-archive would crash the lint rather than report. It is currently harmless only because
+`evidence_files()` never reads the archive; that is a property of the walk, not a property of the
+corpus.

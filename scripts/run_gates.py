@@ -783,7 +783,7 @@ def cmd_gates(args: argparse.Namespace) -> int:
         print(f"  FAIL  openspec validate --specs (exit {rc})")
         for line in out.strip().splitlines()[-20:]:
             print(f"        {line}")
-        failures.append(f"openspec validate --specs --strict exit {rc}")
+        failures.append(f"openspec validate --specs exit {rc}")
 
     if args.change:
         # Validate ONLY the change being archived, not every unarchived change.

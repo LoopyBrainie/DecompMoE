@@ -13,11 +13,17 @@ lint — `evidence_files()` excludes it, since req-gov-5 makes archived artefact
 demanding an edit to one would be nonsense. It is used here purely as the representative body of
 evidence prose.
 
-**One number in this file is larger than it looks.** The `+450` in D2 is measured against prose written
+**One number in this file is larger than it looks.** D2's `+388` is measured against prose written
 before this lint existed and never written to satisfy it. It bounds the cost, not the expected cost
 for future evidence, which will have been authored with the lint in place. That argument is not
 evidence, so the number is reported as measured and the tightening is defended on the defect, not on
 the delta.
+
+**A first draft of the D2 section reported `505 → 955 (+450)`.** That was a cross-base subtraction —
+pre-change patterns against post-change patterns — and it does not reproduce. Every D2 figure below
+is re-derived with the pattern set pinned, and the chain is laid out as a table so each row can be
+checked. This is recorded rather than quietly corrected because a number that is arithmetically
+self-consistent while comparing two different bases is a failure mode worth being able to point at.
 
 ## D1 — ratio pattern matched prose `Phase 2/3`
 
@@ -94,7 +100,28 @@ Controlled probes (block vs per-line):
 | table row, baseline in the header | 0 | 0 |
 | *measured on* | `2026-10-07-lint-count-baseline-scope-and-gate-set-integrity` | |
 
-Corpus, as landed: block-level 505 → per-line **955 (+450)**.
+### The measurement chain, every row on ONE base
+
+An earlier draft of this section reported `505 → 955 (+450)`. That subtraction is **invalid**: it
+compares a *pre-change-pattern* number against a *post-change-pattern* number, so two factors move
+while the delta is read as a single one. The chain below is re-derived with the pattern set held at
+its pre-change values, so each row isolates one decision.
+
+| row (all on the pre-change pattern set unless noted) | corpus | delta |
+|---|---|---|
+| pre-change: block baseline + block exemption | **505** | — |
+| + line-scope baselines — the landed D2 | **893** | **+388** |
+| + line-scope exemptions — variant considered and rejected | 951 | +58 |
+| landed D2 without the table exception | 939 | +46 |
+| *shipped* (D1+D2+D3+D4 applied) | **904** | +11 from D1/D4 |
+| *measured on* | `2026-10-07-lint-count-baseline-scope-and-gate-set-integrity` | |
+
+So the headline is **+388**, not +450, and the shipped count is **904**, not 955.
+
+**Granularity is per line, not per count.** Two counts on one line share that line's baseline, because
+a baseline is a line-level token and attributing it to individual counts within the line would be
+arbitrary. The defect being removed is the *paragraph*, not the line. `test_baseline_scope_is_per_line`
+pins this rather than leaving it to be inferred from the docstring.
 
 **Two intermediate implementations of this decision were wrong, and both were caught by the lint on
 this change's own `tasks.md`.** Recorded rather than deleted, because the sequence is the point:
@@ -105,23 +132,35 @@ this change's own `tasks.md`.** Recorded rather than deleted, because the sequen
 - **857** — fixed the above but kept the per-block dedup *before* the baseline check, so the first
   count in a block decided the fate of every later count in it. That is the block-wide rule this
   decision exists to remove, reintroduced through the dedup rather than through the baseline lookup.
+  (Re-measured on the same pre-change base this reads 852, so the figure quoted at the time mixed
+  bases the same way the headline did.)
 
-The landed order evaluates the baseline for every count first and dedups only the *reporting*, which
-keeps one finding per block (unchanged triage burden) while judging each count on its own terms.
-`test_one_baseline_no_longer_blesses_a_whole_paragraph` pins the list case in both directions.
+The landed order evaluates the baseline per line first and dedups only the *reporting*, which keeps
+one finding per block (unchanged triage burden) while judging each line on its own terms.
+`test_one_baseline_no_longer_blesses_a_whole_paragraph` pins the list case in both directions, and
+fails under *both* intermediate bugs — the defect history is in code, not only in this paragraph.
 
-**Per-count scope adopted.** Report granularity is unchanged (one finding per offending block), so the
-triage burden does not grow with the finding count.
+**Per-line scope adopted for baselines; block scope retained for exemptions.** The two are not the
+same kind of token, and collapsing them was a mistake in the first draft:
 
-**The table exception is retained on a prior claim, not on a measurement.** `_block_bounds` already
-documents that a table row's block is the whole contiguous `|` run *including its header*, because the
-header is where a table's baseline would be named. Two variants were built — per-line with and without
-that exception — and they produced **identical** counts (943 both). The exception changes nothing on
-this corpus. It is kept because the design rationale predates this change and removing it would require
-positive evidence that tables never name a baseline in their header, which this corpus cannot supply.
-What is *not* kept is any stronger claim: the exception is not free, it is merely unmeasured.
+- A baseline is a provenance token *about a figure* (`ea802c8`, `req-gov-12`), so it belongs on the
+  line carrying the figure. Narrowing it is the defect being fixed.
+- An exemption is a *sentence about recomputability* (`not reconstructible`, `不可复算`) and is
+  routinely written in the sentence adjacent to the figure it qualifies.
 
-`find_unbaselined_counts`'s docstring states "One report per offending BLOCK" while describing
+Measured on `2026-10-07-lint-count-baseline-scope-and-gate-set-integrity`: of the count-lines the
+pre-change tree exempted, **113** carry a marker on their own line and **174** are exempted only by a
+marker elsewhere in the block.
+
+`2026-10-07-lint-count-baseline-scope-and-gate-set-integrity`: narrowing exemptions to the count's own line would red roughly 60% of them, for 58 extra findings — every one a marker that had nothing wrong with it. A cost with no defect behind it. Exemptions therefore keep block scope, the split is stated in `_is_baselined`, and `test_exemption_scope_stays_block_while_baselines_go_per_line` pins the asymmetry both ways.
+
+**The table exception is load-bearing, not inert.** An earlier draft claimed the two variants
+produced "identical counts". They do not: dropping the exception adds **46** findings (939 vs 893).
+46 blocks genuinely name their baseline in a table header. The original justification — that removing
+it would require positive evidence this corpus cannot supply — was both unfalsifiable and weaker than
+the measurement now available, so the measurement is what the exception rests on.
+
+`find_unbaselined_counts`'s docstring stated "One report per offending BLOCK" while describing
 per-count baselining. The implementation is changed here and the docstring corrected in the same edit,
 because a docstring that describes the rule this change replaces is the same defect class as the rule.
 

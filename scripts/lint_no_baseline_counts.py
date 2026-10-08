@@ -361,28 +361,40 @@ def _table_cell_counts(line: str) -> bool:
 def _is_baselined(lines: list[str], i: int, lo: int, hi: int) -> bool:
     """True when the count on line `i` carries an exemption or a baseline.
 
-    Scope is the COUNT'S OWN LINE, not the block. Under the previous block-wide
-    scope one command named anywhere in a paragraph baselined every count in it,
-    so gate coverage shrank as paragraphs got longer — the exact inverse of the
-    intent, and the worst of the defects found by the audit.
+    **Baselines are scoped to the count's own line.** Under the previous
+    block-wide scope one command named anywhere in a paragraph baselined every
+    count in it, so gate coverage shrank as paragraphs got longer — the exact
+    inverse of the intent, and the worst of the defects found by the audit.
 
-    `i` rather than `lo`: `_block_bounds` extends a block upward across every
-    non-blank line, so for a list the block start is the PREVIOUS item. Using
-    `lo` here would test a neighbouring line's baseline, which is the same defect
-    one level in.
+    **Exemptions stay block-scoped**, deliberately and for a measured reason.
+    A baseline is a provenance token about a figure (`ea802c8`, `req-gov-12`), so
+    it belongs to the line carrying the figure. An exemption is a sentence about
+    recomputability (`not reconstructible`, `不可复算`) and is routinely written in
+    the *adjacent* sentence to the figure it qualifies. Measured over the
+    432-file archived corpus: 113 count-lines are exempted by a marker on their
+    own line, 174 only by a marker elsewhere in the block. Narrowing exemptions
+    to the line would therefore red roughly 60% of the existing exemptions on a
+    marker that had nothing wrong with it — for 58 additional findings. That is
+    a cost with no defect behind it, so exemptions keep the wider scope and the
+    split is stated here rather than left to be discovered.
 
-    A table row keeps the contiguous `|` run as its scope, header included,
-    because `_block_bounds` already documents the header as the legitimate place
-    for a table's baseline. That exception is carried over from that prior
-    design rationale rather than from measurement: building both variants over
-    the 432-file archived corpus produced identical counts (943 either way), so
-    it is unmeasured, not free.
+    **Granularity is per line, not per count.** Two counts on one line share that
+    line's baseline, because the baseline is a line-level token and attributing
+    it to individual counts within the line would be arbitrary. The defect being
+    fixed is the paragraph, not the line.
+
+    A table row keeps the contiguous `|` run for both, header included, because
+    `_block_bounds` already documents the header as the legitimate place for a
+    table's baseline. That exception is load-bearing, not inert: dropping it
+    adds 46 findings on this corpus (939 vs 893), because 46 blocks genuinely
+    name their baseline in a table header.
     """
     if lines[i].lstrip().startswith("|"):
-        text = "\n".join(lines[lo:hi])
-    else:
-        text = lines[i]
-    return has_exemption(text) or any(res.search(text) for res in _BASELINE_RES)
+        scope = "\n".join(lines[lo:hi])
+        return has_exemption(scope) or any(res.search(scope) for res in _BASELINE_RES)
+    return has_exemption("\n".join(lines[lo:hi])) or any(
+        res.search(lines[i]) for res in _BASELINE_RES
+    )
 
 
 def find_unbaselined_counts(lines: list[str]) -> list[tuple[int, str, str]]:
@@ -412,21 +424,24 @@ def find_unbaselined_counts(lines: list[str]) -> list[tuple[int, str, str]]:
         if not kinds:
             continue
         lo, hi = _block_bounds(lines, i)
-        # Baseline is evaluated for EVERY count, before the block is considered
-        # reported. Order matters: deduping first would let the first count in a
-        # block decide the fate of the rest, which is the block-wide rule this
-        # change exists to remove — a list where item 1 is baselined would hide
-        # every unbaselined count in items 2..n.
+        # Evaluated per LINE before the block is considered reported. Order
+        # matters: deduping first would let the first count in a block decide the
+        # fate of the rest, which is the block-wide rule this change exists to
+        # remove — a list where item 1 is baselined would hide every unbaselined
+        # count in items 2..n. Deduping still suppresses only the REPORTING, so
+        # triage reads one finding per block while each line is judged on its own.
         if _is_baselined(lines, i, lo, hi):
             continue
         if (lo, hi) in reported_blocks:
             continue
         reported_blocks.add((lo, hi))
-        first = next(
-            (j for j in range(lo, hi) if _count_kinds(lines[j])),
-            i,
-        )
-        findings.append((first + 1, "/".join(kinds), lines[first].strip()))
+        # Report the line that actually failed, not the block's first count line.
+        # Pre-change those were the same line by construction -- a reported block
+        # had no baseline anywhere -- so `first` was free. They are not the same
+        # now: quoting the block's first count line routinely quotes a line that
+        # visibly carries the baseline, which reads as the lint contradicting
+        # itself in the one line the reader actually looks at.
+        findings.append((i + 1, "/".join(kinds), lines[i].strip()))
     return findings
 
 
