@@ -26,7 +26,7 @@ def test_unit_sphere_invar() -> None:
     z = torch.randn(64, 16)
     z_norm = sphere.spherical_l2_normalize(z)
     norms_sq = z_norm.pow(2).sum(dim=-1)
-    assert torch.allclose(norms_sq, torch.ones_like(norms_sq), atol=1e-5)
+    assert torch.allclose(norms_sq, torch.ones_like(norms_sq), atol=1e-5, rtol=0.0)
 
 
 def test_near_zero_numerically_safe() -> None:
@@ -42,7 +42,7 @@ def test_double_normalize_idempotent() -> None:
     z = torch.randn(64, 16)
     once = sphere.spherical_l2_normalize(z)
     twice = sphere.spherical_l2_normalize(once)
-    assert torch.allclose(once, twice, atol=1e-6)
+    assert torch.allclose(once, twice, atol=1e-6, rtol=0.0)
 
 
 # ---------------------------------------------------------------------------

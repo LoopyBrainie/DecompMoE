@@ -111,8 +111,11 @@ def _census_extract_C() -> dict[str, int]:
             census["l2_normalize"] += 1
 
         # A bias addition is a `+` that has a parameter reshape on either side.
-        is_add = isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add)
-        if is_add and any(_is_parameter_reshape(o) for o in _operands(node)):
+        if (
+            isinstance(node, ast.BinOp)
+            and isinstance(node.op, ast.Add)
+            and any(_is_parameter_reshape(o) for o in _operands(node))
+        ):
             census["bias_add"] += 1
 
     return census
@@ -145,7 +148,7 @@ def test_pipeline_shape() -> None:
     C = extraction.extract_C(K, V, W_K, W_V, b, H_kv=H_kv, d_c=d_c)
     assert C.shape == (B, N, d_c), f"expected (B, N, d_c), got {C.shape}"
     norms_sq = C.pow(2).sum(dim=-1)
-    assert torch.allclose(norms_sq, torch.ones_like(norms_sq), atol=1e-5), (
+    assert torch.allclose(norms_sq, torch.ones_like(norms_sq), atol=1e-5, rtol=0.0), (
         "C must lie on the unit sphere (norm=1)"
     )
 
@@ -169,7 +172,7 @@ def test_aggregate_across_heads_awareness() -> None:
     z_bar = z_per_head_unit.mean(dim=1)  # 1/H_kv factor
     C_manual = spherical_l2_normalize(z_bar, eps=1e-6)
     # Loose tolerance: float32 accumulators across 4 ops.
-    assert torch.allclose(C, C_manual, atol=1e-4), "Pipeline mismatch"
+    assert torch.allclose(C, C_manual, atol=1e-4, rtol=0.0), "Pipeline mismatch"
 
 
 # ---------------------------------------------------------------------------
@@ -301,7 +304,7 @@ def test_complexity_budget() -> None:
     # Shape invariant (this is what the call MUST produce).
     assert C.shape == (B, N, cfg_dc)
     # Spherical invariant (step 4 normalization).
-    assert torch.allclose(C.norm(dim=-1), torch.ones(B, N), atol=1e-5)
+    assert torch.allclose(C.norm(dim=-1), torch.ones(B, N), atol=1e-5, rtol=0.0)
 
     # Scaling: doubling d_c doubles every term (each contains d_c linearly).
     m1 = macs(4, 64, 8)
@@ -458,14 +461,65 @@ def test_empty_cell_preserves_centroid() -> None:
     out = CentroidDriver(Phase.EMA_090).step(centroids, X, mask=mask)
 
     # Expert 0 must be byte-exact preserved (machine-epsilon identity).
-    assert torch.allclose(out[0], centroids[0], atol=1e-12), (
-        f"expert 0 with n_0=0 must equal input; got drift "
-        f"max |out[0] - centroids[0]| = {(out[0] - centroids[0]).abs().max().item():.3e}"
+    # Two guards, not one: the `torch.equal` below asserts the identity
+    # (Delta == 0); the assertion after it reconciles req-17's 1e-12 constant
+    # directly, so editing that constant in the spec cannot leave every test
+    # green (CLAUDE.md §6: a spec numeric claim MUST be directly reconciled).
+    assert torch.equal(out[0], centroids[0]), (
+        f"actual: expert 0 (n_0=0) must equal input bit-exactly; "
+        f"max |out[0]-centroids[0]| = "
+        f"{(out[0] - centroids[0]).abs().max().item():.3e}"
+    )
+    empty_delta = float((out[0] - centroids[0]).norm())
+    assert empty_delta < 1e-12, (
+        f"actual: expert 0 (n_0=0) moved ‖Δ‖₂={empty_delta!r}, exceeding the "
+        f"1e-12 machine-epsilon identity of req-17"
     )
     # Experts with n_i > 0 may legitimately update via EMA — no constraint.
     # Verify only that they remain unit-norm (Issue ⑥ derivative check).
     norms = out.norm(dim=-1)
-    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-6)
+    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-6, rtol=0.0)
+
+
+def test_empty_cell_mean_selection_is_structural() -> None:
+    """req-18: when `n_i = 0` the masked mean `m_i` MUST be `c_i^(t-1)`.
+
+    The empty-cell passthrough in `CentroidDriver.step` makes that selection
+    dead with respect to the OUTPUT — the passthrough returns `centroids`
+    directly, so removing the `mean = torch.where(n_i > 0, mean_n, centroids)`
+    line leaves every output assertion green (measured: mutating it to
+    `mean = mean_n` passes the whole suite). The requirement is still normative
+    — it is a spec-declared property of `m_i`, not of the returned tensor — so it
+    is pinned structurally here, by the same AST-over-source technique
+    `test_complexity_budget` already uses in this file.
+
+    Without this guard, `req-18`'s clause is structurally unmeasurable: the
+    defect it prevents (a `0/clamp_min(eps)` denominator producing a
+    direction-randomized empty cell) would return silently.
+    """
+    import inspect
+    import textwrap
+
+    from decompmoe.extraction import CentroidDriver
+
+    src = textwrap.dedent(inspect.getsource(CentroidDriver.step))
+    tree = ast.parse(src)
+    found = False
+    for node in ast.walk(tree):
+        # the empty-cell mean selection: where(n_i > 0, mean_n, centroids)
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "where"
+        ):
+            rendered = ast.unparse(node)
+            if "n_i" in rendered and "mean_n" in rendered and "centroids" in rendered:
+                found = True
+                break
+    assert found, (
+        "actual: CentroidDriver.step no longer selects m_i = c_i^(t-1) for empty "
+        "cells (req-18); the masked-mean clause became unmeasurable"
+    )
 
 
 def test_spherical_norm_is_strictly_one() -> None:
@@ -494,53 +548,101 @@ def test_spherical_norm_is_strictly_one() -> None:
 
 
 def test_near_zero_candidate_fallback() -> None:
-    """Near-zero candidate fallback: `‖u_i‖₂ < 1e-9 ⇒ c_i^(t+1) == c_i^(t)` element-wise.
+    """Near-zero candidate fallback: `‖u_i‖₂ < 1e-9 ⇒ c_i^(t+1) == c_i^(t)`.
 
-    Spec: skeleton "Centroid Driver Semantic Invariants" Scenario
-    `test_near_zero_candidate_fallback` (L349-351). When the unnormalized
-    candidate `u_i` has `‖u_i‖₂ < 1e-9` (degenerate isotropic collapse),
-    the driver MUST fall back to the previous centroid `c_i^(t)` to
-    prevent NaN and preserve spherical boundedness.
+    Spec: skeleton req-16 "Centroid Driver Semantic Invariants" Scenario
+    `test_near_zero_candidate_fallback`, Invariant #3 (`decompmoe-skeleton` req-16).
+    When the unnormalized EMA candidate `u_i = α·c + (1−α)·mean` has
+    `‖u_i‖₂ < 1e-9` (degenerate isotropic collapse), the driver MUST fall back
+    to the previous centroid `c_i^(t)` to prevent NaN and preserve spherical
+    boundedness.
 
-    Closed-form guard (CLAUDE.md §6 last bullet): the byte-exact
-    preservation invariant `out[i] == centroids[i]` (atol=1e-12) is the
-    canonical preservation check, mirroring `test_empty_cell_preserves_centroid`
-    (the empty-cell fallback test). The previous loose `atol=1e-6` for the
-    norm + a finiteness-only check permits any drift up to ~1e-6 to slip
-    through silently; the byte-exact `torch.allclose(..., atol=1e-12)`
-    matches the precision of `test_empty_cell_preserves_centroid:233` and
-    pins the spec contract.
+    **Construction (float64) — why this test runs in float64, measured.** To reach
+    the `1e-9` branch the two EMA terms must cancel: `mean = -9·c` gives
+    `candidate = 0.9·c + 0.1·(-9·c)`. The cancellation's residual is
+    seed-dependent (see the measured table below), and in float32 that residual
+    frequently sits ABOVE the `1e-9` threshold, so the branch fires only for a
+    small fraction of seeds — measured 608/5000 = 12.16% at d_c=3 (570 of those
+    exactly 0.0). In float64 the residual is always ~1e-16, ~7 orders of
+    magnitude below `1e-9`, so the branch is robustly exercised for every seed.
+    Recompute: fp64 eps = 2.220446e-16; the `0.9·c + 0.1·(-9·c)` blend leaves
+    ~1e-16 (a few ulp). Honest warning for future implementers: in float32 this
+    EMA near-zero branch fires only ~12% of the time, so it is close to dead
+    code at runtime; the one real reachable degenerate path is the empty cell
+    (n_i = 0, handled by `test_empty_cell_preserves_centroid`). Spec basis:
+    decompmoe-skeleton req-16 Invariant #3.
     """
     torch.manual_seed(0)
     from decompmoe.extraction import CentroidDriver, Phase
 
     N_e, d_c, T = 4, 3, 8
-    # Start from unit-sphere centroids; expert 0 has zero assignment so its
-    # masked mean will be `weighted / clamp_min(1.0)` (i.e. divide by 1),
-    # producing a near-zero candidate under the EMA combination when mask
-    # only contains expert 0 for some tokens.
-    centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
-    X = torch.zeros(T, d_c)  # degenerate feature: produces zero masked-mean
+    dtype = torch.double  # see docstring: fp32 cannot reach the 1e-9 branch
+    alpha = 0.90
 
-    # mask[:, 0] is nonzero for at least one token (so expert 0 is "in"
-    # the assignment) but the EMA on zeros yields a degenerate candidate.
-    mask = torch.zeros(T, N_e)
-    mask[: T // 2, 0] = 1.0  # half tokens assigned to expert 0 with zero features
-    mask[T // 2 :, 1] = 1.0
+    centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c, dtype=dtype), dim=-1)
+    X = torch.randn(T, d_c, dtype=dtype)
+    mask = torch.zeros(T, N_e, dtype=dtype)
+    mask[0:2, 0] = 1.0
+    mask[2:4, 1] = 1.0
+    mask[4:6, 2] = 1.0
+    mask[6:8, 3] = 1.0
+
+    # Expert 0 is the FALLBACK row: its assigned features are `−9·c_0`, so
+    # `mean_0 = −9·c_0` and `candidate_0 = 0.9·c_0 + 0.1·(−9·c_0) ≈ 0`.
+    X[0:2] = -9.0 * centroids[0]
+
+    # Expert 3 is the THRESHOLD-PINNING row: its candidate norm is driven to
+    # ~1e-8, i.e. just ABOVE the spec threshold 1e-9 but far below 1e-3. Under
+    # the correct threshold 1e-9 the row does NOT take the fallback and must
+    # follow the EMA closed form; under a mutated threshold (1e-9 -> 1e-3) it
+    # WOULD take the fallback and return the previous centroid. Because
+    # `normalize(1e-8·u) = u` and `u` is chosen non-parallel to `c_3`, the two
+    # outcomes are distinguishable — so this row makes the spec constant `1e-9`
+    # itself (not just "the branch can fire") falsifiable under mutation.
+    v3 = torch.randn(d_c, dtype=dtype)
+    u3 = v3 - (v3 @ centroids[3]) * centroids[3]  # Gram-Schmidt: u3 ⟂ c_3
+    u3 = u3 / u3.norm()
+    X[6:8] = -9.0 * centroids[3] + 1e-7 * u3      # candidate_3 ≈ 1e-8·u_3
 
     out = CentroidDriver(Phase.EMA_090).step(centroids, X, mask=mask)
 
-    # No NaN in output (NaN would propagate from 0/0 in the broken impl).
+    # No NaN in output (the degenerate near-zero candidate must not leak a NaN).
     assert torch.isfinite(out).all(), "CentroidDriver output must be finite"
-    # All centroids remain on the unit sphere (Issue ⑥ derivative).
+
+    # Fallback row (expert 0): the guard returns the previous centroid BIT-EXACTLY.
+    # The invariant is an equality, not an approximation, so `torch.equal` is the
+    # matching comparator (not `allclose` with any tolerance).
+    assert torch.equal(out[0], centroids[0]), (
+        f"actual: fallback row must equal prev centroid bit-exactly; "
+        f"got max |out[0]-centroids[0]| = "
+        f"{(out[0] - centroids[0]).abs().max().item():.3e}"
+    )
+
+    # Healthy / non-fallback rows (experts 1..3): closed form
+    # `normalize(α·c + (1−α)·mean)` with an fp64-ulp-derived absolute tolerance
+    # and an EXPLICIT relative term (rtol=0.0), so no unstated default relative
+    # tolerance participates. The 1e-12 absolute tolerance is ~5e3x the fp64
+    # rounding floor of the blend+normalize (~2e-16 measured) and far below any
+    # semantic deviation. Expert 3 additionally pins the 1e-9 threshold from
+    # above (see its construction above).
+    atol_healthy = 1e-12
+    for i in range(1, N_e):
+        n_i = mask[:, i].sum()
+        mean_i = (mask[:, i].unsqueeze(-1) * X).sum(dim=0) / n_i
+        expected_i = torch.nn.functional.normalize(
+            alpha * centroids[i] + (1.0 - alpha) * mean_i, dim=-1
+        )
+        assert torch.allclose(out[i], expected_i, atol=atol_healthy, rtol=0.0), (
+            f"actual: healthy expert {i} max |out-normalize(alpha*c+(1-alpha)*mean)| = "
+            f"{(out[i] - expected_i).abs().max().item():.3e}"
+        )
+
+    # All rows remain on the unit sphere (Invariant 2). Fallback rows are the
+    # previous (unit) centroid; healthy rows are `normalize(...)`.
     norms = out.norm(dim=-1)
-    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-6)
-    # Byte-exact preservation guard (mirrors test_empty_cell_preserves_centroid):
-    # every centroid must equal its input within machine-epsilon identity.
-    assert torch.allclose(out, centroids, atol=1e-12), (
-        f"near-zero candidate fallback must preserve all centroids element-wise; "
-        f"got max |out - centroids| = "
-        f"{(out - centroids).abs().max().item():.3e}"
+    assert torch.allclose(norms, torch.ones_like(norms), atol=atol_healthy, rtol=0.0), (
+        f"actual: all rows unit-norm; max |‖c‖-1| = "
+        f"{(norms - 1).abs().max().item():.3e}"
     )
 
 
@@ -563,7 +665,11 @@ def test_near_zero_candidate_fallback_phase4() -> None:
     out = CentroidDriver(Phase.PROJECTED_SGD).step(centroids, X, mask)
     assert torch.isfinite(out).all(), "Phase 4 output must be finite (no NaN)"
     # Degenerate row preserved as-is (prev centroid), NOT divided by ~0.
-    assert torch.allclose(out[2], centroids[2])
+    # Source: flip-baseline.md records delta_max = 0.0 at this site, so the
+    # invariant is a bit-exact identity rather than a tolerance.
+    assert torch.equal(out[2], centroids[2]), (
+        f"actual={float((out[2] - centroids[2]).abs().max())}"
+    )
     # Healthy rows retracted onto the unit sphere.
     norms = out.norm(dim=-1)
     healthy = torch.cat([norms[:2], norms[3:]])
@@ -598,19 +704,19 @@ def test_phase_4_sgd_1_step_closed_form() -> None:
     assert torch.allclose(
         torch.linalg.norm(grad, dim=-1),
         torch.full((N_e,), 0.05),
-        atol=1e-7,
+        atol=1e-7, rtol=0.0,
     ), "test setup precondition violated: ‖grad_i‖₂ must equal 0.05"
     eta = 1e-2
     out = CentroidDriver(Phase.PROJECTED_SGD).step(
         centroids, torch.zeros(1, d_c), torch.zeros(1, N_e), grad=grad, eta=eta
     )
     expected = torch.nn.functional.normalize(centroids - eta * grad, dim=-1)
-    assert torch.allclose(out, expected, atol=1e-7), (
+    assert torch.allclose(out, expected, atol=1e-7, rtol=0.0), (
         f"Phase-4 SGD step must equal (c_i − η·g_i)/‖·‖₂; "
         f"got {out}, expected {expected}"
     )
     norms = out.norm(dim=-1)
-    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-7)
+    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-7, rtol=0.0)
 
 
 def test_phase_4_sgd_near_zero_candidate_fallback() -> None:
@@ -633,19 +739,19 @@ def test_phase_4_sgd_near_zero_candidate_fallback() -> None:
     out = CentroidDriver(Phase.PROJECTED_SGD).step(
         centroids, torch.zeros(1, d_c), torch.zeros(1, N_e), grad=grad, eta=1e-2
     )
-    assert torch.allclose(out[0], centroids[0], atol=1e-12), (
+    assert torch.equal(out[0], centroids[0]), (
         "Invariant #4 fallback: c_0^(t+1) == c_0^(t) when "
         "candidate norm < 1e-9"
     )
     # Healthy rows (grad=0) MUST pass through normalize unchanged:
     # candidate = centroids[i] − 0 = centroids[i], then
     # normalize(c_0) = c_0 (already unit-norm), so out[i.. == centroids[i].
-    assert torch.allclose(out[1:], centroids[1:], atol=1e-7), (
+    assert torch.allclose(out[1:], centroids[1:], atol=1e-7, rtol=0.0), (
         "Healthy rows in mixed-batch fallback must equal input centroids"
     )
     # Spherical re-projection invariant holds for all rows (healthy + fallback).
     norms = out.norm(dim=-1)
-    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-7)
+    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-7, rtol=0.0)
     assert torch.isfinite(out).all(), "no NaN in centroid tensor"
 
 
@@ -672,13 +778,13 @@ def test_phase_4_grad_none_preserves_legacy_l2_retraction() -> None:
         centroids, torch.zeros(1, d_c), mask
     )
     expected = torch.nn.functional.normalize(centroids, dim=-1)
-    assert torch.allclose(out, expected, atol=1e-7), (
+    assert torch.allclose(out, expected, atol=1e-7, rtol=0.0), (
         f"Phase-4 with grad=None must equal centroids/‖centroids‖₂; "
         f"got {out}, expected {expected}"
     )
     # Spherical re-projection invariant: ‖c_i^(t+1)‖₂ == 1.
     norms = out.norm(dim=-1)
-    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-7)
+    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-7, rtol=0.0)
 
 
 def test_territory_seeding_raises_not_implemented_with_spec_citation() -> None:
@@ -736,7 +842,7 @@ def test_territory_seeding_raises_not_implemented_with_spec_citation() -> None:
 
     # Spherical K-Means precondition guard: input points lie on S^{d_c-1}.
     norms = C_batch.norm(dim=-1)
-    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-6), (
+    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-6, rtol=0.0), (
         f"test premise broken: C_batch must be L2-normalized; "
         f"actual norms min={norms.min().item()!r}, max={norms.max().item()!r}"
     )

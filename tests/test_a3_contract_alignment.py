@@ -383,7 +383,7 @@ def test_resurrect_expert_clones_the_donor_row_not_the_dead_expert() -> None:
     assert err_donor == pytest.approx(0.0, abs=1e-6), (
         f"actual=max|c_perturbed - c_centroids[{j_star}]| = {err_donor}"
     )
-    assert not torch.allclose(c_perturbed, dead, atol=1e-3), (
+    assert not torch.allclose(c_perturbed, dead, atol=1e-3, rtol=0.0), (
         f"actual=c_perturbed equals the dead expert row c_centroids[{i}]"
     )
     # `spherical_l2_normalize` clamps at eps, so a unit-norm donor survives

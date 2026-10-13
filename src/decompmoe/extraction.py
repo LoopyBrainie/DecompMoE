@@ -169,9 +169,17 @@ class CentroidDriver:
             candidate = alpha * centroids + (1.0 - alpha) * mean
             norm = candidate.norm(dim=-1, keepdim=True)
             use_old = norm < 1e-9
-            return torch.where(
+            out = torch.where(
                 use_old, centroids, torch.nn.functional.normalize(candidate, dim=-1)
             )
+            # Empty-cell passthrough (skeleton req-16 "Centroid Driver Semantic
+            # Invariants" Invariant 1: n_i = 0 ⇒ c_i^(t+1) == c_i^(t) element-wise).
+            # For an empty cell `mean` is already `centroids`, so `candidate` is
+            # mathematically `centroids`, but `alpha*c + (1-alpha)*c` is NOT
+            # bit-exact in float32 (alpha = 0.9 and 1-alpha = 0.1 are not
+            # representable) and `normalize` adds further rounding. Returning
+            # `centroids` directly for those rows makes the invariant bit-exact.
+            return torch.where((n_i == 0).unsqueeze(-1), centroids, out)
 
         if self.phase == Phase.PROJECTED_SGD:
             # Phase-4 closed form (`decompmoe-skeleton Req 7 C Extraction Four-Step Pipeline (#req-7)`): when `grad` is supplied,

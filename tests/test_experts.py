@@ -22,7 +22,7 @@ def test_swiglu_formula() -> None:
     y = expert(x)
     silu = torch.nn.functional.silu(x @ expert.W_g.T)
     out_ref = (silu * (x @ expert.W_u.T)) @ expert.W_d.T
-    assert torch.allclose(y, out_ref, atol=1e-5)
+    assert torch.allclose(y, out_ref, atol=1e-5, rtol=0.0)
 
 
 def test_expert_param_count() -> None:
@@ -74,7 +74,7 @@ def test_isomorphic_to_llama_ffn() -> None:
         ref_lin_u.weight.copy_(expert.W_u)
         ref_lin_d.weight.copy_(expert.W_d)
     y_ref = ref_lin_d(torch.nn.functional.silu(ref_lin_g(x)) * ref_lin_u(x))
-    assert torch.allclose(y, y_ref, atol=1e-5)
+    assert torch.allclose(y, y_ref, atol=1e-5, rtol=0.0)
 
 
 # ---------------------------------------------------------------------------

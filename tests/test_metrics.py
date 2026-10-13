@@ -484,7 +484,7 @@ def test_log_int_cache_matches_runtime_and_amortizes() -> None:
     r_h_optimized = metrics.R_H(p)
     p_safe = p.clamp_min(1e-12)
     expected = -(p_safe * p_safe.log()).sum(dim=-1) / runtime
-    assert torch.allclose(r_h_optimized, expected, atol=1e-6), (
+    assert torch.allclose(r_h_optimized, expected, atol=1e-6, rtol=0.0), (
         f"actual={r_h_optimized}, expected {expected}"
     )
 

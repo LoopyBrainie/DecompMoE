@@ -67,16 +67,16 @@ def test_phase_090_ema() -> None:
     # every centroid -- the exact substitution req-18 forbids.
     m = torch.stack([X[mask[:, e] > 0].mean(dim=0) for e in range(N_e)])
     expected = torch.nn.functional.normalize(0.90 * centroids + 0.10 * m, dim=-1)
-    assert torch.allclose(out, expected, atol=1e-5), (
+    assert torch.allclose(out, expected, atol=1e-5, rtol=0.0), (
         f"actual max abs delta = {(out - expected).abs().max().item()!r}"
     )
-    assert not torch.allclose(out[0], out[1], atol=1e-6), (
+    assert not torch.allclose(out[0], out[1], atol=1e-6, rtol=0.0), (
         f"actual=EMA output collapsed to a single point (territory collapse); "
         f"max|out[0]-out[1]| = "
         f"{(out[0] - out[1]).abs().max().item()!r}"
     )
     norms = out.norm(dim=-1)
-    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-6), (
+    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-6, rtol=0.0), (
         f"actual=norms {norms.tolist()!r} (req-18 Invariant 2 wants all 1.0)"
     )
 
@@ -105,7 +105,7 @@ def test_dense_mask_makes_the_weighting_and_division_load_bearing() -> None:
         f"actual=n_i must all exceed 1 for this fixture; got {col_totals.tolist()}"
     )
     assert not torch.allclose(
-        col_totals, col_totals[0].expand_as(col_totals), atol=1e-6
+        col_totals, col_totals[0].expand_as(col_totals), atol=1e-6, rtol=0.0
     ), "actual=column totals are equal; the division by n_i is not load-bearing"
 
     out = CentroidDriver(Phase.EMA_090).step(centroids, X, mask)
@@ -116,12 +116,12 @@ def test_dense_mask_makes_the_weighting_and_division_load_bearing() -> None:
         for e in range(N_e)
     ])
     expected = torch.nn.functional.normalize(0.90 * centroids + 0.10 * m, dim=-1)
-    assert torch.allclose(out, expected, atol=1e-5), (
+    assert torch.allclose(out, expected, atol=1e-5, rtol=0.0), (
         f"actual max abs delta = {(out - expected).abs().max().item()!r}"
     )
     # Skipping the division would give a different answer.
     undivided = mask.t() @ X
-    assert not torch.allclose(m, undivided, atol=1e-6), (
+    assert not torch.allclose(m, undivided, atol=1e-6, rtol=0.0), (
         f"actual=the n_i division is not load-bearing for this fixture "
         f"(max|diff| = {(m - undivided).abs().max().item()!r})"
     )
@@ -147,7 +147,7 @@ def test_square_mask_detects_a_swapped_expert_axis() -> None:
     out = CentroidDriver(Phase.EMA_090).step(centroids, X, mask)
     m = (mask.t() @ X) / mask.sum(dim=0).unsqueeze(-1)         # experts on axis 1
     m_swapped = (mask @ X) / mask.sum(dim=1).unsqueeze(-1)    # experts on axis 0
-    assert not torch.allclose(m, m_swapped, atol=1e-6), (
+    assert not torch.allclose(m, m_swapped, atol=1e-6, rtol=0.0), (
         f"actual=the two axis readings coincide "
         f"(max|diff| = {(m - m_swapped).abs().max().item()!r}); "
         f"this fixture cannot distinguish them"
@@ -156,11 +156,11 @@ def test_square_mask_detects_a_swapped_expert_axis() -> None:
     expected_swapped = torch.nn.functional.normalize(
         0.90 * centroids + 0.10 * m_swapped, dim=-1
     )
-    assert torch.allclose(out, expected, atol=1e-5), (
+    assert torch.allclose(out, expected, atol=1e-5, rtol=0.0), (
         f"actual max abs delta = {(out - expected).abs().max().item()!r} "
         f"(expert axis is axis 1 per the spec's (T, N_e) layout)"
     )
-    assert not torch.allclose(out, expected_swapped, atol=1e-5), (
+    assert not torch.allclose(out, expected_swapped, atol=1e-5, rtol=0.0), (
         f"actual=the driver agrees with the SWAPPED expert axis; "
         f"max|diff| = {(out - expected_swapped).abs().max().item()!r}"
     )
@@ -186,13 +186,18 @@ def test_empty_cell_falls_back_to_the_previous_centroid() -> None:
 
     out = CentroidDriver(Phase.EMA_090).step(centroids, X, mask)
     for e in empty:
-        assert torch.allclose(out[e], centroids[e], atol=1e-6), (
-            f"actual=expert {e} moved despite n_i = 0; "
-            f"max|out - prev| = {(out[e] - centroids[e]).abs().max().item()!r} "
-            f"(req-18 Invariant 1 requires the previous centroid)"
+        # req-17 Scenario: ‖c^(t+1) − c^(t)‖₂ < 1e-12 (machine-epsilon identity).
+        # The spec constant is pinned here directly — `torch.equal` in
+        # `test_empty_cell_preserves_centroid` guards the identity (Delta == 0),
+        # which is strictly stronger but does not state the 1e-12 bound, so this
+        # site reconciles the number itself.
+        empty_delta = float((out[e] - centroids[e]).norm())
+        assert empty_delta < 1e-12, (
+            f"actual=expert {e} moved ‖Δ‖₂={empty_delta!r} despite n_i = 0, "
+            f"which exceeds the 1e-12 machine-epsilon identity of req-17"
         )
     # expert 0 DID receive tokens, so it must have moved
-    assert not torch.allclose(out[0], centroids[0], atol=1e-6), (
+    assert not torch.allclose(out[0], centroids[0], atol=1e-6, rtol=0.0), (
         "actual=expert 0 did not move despite receiving every token"
     )
 
@@ -209,10 +214,10 @@ def test_phase_095_to_099_ema_coefficients() -> None:
     m = torch.stack([X[mask[:, e] > 0].mean(dim=0) for e in range(N_e)])
     expected_095 = torch.nn.functional.normalize(0.95 * centroids + 0.05 * m, dim=-1)
     expected_099 = torch.nn.functional.normalize(0.99 * centroids + 0.01 * m, dim=-1)
-    assert torch.allclose(out_095, expected_095, atol=1e-5)
-    assert torch.allclose(out_099, expected_099, atol=1e-5)
-    assert torch.allclose(out_095.norm(dim=-1), torch.ones(4), atol=1e-6)
-    assert torch.allclose(out_099.norm(dim=-1), torch.ones(4), atol=1e-6)
+    assert torch.allclose(out_095, expected_095, atol=1e-5, rtol=0.0)
+    assert torch.allclose(out_099, expected_099, atol=1e-5, rtol=0.0)
+    assert torch.allclose(out_095.norm(dim=-1), torch.ones(4), atol=1e-6, rtol=0.0)
+    assert torch.allclose(out_099.norm(dim=-1), torch.ones(4), atol=1e-6, rtol=0.0)
 
 
 def test_phase_4_projected_sgd() -> None:
@@ -223,7 +228,7 @@ def test_phase_4_projected_sgd() -> None:
         centroids, torch.zeros(1, 8), _one_hot_mask(1, centroids.shape[0])
     )
     norms = out.norm(dim=-1)
-    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-5), (
+    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-5, rtol=0.0), (
         f"Phase 4 must produce unit-norm centroids; got norms {norms}"
     )
 
@@ -238,11 +243,11 @@ def test_phase_transition_swaps_rule() -> None:
     m = torch.stack([X[mask[:, e] > 0].mean(dim=0) for e in range(N_e)])
     out_090 = CentroidDriver(Phase.EMA_090).step(centroids, X, mask)
     out_099 = CentroidDriver(Phase.EMA_099).step(centroids, X, mask)
-    assert not torch.allclose(out_090, out_099)
+    assert not torch.allclose(out_090, out_099, atol=1e-6, rtol=0.0)
     expected_090 = torch.nn.functional.normalize(0.90 * centroids + 0.10 * m, dim=-1)
     expected_099 = torch.nn.functional.normalize(0.99 * centroids + 0.01 * m, dim=-1)
-    assert torch.allclose(out_090, expected_090, atol=1e-5)
-    assert torch.allclose(out_099, expected_099, atol=1e-5)
+    assert torch.allclose(out_090, expected_090, atol=1e-5, rtol=0.0)
+    assert torch.allclose(out_099, expected_099, atol=1e-5, rtol=0.0)
 
 
 def test_dead_expert_protection_signature() -> None:

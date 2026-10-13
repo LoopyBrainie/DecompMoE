@@ -42,7 +42,12 @@ def test_neg_inf_sentinel_used() -> None:
     kept = masked[top_k_mask]
     assert torch.isfinite(kept).all()
     orig_kept = logits[top_k_mask]
-    assert torch.allclose(kept, orig_kept)
+    # `kept` is a gather of `logits` over the top-k positions, so the two are
+    # bit-identical; the invariant is an identity, not an approximation.
+    # Source: flip-baseline.md records delta_max = 0.0 at this site.
+    assert torch.equal(kept, orig_kept), (
+        f"actual={float((kept - orig_kept).abs().max())}"
+    )
 
 
 def test_partition_of_unity() -> None:
@@ -51,7 +56,7 @@ def test_partition_of_unity() -> None:
     logits = torch.randn(8, 16) * 4
     masked = gating.topk_mask_with_neg_inf(logits, k=2)
     p = gating.local_softmax(masked)
-    assert torch.allclose(p.sum(dim=-1), torch.ones(8), atol=1e-6), (
+    assert torch.allclose(p.sum(dim=-1), torch.ones(8), atol=1e-6, rtol=0.0), (
         f"actual={p.sum(dim=-1).tolist()} must all be 1.0 within atol=1e-6 (Req 8 Σp ≡ 1)"
     )
     assert (p >= 0).all(), f"actual={p.tolist()}"
@@ -110,7 +115,7 @@ def test_forward_formula_strictness() -> None:
         i = topk_idx[j]
         expected = expected + p_topk[j] * fixed_outputs[i]
 
-    assert torch.allclose(x_out, expected, atol=1e-6), (
+    assert torch.allclose(x_out, expected, atol=1e-6, rtol=0.0), (
         f"routing mismatch: max diff = {(x_out - expected).abs().max().item():.3e}"
     )
     # Sanity: non-top-k p_i must be exactly 0 (via the actual gating path).

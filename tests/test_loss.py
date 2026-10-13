@@ -90,7 +90,7 @@ def test_lb_gradient_flows_through_P_i() -> None:
     # equals `α · N_e · f_det_i / (B·N) = 0.01 · 16 · (1/16) / 4 = 0.0025`.
     expected_grad = 0.01 * N_e * (1.0 / N_e) / (B * N)  # = α / (B·N) = 0.0025
     assert torch.isfinite(grad_p).all()
-    assert torch.allclose(grad_p, torch.full_like(grad_p, expected_grad), atol=1e-6), (
+    assert torch.allclose(grad_p, torch.full_like(grad_p, expected_grad), atol=1e-6, rtol=0.0), (
         f"∂L_lb/∂P[b,n,i] under uniform f=P=1/{N_e} must equal "
         f"α · N_e · f_det_i / (B·N) = {expected_grad} element-wise; "
         f"got min={grad_p.min().item():.3e}, max={grad_p.max().item():.3e}"
@@ -191,11 +191,11 @@ def test_lambda_fixed_phase_4() -> None:
     c = torch.nn.functional.normalize(torch.randn(N_e, 16), dim=-1)
     parts1 = loss_mod.L_total(task_logits, targets, f, p, c, phase=4, step=56_000)
     parts2 = loss_mod.L_total(task_logits, targets, f, p, c, phase=4, step=100_000)
-    assert torch.allclose(parts1.L_sep, 0.001 * parts1.L_sep_raw, atol=1e-6), (
+    assert torch.allclose(parts1.L_sep, 0.001 * parts1.L_sep_raw, atol=1e-6, rtol=0.0), (
         f"actual={parts1.L_sep.item()} vs 0.001 * L_sep_raw="
         f"{parts1.L_sep_raw.item()} at step 56_000"
     )
-    assert torch.allclose(parts2.L_sep, 0.001 * parts2.L_sep_raw, atol=1e-6), (
+    assert torch.allclose(parts2.L_sep, 0.001 * parts2.L_sep_raw, atol=1e-6, rtol=0.0), (
         f"actual={parts2.L_sep.item()} vs 0.001 * L_sep_raw="
         f"{parts2.L_sep_raw.item()} at step 100_000"
     )
