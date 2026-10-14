@@ -201,9 +201,18 @@ def test_grad_C_bound() -> None:
     """Worst case hits the bound EXACTLY: orthogonal e_1, e_2 at β=β_max →
     ‖∂logit/∂C‖₂ == 32.0 within abs=1e-4.
 
-    Spec: wayfinder ADDED "Closed-Form Gradient Bound Worst Case":
-    logit = β·(Cᵀc − 1), ∂logit/∂C = β·c (for unit-norm C path); with
-    C = e_1, c = e_2 orthogonal and β = 32, the norm is exactly β_max.
+    Spec: wayfinder `#req-30` "Closed-Form Gradient Bound Worst Case".
+    ``logit = β·(Cᵀc − 1)`` is *linear* in C, so ``∂logit/∂C = β·c`` carries no
+    ``‖C‖`` factor at any point; the orthogonality below is an attainment
+    witness, not a precondition of the derivative.
+
+    The call deliberately goes through ``distance.logit``. An inlined copy of
+    the formula stays green for every mutant of the implementation, which is
+    how a superseded ``β·c/‖C‖`` form survived in this very function for as long
+    as the spec had already declared it wrong. The derivative identity and its
+    angle-independence are pinned separately by
+    ``test_grad_C_bound_is_angle_independent_in_c_i`` and
+    ``test_grad_C_derivative_has_no_norm_C_factor_off_sphere``.
     """
     d_c = 16
     C = torch.nn.Parameter(torch.zeros(d_c))
@@ -212,10 +221,9 @@ def test_grad_C_bound() -> None:
     c_unit = torch.zeros(d_c)
     with torch.no_grad():
         c_unit[1] = 1.0  # c = e_2 (orthogonal)
-    inner = ((C / C.norm()) * c_unit).sum()
-    logit = beta.MAX_GRAD_PER_C * (inner - 1.0)
+    logit = distance.logit(C, c_unit, beta.MAX_GRAD_PER_C)
     grad = torch.autograd.grad(logit, C)[0]
-    # d/dC [β·(C/‖C‖·e_2)] at C = e_1: β · e_2/‖C‖ = β·e_2 ⇒ norm == 32
+    # ∂logit/∂C = β·c ⇒ β·e_2 ⇒ ‖grad‖₂ == β_max, exactly.
     grad_norm = grad.norm().item()
     assert grad_norm == pytest.approx(32.0, abs=1e-4), (
         f"worst-case ‖∂logit/∂C‖₂ = {grad_norm}, expected exactly 32.0"

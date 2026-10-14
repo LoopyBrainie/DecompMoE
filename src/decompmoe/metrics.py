@@ -145,10 +145,6 @@ def SP(centroids: Tensor, assignments: Tensor, signatures: Tensor) -> Tensor:
     C_t = signatures
     # Undefined-sentinel dtype follows the promotion the live path would use.
     out_dtype = torch.promote_types(centroids.dtype, signatures.dtype)
-    if C_t.numel() == 0:
-        # Empty signature set ⇒ every per-expert count n_i = 0 ⇒ all experts
-        # dead. Same contract as the all-dead case below.
-        return torch.full((), float("nan"), dtype=out_dtype)
     N_e = centroids.shape[0]
     per_expert_means: list[Tensor] = []
     for i in range(N_e):

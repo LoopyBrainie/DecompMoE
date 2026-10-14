@@ -447,17 +447,20 @@ def test_sp_empty_signature_set_returns_nan() -> None:
 
 
 def test_sp_all_dead_assignments_returns_nan() -> None:
-    """Every expert dead ⇒ ``NaN``. 0.0 is forbidden: a live SP can be exactly 0.0.
+    """Surviving set empty ⇒ ``NaN``. 0.0 is forbidden: a live SP can be exactly 0.0.
 
     Spec: wayfinder `#req-20` "all-dead window makes the aggregated SP undefined"
     and "a live measurement of exactly 0.0 exists, so 0.0 is not available as a
     sentinel". ``0.0`` is the exact value a live measurement takes when the
-    per-token alignment terms cancel, so returning it here would make a total
-    router failure indistinguishable from a real measurement at the output layer.
+    per-token alignment terms cancel, so returning it here would make an
+    empty-surviving-set measurement indistinguishable from a real one.
 
-    Every assignment index is out of ``[0, N_e)`` here, so the surviving set is
-    empty by the same contract as the ``|T| = 0`` entry above; both must yield
-    the same ``NaN`` sentinel rather than the same ``0.0``.
+    This construction is a *boundary* contract rather than the production
+    scenario: every assignment index is out of ``[0, N_e)``, and the router can
+    never emit such an index. The reachable empty-surviving-set entry is
+    ``|T| = 0``, pinned by the sibling test above. Both reach the same ``NaN``
+    through the same ``if not per_expert_means`` branch, which is why there is
+    no separate ``|T| = 0`` early return to keep in step with this one.
     """
     torch.manual_seed(0)
     N_e, d_c, T = 4, 8, 6
@@ -495,13 +498,17 @@ def test_sp_all_dead_is_bit_distinguishable_from_live_zero() -> None:
 
     live = metrics.SP(centroids, assign, C)
     assert live.item() == 0.0, f"live witness must be exactly 0.0, got {live!r}"
+    # Premise check, not conclusion check: `live` really is the bit-zero tensor
+    # the old `_ZERO` sentinel carried, so *that* sentinel is what would have made
+    # the two paths indistinguishable. `torch.equal(dead, live)` cannot express
+    # this — it is False whenever either operand is NaN, so it would stay green
+    # for exactly the bug this test exists to catch.
+    assert torch.equal(live, torch.zeros_like(live)), (
+        f"live witness must be bit-identical to tensor(0.), got {live!r}"
+    )
 
     dead = metrics.SP(centroids, torch.empty(0, dtype=torch.long), torch.empty(0, 2))
     assert torch.isnan(dead), f"all-dead SP must be NaN, got {dead!r}"
-    assert not torch.equal(dead, live), (
-        "all-dead SP and a live SP of 0.0 must not be bit-identical; "
-        f"dead={dead!r} live={live!r}"
-    )
 
 
 def test_sp_nan_sentinel_lies_outside_the_declared_range() -> None:
