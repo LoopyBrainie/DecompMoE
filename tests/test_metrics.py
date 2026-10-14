@@ -430,6 +430,107 @@ def test_sp_range_containment() -> None:
     assert -1.0 - 1e-6 <= sp <= 1.0 + 1e-6
 
 
+def test_sp_empty_signature_set_returns_nan() -> None:
+    """All-dead aggregate is UNDEFINED (``NaN``), never ``0.0`` — the ``|T| = 0`` entry.
+
+    Spec: wayfinder `#req-20` "an empty signature set takes the same undefined
+    path". With ``|T| = 0`` every per-expert count ``n_i`` is 0, so the surviving
+    set ``{SP_i : ‖T_i‖₁ > 0}`` is empty and ``mean(∅)`` has no value.
+    """
+    torch.manual_seed(0)
+    N_e, d_c = 4, 8
+    centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
+    sp = metrics.SP(
+        centroids, torch.empty(0, dtype=torch.long), torch.empty(0, d_c)
+    )
+    assert torch.isnan(sp), f"all-dead SP must be NaN, got {sp!r}"
+
+
+def test_sp_all_dead_assignments_returns_nan() -> None:
+    """Every expert dead ⇒ ``NaN``. 0.0 is forbidden: a live SP can be exactly 0.0.
+
+    Spec: wayfinder `#req-20` "all-dead window makes the aggregated SP undefined"
+    and "a live measurement of exactly 0.0 exists, so 0.0 is not available as a
+    sentinel". ``0.0`` is the exact value a live measurement takes when the
+    per-token alignment terms cancel, so returning it here would make a total
+    router failure indistinguishable from a real measurement at the output layer.
+
+    Every assignment index is out of ``[0, N_e)`` here, so the surviving set is
+    empty by the same contract as the ``|T| = 0`` entry above; both must yield
+    the same ``NaN`` sentinel rather than the same ``0.0``.
+    """
+    torch.manual_seed(0)
+    N_e, d_c, T = 4, 8, 6
+    centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
+    C = torch.nn.functional.normalize(torch.randn(T, d_c), dim=-1)
+    assign = torch.full((T,), N_e, dtype=torch.long)  # no index matches any expert
+    sp = metrics.SP(centroids, assign, C)
+    assert torch.isnan(sp), f"all-dead SP must be NaN, got {sp!r}"
+
+
+def test_sp_all_dead_is_bit_distinguishable_from_live_zero() -> None:
+    """All-dead ``NaN`` and a live ``SP = 0.0`` MUST NOT be bit-identical.
+
+    Spec: wayfinder `#req-20` "all-dead sentinel is distinguishable from a live
+    zero". This is the discriminating assertion the audit found missing: before
+    the fix both paths returned ``metrics._ZERO``, so ``torch.equal`` was ``True``
+    and both reprs were ``'tensor(0.)'``.
+
+    The live witness is exact by construction: ``c_0^T C_t`` over tokens 0 and 1
+    gives ``+0.6`` and ``−0.6``, and ``0.6f + (-0.6f) == 0.0`` holds in IEEE-754
+    binary32, so ``SP_0 == SP_1 == 0.0`` and the aggregate is exactly ``0.0``.
+    The bare ``==`` below is therefore FP-exact and intentional — an ``approx``
+    would defeat the point, which is that the live value is *bit* zero.
+    """
+    centroids = torch.tensor([[1.0, 0.0], [0.0, 1.0]])
+    C = torch.tensor(
+        [
+            [0.6, 0.8],
+            [-0.6, 0.8],
+            [0.8, 0.6],
+            [0.8, -0.6],
+        ]
+    )
+    assign = torch.tensor([0, 0, 1, 1], dtype=torch.long)
+
+    live = metrics.SP(centroids, assign, C)
+    assert live.item() == 0.0, f"live witness must be exactly 0.0, got {live!r}"
+
+    dead = metrics.SP(centroids, torch.empty(0, dtype=torch.long), torch.empty(0, 2))
+    assert torch.isnan(dead), f"all-dead SP must be NaN, got {dead!r}"
+    assert not torch.equal(dead, live), (
+        "all-dead SP and a live SP of 0.0 must not be bit-identical; "
+        f"dead={dead!r} live={live!r}"
+    )
+
+
+def test_sp_nan_sentinel_lies_outside_the_declared_range() -> None:
+    """The ``NaN`` sentinel is outside ``SP ∈ [-1, 1]``; the bound is finite-only.
+
+    Spec: wayfinder `#req-20` "the SP range bound is asserted only for finite
+    results" and "NaN is not clamped into the range". The range Scenario's
+    ``-1 - 1e-6 ≤ SP ≤ 1 + 1e-6`` is a statement about finite results only, so a
+    ``NaN`` return must not be read as a range violation — and it must not be
+    substituted with an in-range value either.
+    """
+    torch.manual_seed(0)
+    N_e, d_c = 4, 8
+    centroids = torch.nn.functional.normalize(torch.randn(N_e, d_c), dim=-1)
+    sp = metrics.SP(
+        centroids, torch.empty(0, dtype=torch.long), torch.empty(0, d_c)
+    )
+    assert math.isnan(sp.item()), f"expected NaN sentinel, got {sp!r}"
+    # The finite-range assertion does not apply to NaN and is not violated by it.
+    assert not (-1.0 - 1e-6 <= sp.item() <= 1.0 + 1e-6)
+    # A finite SP still satisfies the same bound.
+    T = 20
+    assign = torch.randint(0, N_e, (T,))
+    finite = metrics.SP(
+        centroids, assign, torch.nn.functional.normalize(torch.randn(T, d_c), dim=-1)
+    ).item()
+    assert -1.0 - 1e-6 <= finite <= 1.0 + 1e-6
+
+
 def test_d_chord_orthonormal_basis() -> None:
     """D_chord over an orthonormal basis == √2 exact within abs=1e-6."""
     d_c = 16

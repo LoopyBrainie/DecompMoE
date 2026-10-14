@@ -134,10 +134,21 @@ def SP(centroids: Tensor, assignments: Tensor, signatures: Tensor) -> Tensor:
     ``SP = mean({SP_i : ‖T_i‖₁ > 0})`` — empty experts are SKIPPED,
     not reported as 0. Closed forms: aligned inputs → 1.0;
     60° offset → 0.5. Range containment: [−1 − 1e-6, 1 + 1e-6].
+
+    All-dead aggregate is UNDEFINED, not zero. ``mean`` over an empty
+    surviving set has no value, so the aggregated ``SP`` is returned as
+    ``NaN`` — never as ``0.0``, which is the exact value a legitimate live
+    measurement can take (per-token alignment terms can cancel exactly).
+    ``NaN`` therefore lies OUTSIDE the declared range and must not be read
+    as a range violation; it must not be clamped or aggregated downstream.
     """
     C_t = signatures
+    # Undefined-sentinel dtype follows the promotion the live path would use.
+    out_dtype = torch.promote_types(centroids.dtype, signatures.dtype)
     if C_t.numel() == 0:
-        return _ZERO
+        # Empty signature set ⇒ every per-expert count n_i = 0 ⇒ all experts
+        # dead. Same contract as the all-dead case below.
+        return torch.full((), float("nan"), dtype=out_dtype)
     N_e = centroids.shape[0]
     per_expert_means: list[Tensor] = []
     for i in range(N_e):
@@ -150,7 +161,9 @@ def SP(centroids: Tensor, assignments: Tensor, signatures: Tensor) -> Tensor:
         align = (C_t[member] * centroids[i].unsqueeze(0)).sum(dim=-1)
         per_expert_means.append(align.mean())
     if not per_expert_means:
-        return _ZERO
+        # Surviving set empty ⇒ aggregated SP is undefined; 0.0 is forbidden
+        # because a live measurement can cancel to exactly 0.0 (see docstring).
+        return torch.full((), float("nan"), dtype=out_dtype)
     return torch.stack(per_expert_means).mean()
 
 

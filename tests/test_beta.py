@@ -5,11 +5,13 @@ ST-02 / Req 7: β = β_min + (β_max − β_min) · σ(γ), with β_min = 0.1, �
 
 from __future__ import annotations
 
+import math
+
 import mpmath
 import pytest
 import torch
 
-from decompmoe import beta
+from decompmoe import beta, distance
 from decompmoe.beta import _MAX_GRAD_BETA_PHASE4_INTERNAL
 from decompmoe.config import MVPConfig
 
@@ -218,6 +220,118 @@ def test_grad_C_bound() -> None:
     assert grad_norm == pytest.approx(32.0, abs=1e-4), (
         f"worst-case ‖∂logit/∂C‖₂ = {grad_norm}, expected exactly 32.0"
     )
+
+
+def test_grad_C_bound_is_angle_independent_in_c_i() -> None:
+    """`‖∂logit/∂C‖₂ == β·‖c‖₂` at EVERY angle; `c ⟂ C` is a witness, not a condition.
+
+    Spec: wayfinder `#req-30` "the derivative carries no ‖C‖ factor and is
+    angle-independent". `logit = β·(Cᵀc − 1)` is linear in `C`, so the exact
+    derivative is `∂logit/∂C = β·c` and its norm `β·‖c‖₂` does **not** depend on
+    the angle between `c` and `C` — orthogonality is one witness among
+    infinitely many, so the superseded "attained at `c ⟂ C`" phrasing was wrong.
+
+    This also closes the `c`-side zero coverage: no prior test in `tests/` used
+    a centroid `c` as the differentiation variable.
+    """
+    torch.manual_seed(0)
+    d_c = 16
+    b = beta.BETA_MAX
+    e1 = torch.eye(d_c, dtype=torch.double)[0]
+    e2 = torch.eye(d_c, dtype=torch.double)[1]
+    want = b * e1.norm().item()
+    for deg in range(0, 181, 5):
+        theta = math.radians(deg)
+        C_vec = math.cos(theta) * e1 + math.sin(theta) * e2
+        C = C_vec.clone().requires_grad_(True)
+        grad = torch.autograd.grad(distance.logit(C, e1, b), C)[0]
+        got = grad.norm().item()
+        assert got == pytest.approx(want, abs=1e-9), (
+            f"angle {deg}°: ‖∂logit/∂C‖₂ = {got}, expected β·‖c‖₂ = {want}"
+        )
+    # The bound is tight at every angle, so 90° carries no special privilege.
+    assert want == pytest.approx(32.0, abs=1e-9)
+
+
+def test_grad_C_derivative_has_no_norm_C_factor_off_sphere() -> None:
+    """Off the sphere the autograd norm is still `β·‖c‖₂`; the old form is wrong.
+
+    Spec: wayfinder `#req-30` "the derivative carries no ‖C‖ factor". The
+    superseded form `∂logit/∂C = β · c / ‖C‖` coincides with the exact
+    derivative on the unit sphere (`‖C‖ = 1`), so it is **latent** there and
+    every unit-sphere test passed. Off the sphere it diverges: at `‖C‖₂ = 2`
+    with `β = β_max` it predicts `16.0` where autograd returns `32.0`.
+    """
+    torch.manual_seed(0)
+    d_c = 16
+    b = beta.BETA_MAX
+    e1 = torch.eye(d_c, dtype=torch.double)[0]
+    e2 = torch.eye(d_c, dtype=torch.double)[1]
+    C_off = (2.0 * e1).requires_grad_(True)
+    assert float(C_off.detach().norm()) == pytest.approx(2.0, abs=1e-12)
+
+    grad = torch.autograd.grad(distance.logit(C_off, e2, b), C_off)[0]
+    got = grad.norm().item()
+    want = b * e2.norm().item()
+    old_form = b * e2.norm().item() / float(C_off.detach().norm())
+
+    assert got == pytest.approx(want, abs=1e-9), (
+        f"off-sphere ‖∂logit/∂C‖₂ = {got}, expected β·‖c‖₂ = {want}"
+    )
+    assert got == pytest.approx(32.0, abs=1e-9)
+    assert old_form == pytest.approx(16.0, abs=1e-9)
+    assert got != pytest.approx(old_form, abs=1e-6), (
+        "off-sphere the exact derivative and the superseded `β·c/‖C‖` form "
+        f"must disagree; both gave {got}"
+    )
+
+
+def test_grad_C_bound_is_supremum_over_finite_gamma() -> None:
+    """No finite γ attains 32.0; `β_max` is a supremum, approached as γ → ∞.
+
+    Spec: wayfinder `#req-30` "the boundary value is the supremum, not any
+    finite-gamma value". `β = β_min + (β_max − β_min)·σ(γ)` is strictly below
+    `β_max` for every finite `γ` because the logistic never reaches 1.0 in
+    finite precision, so `MUST be attained ... at β = β_max` asserts an
+    unachievable configuration. In float64 the sigmoid only rounds to 1.0 for
+    `γ ≳ 36.7368`, and even then it is a rounding artefact, not an attainment.
+    """
+    torch.manual_seed(0)
+    d_c = 16
+    e1 = torch.eye(d_c, dtype=torch.double)[0]
+    e2 = torch.eye(d_c, dtype=torch.double)[1]
+    C = e1.clone().requires_grad_(True)
+
+    gaps: list[float] = []
+    for gamma_val in (-20.0, -1.0, 0.0, 10.0, 30.0, 36.0):
+        gamma = torch.tensor(gamma_val, dtype=torch.double, requires_grad=True)
+        b = beta.inverse_temperature(gamma)
+        grad = torch.autograd.grad(distance.logit(C, e2, b), C)[0]
+        got = grad.norm().item()
+        assert got < beta.BETA_MAX, (
+            f"γ = {gamma_val}: ‖∂logit/∂C‖₂ = {got!r} must be strictly below "
+            f"β_max = {beta.BETA_MAX}; no finite γ attains the bound"
+        )
+        assert got == pytest.approx(float(b) * e2.norm().item(), abs=1e-9)
+        gaps.append(beta.BETA_MAX - got)
+
+    # "Approached as γ → ∞" made testable: the gap to β_max shrinks strictly
+    # monotonically. Note how fast — at γ = 30 it is already ~3e-12, which is
+    # why the assertion above can only be `got < β_max` and must NOT use a
+    # coarse margin: any fixed epsilon either passes vacuously (eps < 3e-12) or
+    # demands a gap the parameterisation does not have (eps > 3e-12).
+    assert all(x > 0.0 for x in gaps), f"gap must stay positive: {gaps}"
+    assert gaps == sorted(gaps, reverse=True), (
+        f"gap to β_max must shrink monotonically as γ grows; got {gaps}"
+    )
+    assert gaps[-1] < gaps[0] * 1e-3, (
+        f"gap must collapse toward 0 as γ grows; first={gaps[0]:.3e} "
+        f"last={gaps[-1]:.3e}"
+    )
+
+    # The closed-range boundary value itself still evaluates to β_max.
+    at_boundary = beta.BETA_MAX * e2.norm().item()
+    assert at_boundary == pytest.approx(32.0, abs=1e-9)
 
 
 def test_grad_gamma_bound() -> None:
