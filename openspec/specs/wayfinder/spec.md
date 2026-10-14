@@ -571,6 +571,30 @@ The system MUST report eight metrics in two classes, each with a precise closed-
 - **AND** the result lies in `MCI ∈ [1/d_c, 1]` closed range with both endpoints attainable, guarded by the two `MCI closed-form` Scenarios above at `abs=1e-12`
 - **AND** no other Requirement restates this closed form: a Requirement that points at this one MUST reference `#req-20-mci` rather than a line number or a verbatim copy, so that editing this Requirement cannot invalidate a pointer elsewhere
 
+#### Scenario: all-dead window makes the aggregated SP undefined
+- **WHEN** EVERY expert `i` has `‖T_i‖₁ = 0` in the current offline window, so the surviving set `{SP_i : ‖T_i‖₁ > 0}` is empty (`mean(∅)` is undefined)
+- **THEN** the aggregated `SP` is reported as `undefined` — encoded as `NaN` — and MUST NOT be reported as `0.0`
+
+#### Scenario: a live measurement of exactly 0.0 exists, so 0.0 is not available as a sentinel
+- **WHEN** per-token alignment terms `c_i^T C_t` cancel exactly within each live expert (e.g. `+0.6` and `−0.6` in equal number, which IEEE-754 evaluates to exactly `0.0`), and every expert is live
+- **THEN** the aggregated `SP` is exactly `0.0` — a legitimate, bit-exact measurement — which is precisely why `0.0` MUST NOT double as the all-dead sentinel
+
+#### Scenario: all-dead sentinel is distinguishable from a live zero
+- **WHEN** the aggregated `SP` of an all-dead window is bit-compared (`torch.equal`) against a live window whose per-token alignment terms cancel exactly, so that the live aggregated `SP` is exactly `0.0`
+- **THEN** the two results MUST NOT compare equal: the all-dead result MUST be `NaN`, never a `0.0` sentinel
+
+#### Scenario: an empty signature set takes the same undefined path
+- **WHEN** the offline signature set itself is empty (`|T| = 0`), so every per-expert token count `n_i` is `0`
+- **THEN** the aggregated `SP` is `NaN` under the same contract as the all-dead case above, NOT `0.0`
+
+#### Scenario: the SP range bound is asserted only for finite results
+- **WHEN** `SP(any_centroids, any_assignments, any_signatures)` returns a finite value
+- **THEN** `-1 - 1e-6 ≤ SP ≤ 1 + 1e-6` holds; and when the same call returns the `NaN` sentinel (every expert dead) the range assertion is NOT applicable and MUST NOT be read as violated — the `NaN` sentinel lies, by convention, OUTSIDE the declared range `SP ∈ [-1, 1]`, and MUST NOT participate in any downstream aggregation or comparison
+
+#### Scenario: NaN is not clamped into the range
+- **WHEN** the aggregated `SP` is `NaN` and a downstream step would clamp, average or threshold it
+- **THEN** that step MUST NOT substitute `0.0` or any in-range value; the `NaN` MUST propagate unchanged or be filtered by an explicit caller decision
+
 <a id="req-35"></a>
 
 ### Requirement: CG n=1 boundary behavior
@@ -775,19 +799,25 @@ On entering Phase 4 with `β_{p3} = 16.0`, the operational effective β MUST equ
 
 ### Requirement: Closed-Form Gradient Bound Worst Case
 
-The bound `‖∂logit/∂C‖₂ ≤ β_max = 32` in Req 7 MUST be attained (not merely bounded above) at the worst-case configuration: `β = β_max = 32`, `‖C‖₂ = 1`, `‖c‖₂ = 1`, `c ⟂ C`. Under this configuration, `logit = β · (C^T c − 1) = 32 · (0 − 1) = −32` and `∂logit/∂C = β · c / ‖C‖ = 32 · c` so `‖∂logit/∂C‖₂ = 32.0` exactly. The bound `|∂logit/∂γ| ≤ 0.5 · (β_max − β_min) = 15.95` in Req 7 MUST be attained at `γ = 0, c = −C` (so `β = 16.05`, `inner = −1`, `(β_max − β_min) · σ'(γ) · (inner − 1) = 31.9 · 0.25 · (−2) = −15.95`). (References Req 7.)
+The bound `‖∂logit/∂C‖₂ ≤ β_max = 32` in Req 7 is a **supremum over the closed range of `β`, not a value attained by any finite `γ`**. The exact derivative is `∂logit/∂C = β · c` — `logit = β · (C^T c − 1)` is linear in `C`, so the derivative carries NO `‖C‖` factor — whence `‖∂logit/∂C‖₂ = β · ‖c‖₂`, which is **independent of the angle between `c` and `C`**; `c ⟂ C` is one WITNESS, not a necessary condition and not "the" worst-case configuration. Because `β = 0.1 + 31.9 · σ(γ)` is strictly below `32` for every finite `γ` (in float64 `σ` reaches `1.0` only for `γ ≳ 36.7368`), `β_max = 32` MUST NOT be reported as attained by any finite configuration; it MUST be approached as `γ → ∞`. **The earlier form `∂logit/∂C = β · c / ‖C‖` is WRONG off the sphere**: it coincides with the exact derivative only on `‖C‖ = 1`, and returns `β · ‖c‖₂ / 2` where autograd returns `β · ‖c‖₂` at `‖C‖ = 2`. The bound `|∂logit/∂γ| ≤ 0.5 · (β_max − β_min) = 15.95` in Req 7 MUST be attained at `γ = 0, c = −C` (so `β = 16.05`, `inner = −1`, `(β_max − β_min) · σ'(γ) · (inner − 1) = 31.9 · 0.25 · (−2) = −15.95`). (References Req 7.)
 
-**Source:** `wayfinder/tickets/A4-1.md` (historical, MAX_GRAD_PER_C = β_max = 32 bound declared in A4-1; worst-case attainability verification at orthogonal unit vectors added by `fix-math-consistency-audit-2026-08` Decision 6), change `fix-math-consistency-audit-2026-08` design.md (Decision 6)
+**Source:** `wayfinder/tickets/A4-1.md` (historical, MAX_GRAD_PER_C = β_max = 32 bound declared in A4-1; worst-case attainability verification at orthogonal unit vectors added by `fix-math-consistency-audit-2026-08` Decision 6), change `fix-math-consistency-audit-2026-08` design.md (Decision 6), change `2026-10-14-opx2-sp-all-dead-nan-and-box-attainment` design.md (Decision D-3)
 
 #### Scenario: gradient bound is tight at orthogonal unit vectors
 - **WHEN** `logit = β_max · (C^T c − 1)` with `C = e_1`, `c = e_2`, `β = β_max`
 - **THEN** `‖∂logit/∂C‖₂ == 32.0` within `abs=1e-4`
 
+#### Scenario: the boundary value is the supremum, not any finite-gamma value
+- **WHEN** the same expression is evaluated at the closed-range boundary `β = β_max = 32`, versus at any `β = 0.1 + 31.9 · σ(γ)` for a finite `γ`
+- **THEN** at `β = β_max` the value is `32.0` (the boundary evaluation asserted above), while at every finite `γ` it is strictly `< 32.0`; `32.0` is the supremum, approached as `γ → ∞`, and MUST NOT be reported as attained by any finite `γ`
+
+#### Scenario: the derivative carries no ‖C‖ factor and is angle-independent
+- **WHEN** `logit = β · (C^T c − 1)` is differentiated with respect to `C`, sweeping the angle between `c` and `C` over `θ ∈ [0°, 180°]` at `‖C‖₂ = ‖c‖₂ = 1`, and additionally at `‖C‖₂ = 2` off the sphere
+- **THEN** `‖∂logit/∂C‖₂ == β · ‖c‖₂` at every angle within `abs=1e-6` (orthogonality is not required), and at `‖C‖₂ = 2` the autograd value still equals `β · ‖c‖₂` — never `β · ‖c‖₂ / ‖C‖₂`
+
 #### Scenario: gamma-gradient bound is tight at antipodal config
 - **WHEN** `logit = inverse_temperature(γ=0) · (inner − 1)` with `C = e_1`, `c = −e_1`
 - **THEN** `|∂logit/∂γ| == 15.95` within `abs=1e-3`
-
----
 
 <a id="req-31"></a>
 

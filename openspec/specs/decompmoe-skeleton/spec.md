@@ -644,6 +644,30 @@ The four offline metric implementations MUST implement the closed forms above (a
 - **AND WHEN** `CG(grad)` is called with `grad` being a `torch.Tensor` of non-floating-point dtype (`int`, `bool`, etc.)
 - **THEN** it raises `TypeError` (the `CG` definition is the `ℓ₂` norm of a learnable-parameter gradient — non-floating-point tensors cannot be such a gradient)
 
+#### Scenario: all-dead window makes the aggregated SP undefined
+- **WHEN** EVERY expert `i` has `‖T_i‖₁ = 0` in the current offline window, so the surviving set `{SP_i : ‖T_i‖₁ > 0}` is empty (`mean(∅)` is undefined)
+- **THEN** the aggregated `SP` is reported as `undefined` — encoded as `NaN` — and MUST NOT be reported as `0.0`
+
+#### Scenario: a live measurement of exactly 0.0 exists, so 0.0 is not available as a sentinel
+- **WHEN** per-token alignment terms `c_i^T C_t` cancel exactly within each live expert (e.g. `+0.6` and `−0.6` in equal number, which IEEE-754 evaluates to exactly `0.0`), and every expert is live
+- **THEN** the aggregated `SP` is exactly `0.0` — a legitimate, bit-exact measurement — which is precisely why `0.0` MUST NOT double as the all-dead sentinel
+
+#### Scenario: all-dead sentinel is distinguishable from a live zero
+- **WHEN** the aggregated `SP` of an all-dead window is bit-compared (`torch.equal`) against a live window whose per-token alignment terms cancel exactly, so that the live aggregated `SP` is exactly `0.0`
+- **THEN** the two results MUST NOT compare equal: the all-dead result MUST be `NaN`, never a `0.0` sentinel
+
+#### Scenario: an empty signature set takes the same undefined path
+- **WHEN** the offline signature set itself is empty (`|T| = 0`), so every per-expert token count `n_i` is `0`
+- **THEN** the aggregated `SP` is `NaN` under the same contract as the all-dead case above, NOT `0.0`
+
+#### Scenario: the SP range bound is asserted only for finite results
+- **WHEN** `SP(any_centroids, any_assignments, any_signatures)` returns a finite value
+- **THEN** `-1 - 1e-6 ≤ SP ≤ 1 + 1e-6` holds; and when the same call returns the `NaN` sentinel (every expert dead) the range assertion is NOT applicable and MUST NOT be read as violated — the `NaN` sentinel lies, by convention, OUTSIDE the declared range `SP ∈ [-1, 1]`, and MUST NOT participate in any downstream aggregation or comparison
+
+#### Scenario: NaN is not clamped into the range
+- **WHEN** the aggregated `SP` is `NaN` and a downstream step would clamp, average or threshold it
+- **THEN** that step MUST NOT substitute `0.0` or any in-range value; the `NaN` MUST propagate unchanged or be filtered by an explicit caller decision
+
 <a id="req-23"></a>
 
 ### Requirement: No decompmoe-skeleton spec changes required for cycle-12 finding 1 closure
