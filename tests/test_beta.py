@@ -231,8 +231,15 @@ def test_grad_C_bound_is_angle_independent_in_c_i() -> None:
     the angle between `c` and `C` — orthogonality is one witness among
     infinitely many, so the superseded "attained at `c ⟂ C`" phrasing was wrong.
 
-    This also closes the `c`-side zero coverage: no prior test in `tests/` used
-    a centroid `c` as the differentiation variable.
+    This also closes part of the `c`-side coverage, and the scope is worth
+    stating exactly: these tests differentiate w.r.t. `C` only, and because
+    they all use a UNIT-norm centroid the asserted `β · ‖c‖₂` collapses to `β`,
+    so substituting one unit centroid for another leaves every assertion
+    unchanged. They cannot on their own establish the `c`-side contract. That
+    gap is closed by
+    `test_grad_bound_tracks_centroid_norm_with_centroid_as_grad_variable`,
+    which uses a non-unit centroid and makes the centroid itself the
+    differentiation variable.
     """
     torch.manual_seed(0)
     d_c = 16
@@ -332,6 +339,57 @@ def test_grad_C_bound_is_supremum_over_finite_gamma() -> None:
     # The closed-range boundary value itself still evaluates to β_max.
     at_boundary = beta.BETA_MAX * e2.norm().item()
     assert at_boundary == pytest.approx(32.0, abs=1e-9)
+
+
+def test_grad_bound_tracks_centroid_norm_with_centroid_as_grad_variable() -> None:
+    """`‖∂logit/∂C‖₂ == β·‖c‖₂` must actually track `‖c‖₂`, and `c` must be a
+    differentiation variable.
+
+    Spec: wayfinder `#req-30` — the bound's right-hand side is `β · ‖c‖₂`, so a
+    guard that only ever uses a unit-norm centroid is degenerate: `‖c‖₂ = 1`
+    collapses the assertion to `β`, and substituting one unit centroid for
+    another leaves every assertion unchanged. That is why the unit-sphere tests
+    alone cannot establish the `c`-side contract, and why the three companion
+    tests in this file differentiate w.r.t. `C` only.
+
+    Two halves:
+      1. a **non-unit** centroid makes the dependence observable — `‖c‖₂ = s`
+         must give exactly `β · s`, for several `s`;
+      2. the centroid is made a leaf with `requires_grad_(True)`, so
+         `∂logit/∂c = β · C` is exercised directly — the mirror of
+         `∂logit/∂C = β · c`.
+    """
+    torch.manual_seed(0)
+    d_c = 16
+    B = beta.BETA_MAX
+    e1 = torch.eye(d_c, dtype=torch.double)[0]
+    e2 = torch.eye(d_c, dtype=torch.double)[1]
+    C = e1.clone().requires_grad_(True)
+
+    # (1) The bound scales with ‖c‖₂; a unit-norm-only guard cannot see this.
+    for scale in (1.0, 1.5, 2.0, 3.25):
+        c_scaled = scale * e2
+        got = torch.autograd.grad(distance.logit(C, c_scaled, B), C)[0].norm().item()
+        want = B * scale
+        assert got == pytest.approx(want, abs=1e-9), (
+            f"‖c‖₂ = {scale}: ‖∂logit/∂C‖₂ = {got!r}, expected β·‖c‖₂ = {want}"
+        )
+    # Distinct scales must give distinct results — the guard is not degenerate.
+    a = torch.autograd.grad(distance.logit(C, 1.0 * e2, B), C)[0].norm().item()
+    b2 = torch.autograd.grad(distance.logit(C, 2.0 * e2, B), C)[0].norm().item()
+    assert b2 != pytest.approx(a, abs=1e-6), (
+        f"scaling ‖c‖₂ from 1.0 to 2.0 must change the bound; both gave {a}"
+    )
+
+    # (2) The centroid is the differentiation variable: ∂logit/∂c = β · C.
+    c_leaf = (2.0 * e2).requires_grad_(True)
+    assert c_leaf.requires_grad, "centroid must be a differentiable leaf here"
+    grad_c = torch.autograd.grad(distance.logit(C, c_leaf, B), c_leaf)[0]
+    assert torch.equal(grad_c, B * C), (
+        f"∂logit/∂c must equal β·C exactly; got ‖∂logit/∂c‖₂ = "
+        f"{grad_c.norm().item()!r}"
+    )
+    assert grad_c.norm().item() == pytest.approx(B * C.norm().item(), abs=1e-9)
 
 
 def test_grad_gamma_bound() -> None:
