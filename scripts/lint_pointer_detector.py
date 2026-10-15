@@ -39,6 +39,12 @@ import pointer_scan as ps  # noqa: E402
 #: strong sites than this has the same blind spot as the one it replaces.
 BASELINE_REV = "1526b98"
 BASELINE_MIN_STRONG = 100
+#: Retention budget for the live-tree population, expressed as a divisor of
+#: the baseline population section 4 already measured. Deliberately NOT an
+#: absolute constant: a hard-coded count re-encodes today's tree and reddens
+#: the gate the first legitimate sweep removes one historical annotation,
+#: while the ratio form tracks the baseline if it is ever re-pinned.
+LIVE_MIN_RATIO = 200
 
 BT = "`"
 
@@ -335,6 +341,28 @@ check("detector still finds the blind-spot form on synthetic input",
 check("detector still finds the file-level population",
       len(live) > 0,
       "zero sites on the live tree -- the scan is not looking at the tree")
+
+# A THIRD, independent population floor. `live_actionable` is a FILTER of
+# `live`, so the conjunction of the two checks above reduces to
+# `historical >= 1`: any tree carrying a single historical annotation
+# satisfies both, which means the green depends on a tree state rather than
+# on the detector being alive. On a POSIX host the same collapse ran the
+# other way -- `scan()` returned [] there, so the zero-actionable check
+# passed VACUOUSLY on an empty collection and this line was the sole witness
+# that nothing had been read at all.
+#
+# The floor is a retention budget against the baseline population rather
+# than a magic number, so it keeps meaning "the detector still sees a
+# population proportional to the one it saw at the baseline". Measured
+# today: 224 // 200 == 1, and len(live) == 5 clears that 5x. It adds little
+# discriminating power over the check above AT TODAY'S NUMBERS -- its value
+# is that the quantity is derived rather than restated, and that it tightens
+# by itself if the baseline population moves.
+live_floor = max(1, len(found) // LIVE_MIN_RATIO)
+check("live tree retains >= 1/%d of the baseline site population" % LIVE_MIN_RATIO,
+      len(live) >= live_floor,
+      "%d sites, floor %d -- the sweep erased the population"
+      % (len(live), live_floor))
 
 # The sweep rewrote `openspec/specs/**` in place. A delta is emitted from the
 # swept text, so an unapplied or half-applied sweep would show up here as a
