@@ -123,12 +123,26 @@ RE_ANCHOR = re.compile(r'<a id="([^"]+)"')
 RE_HEADING = re.compile(r"^### Requirement:")
 
 # --- C4 ----------------------------------------------------------------------
-RE_REF_HASH = re.compile(r"#(req-[A-Za-z0-9_-]+)")
+RE_REF_HASH = re.compile(r"#(req-[A-Za-z0-9_-]+)", re.IGNORECASE)
 # `req-13` / `req-gov-1` keep their prefix verbatim. Capturing only the digits
 # and rebuilding the id collapsed `req-gov-1` into `req-1`, which reported 34
 # false violations in files that merely mention a governance Requirement.
-RE_REF_PLAIN = re.compile(r"\b(req-(?:gov-)?\d+)\b")
+#
+# IGNORECASE closes a real under-coverage: prose cites the id as `Req-22`
+# (openspec/specs/decompmoe-skeleton/spec.md:685) and as `Req-17`
+# (openspec/specs/wayfinder/spec.md:452), and both were invisible to C4. It is
+# only half the fix — the capture group preserves case, so a capitalised `Req-22`
+# would arrive as `'Req-22'` and fail the membership test against a lowercase
+# inventory. `check_c4` therefore lowercases every capture, and
+# `resolve_capability` relaxes its placeholder test to `seg.upper()` to match.
+# All three parts are required: IGNORECASE alone reports 2 false violations, and
+# without the placeholder relaxation it reports 11 (`req-N` becomes `req-n` and
+# stops being recognised as a placeholder). With all three, C4 output is
+# unchanged -- both newly-seen targets do exist.
+RE_REF_PLAIN = re.compile(r"\b(req-(?:gov-)?\d+)\b", re.IGNORECASE)
 # The prose form `Req 20` names a numeric Requirement, so its id is `req-<n>`.
+# Already case-exact on `Req`, and its capture is digits only, so it needs
+# neither the flag nor the lowercase.
 RE_REF_WORD = re.compile(r"\bReq\.?\s*(\d+)\b")
 
 CAPABILITY_WORDS = (
@@ -463,8 +477,13 @@ def resolve_capability(rid: str, line: str, pos: int, own: str | None,
     anchor whose trailing segment is a slug. Testing the last segment against
     `isdigit()` classified every block anchor as a placeholder and silently
     skipped C4 for all of them.
+
+    The comparison is case-insensitive because `check_c4` lowercases every
+    capture now that `RE_REF_HASH` / `RE_REF_PLAIN` match capitalised prose:
+    without this, `req-N` arrives as `req-n` and the placeholder branch stops
+    firing, turning the contract's own notation into 9 false violations.
     """
-    if any(seg == "N" for seg in rid.split("-")):
+    if any(seg.upper() == "N" for seg in rid.split("-")):
         return None, "placeholder"
 
     for prefix, cap in ID_PREFIX_CAPABILITY.items():
@@ -487,10 +506,73 @@ def resolve_capability(rid: str, line: str, pos: int, own: str | None,
     return None, "unresolved"
 
 
-def check_c4(paths: Iterable[Path], inventory: dict[str, set[str]]) -> tuple[list, int, int]:
+#: Why an ambiguous reference was left unjudged, in the order the causes are
+#: discriminated. The escape path is legible without these, but with them the
+#: escape is legible as a DIAGNOSIS: which rule declined, and where.
+#:
+#: The boundaries are decided by re-deriving `resolve_capability`'s own
+#: control flow, not by a whole-line search for a capability word. That
+#: distinction is load-bearing: `nearest_capability` bounds `finditer` on BOTH
+#: sides by its window, while `capability_from_path` scans the whole line and
+#: rejects only on `m.end() > pos` -- so "outside the window" is a property of
+#: word qualifiers alone.
+AMBIGUOUS_CAUSES = (
+    ("A3b", "qualifier matched inside the window but was discarded"),
+    ("A3", "qualifier word starts outside the 48-char window"),
+    ("A4", "line names a capability only AFTER the reference"),
+    ("A1", "inside a peer spec that does not own the id"),
+    ("A5", "no capability qualifier before the reference"),
+)
+
+
+def classify_ambiguous(line: str, pos: int, rid: str, own: str | None,
+                       inventory: dict[str, set[str]], window: int = 48) -> str:
+    """Name the rule that declined `rid`, for the summary breakdown.
+
+    Only ever called on the `ambiguous` outcome, where every resolution tier
+    has already failed. An ambiguous outcome is NOT a broken reference -- it
+    is reachable only when the id exists in two or more inventories -- so this
+    explains an under-specified citation, not a defect.
+    """
+    # The enclosing-spec rule was available and could not fire: we are inside
+    # a capability spec, but the id is not one of that spec's own anchors.
+    # governance mints only `req-gov-*`, so every `req-N` it cites lands here.
+    if own is not None and rid not in inventory.get(own, set()):
+        return "A1"
+
+    lo = max(0, pos - window)
+    # `nearest_capability`'s own window, verbatim: finditer bounded on both
+    # sides, then the trailing-edge rejection.
+    in_window = [m for m in RE_CAP_MENTION.finditer(line, lo, min(len(line), pos + window))
+                 if m.end() <= pos]
+    if in_window:
+        # Every in-window match was discarded: either the word has no
+        # CAPABILITY_WORDS mapping (`spec`, `Spec`) or `_qualifies` rejected
+        # the span between it and the reference.
+        return "A3b"
+    before_outside = [m for m in RE_CAP_MENTION.finditer(line)
+                      if m.end() <= pos and m.start() < lo]
+    if before_outside:
+        return "A3"
+    if any(m.end() > pos for m in RE_CAP_MENTION.finditer(line)):
+        return "A4"
+    return "A5"
+
+
+def check_c4(paths: Iterable[Path],
+             inventory: dict[str, set[str]]) -> tuple[list, int, int, int, dict]:
+    """Run C4. Returns `(violations, judged, placeholders, ambiguous, causes)`.
+
+    `judged` is the number of references C4 reached a real verdict on. It was
+    previously unreported: the summary printed only the SKIPPED counts, so a
+    reader saw 319 without ever seeing the 613 -- which is what let "coverage"
+    be read as 3% when it is 66%.
+    """
     out: list[tuple[Path, int, str, str]] = []
     placeholders = 0
     ambiguous = 0
+    causes: dict[str, int] = {}
+    seen = 0
     for path, line_no, line in iter_lines(paths):
         # Same invariant as C1: this gate's own fixtures use synthetic ids
         # (`req-999`) that resolve nowhere by construction, and that must be
@@ -500,11 +582,12 @@ def check_c4(paths: Iterable[Path], inventory: dict[str, set[str]]) -> tuple[lis
         own = capability_of_spec(path)
         refs: list[tuple[str, int]] = []
         for m in RE_REF_HASH.finditer(line):
-            refs.append((m.group(1), m.start()))
+            refs.append((m.group(1).lower(), m.start()))
         for m in RE_REF_PLAIN.finditer(line):
-            refs.append((m.group(1), m.start()))
+            refs.append((m.group(1).lower(), m.start()))
         for m in RE_REF_WORD.finditer(line):
             refs.append((f"req-{m.group(1)}", m.start()))
+        seen += len(refs)
         for rid, pos in refs:
             cap, outcome = resolve_capability(rid, line, pos, own, inventory)
             if outcome == "placeholder":
@@ -516,8 +599,10 @@ def check_c4(paths: Iterable[Path], inventory: dict[str, set[str]]) -> tuple[lis
                 # clause 4 scopes resolvability to "an anchor that exists in the
                 # NAMED capability", and most Requirements DO share a number
                 # across wayfinder and decompmoe-skeleton, so reporting these
-                # would bury the real findings. Counted and reported in the
-                # summary so the surface stays visible.
+                # would bury the real findings. Counted, classified by cause and
+                # reported in the summary so the surface stays visible.
+                key = classify_ambiguous(line, pos, rid, own, inventory)
+                causes[key] = causes.get(key, 0) + 1
                 ambiguous += 1
                 continue
             if cap is not None and rid in inventory.get(cap, set()):
@@ -526,7 +611,7 @@ def check_c4(paths: Iterable[Path], inventory: dict[str, set[str]]) -> tuple[lis
                 path, line_no, line.strip()[:120],
                 f"C4 reference {rid!r} does not resolve in capability {cap!r}",
             ))
-    return out, placeholders, ambiguous
+    return out, seen - placeholders - ambiguous, placeholders, ambiguous, causes
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -557,17 +642,33 @@ def main(argv: list[str] | None = None) -> int:
     violations += check_c1(paths)
     violations += check_spec_structure(specs)
     inventory = anchor_inventory(specs)
-    c4, placeholders, ambiguous = check_c4(paths, inventory)
+    c4, judged, placeholders, ambiguous, causes = check_c4(paths, inventory)
     violations += c4
     unresolved_c4 = [v for v in c4 if "does not resolve" in v[3]]
+
+    def _c4_summary() -> str:
+        """The denominator first. Printing only the skipped counts is what
+        let the skipped subtotal be mistaken for the total."""
+        lines = [f"  C4 references judged: {judged}; "
+                 f"ambiguous skipped: {ambiguous}; "
+                 f"placeholders skipped: {placeholders}"]
+        if ambiguous:
+            labels = dict(AMBIGUOUS_CAUSES)
+            for key, label in sorted(AMBIGUOUS_CAUSES,
+                                     key=lambda kv: -causes.get(kv[0], 0)):
+                count = causes.get(key, 0)
+                if count:
+                    lines.append(f"    {key:<4} {label:<48} {count:>4}")
+            lines.append(f"    (total {sum(causes.values())}, "
+                         f"{len(labels)} cause(s) named)")
+        return "\n".join(lines)
 
     if not violations:
         print(
             f"lint_no_line_pointers: OK ({len(paths)} file(s) scanned, "
             f"{len(inventory)} capability spec(s), no violations)"
         )
-        print(f"  C4 placeholders skipped: {placeholders}; "
-              f"unqualified references skipped: {ambiguous}")
+        print(_c4_summary())
         return 0
 
     print(f"lint_no_line_pointers: {len(violations)} violation(s) found")
@@ -575,10 +676,9 @@ def main(argv: list[str] | None = None) -> int:
     for path, line_no, content, reason in violations:
         print(f"  {path}:{line_no}: {reason}")
         print(f"    {content}")
-    print(f"\n  C4 placeholders skipped: {placeholders} "
-          f"(non-numeric Requirement numbers are notation, not references)")
-    print(f"  C4 unqualified references skipped: {ambiguous} "
-          f"(id shared by several capabilities, line names none)")
+    print(f"\n{_c4_summary()}")
+    print("  placeholders are notation, not references "
+          "(non-numeric Requirement numbers)")
     return 1
 
 
