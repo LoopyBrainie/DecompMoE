@@ -1,0 +1,23 @@
+== test shape ==
+  test function      : test_mci_centered_covariance_upper_endpoint_unreachable  (lines 135-182)
+  d_c literal(s)     : tests\test_metrics.py:153 (d_c = 16)
+  parametrize marks  : none
+  => the d_c sweep below is a property of the CONSTRUCTION, not of the test suite.
+
+torch 2.12.1+cu130
+threshold literal: 1e-10  (tests/test_metrics.py:161 and :166)
+
+ d_c        eigvals[0]    nonzero   rank_ok  nearzero_ok   verdict
+   8     -7.450581e-09     7/7         True         True      PASS
+  16     -7.450581e-09    15/15        True         True      PASS
+  32     -2.001177e-18    31/31        True         True      PASS
+  64     +1.117587e-08    64/63       False        False       RED
+
+== provenance ==
+  HEAD               : ded0944b9e77347e907b571c132de46520b22f64
+  commits touching tests\test_metrics.py: 24
+      ded0944 fix(metrics,tests): close four in-scope findings from the independent review
+      642d8e9 fix(metrics): make the all-dead SP sentinel distinguishable from a live 0.0
+      df4a1d2 archive(generalize-numeric-comparison-tolerance-obligation): declare the tolerance obligation and gate it
+      726f012 fix(math): make R_H's log constant float64, relabel the Voronoi angle table, and measure the gradient bound the spec actually claims
+      5c49037 fix(cross-ref): close the pointer-detector blind spot and sweep 75 sites

@@ -1,0 +1,11 @@
+schema: spec-driven
+created: 2026-10-15
+# This change re-baselines and self-corrects the two audit ledgers under
+# `.audit/gradual-review-2026-10-07/lists/` (gitignored, non-capability artifacts).
+# No requirement changes, so it declares no spec delta -- which also makes it
+# structurally incapable of the archive-time anchor loss that affects
+# delta-carrying changes.
+#
+# Shape precedent: archive/2026-10-03-fix-a6-audit-ledger-accuracy-and-rebaseline
+# (same "ledger is N commits stale" defect class, same skip_specs justification).
+skip_specs: true

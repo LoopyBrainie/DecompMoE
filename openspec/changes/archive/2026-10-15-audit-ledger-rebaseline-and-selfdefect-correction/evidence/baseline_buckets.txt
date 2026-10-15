@@ -1,0 +1,15 @@
+{
+  "buckets": {
+    "archive-only": 12,
+    "conflict": 22,
+    "context": 9,
+    "direct-fix": 32,
+    "opsx-change": 8,
+    "user-decision": 5
+  },
+  "total": 88
+}
+
+opsx-change (8): FIX-001, FIX-006, FIX-007, FIX-020, FIX-029, FIX-034, FIX-041, FIX-042
+
+direct-fix (32): ARC-002, FIX-002, FIX-003, FIX-004, FIX-005, FIX-008, FIX-009, FIX-010, FIX-012, FIX-013, FIX-014, FIX-015, FIX-016, FIX-017, FIX-018, FIX-019, FIX-021, FIX-023, FIX-025, FIX-026, FIX-027, FIX-028, FIX-030, FIX-031, FIX-032, FIX-035, FIX-036, FIX-038, FIX-040, FIX-043, FIX-044, FIX-045

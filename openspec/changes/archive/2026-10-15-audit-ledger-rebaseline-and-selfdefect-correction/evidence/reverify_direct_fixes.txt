@@ -1,0 +1,167 @@
+PIN     = dde0e1d
+HEAD    = ded0944b9e77347e907b571c132de46520b22f64
+
+### FIX-008 — CRITICAL
+    location: `scripts/lint_pointer_detector.py:345`
+    scripts/lint_pointer_detector.py                 commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+
+### FIX-009 — CRITICAL
+    location: `scripts/pointer_scan.py:832-841`（`scan()` 内 `p = root / rel.replace("/", "\\")`，其后 `if not p.exists(): continue`）
+    scripts/pointer_scan.py                          commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+
+### FIX-010 — MAJOR
+    location: `scripts/lint_pointer_detector.py:322`（`check len(live_actionable) == 0`）与 `:336`（`check len(live) > 0`）
+    scripts/lint_pointer_detector.py                 commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+
+### FIX-012 — MAJOR
+    location: `scripts/lint_no_dead_defensive.py:37-51`（三条 PATTERNS，全部硬编码 arity = 2）、`:61`（`JUSTIFIED_EXEMPTIONS = []`）、`:69`（`SRC_DIR.glob("*.py")` 非递归且从不扫 `tests/
+    scripts/lint_no_dead_defensive.py                commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+    src/decompmoe/schedule.py                        commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+
+### FIX-013 — MAJOR
+    location: `scripts/lint_no_line_pointers.py`（作用域 `SCAN_ROOTS` @`:81`、`SCAN_SUFFIX` @`:82`、正则 `RE_ANCHOR` @`:122` / `RE_HEADING` @`:123` / `RE_REF_HASH` @`:126` 
+    scripts/lint_no_line_pointers.py                 commits pin..HEAD=0   exists=True  cited-line=n/a
+
+### FIX-014 — MINOR
+    location: `scripts/run_gates.py:815`（`_run([sys.executable, "-m", "pytest", "-q"])`）
+    scripts/run_gates.py                             commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+
+### FIX-002 — MAJOR
+    location: `tests/test_distance.py:50`、`:62-74`、`:104`（`distance.logit` 的全部求值点）；`tests/test_beta.py:175-196`（内联式 `test_logit_range`）；`tests/test_beta.py:198,223,
+    tests/test_distance.py                           commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+    tests/test_beta.py                               commits pin..HEAD=3   exists=True  cited-line=IN-RANGE
+
+### FIX-003 — MAJOR
+    location: `tests/test_extraction.py:496-544`（`def` 恰在 496 行；夹具 L523 `X = torch.zeros(T, d_c)`）；`tests/test_extraction.py:438`（`test_empty_cell_preserves_centroi
+    tests/test_extraction.py                         commits pin..HEAD=1   exists=True  cited-line=IN-RANGE
+    tests/test_extraction_phase.py                   commits pin..HEAD=1   exists=True  cited-line=IN-RANGE
+    src/decompmoe/extraction.py                      commits pin..HEAD=1   exists=True  cited-line=IN-RANGE
+
+### FIX-004 — MAJOR
+    location: `src/decompmoe/extraction.py:171-176`（EMA 分支的 `use_old` 判据）；测试侧唯一两个真触发测试 `tests/test_extraction.py:547` 与 `tests/test_extraction.py:616`，触发的都是 `extrac
+    src/decompmoe/extraction.py                      commits pin..HEAD=1   exists=True  cited-line=IN-RANGE
+    tests/test_extraction.py                         commits pin..HEAD=1   exists=True  cited-line=IN-RANGE
+    extraction.py                                    commits pin..HEAD=0   exists=False  cited-line=n/a
+
+### FIX-017 — MAJOR
+    location: `src/decompmoe/schedule.py:131-133`（引用 Scenario「Phase-2 entry γ reset places β^param in the cap-saturated region」）；`tests/test_loss.py:21-22`（「L_lb cl
+    src/decompmoe/schedule.py                        commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+    tests/test_loss.py                               commits pin..HEAD=1   exists=True  cited-line=IN-RANGE
+    tests/test_sphere.py                             commits pin..HEAD=1   exists=True  cited-line=IN-RANGE
+    openspec/specs/wayfinder/spec.md                 commits pin..HEAD=1   exists=True  cited-line=IN-RANGE
+    openspec/specs/decompmoe-skeleton/spec.md        commits pin..HEAD=1   exists=True  cited-line=IN-RANGE
+
+### FIX-005 — MINOR
+    location: `tests/test_extraction.py:616`（`test_phase_4_sgd_near_zero_candidate_fallback`）
+    tests/test_extraction.py                         commits pin..HEAD=1   exists=True  cited-line=IN-RANGE
+
+### FIX-025 — MINOR
+    location: `src/decompmoe/metrics.py` 的退化分支 —— CG 的 `numel()==0`、D_chord 的 `N_e<2`、R_H 的 `n<2`、MCI 的 `T_n≤0`、SP 的全死
+    src/decompmoe/metrics.py                         commits pin..HEAD=2   exists=True  cited-line=n/a
+
+### FIX-043 — MINOR
+    location: `tests/test_a3_contract_alignment.py:600,601`
+    tests/test_a3_contract_alignment.py              commits pin..HEAD=1   exists=True  cited-line=IN-RANGE
+
+### FIX-018 — MAJOR
+    location: `openspec/specs/wayfinder/spec.md:602`（req-25「MUST provide a production-ready visualization toolchain with six modules」）与 `:608`（「each of the six modu
+    openspec/specs/wayfinder/spec.md                 commits pin..HEAD=1   exists=True  cited-line=IN-RANGE
+    src/decompmoe/viz.py                             commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+    CLAUDE.md                                        commits pin..HEAD=1   exists=True  cited-line=n/a
+    tests/test_viz_protocols.py                      commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+    openspec/specs/decompmoe-skeleton/spec.md        commits pin..HEAD=1   exists=True  cited-line=IN-RANGE
+    openspec/changes/archive/2026-08-19-add-decompoe-skeleton-with-tdd-tests/design.md commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+
+### ARC-002 — MINOR
+    location: `src/decompmoe/` 中不存在 versine；`src/decompmoe/` 中不存在 θ_{1/e}（`grep acos src/` 为空）；θ_{1/e} 的唯一可执行处为 `tests/test_sphere.py:251`；定义在 `openspec/specs/wayfi
+    tests/test_sphere.py                             commits pin..HEAD=1   exists=True  cited-line=IN-RANGE
+    openspec/specs/wayfinder/spec.md                 commits pin..HEAD=1   exists=True  cited-line=IN-RANGE
+    openspec/specs/decompmoe-skeleton/spec.md        commits pin..HEAD=1   exists=True  cited-line=IN-RANGE
+
+### FIX-016 — MINOR
+    location: `src/decompmoe/metrics.py:73-75`（注释「req-1 pins the public surface at the 75-name union, so … push it to 76」）；对照 `src/decompmoe/__init__.py:13-14` 与 `t
+    src/decompmoe/metrics.py                         commits pin..HEAD=2   exists=True  cited-line=IN-RANGE
+    src/decompmoe/__init__.py                        commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+    tests/test_a3_contract_alignment.py              commits pin..HEAD=1   exists=True  cited-line=IN-RANGE
+
+### FIX-019 — MINOR
+    location: `src/decompmoe/viz.py:1`；`tests/test_viz_protocols.py:3,23`（Req 21）；`tests/test_beta.py:291`（「Req 22 Operational Domain」，编号与标题矛盾，实为 skeleton req-20 / 
+    src/decompmoe/viz.py                             commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+    tests/test_viz_protocols.py                      commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+    tests/test_beta.py                               commits pin..HEAD=3   exists=True  cited-line=IN-RANGE
+
+### FIX-026 — MINOR
+    location: `tests/test_beta.py:131-132`（字面量 `1.0350582488933886469`）对照 `openspec/specs/wayfinder/spec.md` req-7（`1.035060160968266571803`）
+    tests/test_beta.py                               commits pin..HEAD=3   exists=True  cited-line=IN-RANGE
+    openspec/specs/wayfinder/spec.md                 commits pin..HEAD=1   exists=True  cited-line=n/a
+
+### FIX-045 — MINOR
+    location: `openspec/specs/decompmoe-skeleton/spec.md:491`（req-19 的 Scenario 1 的一条 `- **THEN**` 子句，单行 1658 字符；req-19 锚点 @L482、标题 @L484）
+    openspec/specs/decompmoe-skeleton/spec.md        commits pin..HEAD=1   exists=True  cited-line=IN-RANGE
+
+### FIX-015 — MAJOR
+    location: `openspec/changes/archive/2026-09-23-07-fix-spec-territory-seeding-phase-0/tasks.md`（唯一一处非 UTF-8 的受追踪 blob，offset 32 处非法续字节）
+    openspec/changes/archive/2026-09-23-07-fix-spec-territory-seeding-phase-0/tasks.md commits pin..HEAD=0   exists=True  cited-line=n/a
+
+### FIX-021 — MAJOR
+    location: `openspec/changes/**` 的 430 份散文制品（已排除 263 份 `evidence/`）
+    -> NO repository path parsed from location
+
+### FIX-023 — MAJOR
+    location: `wayfinder/tickets/A6b-1.md:35`（「竞争动力学辅助 β 更新」，位于 Question 段）；同文件 `:119` 的 Resolution 记「β_i (Projected SGD, β 自由学习)」；`:62-71` 的 β_max(t) 硬 ramp 与 `:78
+    wayfinder/tickets/A6b-1.md                       commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+    wayfinder/tickets/A6b-2.md                       commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+
+### FIX-030 — MAJOR
+    location: `wayfinder/map.md:67`（声称 Scenarios = 103）对照 `openspec/specs/wayfinder/spec.md` @ `dde0e1d`（实测 105）
+    wayfinder/map.md                                 commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+    openspec/specs/wayfinder/spec.md                 commits pin..HEAD=1   exists=True  cited-line=n/a
+
+### FIX-031 — MAJOR
+    location: `openspec/changes/**` 与 `openspec/specs/**` 中的裸 `<capability>/spec.md` 引用共 100 处
+    /spec.md                                         commits pin..HEAD=0   exists=False  cited-line=n/a
+
+### FIX-032 — MAJOR
+    location: `openspec/changes/archive/**` 中 32 个 change 的 `tasks.md`，合计 167 个未勾选的 `- [ ]` 复选框
+    tasks.md                                         commits pin..HEAD=0   exists=False  cited-line=n/a
+
+### FIX-035 — MINOR
+    location: `openspec/changes/2026-09-26-followup-spec-wording-bugs-after-precision-disclosure` 与 `openspec/changes/fix-review-findings-voronoi-precision-and-line
+    -> NO repository path parsed from location
+
+### FIX-044 — MINOR
+    location: `wayfinder/map.md:54`（只标注 θ_Voronoi 25.75°，同行的 `N_e=64` / Capacity Factor 32x / β schedule 1.0→16 无标注）、`:55`（只标注 θ_Voronoi≈52°）、`:45`（A2-2 修订有正文措辞但无 `
+    wayfinder/map.md                                 commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+    wayfinder/tickets/A5-3.md                        commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+
+### FIX-027 — MAJOR
+    location: `.audit/README.md:11-29`（顶层索引）与 `:22-28`（audit-verification 子目录清单）；对照 `audit-verification/README.md:15-25`
+    .audit/README.md                                 commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+    audit-verification/README.md                     commits pin..HEAD=0   exists=False  cited-line=n/a
+
+### FIX-028 — MAJOR
+    location: `.audit/wayfinder-opsx-code-review/README.md:37`（推进量与文件足迹）、`:7`（范围声明）、`:56-60`（五项免责声明）；`.audit/wayfinder-opsx-code-review/context/07-baseline-drift.md
+    .audit/wayfinder-opsx-code-review/README.md      commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+    .audit/wayfinder-opsx-code-review/context/07-baseline-drift.md commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+
+### FIX-036 — MAJOR
+    location: `.audit/wayfinder-opsx-code-review/context/06-known-false-positives.md:15`（记 10 条被结构性反证推翻）与 `:42`（§1 标题写 17 条）；`.audit/wayfinder-opsx-code-review/` 的 
+    .audit/wayfinder-opsx-code-review/context/06-known-false-positives.md commits pin..HEAD=0   exists=True  cited-line=IN-RANGE
+    classified.json                                  commits pin..HEAD=0   exists=False  cited-line=n/a
+
+### FIX-038 — MAJOR
+    location: `.audit/reviews/` 的 12 个 harness —— `_count_entries.py:44-47`（写 `_states_*.txt`）、`_mutation_audit{,2,3}.py`（写 `.json`）；无落盘输出的 6 个为 `_verify_rtol.py`、`
+    _count_entries.py                                commits pin..HEAD=0   exists=False  cited-line=n/a
+    _verify_rtol.py                                  commits pin..HEAD=0   exists=False  cited-line=n/a
+    _dbg.py                                          commits pin..HEAD=0   exists=False  cited-line=n/a
+    _verify_findings.py                              commits pin..HEAD=0   exists=False  cited-line=n/a
+    _check_lint_regression.py                        commits pin..HEAD=0   exists=False  cited-line=n/a
+
+### FIX-040 — MINOR
+    location: `audit-verification/README.md`（声明 2353）、`spec-math-audit/README.md`（声明 1018 / 592 / 2870 / 4399）、`spec-math-audit/README.md` 内部尺寸表
+    audit-verification/README.md                     commits pin..HEAD=0   exists=False  cited-line=n/a
+    spec-math-audit/README.md                        commits pin..HEAD=0   exists=False  cited-line=n/a
+
+==============================================================================
+cited-path totals: untouched=37 touched=26 unresolvable=2
+A verdict still requires reading each entry (design.md D-4).

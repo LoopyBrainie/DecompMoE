@@ -1,0 +1,82 @@
+HEAD = ded0944b9e77347e907b571c132de46520b22f64
+torch = 2.12.1+cu130
+
+==============================================================================
+FIX-001  implicit rtol on comparison calls (tests/ + src/)
+==============================================================================
+  comparison calls scanned (non-fixture) : 44
+  calls WITHOUT an explicit rtol=       : 0
+
+==============================================================================
+FIX-006  metrics.py all-dead SP sentinel
+==============================================================================
+  `return torch.full(..., float('nan'))` present : True
+  docstring forbids reporting 0.0              : True
+
+==============================================================================
+FIX-007  wayfinder req-30 three-in-one-line defects
+==============================================================================
+  req-30 anchor line : 798
+  witness demoted ('one WITNESS')           : True
+  off-sphere form declared WRONG            : True
+  supremum, not attained                    : True
+  beta_max not attained by finite gamma     : True
+  legacy beta*c/||C|| named as wrong        : True
+
+==============================================================================
+FIX-020  governance req-gov-1 enumeration vs general obligation
+==============================================================================
+  req-gov-1 numbered obligations : [1, 2, 3, 4, 5, 6, 7]
+  req-gov-1 Scenario blocks      : 6
+  derivation obligation scoped to rtol : 3 clause(s)
+      …A numerical comparison performed by a comparator whose relative-tolerance parameter defaults to a nonzero value MUST supply that parameter explicitly,…
+      …- **WHEN** a test compares two values with a comparator whose relative-tolerance parameter defaults to a nonzero value (e.g. `torch.allclose` with `rt…
+      …- **WHEN** a test supplies the relative-tolerance parameter explicitly with a value derived from the protected quantity's magnitude and the spec-decla…
+  explicit EXEMPTION of the absolute-only form : True
+      spec.md:666  …d default relative term. A comparator whose relative term defaults to absent (an absolute-only form) is not constrained by this Requirement.…
+
+==============================================================================
+FIX-034  wayfinder req-11 seeded-MC co-location
+==============================================================================
+  req-11 anchor line : 247
+  A_i named the MC estimator, same sentence as theta-hat: True
+  theta-hat estimator form present                    : True
+  tolerance obligation cross-referenced by id         : True
+  symbol 'Â' anywhere under openspec/specs/ : NOT FOUND
+
+==============================================================================
+FIX-041  governance req-gov-9 dangling reference
+==============================================================================
+  `req-gov-9` anchors across the 3 specs : 0
+  `req-gov-9` prose references in openspec/ : 43
+  per-file counts:
+      openspec/changes/archive/2026-10-03-a5-archive-gate-executability/design.md:1
+      openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/anchor-ledger-before.json:2
+      openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/anchor-ledger-post.json:2
+      openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/gen_deltas.py:1
+      openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/incident.md:2
+      openspec/changes/archive/2026-10-03-a5-archive-gate-executability/evidence/verify_deltas.py:1
+      openspec/changes/archive/2026-10-03-a5-archive-gate-executability/proposal.md:1
+      openspec/changes/archive/2026-10-03-a5-archive-gate-executability/specs/governance/spec.md:1
+      openspec/changes/archive/2026-10-03-a5-archive-gate-executability/tasks.md:2
+      openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/anchor-ledger-before.json:1
+      openspec/changes/archive/2026-10-03-fix-a5-review-findings-round-2/design.md:4
+      openspec/changes/archive/2026-10-03-fix-a5-review-findings-round-2/evidence/anchor-ledger-before.json:1
+      openspec/changes/archive/2026-10-03-fix-a5-review-findings-round-2/evidence/gen_deltas.py:7
+      openspec/changes/archive/2026-10-03-fix-a5-review-findings-round-2/evidence/verify_deltas.py:3
+      openspec/changes/archive/2026-10-03-fix-a5-review-findings-round-2/proposal.md:2
+      openspec/changes/archive/2026-10-03-fix-a5-review-findings-round-2/specs/governance/spec.md:1
+      openspec/changes/archive/2026-10-03-fix-a5-review-findings-round-2/tasks.md:3
+      openspec/changes/archive/2026-10-04-archive-evidence-provenance/design.md:3
+      openspec/changes/archive/2026-10-04-archive-evidence-provenance/tasks.md:1
+      openspec/changes/archive/2026-10-04-close-gate-snapshot-and-ledger-class-drift/design.md:1
+      openspec/changes/archive/2026-10-13-generalize-numeric-comparison-tolerance-obligation/design.md:1
+      openspec/changes/archive/2026-10-13-generalize-numeric-comparison-tolerance-obligation/proposal.md:1
+      openspec/changes/archive/2026-10-14-opx2-sp-all-dead-nan-and-box-attainment/design.md:1
+
+==============================================================================
+FIX-042  SOURCE_EXEMPTIONS grandfathered absences
+==============================================================================
+  total exemptions : 20
+      decompmoe-skeleton     19
+      wayfinder              1

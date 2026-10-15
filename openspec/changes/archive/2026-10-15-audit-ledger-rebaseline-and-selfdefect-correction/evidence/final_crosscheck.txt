@@ -1,0 +1,31 @@
+classified.json  bucket opsx-change = 8  bucket direct-fix = 32
+opsx-changes.md  entries carrying a HEAD 复验 field = 8
+direct-fixes.md  entries carrying a HEAD 复验 field = 0  (must be 0)
+evidence/reverify/*.md = 17
+
+--- opsx-change: ledger <-> evidence (bidirectional, keyed by ref) ---
+ref       ledger               evidence             commit    ok
+FIX-001   CLOSED_BY_COMMIT     CLOSED_BY_COMMIT     df4a1d2   OK
+FIX-006   CLOSED_BY_COMMIT     CLOSED_BY_COMMIT     642d8e9   OK
+FIX-007   CLOSED_BY_COMMIT     CLOSED_BY_COMMIT     c568803   OK
+FIX-020   NARROWED             NARROWED             —         OK
+FIX-029   STILL_REPRODUCES     STILL_REPRODUCES     —         OK
+FIX-034   ENTRY_MISSTATED      ENTRY_MISSTATED      —         OK
+FIX-041   STILL_REPRODUCES     STILL_REPRODUCES     —         OK
+FIX-042   STILL_REPRODUCES     STILL_REPRODUCES     —         OK
+
+--- direct-fix: records exist, ledger must NOT carry per-entry verdicts ---
+  FIX-008   record=yes  ledger_verdict_field=none (ok)
+  FIX-009   record=yes  ledger_verdict_field=none (ok)
+  FIX-010   record=yes  ledger_verdict_field=none (ok)
+  FIX-012   record=yes  ledger_verdict_field=none (ok)
+  FIX-013   record=yes  ledger_verdict_field=none (ok)
+  FIX-014   record=yes  ledger_verdict_field=none (ok)
+  FIX-015   record=yes  ledger_verdict_field=none (ok)
+  FIX-023   record=yes  ledger_verdict_field=none (ok)
+  FIX-044   record=yes  ledger_verdict_field=none (ok)
+
+CLOSED_BY_COMMIT = 3 ; 修复 commit fields = 3 ; D-1 invariant: OK
+value distribution: {'CLOSED_BY_COMMIT': 3, 'ENTRY_MISSTATED': 1, 'NARROWED': 1, 'STILL_REPRODUCES': 3}
+
+CROSSCHECK OK — bidirectional, no orphans on either side, D-1 invariant holds

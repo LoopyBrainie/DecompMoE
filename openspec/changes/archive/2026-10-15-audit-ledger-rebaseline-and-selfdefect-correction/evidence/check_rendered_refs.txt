@@ -1,0 +1,16 @@
+--- opsx-changes.md (bucket == opsx-change) ---
+classified.json denominator : 8
+rendered entry headings     : 8 (unique 8)
+section headings (excluded) : 2 -> ['不重不漏（本桶内，实测）', '本节明确不覆盖的范围']
+missing from file           : none
+extra in file               : none
+VERDICT                     : MATCH
+
+--- direct-fixes.md (bucket == direct-fix) ---
+classified.json denominator : 32
+rendered entry headings     : 32 (unique 32)
+section headings (excluded) : 2 -> ['不重不漏（本桶内，实测）', '本节明确不覆盖的范围']
+missing from file           : none
+extra in file               : none
+VERDICT                     : MATCH
+

@@ -1,0 +1,267 @@
+==============================================================================
+PASS 1  raw pattern hits in each list's BODY
+==============================================================================
+
+--- lists/direct-fixes.md  (55226 chars, 633 lines) ---
+  total raw hits = 6
+    L10   [目标值]  …置方案表。读者用它判断「哪里有问题」，如何处置由人另行决定；因此全文不给出改法、目标值、优先级或处理顺序。…
+    L10   [优先]  …。读者用它判断「哪里有问题」，如何处置由人另行决定；因此全文不给出改法、目标值、优先级或处理顺序。…
+    L59   [改成]  …跨文件对照。**分类**回答的是这一条属于哪一类直接修改；**不回答**怎么改、改成什么值、先做哪条 —— 改法、目标值、优先级、处理顺序仍全部不在本文件内。类内按…
+    L59   [目标值]  …一条属于哪一类直接修改；**不回答**怎么改、改成什么值、先做哪条 —— 改法、目标值、优先级、处理顺序仍全部不在本文件内。类内按 severity（CRITICAL…
+    L59   [优先]  …哪一类直接修改；**不回答**怎么改、改成什么值、先做哪条 —— 改法、目标值、优先级、处理顺序仍全部不在本文件内。类内按 severity（CRITICAL →…
+    L576  [优先]  …/ `fa2f0dc` / `34b445a` / 仓外 `f8e5b26`）无优先级声明，见 CFL-017。…
+
+--- lists/opsx-changes.md  (25045 chars, 212 lines) ---
+  total raw hits = 16
+    L6    [修复]  …**性质**：这是**已定位问题的存目**，不是修复方案表。读者用它判断「哪里有问题」，怎么处理由人另行决定；因此全文不给出改法、目…
+    L6    [目标值]  …复方案表。读者用它判断「哪里有问题」，怎么处理由人另行决定；因此全文不给出改法、目标值、优先级或处理顺序。…
+    L6    [优先]  …。读者用它判断「哪里有问题」，怎么处理由人另行决定；因此全文不给出改法、目标值、优先级或处理顺序。…
+    L31   [改成]  …对照。**分类**回答的是这一条属于哪一次 change；**不回答**怎么改、改成什么值、先做哪条 —— 改法、目标值、优先级、处理顺序仍全部不在本文件内。类内按…
+    L31   [目标值]  …于哪一次 change；**不回答**怎么改、改成什么值、先做哪条 —— 改法、目标值、优先级、处理顺序仍全部不在本文件内。类内按 severity（CRITICAL…
+    L31   [优先]  …change；**不回答**怎么改、改成什么值、先做哪条 —— 改法、目标值、优先级、处理顺序仍全部不在本文件内。类内按 severity（CRITICAL →…
+    L82   [修复]  …HEAD 复验（ded0944）**：`CLOSED_BY_COMMIT` — 修复 commit `df4a1d2`。`tests/` 43 处比较调用、`src…
+    L83   [修复]  …- **修复 commit**：`df4a1d2`（经 `git log -S` 定位引入点…
+    L138  [修复]  …HEAD 复验（ded0944）**：`CLOSED_BY_COMMIT` — 修复 commit `642d8e9`。`src/decompmoe/metrics…
+    L139  [修复]  …- **修复 commit**：`642d8e9`（经 `git log -S` 定位引入点…
+    L155  [改为]  …e sphere**（并给出 `‖C‖ = 2` 处返回一半的反例）；上确界措辞改为「**supremum over the closed range of `β`…
+    L155  [改为]  …ed0944` 的 F1 把 `test_grad_C_bound` 的内联复述改为调用实现。**位置已漂**：本条记的 `:778` 现为 `:798`。…
+    L155  [修复]  …HEAD 复验（ded0944）**：`CLOSED_BY_COMMIT` — 修复 commit `c568803`。req-30 三处缺陷逐项落实：见证条件降为…
+    L156  [修复]  …- **修复 commit**：`c568803`（经 `git log -S` 定位引入点…
+    L174  [修复]  …ants (`1_000_000` and `20260929`)」。无可指名的修复 commit：`dde0e1d..ded0944` 窗口内 `wayfinde…
+    L174  [修复]  …（`design.md` D-1 规定 `ENTRY_MISSTATED` 不带修复 commit 列）。另记两处坐标/记述漂移：problem 段的主语符号写作…
+
+==============================================================================
+PASS 2  quoted spans that appear VERBATIM in an existing artifact  -> (a)
+==============================================================================
+
+--- lists/direct-fixes.md ---
+  (a) verbatim quotes of an existing artifact : 63
+      L94   'git diff HEAD --'
+            <- openspec/changes/archive/2026-10-02-remeasure-and-reverdict-a1-a2-after-integrator-fix/evidence/tools/verify_anchor_three_ways.py
+      L94   'txt = (REPO / rel.replace("/", "\\\\")).read_text(encoding="utf-8")'
+            <- scripts/lint_pointer_detector.py
+      L94   'git ls-tree -r --name-only HEAD'
+            <- openspec/changes/archive/2026-10-01-audit-errata-a1-numeric-guard-list/design.md
+      L104  'p = root / rel.replace("/", "\\\\")'
+            <- scripts/pointer_scan.py
+      L109  'p = root / rel.replace("/", "\\\\")'
+            <- scripts/pointer_scan.py
+      L115  'def scan(root: Path, files=None):'
+            <- scripts/pointer_scan.py
+      L132  'check("product tree has zero actionable pointers",'
+            <- openspec/changes/archive/2026-10-03-close-pointer-blindspot-and-full-tree-sweep/evidence/validate_detector.py
+      L140  'OK (no anti-patterns found)'
+            <- openspec/changes/archive/2026-09-10-fix-safeguards-should-resurrect-signature-drift/tasks.md
+      L140  'except (TypeError, ValueError, OverflowError)'
+            <- src/decompmoe/schedule.py
+      L143  'JUSTIFIED_EXEMPTIONS: list[tuple[str, int, str]] = []'
+            <- scripts/lint_no_dead_defensive.py
+      L143  'for path in sorted(SRC_DIR.glob("*.py")):'
+            <- scripts/lint_no_dead_defensive.py
+      L143  'except (TypeError, ValueError, OverflowError) as exc:'
+            <- src/decompmoe/schedule.py
+      L143  'OK (no anti-patterns found)'
+            <- openspec/changes/archive/2026-09-10-fix-safeguards-should-resurrect-signature-drift/tasks.md
+      L158  'SCAN_ROOTS = ("openspec/specs", "src", "tests")'
+            <- openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/pointer_census.py
+      L158  'SCAN_SUFFIX = (".md", ".py")'
+            <- openspec/changes/archive/2026-10-03-fix-a4-line-pointer-drift-and-anchor-contract/evidence/pointer_census.py
+      L168  '_run([sys.executable, "-m", "pytest", "-q"])'
+            <- scripts/run_gates.py
+      L173  '_run([sys.executable, "-m", "pytest", "-q"])'
+            <- scripts/run_gates.py
+      L179  '_run([sys.executable, "-m", "pytest", "-q"])'
+            <- scripts/run_gates.py
+      L192  'beta * (inner - 1.0)'
+            <- openspec/changes/archive/2026-10-01-audit-errata-a1-numeric-guard-list/design.md
+      L201  'return beta * (inner - 1.0)'
+            <- openspec/changes/archive/2026-10-01-audit-errata-a1-numeric-guard-list/design.md
+      L201  'def test_logit_range() -> None:'
+            <- tests/test_beta.py
+      L207  'use_old = norm < 1e-9'
+            <- src/decompmoe/extraction.py
+      L218  'def test_near_zero_candidate_fallback() -> None:'
+            <- tests/test_extraction.py
+      L218  'X = torch.zeros(T, d_c)'
+            <- tests/test_extraction.py
+      L218  'assert torch.allclose(out[0], centroids[0], atol=1e-12),'
+            <- tests/test_extraction.py
+      L218  'def test_empty_cell_falls_back_to_the_previous_centroid() -> None:'
+            <- tests/test_extraction_phase.py
+      L218  'use_old = norm < 1e-9'
+            <- src/decompmoe/extraction.py
+      L218  'assert torch.allclose(out[e], centroids[e], atol=1e-6),'
+            <- tests/test_extraction_phase.py
+      L235  'use_old = norm < 1e-9'
+            <- src/decompmoe/extraction.py
+      L235  'def test_near_zero_candidate_fallback_phase4() -> None:'
+            <- tests/test_extraction.py
+      L237  'def test_phase_4_sgd_near_zero_candidate_fallback() -> None:'
+            <- tests/test_extraction.py
+      L243  'L_lb closed form on uniform routing'
+            <- tests/test_loss.py
+      L243  'L_sep closed form degenerate boundary'
+            <- tests/test_loss.py
+      L248  '#### Scenario: Phase-2 entry γ reset saturates the operational clamp (float32 frame)'
+            <- openspec/changes/archive/2026-10-04-phase2-gamma-reset-ramp-closure/specs/wayfinder/spec.md
+      L254  '#### Scenario: Output norm equals 1.0 for `‖z‖₂ ≥ ε` (and 0 for `z = 0`)'
+            <- openspec/changes/archive/2026-09-08-fix-spec-math-consistency-and-contract-closure-2026-09/specs/decompmoe-skeleton/spec.md
+      L271  'def test_near_zero_candidate_fallback_phase4() -> None:'
+            <- tests/test_extraction.py
+      L274  'def test_phase_4_sgd_near_zero_candidate_fallback() -> None:'
+            <- tests/test_extraction.py
+      L309  'assert float(metrics.UR(torch.zeros(16))) == 0.0'
+            <- tests/test_a3_contract_alignment.py
+      L309  'assert float(metrics.UR(torch.zeros(4, 16))) == 0.0'
+            <- tests/test_a3_contract_alignment.py
+      L320  'MUST provide a production-ready visualization toolchain with six modules'
+            <- openspec/changes/archive/2026-08-18-introduce-wayfinder-decompoe-spec/specs/wayfinder/spec.md
+      L325  '"""6-module visualization toolchain Protocol stubs (Req 21).'
+            <- src/decompmoe/viz.py
+      L331  '### Requirement: Six-Module Visualization Toolchain'
+            <- openspec/changes/archive/2026-08-18-introduce-wayfinder-decompoe-spec/specs/wayfinder/spec.md
+      L331  '#### Scenario: Toolchain completeness'
+            <- openspec/changes/archive/2026-08-18-introduce-wayfinder-decompoe-spec/specs/wayfinder/spec.md
+      L331  '### Requirement: Six Visualization Module Protocol Stubs'
+            <- openspec/changes/archive/2026-08-19-add-decompoe-skeleton-with-tdd-tests/specs/decompmoe-skeleton/spec.md
+      L348  'theta_1_over_e = math.acos(15.0 / 16.0)  # arccos(1 − 1/β) at β=16'
+            <- tests/test_sphere.py
+      L348  '### Requirement: Voronoi Self-Consistency Threshold'
+            <- openspec/changes/archive/2026-08-19-add-decompoe-skeleton-with-tdd-tests/specs/decompmoe-skeleton/spec.md
+      L359  '# Private, NOT exported: req-1 pins the public surface at the 75-name union, so'
+            <- src/decompmoe/metrics.py
+      L359  '# exposing the window as a public symbol would push it to 76 and desynchronise'
+            <- src/decompmoe/metrics.py
+      L365  'entries: 76 names, plus the 3 dunders below for 79 in total (req-1).'
+            <- src/decompmoe/__init__.py
+      L371  'Req 22 Operational Domain'
+            <- tests/test_beta.py
+      L376  'Req 22 Operational Domain'
+            <- tests/test_beta.py
+      L382  'Phase-4 logit-gradient bound closed-form check (per Req 22 Operational Domain'
+            <- tests/test_beta.py
+      L399  'beta_initial: float = 1.035'
+            <- openspec/changes/archive/2026-09-19-01-fix-ticket-stale-numerical-4file-batch/design.md
+      L407  'DISPLAY FORM, not a normative equality'
+            <- openspec/changes/archive/2026-10-02-a2-round2-spec-math-fixes/specs/decompmoe-skeleton/spec.md
+      L408  'Output norm bounded by [1 − 2ε, 1]'
+            <- tests/test_sphere.py
+      L416  '### Requirement: Spherical L2 Normalization — max(…z…, ε) Formula'
+            <- openspec/changes/archive/2026-09-08-fix-spec-math-consistency-and-contract-closure-2026-09/specs/decompmoe-skeleton/spec.md
+      L468  '### Requirement: Hybrid Three-Layer Phase Triggers'
+            <- openspec/changes/archive/2026-08-18-introduce-wayfinder-decompoe-spec/specs/wayfinder/spec.md
+      L485  '落地 21 锚点 / 21 Requirements / 34 Scenarios *(historical, WF-2 工单当时的落地快照；当前实况 23 ticket / '
+            <- wayfinder/map.md
+      L485  'beta_initial: float = 1.035'
+            <- openspec/changes/archive/2026-09-19-01-fix-ticket-stale-numerical-4file-batch/design.md
+      L536  '锁定：(S) Standard MoE Scaling'
+            <- wayfinder/tickets/A5-3.md
+      L547  'β schedule **1.0 → 16**'
+            <- wayfinder/map.md
+      L547  '**锁定：(S) Standard MoE Scaling（Mixtral 风格）+ 以下 MVP 默认值**'
+            <- wayfinder/tickets/A5-3.md
+      L547  '### 1. Dimension Scaling（4070 MVP 终态）'
+            <- wayfinder/tickets/A5-3.md
+  quoted spans NOT found verbatim in any tracked artifact : 72
+      L5    'git rev-list --count HEAD'
+      L7    'git log --oneline dde0e1d..HEAD -- <cited path>'
+      L9    '标题 32 条 vs 实测 `### ` 条目 31 条，差 1'
+      L40   '| Resolution 实际采纳的 β 方案与 Question 段不同，无'
+      L81   '§1（实测：该文件记录的是四桶的**定义与条数**，48 条的逐条 ref 未在'
+      L94   'git log 34b445a..HEAD -- scripts/lint_pointer_detector.py'
+      L104  'if not p.exists(): continue'
+      L109  'if not p.exists(): continue'
+      L121  'check len(live_actionable) == 0'
+      L121  'check len(live) > 0'
+      L126  'sites=5 actionable=0 historical=5 files=3'
+      L126  'sites=224 actionable=209 historical=15 files=24'
+      L153  'unqualified references skipped: 302'
+      L158  '35 file(s) scanned, 3 spec(s)'
+      L158  'unqualified references skipped: 302'
+      L170  'No module named pytest'
+      L170  'GATE FAIL: 1 gate(s)'
+      L173  'No module named pytest'
+      L192  'beta * (1.0 - inner)'
+      L207  '恰在 496 行；夹具 L523'
+      L210  'candidate = α·c + (1−α)·c = c'
+      L210  '范数恒等；12 种配置下守卫 ON/OFF 的最大分歧为 1.192e-07，低于'
+      L212  '‖candidate‖=[0.900000095367, 0.899999976158, 1.0, 0.999999940395]'
+      L227  '在 binary64 下为 0.09999999999999998，0.9 不可表示，'
+      L237  '但上文所引 `tests/test_extraction_phase.py:616` 在 HEAD 不存在：`tests/test_extraction_phase.py` @'
+      L243  'Phase-2 entry γ reset places β^param in the cap-saturated region'
+      L243  '（「Output norm bounded by [1 − 2ε, 1]」，附截断式 Requirement 名「Spherical L2 Normalization」）；实际'
+      L248  'Rationale (Spec Req 24 "Phase-2 entry γ reset places β^param in the / cap-saturated regi'
+      L262  'candidate[0] = centroids[0] − 1e-2·(centroids[0]/1e-2)'
+      L265  'norms = [0.0, 1.0, 0.999999940395, 1.0]'
+      L273  '上文所引 `tests/test_extraction_phase.py:616` 在 HEAD 不存在：该文件 @HEAD 共 **251** 行，该行号越界（超出文件长度 '
+      L320  '（「each of the six modules is available without bespoke scripting」）；'
+      L320  '（「Real implementations are deferred to a §6/§7 waiver change (per CLAUDE.md §7 Out-of-Sc'
+      L320  '（6 个 render/write 全为'
+      L325  'This module provides ONLY Protocol-level stubs. Real implementations are / deferred to a'
+      L331  '为其 THEN 行 —— 与上文一致；'
+      L339  '中均无实现：versine 由 θ 算'
+      L340  '，而 versine 与 θ_{1/e} 都只是它的旁支表述。数值侧全部确认：θ_{1/e}(β=16) = 0.355421201690223492738454683273 '
+      L354  'req-1 pins the public surface at the 75-name union, so … push it to 76'
+      L365  '报告引 `__init__.py:13`，该文字实际在第 14 行'
+      … and 32 more
+
+--- lists/opsx-changes.md ---
+  (a) verbatim quotes of an existing artifact : 8
+      L64   'torch.allclose(norms, torch.ones_like(norms), atol=1e-6, rtol=0.0)'
+            <- src/decompmoe/sphere.py
+      L125  'Dead-expert SP is undefined'
+            <- openspec/changes/archive/2026-08-21-fix-openspec-doc-bugs/specs/wayfinder/spec.md
+      L136  '#### Scenario: Dead-expert SP is undefined'
+            <- openspec/changes/archive/2026-08-21-fix-openspec-doc-bugs/specs/wayfinder/spec.md
+      L142  'Phase 2 β Box Equality'
+            <- openspec/changes/archive/2026-08-23-fix-math-consistency-audit-2026-08/design.md
+      L155  '∂logit/∂C = β · c / ‖C‖'
+            <- openspec/changes/archive/2026-08-23-fix-math-consistency-audit-2026-08/specs/wayfinder/spec.md
+      L159  'θ̂ ≤ G⁻¹((1/N_e)·Σ_i A_i) = G⁻¹(1/N_e) = canonical_voronoi_angle(N_e, d_c)'
+            <- openspec/changes/archive/2026-09-29-fix-voronoi-angle-measurement-layer-semantics/specs/decompmoe-skeleton/spec.md
+      L172  '`A_i` MUST be estimated by seeded Monte-Carlo over `VORONOI_AREA_SAMPLES` uniform probes'
+            <- openspec/changes/archive/2026-09-29-fix-voronoi-angle-measurement-layer-semantics/specs/decompmoe-skeleton/spec.md
+      L172  'θ̂ = (1/N_e) Σ G⁻¹(A_i) ≤ G⁻¹((1/N_e) Σ A_i) = G⁻¹(1/N_e) = canonical'
+            <- src/decompmoe/sphere.py
+  quoted spans NOT found verbatim in any tracked artifact : 55
+      L5    'git rev-list --count HEAD'
+      L7    '共 88 条；本桶 8 条）。**ledger 中'
+      L51   '§1（实测：该文件记录的是四桶的**定义与条数**，48 条的逐条 ref 未在'
+      L62   '直接决定测试是否失明；在量级为 1 附近的量上影响可忽略。本项与 CFL-005 相互制约：报告「全仓」的表述因'
+      L66   'through silently; the byte-exact \\`torch.allclose(..., atol=1e-12)\\`'
+      L68   '逐字为「change 处理——F-9 修好之前补 F-8 是无效功。」（属 F-8 段，非预裁决），预裁决正文起于 **'
+      L68   '**（「**用户已预先裁决 F-9 的修法**：float64 守护「机器精度恒等」，float32 另设一个可达容差。」）并延至'
+      L78   'through silently; the byte-exact \\'
+      L83   'git merge-base --is-ancestor dde0e1d df4a1d2'
+      L83   "git log --oneline dde0e1d..HEAD | grep -c '^df4a1d2'"
+      L83   'git merge-base --is-ancestor df4a1d2 dde0e1d'
+      L88   '阈值须由该 dtype 的 eps 与量的尺度推导'
+      L89   '/ dtype eps / 噪声底（见 CTX-002）。req-gov-1 中'
+      L89   '的惰性被测量并陈述了 4 次，且该测量的框架（pytest 9.1.1 上'
+      L89   '恰为 0）本身是有效的，这一点报告未质疑。本项最薄弱处是义务 7 的 σ 推导要求与断言表达式不同处：散文满足、断言未满足 ——'
+      L91   '0 字面。义务 3 与 7 的行使位置见'
+      L100  'A comparator whose relative term defaults to absent (an absolute-only form) **is not con'
+      L125  'MUST NOT be reported as 0'
+      L125  'e.g. … or omitted'
+      L128  '候选项而非强制位；二是 wayfinder req-20 未给 SP 的数值范围，'
+      L128  '落在 skeleton req-22 给出的'
+      L128  '内，故「0.0 违规」的路径并不直接成立。spec 侧另有一处空白：wayfinder/spec.md:496 的 Scenario 只规定单个死专家的行为，从未规定全体皆死时'
+      L128  '−1−1e-6 ≤ SP ≤ 1+1e-6'
+      L136  '- **THEN** … NOT as \\'
+      L139  'git merge-base --is-ancestor dde0e1d 642d8e9'
+      L139  "git log --oneline dde0e1d..HEAD | grep -c '^642d8e9'"
+      L139  'git merge-base --is-ancestor 642d8e9 dde0e1d'
+      L144  '严格小于 32，故 32 是上确界而非最大值，'
+      L147  'β ∈ {0.1,1,16.05,32} × d_c ∈ {2,3,16,64}'
+      L147  '‖∂logit/∂C‖₂ = β‖c‖₂ = β'
+      L147  '时环境范数处处为 32，但 float64 中需'
+      L153  'in Req 7 MUST be attained (not merely bounded above) at the worst-case configuration: \\'
+      L155  '`c ⟂ C` is one WITNESS, not a necessary condition'
+      L155  '**supremum over the closed range of `β`, not a value attained by any finite `γ`**'
+      L156  'git merge-base --is-ancestor dde0e1d c568803'
+      L156  "git log --oneline dde0e1d..HEAD | grep -c '^c568803'"
+      L156  'git merge-base --is-ancestor c568803 dde0e1d'
+      L162  'G′(θ) = sin^{d_c−2}θ/B → 0'
+      L162  '1/(d_c−1) ≤ 1/2 < 1'
+      L164  'G⁻¹′ = B(7.5,½) = 0.658077758002940'
+      … and 15 more
