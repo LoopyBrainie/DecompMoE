@@ -832,7 +832,19 @@ def _git(root: Path, *args, binary=False):
 def scan(root: Path, files=None):
     sites = []
     for rel in (files if files is not None else tracked_files(root)):
-        p = root / rel.replace("/", "\\")
+        # Join the POSIX-style relative path AS GIVEN. The separator rewrite
+        # this line used to carry (``rel.replace("/", "\\")``) was a strict
+        # no-op on WindowsPath -- which is exactly why it stayed invisible
+        # here -- and catastrophic on PosixPath, where a backslash is an
+        # ordinary filename character rather than a separator: the whole
+        # relative path collapsed to ONE path component
+        # (``('openspec\\specs\\wayfinder\\spec.md',)``), so every one of the
+        # tracked files missed ``exists()`` and this function returned an
+        # empty list on any POSIX host. The failure was deterministic, not
+        # probabilistic: ``git ls-tree -r --name-only`` reports zero tracked
+        # names containing a backslash. Guarded by
+        # tests/test_lint_pointer_detector.py.
+        p = root / rel
         if not p.exists():
             continue
         text = p.read_text(encoding="utf-8", errors="replace")

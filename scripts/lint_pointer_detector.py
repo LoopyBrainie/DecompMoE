@@ -342,7 +342,12 @@ check("detector still finds the file-level population",
 for rel in ("openspec/specs/wayfinder/spec.md",
             "openspec/specs/decompmoe-skeleton/spec.md",
             "openspec/specs/governance/spec.md"):
-    txt = (REPO / rel.replace("/", "\\")).read_text(encoding="utf-8")
+    # Join the POSIX-style relative path AS GIVEN; see the note on the same
+    # rewrite in pointer_scan.scan(). The rewrite was a no-op on WindowsPath
+    # and collapsed the path to a single filename component on PosixPath, so
+    # this read raised FileNotFoundError on any POSIX host and aborted the
+    # rest of this section. Guarded by tests/test_lint_pointer_detector.py.
+    txt = (REPO / rel).read_text(encoding="utf-8")
     per_line = []
     for n, line in enumerate(txt.splitlines(), 1):
         per_line.extend(
