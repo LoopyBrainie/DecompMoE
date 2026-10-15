@@ -10,13 +10,25 @@ never trigger (PyTorch tensor division returns NaN/Inf, never raises).
 
 This script greps the source for the anti-pattern. On hit, exits non-zero.
 
-Anti-patterns flagged:
-  1. `except (ValueError, ZeroDivisionError)` around tensor division
-  2. `int(...item())` wrapped in try/except (0-d .item() never raises)
-  3. `float(shape[i])` wrapped in try/except (int → float never raises)
+Anti-patterns flagged: an `except (...)` TUPLE whose members are all drawn
+from the exception set the wrapped numeric operations cannot raise -- tensor
+ops return NaN/Inf rather than raising, and int()/round() of a finite float
+return without raising. The arity is deliberately NOT constrained: the three
+patterns this replaces each hardcoded exactly two names, so the one real
+instance in the tree
+
+    except (TypeError, ValueError, OverflowError)
+
+matched none of them and the lint reported OK on a tree that contains it.
+Matching any arity over the same member set is that policy applied
+consistently, not a widened one.
 
 Lines tagged `# noqa: dead-defensive` are EXPLICITLY by-design; all OTHER
-matches are real anti-patterns to fix in code review.
+matches are real anti-patterns to fix in code review. There is no exemption
+TABLE: a central (path, line) key rots on the first line shift above it and
+parks its reason off-document. The inline marker keeps the justification
+beside the code it excuses, which is the convention `scripts/
+lint_no_line_pointers.py` states for itself.
 
 Run as a pre-commit gate or in CI:
     python scripts/lint_no_dead_defensive.py
@@ -28,56 +40,83 @@ import re
 import sys
 from pathlib import Path
 
-SRC_DIR = Path(__file__).resolve().parent.parent / "src" / "decompmoe"
+# `SELF_EXCLUDE` is derived from the detector rather than restated here: the
+# two tools once kept separate copies, they drifted, and the census then
+# reported the detector and its guard tests as 43 actionable pointers. One
+# definition.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import pointer_scan as _ps  # noqa: E402
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+# `tests/**` is in scope for the reason `lint_no_line_pointers.py` puts it
+# there: a lint's own fixtures need real anti-patterns to assert against,
+# and a rule only ever exercised against `src/**` cannot tell "no
+# anti-patterns" from "no fixtures".
+SCAN_ROOTS = ("src/decompmoe", "tests")
+
+#: Directories holding no source that `rglob` would otherwise walk.
+_SKIP_DIRS = frozenset({"__pycache__", ".ruff_cache", ".pytest_cache"})
+
+#: A lint never reports its own fixtures. Applied during the walk, so it
+#: holds however the paths are spelled.
+SELF_TEST_PATTERNS = _ps.SELF_EXCLUDE
 
 NOQA_TAG = "noqa: dead-defensive"
+
+# The exception names the wrapped numeric operations cannot raise. Kept as
+# the union of the three two-name patterns this replaces, so matching any
+# arity admits no exception type that was not already policy.
+_UNREACHABLE = r"TypeError|ValueError|OverflowError|ZeroDivisionError|RuntimeError"
 
 # Patterns that indicate a try/except where the excepted exceptions are
 # mathematically unreachable given the wrapped operation.
 PATTERNS: list[tuple[str, str]] = [
     # (regex, human-readable rationale)
     (
-        r"except\s*\(\s*ValueError\s*,\s*ZeroDivisionError\s*\)",
-        "ValueError+ZeroDivisionError around tensor ops (PyTorch never raises these; returns NaN/Inf instead)",
-    ),
-    (
-        r"except\s*\(\s*ValueError\s*,\s*RuntimeError\s*\)",
-        "ValueError+RuntimeError around 0-d tensor .item() (never raises on 0-d)",
-    ),
-    (
-        r"except\s*\(\s*TypeError\s*,\s*ValueError\s*\)",
-        "TypeError+ValueError around int→float conversion (never raises)",
+        r"except\s*\(\s*(?:" + _UNREACHABLE + r")"
+        r"(?:\s*,\s*(?:" + _UNREACHABLE + r"))*\s*\)",
+        "except tuple drawn entirely from the never-raised set (tensor ops "
+        "return NaN/Inf; int()/round() of a finite float return without "
+        "raising) -- arity-agnostic",
     ),
 ]
 
-# Centralized justified exemptions for `except (...)` patterns that the
-# lint would flag but are REAL input-validation paths (not dead defensive
-# code). Each entry is `(relpath_under_project_root, line_no, reason)`.
-# Adding to this list is the preferred alternative to `# noqa: dead-defensive`
-# on the offending line — justifications live in one auditable place rather
-# than scattered inline. Add new entries only with a rationale commit that
-# cites concrete input-validation evidence (e.g. "float(x) on None raises
-# TypeError; float(NaN) raises ValueError").
-JUSTIFIED_EXEMPTIONS: list[tuple[str, int, str]] = []
+
+def _is_self_test(relpath: str) -> bool:
+    return any(relpath.startswith(prefix) for prefix in SELF_TEST_PATTERNS)
+
+
+def _iter_sources() -> list[Path]:
+    """Every scannable ``.py`` under SCAN_ROOTS, caches and fixtures skipped."""
+    out: list[Path] = []
+    for root in SCAN_ROOTS:
+        base = REPO_ROOT / root
+        for path in base.rglob("*.py"):
+            rel = path.relative_to(base)
+            if any(part in _SKIP_DIRS for part in rel.parts):
+                continue
+            if _is_self_test(path.relative_to(REPO_ROOT).as_posix()):
+                continue
+            out.append(path)
+    return sorted(out)
 
 
 def main() -> int:
-    violations: list[tuple[Path, int, str, str]] = []
-    exempt_set: set[tuple[str, int]] = {
-        (relpath, line_no) for relpath, line_no, _ in JUSTIFIED_EXEMPTIONS
-    }
-    for path in sorted(SRC_DIR.glob("*.py")):
-        relpath = path.relative_to(path.parents[2]).as_posix()
+    violations: list[tuple[str, int, str, str]] = []
+    for path in _iter_sources():
+        # Repo-relative. The previous `path.relative_to(path.parents[2])` was
+        # hard-wired to the depth of `src/decompmoe/*.py`: the moment the
+        # scope reached `tests/`, every reported path -- and every exemption
+        # key -- silently gained a `DecompMoE/` prefix.
+        relpath = path.relative_to(REPO_ROOT).as_posix()
         for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             # Lines with explicit noqa are by-design (see commit message).
             if NOQA_TAG in line:
                 continue
-            # Lines in JUSTIFIED_EXEMPTIONS are real input-validation paths.
-            if (relpath, lineno) in exempt_set:
-                continue
             for pat, reason in PATTERNS:
                 if re.search(pat, line):
-                    violations.append((path, lineno, line.strip(), reason))
+                    violations.append((relpath, lineno, line.strip(), reason))
 
     if not violations:
         print("lint_no_dead_defensive: OK (no anti-patterns found)")
@@ -85,17 +124,15 @@ def main() -> int:
 
     print(f"lint_no_dead_defensive: {len(violations)} violation(s) found")
     print()
-    for path, lineno, line, reason in violations:
-        rel = path.relative_to(path.parents[2])
-        print(f"  {rel}:{lineno}: {reason}")
+    for relpath, lineno, line, reason in violations:
+        print(f"  {relpath}:{lineno}: {reason}")
         print(f"    {line}")
     print()
     print("If a try/except IS justified (e.g. user-provided non-tensor input),")
-    print("either:")
-    print("  (a) add a `# noqa: dead-defensive` comment on the same line and a brief")
-    print("      justification in the commit message (inline suppression); OR")
-    print("  (b) add an entry to JUSTIFIED_EXEMPTIONS in this script with the file,")
-    print("      line, and a reason citing real input-validation evidence (preferred).")
+    print("add a `# noqa: dead-defensive` comment on the same line and a brief")
+    print("justification in the commit message. Inline suppression only -- there")
+    print("is no exemption table, whose (path, line) keys rot on the first line")
+    print("shift above them and park their reason off-document.")
     return 1
 
 

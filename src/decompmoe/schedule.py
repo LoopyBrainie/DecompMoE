@@ -45,10 +45,15 @@ def phase_boundaries(total_steps: int = _DEFAULT_TOTAL) -> tuple[int, ...]:
             raise ValueError(
                 f"non-finite boundary: ratio={ratio}, total_steps={total_steps}"
             )
-        try:
-            out.append(int(round(raw)))
-        except (TypeError, ValueError, OverflowError) as exc:
-            raise ValueError(f"invalid boundary value: {raw!r}") from exc
+        # No handler: `raw` is finite here -- the `math.isfinite` guard above
+        # raises first -- and `round()` of a finite float returns an int, so
+        # TypeError / ValueError / OverflowError are all unreachable. The
+        # try/except that stood here was the "fix-commit-induced-dead-
+        # defensive-code" anti-pattern `scripts/lint_no_dead_defensive.py`
+        # exists to catch; having been written after that lint, it also
+        # slipped past its three patterns, which matched only tuples of
+        # exactly two exception names.
+        out.append(int(round(raw)))
     return tuple(out)
 
 
