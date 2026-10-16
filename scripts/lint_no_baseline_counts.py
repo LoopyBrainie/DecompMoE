@@ -122,6 +122,7 @@ line of triage; under-inclusion is how this family has come back before.
 """
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import sys
@@ -456,10 +457,8 @@ def main() -> int:
     # is indistinguishable from a green one. Degrade the glyph, not the report.
     # Same convention as `lint_no_line_pointers.main`.
     for stream in (sys.stdout, sys.stderr):
-        try:
+        with contextlib.suppress(AttributeError, ValueError):
             stream.reconfigure(encoding="utf-8", errors="replace")
-        except (AttributeError, ValueError):
-            pass
 
     violations: list[tuple[Path, int, str, str]] = []
     scanned = 0

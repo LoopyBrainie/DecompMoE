@@ -50,6 +50,7 @@ every lint having to grow an argument parser.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
@@ -860,10 +861,8 @@ def main(argv: list[str] | None = None) -> int:
     # the report exactly when it mattered most. Degrade the glyph, not the
     # report — same convention as `lint_no_baseline_counts.main`.
     for stream in (sys.stdout, sys.stderr):
-        try:
+        with contextlib.suppress(AttributeError, ValueError):
             stream.reconfigure(encoding="utf-8", errors="replace")
-        except (AttributeError, ValueError):
-            pass
 
     parser = argparse.ArgumentParser(
         prog="run_gates.py",

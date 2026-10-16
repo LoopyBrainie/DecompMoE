@@ -447,12 +447,23 @@ for rel in PINNED_OUT_OF_SCOPE:
 #
 # This bound is a TRIPWIRE, not a proof, and the previous value was not even a
 # tripwire: at 45, deleting the six checks inside `if found:` left 58 and
-# stayed green. At 80 the same deletion leaves 77 and is caught. Losing a whole
-# section (10 checks in section 3, 18 in section 1) is caught comfortably; a
-# single missing check is not, and no count-based bound can catch that. The
-# guard that actually carries the weight is the unbracketed `len(found) > 0`
-# above, which cannot be tuned away from its own purpose.
-MIN_CHECKS = 80
+# stayed green. At 80 the same deletion leaves 77 and is caught.
+#
+# The bound is EXACT, and it has to be: this check counts ITSELF. `check()`
+# increments CHECKS as its first statement, but the `CHECKS >= MIN_CHECKS`
+# comparison is an argument and is therefore evaluated BEFORE that increment --
+# so the run reports 84 while the value compared here is 83. Setting the bound
+# to 84 would compare 83 >= 84 and redden the gate on a clean tree. At 83,
+# deleting any single other check leaves 82 and trips.
+#
+# Raising it is the right direction, not a ratchet: adding a check is a visible
+# reviewed act (it appears in the diff and in the printed count), while losing
+# one silently is exactly the failure this bound exists to catch. A legitimate
+# removal should redden the gate and be acknowledged, not pass unnoticed
+# because four checks of slack absorbed it. The guard that carries the real
+# weight remains the unbracketed `len(found) > 0` above, which cannot be tuned
+# away from its own purpose.
+MIN_CHECKS = 83
 check("at least %d checks executed" % MIN_CHECKS, CHECKS >= MIN_CHECKS,
       "only %d checks ran; a section was skipped" % CHECKS)
 

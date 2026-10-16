@@ -67,6 +67,7 @@ Run as an archive precondition alongside the other two gates, per `CLAUDE.md` §
 
 from __future__ import annotations
 
+import contextlib
 import re
 import sys
 from collections.abc import Iterable, Iterator
@@ -657,10 +658,8 @@ def main(argv: list[str] | None = None) -> int:
     # mid-report, turning a violation list into a crash. Degrade the glyph
     # instead of the report.
     for stream in (sys.stdout, sys.stderr):
-        try:
+        with contextlib.suppress(AttributeError, ValueError):
             stream.reconfigure(encoding="utf-8", errors="replace")
-        except (AttributeError, ValueError):
-            pass
 
     args = list(sys.argv[1:] if argv is None else argv)
     if args:

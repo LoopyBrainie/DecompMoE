@@ -79,6 +79,7 @@ Like `lint_no_line_pointers.py`, this lint never reports its own fixtures.
 """
 from __future__ import annotations
 
+import contextlib
 import re
 import sys
 from pathlib import Path
@@ -360,10 +361,8 @@ def main(argv: list[str] | None = None) -> int:
     # the report. Same convention as `lint_no_line_pointers.main` and
     # `lint_no_baseline_counts.main`.
     for stream in (sys.stdout, sys.stderr):
-        try:
+        with contextlib.suppress(AttributeError, ValueError):
             stream.reconfigure(encoding="utf-8", errors="replace")
-        except (AttributeError, ValueError):
-            pass
 
     args = list(sys.argv[1:] if argv is None else argv)
     paths = collect_paths(args)
