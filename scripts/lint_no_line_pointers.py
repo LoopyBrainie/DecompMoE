@@ -286,19 +286,34 @@ def is_self_test(path: Path) -> bool:
     return any(pat in rel for pat in SELF_TEST_PATTERNS)
 
 
-def collect_paths(args: list[str]) -> list[Path]:
-    """Resolve CLI positional args to scanned files; walk the scan roots if empty."""
-    if args:
-        return [Path(a) for a in args]
-    out: list[Path] = []
+def discover_paths() -> tuple[list[Path], list[Path]]:
+    """Walk SCAN_ROOTS; return `(scanned, excluded_as_self_test)`.
+
+    Split rather than silently dropping the self-test fixtures: a gate that
+    reports "35 file(s) scanned" while 8 more matched the same roots and suffix
+    reads as if it had seen everything. `governance/spec.md:108` REQUIRES the
+    exclusion (a lint never reports its own deliberately malformed fixtures);
+    requiring it does not require hiding it.
+    """
+    kept: list[Path] = []
+    excluded: list[Path] = []
     for root in SCAN_ROOTS:
         base = _REPO_ROOT / root
         if not base.exists():
             continue
         for p in sorted(base.rglob("*")):
-            if p.is_file() and p.suffix in SCAN_SUFFIX and not is_self_test(p):
-                out.append(p)
-    return out
+            if not (p.is_file() and p.suffix in SCAN_SUFFIX):
+                continue
+            (excluded if is_self_test(p) else kept).append(p)
+    return kept, excluded
+
+
+def collect_paths(args: list[str]) -> list[Path]:
+    """Resolve CLI positional args to scanned files; walk the scan roots if empty."""
+    if args:
+        return [Path(a) for a in args]
+    kept, _excluded = discover_paths()
+    return kept
 
 
 def iter_lines(paths: Iterable[Path]) -> Iterator[tuple[Path, int, str]]:
@@ -436,7 +451,14 @@ def capability_from_path(line: str, pos: int, rid: str = "", window: int = 48) -
     """Capability named by a `<capability>/spec.md` path immediately before `pos`."""
     lo = max(0, pos - window)
     best: tuple[int, str] | None = None
-    for m in RE_PATH_CAPABILITY.finditer(line):
+    # `lo` was computed and then ignored: `finditer(line)` scanned the whole
+    # line, so a path named arbitrarily far from the reference still qualified
+    # while `nearest_capability` bounded the same window on both sides. The
+    # asymmetry was invisible because no path qualifier in the corpus is more
+    # than 48 characters from its reference (measured: 0 differences), which
+    # is exactly why it survived. Bounded now for the same reason
+    # `nearest_capability` is -- see its docstring on adjacency.
+    for m in RE_PATH_CAPABILITY.finditer(line, lo):
         if m.end() > pos:
             continue
         cap = m.group(1)
@@ -580,13 +602,29 @@ def check_c4(paths: Iterable[Path],
         if is_self_test(path):
             continue
         own = capability_of_spec(path)
-        refs: list[tuple[str, int]] = []
+        # A citation is matched by MORE THAN ONE regex on purpose: `#req-13`
+        # is RE_REF_HASH on `#req-13` and RE_REF_PLAIN on `req-13`, and the
+        # spans OVERLAP. Counting both made the reported denominator overstate
+        # real coverage -- 934 occurrences over 716 distinct (file, line, rid)
+        # sites, so the judged total was inflated by 22%. Overlap rather than
+        # equality: two separate citations of one id on one line are separated
+        # by text, do not overlap, and are both kept. The FIRST match wins, so
+        # the surviving offset is RE_REF_HASH's own m.start() and the
+        # window/adjacency arithmetic is unchanged.
+        spans: list[tuple[str, int, int]] = []
         for m in RE_REF_HASH.finditer(line):
-            refs.append((m.group(1).lower(), m.start()))
+            spans.append((m.group(1).lower(), m.start(), m.end()))
         for m in RE_REF_PLAIN.finditer(line):
-            refs.append((m.group(1).lower(), m.start()))
+            spans.append((m.group(1).lower(), m.start(), m.end()))
         for m in RE_REF_WORD.finditer(line):
-            refs.append((f"req-{m.group(1)}", m.start()))
+            spans.append((f"req-{m.group(1)}", m.start(), m.end()))
+        kept_spans: list[tuple[str, int, int]] = []
+        refs: list[tuple[str, int]] = []
+        for rid, start, end in spans:
+            if any(k == rid and start < k_end for k, _s, k_end in kept_spans):
+                continue
+            kept_spans.append((rid, start, end))
+            refs.append((rid, start))
         seen += len(refs)
         for rid, pos in refs:
             cap, outcome = resolve_capability(rid, line, pos, own, inventory)
@@ -625,7 +663,14 @@ def main(argv: list[str] | None = None) -> int:
             pass
 
     args = list(sys.argv[1:] if argv is None else argv)
-    paths = collect_paths(args)
+    if args:
+        paths = collect_paths(args)
+        discovered = None
+        excluded_count = 0
+    else:
+        paths, _excluded = discover_paths()
+        discovered = len(paths) + len(_excluded)
+        excluded_count = len(_excluded)
     specs = [p for p in paths if capability_of_spec(p)]
 
     # C2, C3 and C4 are all spec-driven. If no spec file was recognised, they
@@ -644,7 +689,21 @@ def main(argv: list[str] | None = None) -> int:
     inventory = anchor_inventory(specs)
     c4, judged, placeholders, ambiguous, causes = check_c4(paths, inventory)
     violations += c4
-    unresolved_c4 = [v for v in c4 if "does not resolve" in v[3]]
+
+    def _scope_summary() -> str:
+        """Say what was scanned AND what was set aside.
+
+        `governance/spec.md:108` requires the self-test exclusion; it does not
+        license reporting only the residue. 152 reference matches across the 8
+        excluded files were, until this line existed, invisible to anyone
+        reading a green run.
+        """
+        if discovered is None:
+            return ""
+        return (f"  {len(paths)} of {discovered} file(s) matching "
+                f"SCAN_ROOTS x SCAN_SUFFIX were scanned; "
+                f"{excluded_count} excluded as this lint's own fixtures "
+                f"(governance req-gov-2: a lint never reports its own)")
 
     def _c4_summary() -> str:
         """The denominator first. Printing only the skipped counts is what
@@ -668,6 +727,7 @@ def main(argv: list[str] | None = None) -> int:
             f"lint_no_line_pointers: OK ({len(paths)} file(s) scanned, "
             f"{len(inventory)} capability spec(s), no violations)"
         )
+        print(_scope_summary())
         print(_c4_summary())
         return 0
 
@@ -676,6 +736,7 @@ def main(argv: list[str] | None = None) -> int:
     for path, line_no, content, reason in violations:
         print(f"  {path}:{line_no}: {reason}")
         print(f"    {content}")
+    print(f"\n{_scope_summary()}")
     print(f"\n{_c4_summary()}")
     print("  placeholders are notation, not references "
           "(non-numeric Requirement numbers)")
